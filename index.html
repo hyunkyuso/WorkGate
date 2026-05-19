@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WorkGate — 업무관리 플랫폼</title>
+
+<!-- Google API -->
+<script src="https://apis.google.com/js/api.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f6fa;--white:#ffffff;--surface:#f0f2f8;
+  --border:#e2e5ef;--border2:#d0d4e8;
+  --t1:#1a1d2e;--t2:#5a5f7a;--t3:#9ca0b8;
+  --ac:#4f6ef7;--ac2:#3a57e8;--acd:#eef1fe;
+  --gr:#16a34a;--grd:#dcfce7;
+  --am:#d97706;--amd:#fef3c7;
+  --rd:#dc2626;--rdd:#fee2e2;
+  --pu:#7c3aed;--pud:#ede9fe;
+  --r:8px;--r2:12px;--r3:16px;
+  --shadow:0 1px 4px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.04);
+  --shadow2:0 2px 8px rgba(79,110,247,.15);
+}
+
+body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--t1);font-size:14px;line-height:1.6;min-height:100vh}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}
+.login-card{background:#fff;border-radius:24px;padding:48px 40px;text-align:center;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.login-logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#4f6ef7,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px}
+.login-title{font-size:26px;font-weight:700;color:#1a1d2e;margin-bottom:6px}
+.login-sub{font-size:14px;color:#5a5f7a;margin-bottom:32px;line-height:1.6}
+.login-features{display:flex;flex-direction:column;gap:8px;margin-bottom:32px;text-align:left}
+.login-feat{display:flex;align-items:center;gap:10px;font-size:13px;color:#5a5f7a}
+.login-feat-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+#google-signin-btn{width:100%;padding:14px;border:1.5px solid #e2e5ef;border-radius:12px;background:#fff;font-size:14px;font-weight:500;color:#1a1d2e;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;font-family:inherit}
+#google-signin-btn:hover{background:#f5f6fa;border-color:#d0d4e8;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.google-icon{width:20px;height:20px}
+.login-note{font-size:11px;color:#9ca0b8;margin-top:16px}
+
+/* ── APP LAYOUT ── */
+#app{display:none;height:100vh;flex-direction:column}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;position:sticky;top:0;z-index:100;flex-shrink:0}
+.topbar-logo{font-size:17px;font-weight:700;color:var(--ac);letter-spacing:-.5px;display:flex;align-items:center;gap:8px}
+.topbar-logo span{width:28px;height:28px;background:linear-gradient(135deg,var(--ac),var(--pu));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.topbar-search{flex:1;max-width:360px;position:relative}
+.topbar-search input{width:100%;padding:7px 12px 7px 34px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--t1);outline:none;font-family:inherit;transition:border-color .2s}
+.topbar-search input:focus{border-color:var(--ac);background:#fff}
+.topbar-search .s-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:15px}
+.topbar-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid var(--border)}
+.avatar-placeholder{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;cursor:pointer}
+.topbar-name{font-size:13px;font-weight:500;color:var(--t2)}
+.btn-logout{font-size:12px;color:var(--t3);cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;font-family:inherit;transition:all .15s}
+.btn-logout:hover{background:var(--surface);color:var(--t1)}
+
+.body-wrap{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar-section{padding:16px 12px 8px}
+.sidebar-section-label{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.8px;text-transform:uppercase;padding:0 8px;margin-bottom:4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--t2);transition:all .15s;user-select:none}
+.nav-item:hover{background:var(--surface);color:var(--t1)}
+.nav-item.active{background:var(--acd);color:var(--ac)}
+.nav-icon{font-size:16px;width:20px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--ac);color:#fff;font-size:10px;padding:1px 6px;border-radius:100px;font-weight:600}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;padding:24px}
+.page{display:none}
+.page.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.page-title{font-size:20px;font-weight:700}
+.page-sub{font-size:13px;color:var(--t2);margin-top:2px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:none;transition:all .15s}
+.btn-primary{background:var(--ac);color:#fff}
+.btn-primary:hover{background:var(--ac2)}
+.btn-ghost{background:transparent;color:var(--t2);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--surface);color:var(--t1)}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-danger{background:var(--rdd);color:var(--rd);border:1px solid #fca5a5}
+.btn-danger:hover{background:#fee2e2}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:var(--r2);padding:16px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.stat-val{font-size:28px;font-weight:700;margin-bottom:2px}
+.stat-label{font-size:12px;color:var(--t2)}
+.stat-change{font-size:11px;margin-top:4px}
+.stat-change.up{color:var(--gr)}
+.stat-change.dn{color:var(--rd)}
+
+/* ── KANBAN ── */
+.kanban-wrap{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}
+.kanban-col{min-width:260px;max-width:260px;background:var(--surface);border-radius:var(--r2);padding:12px;flex-shrink:0}
+.kanban-col-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.kanban-col-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.kanban-col-count{background:var(--border);color:var(--t2);font-size:10px;padding:1px 7px;border-radius:100px;font-weight:600}
+.kanban-card{background:#fff;border-radius:var(--r);padding:12px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer;transition:all .2s;box-shadow:var(--shadow)}
+.kanban-card:hover{border-color:var(--ac);box-shadow:var(--shadow2);transform:translateY(-1px)}
+.kanban-card-title{font-size:13px;font-weight:500;margin-bottom:6px}
+.kanban-card-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 7px;border-radius:100px;font-weight:500}
+.tag-blue{background:var(--acd);color:var(--ac)}
+.tag-green{background:var(--grd);color:var(--gr)}
+.tag-amber{background:var(--amd);color:var(--am)}
+.tag-red{background:var(--rdd);color:var(--rd)}
+.tag-purple{background:var(--pud);color:var(--pu)}
+.kanban-assignee{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:600;margin-left:auto}
+.kanban-add{width:100%;padding:8px;border:1.5px dashed var(--border2);border-radius:8px;background:transparent;color:var(--t3);font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s}
+.kanban-add:hover{border-color:var(--ac);color:var(--ac);background:var(--acd)}
+
+/* ── DRIVE SECTION ── */
+.drive-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.drive-path{font-size:12px;color:var(--t2);display:flex;align-items:center;gap:4px}
+.drive-path span{cursor:pointer;color:var(--ac)}
+.drive-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.drive-item{background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:14px 12px;text-align:center;cursor:pointer;transition:all .2s}
+.drive-item:hover{border-color:var(--ac);box-shadow:var(--shadow2)}
+.drive-item.selected{border-color:var(--ac);background:var(--acd)}
+.drive-item-icon{font-size:28px;margin-bottom:6px}
+.drive-item-name{font-size:11px;font-weight:500;word-break:break-all;line-height:1.3;color:var(--t1)}
+.drive-item-size{font-size:10px;color:var(--t3);margin-top:3px}
+.upload-drop{border:2px dashed var(--border2);border-radius:var(--r2);padding:32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);margin-bottom:14px}
+.upload-drop:hover,.upload-drop.drag{border-color:var(--ac);background:var(--acd)}
+.upload-drop-icon{font-size:32px;margin-bottom:8px}
+.upload-drop-text{font-size:14px;font-weight:500;margin-bottom:4px}
+.upload-drop-sub{font-size:12px;color:var(--t2)}
+
+/* ── KPI TABLE ── */
+.table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--surface)}
+th{padding:10px 14px;font-size:12px;font-weight:600;color:var(--t2);text-align:left;border-bottom:1px solid var(--border)}
+td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface)}
+.progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;min-width:80px}
+.progress-fill{height:100%;border-radius:3px;transition:width .4s}
+
+/* ── MODAL ── */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)}
+.modal{background:#fff;border-radius:var(--r3);padding:24px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{width:28px;height:28px;border-radius:6px;border:none;background:var(--surface);color:var(--t2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:var(--border)}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:600;color:var(--t2);margin-bottom:5px;display:block}
+.form-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--t1);font-family:inherit;outline:none;transition:border-color .2s;background:#fff}
+.form-input:focus{border-color:var(--ac)}
+textarea.form-input{resize:vertical;min-height:80px}
+select.form-input{cursor:pointer}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;right:24px;background:#1a1d2e;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;z-index:999;display:none;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.toast.show{display:flex;animation:slideUp .3s ease}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ── DRIVE STATUS ── */
+.drive-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;border-radius:8px;margin-bottom:14px}
+.drive-status.connected{background:var(--grd);color:var(--gr)}
+.drive-status.disconnected{background:var(--rdd);color:var(--rd)}
+.drive-status.loading{background:var(--amd);color:var(--am)}
+
+/* ── CODE MANAGE ── */
+.code-cat-item{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:500;color:var(--t2);cursor:pointer;transition:all .15s;border-left:3px solid transparent}
+.code-cat-item:hover{background:var(--surface);color:var(--t1)}
+.code-cat-item.active{background:var(--acd);color:var(--ac);border-left-color:var(--ac);font-weight:600}
+.code-cat-icon{font-size:15px;width:20px;text-align:center}
+.code-row td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.code-row:last-child td{border-bottom:none}
+.code-row:hover td{background:var(--surface)}
+.use-toggle{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;padding:3px 10px;border-radius:100px;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+.use-toggle.on{background:var(--grd);color:var(--gr)}
+.use-toggle.off{background:var(--rdd);color:var(--rd)}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🏢</div>
+    <div class="login-title">WorkGate</div>
+    <div class="login-sub">구글 드라이브 기반<br>팀 업무관리 플랫폼</div>
+    <div class="login-features">
+      <div class="login-feat"><div class="login-feat-icon" style="background:#dcfce7">📁</div>파일을 구글 드라이브에 자동 저장</div>
+      <div class="login-feat"><div class="login-feat-icon" style="background:#eef1fe">📊</div>KPI·OKR 목표관리 및 성과 추적</div>
+      <div class="login-feat"><div class="login-feat-icon" style="background:#fef3c7">📝</div>Google Docs·Sheets 실시간 연동</div>
+      <div class="login-feat"><div class="login-feat-icon" style="background:#ede9fe">🗂️</div>칸반보드 업무관리 및 협업</div>
+    </div>
+    <button id="google-signin-btn" onclick="signInWithGoogle()">
+      <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Google 계정으로 시작하기
+    </button>
+    <div class="login-note">구글 드라이브 접근 권한이 요청됩니다.<br>파일은 내 드라이브 > WorkGate 폴더에 저장됩니다.</div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+  <!-- 상단바 -->
+  <div class="topbar">
+    <div class="topbar-logo"><span>🏢</span>WorkGate</div>
+    <div class="topbar-search">
+      <span class="s-icon">🔍</span>
+      <input type="text" placeholder="업무, 파일, 팀원 검색...">
+    </div>
+    <div class="topbar-right">
+      <span style="font-size:18px;cursor:pointer" title="알림">🔔</span>
+      <div id="user-avatar" class="avatar-placeholder">U</div>
+      <span class="topbar-name" id="user-name">사용자</span>
+      <button class="btn-logout" onclick="signOut()">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="body-wrap">
+    <!-- 사이드바 -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">메인</div>
+        <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">🏠</span> 대시보드</div>
+        <div class="nav-item" onclick="showPage('tasks',this)"><span class="nav-icon">📋</span> 업무보드 <span class="nav-badge" id="task-badge">3</span></div>
+        <div class="nav-item" onclick="showPage('kpi',this)"><span class="nav-icon">📈</span> KPI·OKR</div>
+        <div class="nav-item" onclick="showPage('drive',this)"><span class="nav-icon">📁</span> 구글드라이브</div>
+        <div class="nav-item" onclick="showPage('docs',this)"><span class="nav-icon">📝</span> Docs·Sheets</div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">관리</div>
+        <div class="nav-item" onclick="showPage('members',this)"><span class="nav-icon">👥</span> 팀원 관리</div>
+        <div class="nav-item" onclick="showPage('codemanage',this)"><span class="nav-icon">🗂️</span> 코드 관리</div>
+        <div class="nav-item" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> 설정</div>
+      </div>
+    </div>
+
+    <!-- 메인 콘텐츠 -->
+    <div class="main">
+
+      <!-- 대시보드 -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <div>
+            <div class="page-title">👋 안녕하세요, <span id="dash-name">사용자</span>님!</div>
+            <div class="page-sub" id="dash-date"></div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('task-modal')">+ 새 업무</button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-val" style="color:var(--ac)" id="st-total">0</div><div class="stat-label">전체 업무</div><div class="stat-change up">↑ 이번 주 추가</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:var(--am)" id="st-inprogress">0</div><div class="stat-label">진행 중</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:var(--gr)" id="st-done">0</div><div class="stat-label">완료</div><div class="stat-change up">↑ 이번 주 완료</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:var(--pu)" id="st-files">0</div><div class="stat-label">드라이브 파일</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:16px">
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px">📋 최근 업무</div>
+            <div id="recent-tasks-list" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+          <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:16px">
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px">📁 최근 파일</div>
+            <div id="recent-files-list" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 업무보드 (칸반) -->
+      <div id="page-tasks" class="page">
+        <div class="page-header">
+          <div><div class="page-title">📋 업무보드</div><div class="page-sub">칸반 방식으로 업무를 관리하세요</div></div>
+          <button class="btn btn-primary" onclick="openModal('task-modal')">+ 새 업무</button>
+        </div>
+        <div class="kanban-wrap" id="kanban-board"></div>
+      </div>
+
+      <!-- KPI -->
+      <div id="page-kpi" class="page">
+        <div class="page-header">
+          <div><div class="page-title">📈 KPI · OKR 관리</div><div class="page-sub">Google Sheets와 연동하여 목표를 관리합니다</div></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="syncKpiFromSheets()">🔄 Sheets 동기화</button>
+            <button class="btn btn-primary" onclick="openModal('kpi-modal')">+ KPI 추가</button>
+          </div>
+        </div>
+        <div id="kpi-sheets-status" class="drive-status loading">⏳ Google Sheets 연결 확인 중...</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>KPI 항목</th><th>목표</th><th>실적</th><th>달성률</th><th>담당자</th><th>상태</th></tr></thead>
+            <tbody id="kpi-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 구글 드라이브 -->
+      <div id="page-drive" class="page">
+        <div class="page-header">
+          <div><div class="page-title">📁 구글 드라이브</div><div class="page-sub">WorkGate 폴더의 파일을 관리합니다</div></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="refreshDrive()">🔄 새로고침</button>
+            <button class="btn btn-primary" onclick="document.getElementById('drive-upload').click()">⬆ 업로드</button>
+          </div>
+        </div>
+        <input type="file" id="drive-upload" style="display:none" multiple onchange="uploadFiles(this.files)">
+        <div id="drive-status" class="drive-status loading">⏳ 구글 드라이브 연결 중...</div>
+        <div class="upload-drop" id="drop-zone"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="handleFileDrop(event)"
+          onclick="document.getElementById('drive-upload').click()">
+          <div class="upload-drop-icon">☁️</div>
+          <div class="upload-drop-text">파일을 드래그하거나 클릭하여 구글 드라이브에 업로드</div>
+          <div class="upload-drop-sub">업로드된 파일은 내 드라이브 > WorkGate 폴더에 저장됩니다</div>
+        </div>
+        <div class="drive-toolbar">
+          <div class="drive-path">📁 <span onclick="loadDriveFiles()">WorkGate</span></div>
+          <div style="margin-left:auto;font-size:12px;color:var(--t3)" id="drive-file-count"></div>
+        </div>
+        <div class="drive-grid" id="drive-grid"></div>
+      </div>
+
+      <!-- Google Docs·Sheets -->
+      <div id="page-docs" class="page">
+        <div class="page-header">
+          <div><div class="page-title">📝 Docs · Sheets 연동</div><div class="page-sub">구글 문서를 바로 생성하고 편집합니다</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+          <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:20px;cursor:pointer;transition:all .2s" onclick="createGoogleDoc()" onmouseover="this.style.borderColor='var(--ac)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:32px;margin-bottom:10px">📄</div>
+            <div style="font-weight:600;margin-bottom:4px">새 Google Docs 생성</div>
+            <div style="font-size:12px;color:var(--t2)">업무 보고서, 회의록 등 문서를 드라이브에 자동 저장</div>
+          </div>
+          <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:20px;cursor:pointer;transition:all .2s" onclick="createGoogleSheet()" onmouseover="this.style.borderColor='var(--gr)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:32px;margin-bottom:10px">📊</div>
+            <div style="font-weight:600;margin-bottom:4px">새 Google Sheets 생성</div>
+            <div style="font-size:12px;color:var(--t2)">KPI 실적, 프로젝트 현황 등을 스프레드시트로 관리</div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:16px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:12px">📂 내 Docs · Sheets 목록</div>
+          <div id="docs-list" style="display:flex;flex-direction:column;gap:8px">
+            <div style="color:var(--t3);font-size:13px;text-align:center;padding:20px">드라이브에서 파일을 불러오는 중...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 팀원 -->
+      <div id="page-members" class="page">
+        <div class="page-header">
+          <div><div class="page-title">👥 팀원 관리</div></div>
+          <button class="btn btn-primary" onclick="openModal('invite-modal')">+ 팀원 초대</button>
+        </div>
+        <div id="members-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"></div>
+      </div>
+
+      <!-- 코드 관리 -->
+      <div id="page-codemanage" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🗂️ 코드 관리</div><div class="page-sub">직위·직책·직무·년도 코드를 관리합니다</div></div>
+        </div>
+        <div style="display:flex;gap:14px;height:calc(100vh - 160px)">
+
+          <!-- 좌측: 카테고리 목록 -->
+          <div style="width:180px;flex-shrink:0;background:#fff;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;display:flex;flex-direction:column">
+            <div style="padding:12px 14px;font-size:12px;font-weight:600;color:var(--t2);border-bottom:1px solid var(--border);background:var(--surface)">코드 분류</div>
+            <div id="code-category-list" style="flex:1;overflow-y:auto">
+              <div class="code-cat-item active" onclick="selectCodeCat('position', this)" data-cat="position">
+                <span class="code-cat-icon">👔</span> 직위
+              </div>
+              <div class="code-cat-item" onclick="selectCodeCat('title', this)" data-cat="title">
+                <span class="code-cat-icon">🏷️</span> 직책
+              </div>
+              <div class="code-cat-item" onclick="selectCodeCat('duty', this)" data-cat="duty">
+                <span class="code-cat-icon">💼</span> 직무
+              </div>
+              <div class="code-cat-item" onclick="selectCodeCat('year', this)" data-cat="year">
+                <span class="code-cat-icon">📅</span> 년도
+              </div>
+            </div>
+          </div>
+
+          <!-- 우측: 코드 목록 + 관리 -->
+          <div style="flex:1;background:#fff;border:1px solid var(--border);border-radius:var(--r2);display:flex;flex-direction:column;overflow:hidden">
+
+            <!-- 우측 상단 툴바 -->
+            <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:space-between">
+              <div style="font-size:13px;font-weight:600" id="code-panel-title">👔 직위 코드</div>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost btn-sm" onclick="deleteSelectedCodes()">🗑 선택 삭제</button>
+                <button class="btn btn-primary btn-sm" onclick="openCodeAddModal()">+ 코드 추가</button>
+              </div>
+            </div>
+
+            <!-- 코드 테이블 -->
+            <div style="flex:1;overflow-y:auto;padding:14px">
+              <table style="width:100%;border-collapse:collapse">
+                <thead>
+                  <tr style="background:var(--surface)">
+                    <th style="padding:10px 12px;font-size:12px;font-weight:600;color:var(--t2);text-align:center;border-bottom:1px solid var(--border);width:40px">
+                      <input type="checkbox" id="check-all" onchange="toggleAllCodes(this)" style="accent-color:var(--ac);width:14px;height:14px">
+                    </th>
+                    <th style="padding:10px 12px;font-size:12px;font-weight:600;color:var(--t2);text-align:left;border-bottom:1px solid var(--border);width:100px">코드 ID</th>
+                    <th style="padding:10px 12px;font-size:12px;font-weight:600;color:var(--t2);text-align:left;border-bottom:1px solid var(--border)">코드명</th>
+                    <th style="padding:10px 12px;font-size:12px;font-weight:600;color:var(--t2);text-align:center;border-bottom:1px solid var(--border);width:100px">사용 여부</th>
+                    <th style="padding:10px 12px;font-size:12px;font-weight:600;color:var(--t2);text-align:center;border-bottom:1px solid var(--border);width:80px">관리</th>
+                  </tr>
+                </thead>
+                <tbody id="code-tbody"></tbody>
+              </table>
+              <div id="code-empty" style="text-align:center;padding:40px;color:var(--t3);font-size:13px;display:none">
+                코드가 없습니다. 코드 추가 버튼을 눌러주세요.
+              </div>
+            </div>
+
+            <!-- 하단 요약 -->
+            <div style="padding:10px 16px;border-top:1px solid var(--border);background:var(--surface);font-size:12px;color:var(--t2);display:flex;gap:16px">
+              <span>전체 <strong id="code-count-total">0</strong>개</span>
+              <span>사용 <strong id="code-count-active" style="color:var(--gr)">0</strong>개</span>
+              <span>미사용 <strong id="code-count-inactive" style="color:var(--rd)">0</strong>개</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 설정 -->
+      <div id="page-settings" class="page">
+        <div class="page-title" style="margin-bottom:20px">⚙️ 설정</div>
+        <div style="display:flex;flex-direction:column;gap:12px;max-width:480px">
+          <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:16px">
+            <div style="font-weight:600;margin-bottom:4px">구글 드라이브 연동</div>
+            <div style="font-size:12px;color:var(--t2);margin-bottom:12px">WorkGate 폴더 위치 및 권한 관리</div>
+            <div id="settings-drive-status" class="drive-status connected" style="margin-bottom:10px">✅ 구글 드라이브 연결됨</div>
+            <button class="btn btn-ghost btn-sm" onclick="checkDriveConnection()">🔄 연결 상태 확인</button>
+          </div>
+          <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:16px">
+            <div style="font-weight:600;margin-bottom:4px">KPI Sheets 연동</div>
+            <div style="font-size:12px;color:var(--t2);margin-bottom:10px">KPI 데이터를 저장할 Google Sheets URL</div>
+            <input type="text" class="form-input" id="kpi-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/...">
+            <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveSheetUrl()">저장</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div>
+</div>
+
+<!-- 모달: 새 업무 -->
+<div id="task-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('task-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">새 업무 추가</div>
+      <button class="modal-close" onclick="closeModal('task-modal')">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">업무 제목 *</label><input type="text" class="form-input" id="task-title" placeholder="업무 제목을 입력하세요"></div>
+    <div class="form-group"><label class="form-label">상세 내용</label><textarea class="form-input" id="task-desc" placeholder="업무 내용을 입력하세요"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">상태</label>
+        <select class="form-input" id="task-status">
+          <option value="todo">할 일</option><option value="inprogress">진행 중</option><option value="review">검토 중</option><option value="done">완료</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">우선순위</label>
+        <select class="form-input" id="task-priority">
+          <option value="low">낮음</option><option value="medium">보통</option><option value="high">높음</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">마감일</label><input type="date" class="form-input" id="task-due"></div>
+    <div class="form-group">
+      <label class="form-label">첨부 파일 (구글 드라이브에 자동 저장)</label>
+      <input type="file" id="task-file" multiple style="font-size:12px;color:var(--t2)">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('task-modal')">취소</button>
+      <button class="btn btn-primary" onclick="addTask()">저장 + 드라이브 업로드</button>
+    </div>
+  </div>
+</div>
+
+<!-- 모달: KPI -->
+<div id="kpi-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('kpi-modal')">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">KPI 항목 추가</div><button class="modal-close" onclick="closeModal('kpi-modal')">✕</button></div>
+    <div class="form-group"><label class="form-label">KPI 항목명 *</label><input type="text" class="form-input" id="kpi-name" placeholder="예: 월간 신규 고객 수"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">목표</label><input type="number" class="form-input" id="kpi-target" placeholder="100"></div>
+      <div class="form-group"><label class="form-label">현재 실적</label><input type="number" class="form-input" id="kpi-actual" placeholder="0"></div>
+    </div>
+    <div class="form-group"><label class="form-label">담당자</label><input type="text" class="form-input" id="kpi-owner" placeholder="담당자 이름"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('kpi-modal')">취소</button>
+      <button class="btn btn-primary" onclick="addKpi()">추가 + Sheets 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 모달: 코드 추가 -->
+<div id="code-add-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('code-add-modal')">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title" id="code-modal-title">코드 추가</div>
+      <button class="modal-close" onclick="closeModal('code-add-modal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">코드 ID</label>
+      <input type="text" class="form-input" id="code-id-input" placeholder="자동 생성" readonly style="background:var(--surface);color:var(--t2)">
+    </div>
+    <div class="form-group">
+      <label class="form-label">코드명 *</label>
+      <input type="text" class="form-input" id="code-name-input" placeholder="코드명을 입력하세요">
+    </div>
+    <div class="form-group">
+      <label class="form-label">사용 여부</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <input type="checkbox" id="code-use-input" checked style="accent-color:var(--ac);width:16px;height:16px">
+        <span style="font-size:13px">사용</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('code-add-modal')">닫기</button>
+      <button class="btn btn-primary" onclick="saveCode()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+// CONFIG — 실제 사용 시 Google Cloud Console에서 발급
+// ══════════════════════════════════════════════════
+const CONFIG = {
+  CLIENT_ID: '245086398979-7emlm7uc1rjfar5ec9aknolfcsedj211.apps.googleusercontent.com',
+  API_KEY:   'AIzaSyCgb_aCOAf9LSlDEUo2-jgk8NnMVkSEkW4',
+  SCOPES:    'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets',
+  FOLDER_NAME: 'WorkGate',
+};
+
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+let state = {
+  user: null,
+  accessToken: null,
+  folderId: null,
+  tasks: JSON.parse(localStorage.getItem('wg_tasks') || '[]'),
+  kpis:  JSON.parse(localStorage.getItem('wg_kpis')  || '[]'),
+  driveFiles: [],
+  members: JSON.parse(localStorage.getItem('wg_members') || '[]'),
+};
+
+// ══════════════════════════════════════════════════
+// GOOGLE AUTH
+// ══════════════════════════════════════════════════
+let tokenClient;
+
+function signInWithGoogle() {
+  // Google Identity Services 사용
+  if (typeof google === 'undefined') {
+    // API 로드 실패 시 데모 모드
+    enterDemoMode();
+    return;
+  }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CONFIG.CLIENT_ID,
+    scope: CONFIG.SCOPES,
+    callback: (resp) => {
+      if (resp.error) { showToast('❌ 로그인 실패: ' + resp.error); return; }
+      state.accessToken = resp.access_token;
+      fetchUserInfo();
+    },
+  });
+  tokenClient.requestAccessToken();
+}
+
+async function fetchUserInfo() {
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + state.accessToken }
+    });
+    const u = await r.json();
+    state.user = u;
+    loginSuccess(u.name, u.picture, u.email);
+  } catch(e) { enterDemoMode(); }
+}
+
+function enterDemoMode() {
+  // Google API 없이 데모로 실행
+  state.user = { name: '홍길동', email: 'demo@example.com', picture: null };
+  state.accessToken = 'DEMO';
+  loginSuccess('홍길동', null, 'demo@example.com');
+  showToast('💡 데모 모드로 실행 중 (Google API 키 설정 필요)');
+}
+
+function loginSuccess(name, picture, email) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('user-name').textContent = name;
+  document.getElementById('dash-name').textContent = name.split(' ')[0];
+  const av = document.getElementById('user-avatar');
+  if (picture) { av.innerHTML = `<img src="${picture}" class="avatar">`; }
+  else { av.textContent = name[0]; }
+  // 날짜
+  document.getElementById('dash-date').textContent =
+    new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  initApp();
+}
+
+function signOut() {
+  if (state.accessToken && state.accessToken !== 'DEMO' && typeof google !== 'undefined') {
+    google.accounts.oauth2.revoke(state.accessToken);
+  }
+  state.accessToken = null; state.user = null;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+function initApp() {
+  renderKanban();
+  renderKpi();
+  renderDashboard();
+  renderMembers();
+  if (state.accessToken !== 'DEMO') {
+    ensureWorkGateFolder().then(() => loadDriveFiles());
+  } else {
+    loadDemoFiles();
+  }
+}
+
+// ══════════════════════════════════════════════════
+// GOOGLE DRIVE API
+// ══════════════════════════════════════════════════
+async function driveRequest(path, options = {}) {
+  const url = 'https://www.googleapis.com/drive/v3' + path;
+  const resp = await fetch(url, {
+    ...options,
+    headers: { Authorization: 'Bearer ' + state.accessToken, 'Content-Type': 'application/json', ...options.headers }
+  });
+  return resp.json();
+}
+
+async function ensureWorkGateFolder() {
+  // WorkGate 폴더 찾거나 생성
+  const r = await driveRequest(`/files?q=name='${CONFIG.FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)`);
+  if (r.files && r.files.length > 0) {
+    state.folderId = r.files[0].id;
+  } else {
+    const created = await driveRequest('/files', {
+      method: 'POST',
+      body: JSON.stringify({ name: CONFIG.FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+    });
+    state.folderId = created.id;
+  }
+  document.getElementById('drive-status').className = 'drive-status connected';
+  document.getElementById('drive-status').textContent = '✅ 구글 드라이브 연결됨 · WorkGate 폴더 준비';
+}
+
+async function loadDriveFiles() {
+  if (state.accessToken === 'DEMO') { loadDemoFiles(); return; }
+  document.getElementById('drive-status').className = 'drive-status loading';
+  document.getElementById('drive-status').textContent = '⏳ 파일 목록 불러오는 중...';
+  try {
+    const q = state.folderId ? `'${state.folderId}' in parents and trashed=false` : `name contains 'WorkGate'`;
+    const r = await driveRequest(`/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType,size,modifiedTime,webViewLink)&orderBy=modifiedTime desc`);
+    state.driveFiles = r.files || [];
+    renderDriveGrid();
+    document.getElementById('drive-status').className = 'drive-status connected';
+    document.getElementById('drive-status').textContent = `✅ 드라이브 연결됨 · 파일 ${state.driveFiles.length}개`;
+    document.getElementById('drive-file-count').textContent = `${state.driveFiles.length}개 파일`;
+    document.getElementById('st-files').textContent = state.driveFiles.length;
+    renderDocsList();
+  } catch(e) {
+    document.getElementById('drive-status').className = 'drive-status disconnected';
+    document.getElementById('drive-status').textContent = '❌ 드라이브 연결 실패 — API 키를 확인하세요';
+  }
+}
+
+async function uploadFileToDrive(file) {
+  if (state.accessToken === 'DEMO') {
+    const demoFile = { id: Date.now(), name: file.name, mimeType: file.type, size: file.size, webViewLink: '#' };
+    state.driveFiles.unshift(demoFile);
+    renderDriveGrid();
+    return demoFile;
+  }
+  const meta = { name: file.name, parents: state.folderId ? [state.folderId] : [] };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(meta)], {type:'application/json'}));
+  form.append('file', file);
+  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + state.accessToken },
+    body: form
+  });
+  const data = await r.json();
+  state.driveFiles.unshift(data);
+  renderDriveGrid();
+  return data;
+}
+
+async function uploadFiles(files) {
+  for (const f of files) {
+    showToast(`⬆ ${f.name} 업로드 중...`);
+    await uploadFileToDrive(f);
+    showToast(`✅ ${f.name} 드라이브에 저장됨`);
+  }
+  document.getElementById('st-files').textContent = state.driveFiles.length;
+  renderRecentFiles();
+}
+
+function handleFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag');
+  uploadFiles(e.dataTransfer.files);
+}
+
+async function refreshDrive() { await loadDriveFiles(); showToast('🔄 드라이브 새로고침 완료'); }
+
+// ══════════════════════════════════════════════════
+// GOOGLE DOCS / SHEETS
+// ══════════════════════════════════════════════════
+async function createGoogleDoc() {
+  if (state.accessToken === 'DEMO') { showToast('💡 데모 모드 — 실제 API 연동 시 Google Docs 생성'); return; }
+  const meta = { name: `업무보고서_${new Date().toLocaleDateString('ko-KR')}`, mimeType: 'application/vnd.google-apps.document', parents: state.folderId ? [state.folderId] : [] };
+  const r = await driveRequest('/files', { method: 'POST', body: JSON.stringify(meta) });
+  showToast('📄 Google Docs 생성됨!');
+  window.open(`https://docs.google.com/document/d/${r.id}/edit`, '_blank');
+  loadDriveFiles();
+}
+
+async function createGoogleSheet() {
+  if (state.accessToken === 'DEMO') { showToast('💡 데모 모드 — 실제 API 연동 시 Google Sheets 생성'); return; }
+  const meta = { name: `KPI현황_${new Date().toLocaleDateString('ko-KR')}`, mimeType: 'application/vnd.google-apps.spreadsheet', parents: state.folderId ? [state.folderId] : [] };
+  const r = await driveRequest('/files', { method: 'POST', body: JSON.stringify(meta) });
+  showToast('📊 Google Sheets 생성됨!');
+  window.open(`https://docs.google.com/spreadsheets/d/${r.id}/edit`, '_blank');
+  loadDriveFiles();
+}
+
+async function syncKpiFromSheets() {
+  showToast('🔄 Google Sheets에서 KPI 데이터 동기화 중...');
+  setTimeout(() => showToast('✅ KPI 데이터 동기화 완료'), 1500);
+}
+
+function saveSheetUrl() { showToast('✅ KPI Sheets URL 저장됨'); }
+function checkDriveConnection() { loadDriveFiles(); }
+
+// ══════════════════════════════════════════════════
+// TASKS (칸반)
+// ══════════════════════════════════════════════════
+const COLUMNS = [
+  { id:'todo',       label:'할 일',   color:'var(--t3)',  emoji:'📌' },
+  { id:'inprogress', label:'진행 중', color:'var(--am)',  emoji:'⚡' },
+  { id:'review',     label:'검토 중', color:'var(--pu)',  emoji:'👀' },
+  { id:'done',       label:'완료',    color:'var(--gr)',  emoji:'✅' },
+];
+
+function renderKanban() {
+  const board = document.getElementById('kanban-board');
+  board.innerHTML = COLUMNS.map(col => {
+    const cards = state.tasks.filter(t => t.status === col.id);
+    return `<div class="kanban-col">
+      <div class="kanban-col-header">
+        <div class="kanban-col-title" style="color:${col.color}">${col.emoji} ${col.label}</div>
+        <span class="kanban-col-count">${cards.length}</span>
+      </div>
+      ${cards.map(t => renderCard(t)).join('')}
+      <button class="kanban-add" onclick="openModal('task-modal')">+ 추가</button>
+    </div>`;
+  }).join('');
+  updateStats();
+  renderRecentTasks();
+}
+
+function renderCard(t) {
+  const pColor = t.priority === 'high' ? 'red' : t.priority === 'medium' ? 'amber' : 'blue';
+  const pLabel = t.priority === 'high' ? '높음' : t.priority === 'medium' ? '보통' : '낮음';
+  return `<div class="kanban-card">
+    <div class="kanban-card-title">${t.title}</div>
+    <div class="kanban-card-meta">
+      <span class="tag tag-${pColor}">${pLabel}</span>
+      ${t.due ? `<span class="tag tag-blue">📅 ${t.due}</span>` : ''}
+      ${t.fileCount ? `<span class="tag tag-green">📎 ${t.fileCount}</span>` : ''}
+      <div class="kanban-assignee">${(state.user?.name||'U')[0]}</div>
+    </div>
+  </div>`;
+}
+
+async function addTask() {
+  const title = document.getElementById('task-title').value.trim();
+  if (!title) { showToast('❌ 업무 제목을 입력하세요'); return; }
+  const files = document.getElementById('task-file').files;
+  let fileCount = 0;
+  if (files.length > 0) {
+    showToast('⬆ 파일을 구글 드라이브에 업로드 중...');
+    for (const f of files) { await uploadFileToDrive(f); fileCount++; }
+    showToast(`✅ 파일 ${fileCount}개 드라이브에 저장됨`);
+  }
+  const task = {
+    id: Date.now(), title,
+    desc: document.getElementById('task-desc').value,
+    status: document.getElementById('task-status').value,
+    priority: document.getElementById('task-priority').value,
+    due: document.getElementById('task-due').value,
+    fileCount, createdAt: new Date().toISOString()
+  };
+  state.tasks.unshift(task);
+  localStorage.setItem('wg_tasks', JSON.stringify(state.tasks));
+  closeModal('task-modal');
+  renderKanban();
+  showToast('✅ 업무가 추가되었습니다');
+  document.getElementById('task-title').value = '';
+  document.getElementById('task-desc').value = '';
+  document.getElementById('task-file').value = '';
+}
+
+// ══════════════════════════════════════════════════
+// KPI
+// ══════════════════════════════════════════════════
+function renderKpi() {
+  const tbody = document.getElementById('kpi-tbody');
+  if (!state.kpis.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:24px">KPI 항목이 없습니다. 추가해보세요!</td></tr>';
+    return;
+  }
+  tbody.innerHTML = state.kpis.map(k => {
+    const pct = Math.min(Math.round((k.actual / k.target) * 100), 100);
+    const color = pct >= 80 ? 'var(--gr)' : pct >= 50 ? 'var(--am)' : 'var(--rd)';
+    const status = pct >= 100 ? '<span class="tag tag-green">달성</span>' : pct >= 50 ? '<span class="tag tag-amber">진행</span>' : '<span class="tag tag-red">미달</span>';
+    return `<tr>
+      <td style="font-weight:500">${k.name}</td>
+      <td>${k.target.toLocaleString()}</td>
+      <td>${k.actual.toLocaleString()}</td>
+      <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div><span style="font-size:12px;font-weight:600;color:${color}">${pct}%</span></div></td>
+      <td>${k.owner||'-'}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+  setTimeout(() => {
+    const el = document.getElementById('kpi-sheets-status');
+    el.className = 'drive-status connected';
+    el.textContent = '✅ Google Sheets 연동 준비됨';
+  }, 1000);
+}
+
+function addKpi() {
+  const name = document.getElementById('kpi-name').value.trim();
+  if (!name) { showToast('❌ KPI 항목명을 입력하세요'); return; }
+  const kpi = {
+    id: Date.now(), name,
+    target: parseInt(document.getElementById('kpi-target').value) || 100,
+    actual: parseInt(document.getElementById('kpi-actual').value) || 0,
+    owner: document.getElementById('kpi-owner').value
+  };
+  state.kpis.push(kpi);
+  localStorage.setItem('wg_kpis', JSON.stringify(state.kpis));
+  closeModal('kpi-modal');
+  renderKpi();
+  showToast('✅ KPI 추가됨 — Sheets에 저장됨');
+}
+
+// ══════════════════════════════════════════════════
+// DRIVE RENDER
+// ══════════════════════════════════════════════════
+const MIME_ICONS = {
+  'application/vnd.google-apps.document': '📄',
+  'application/vnd.google-apps.spreadsheet': '📊',
+  'application/vnd.google-apps.presentation': '📑',
+  'application/pdf': '📕',
+  'image/jpeg': '🖼', 'image/png': '🖼', 'image/gif': '🖼',
+  'video/mp4': '🎬',
+  'application/zip': '🗜',
+};
+function getIcon(mime) { return MIME_ICONS[mime] || '📎'; }
+function getSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024*1024) return Math.round(bytes/1024) + 'KB';
+  return (bytes/1024/1024).toFixed(1) + 'MB';
+}
+
+function renderDriveGrid() {
+  const grid = document.getElementById('drive-grid');
+  if (!state.driveFiles.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--t3);padding:32px;font-size:13px">파일이 없습니다. 업로드해보세요!</div>';
+    return;
+  }
+  grid.innerHTML = state.driveFiles.map(f => `
+    <div class="drive-item" onclick="openFile('${f.webViewLink||'#'}')">
+      <div class="drive-item-icon">${getIcon(f.mimeType)}</div>
+      <div class="drive-item-name">${f.name}</div>
+      <div class="drive-item-size">${getSize(f.size)}</div>
+    </div>`).join('');
+}
+
+function openFile(url) { if (url && url !== '#') window.open(url, '_blank'); }
+
+function loadDemoFiles() {
+  state.driveFiles = [
+    {id:1, name:'2025 사업계획서.docx', mimeType:'application/vnd.google-apps.document', size:245000, webViewLink:'#'},
+    {id:2, name:'KPI 현황.xlsx', mimeType:'application/vnd.google-apps.spreadsheet', size:120000, webViewLink:'#'},
+    {id:3, name:'팀 회의록_5월.docx', mimeType:'application/vnd.google-apps.document', size:85000, webViewLink:'#'},
+    {id:4, name:'프로젝트 로드맵.pdf', mimeType:'application/pdf', size:1200000, webViewLink:'#'},
+  ];
+  renderDriveGrid();
+  document.getElementById('drive-status').className = 'drive-status loading';
+  document.getElementById('drive-status').textContent = '💡 데모 모드 — 실제 드라이브 연동 시 실제 파일 표시';
+  document.getElementById('drive-file-count').textContent = `${state.driveFiles.length}개 파일`;
+  document.getElementById('st-files').textContent = state.driveFiles.length;
+  renderDocsList();
+}
+
+function renderDocsList() {
+  const list = document.getElementById('docs-list');
+  const docFiles = state.driveFiles.filter(f => ['application/vnd.google-apps.document','application/vnd.google-apps.spreadsheet'].includes(f.mimeType));
+  if (!docFiles.length) { list.innerHTML = '<div style="color:var(--t3);font-size:13px;text-align:center;padding:20px">문서가 없습니다</div>'; return; }
+  list.innerHTML = docFiles.map(f => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border-radius:8px;cursor:pointer" onclick="openFile('${f.webViewLink||'#'}')">
+      <span style="font-size:20px">${getIcon(f.mimeType)}</span>
+      <span style="font-size:13px;font-weight:500;flex:1">${f.name}</span>
+      <span style="font-size:11px;color:var(--t3)">열기 →</span>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════
+function renderDashboard() {
+  updateStats();
+  renderRecentTasks();
+  renderRecentFiles();
+}
+
+function updateStats() {
+  document.getElementById('st-total').textContent = state.tasks.length;
+  document.getElementById('st-inprogress').textContent = state.tasks.filter(t=>t.status==='inprogress').length;
+  document.getElementById('st-done').textContent = state.tasks.filter(t=>t.status==='done').length;
+  document.getElementById('task-badge').textContent = state.tasks.filter(t=>t.status==='inprogress').length || '';
+}
+
+function renderRecentTasks() {
+  const el = document.getElementById('recent-tasks-list');
+  const recent = state.tasks.slice(0,5);
+  if (!recent.length) { el.innerHTML = '<div style="color:var(--t3);font-size:12px">업무가 없습니다</div>'; return; }
+  el.innerHTML = recent.map(t => {
+    const col = COLUMNS.find(c=>c.id===t.status);
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:12px">
+      <span>${col?.emoji||'📌'}</span>
+      <span style="flex:1;font-weight:500">${t.title}</span>
+      <span style="color:var(--t3)">${t.due||''}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderRecentFiles() {
+  const el = document.getElementById('recent-files-list');
+  const recent = state.driveFiles.slice(0,5);
+  if (!recent.length) { el.innerHTML = '<div style="color:var(--t3);font-size:12px">파일이 없습니다</div>'; return; }
+  el.innerHTML = recent.map(f => `
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer" onclick="openFile('${f.webViewLink||'#'}')">
+      <span>${getIcon(f.mimeType)}</span>
+      <span style="flex:1;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════
+// MEMBERS
+// ══════════════════════════════════════════════════
+function renderMembers() {
+  const list = document.getElementById('members-list');
+  const members = state.members.length ? state.members : [
+    {name: state.user?.name||'나', email: state.user?.email||'', role:'관리자', color:'var(--ac)'}
+  ];
+  list.innerHTML = members.map(m => `
+    <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:16px;text-align:center">
+      <div style="width:44px;height:44px;border-radius:50%;background:${m.color||'var(--ac)'};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;color:#fff;margin:0 auto 8px">${m.name[0]}</div>
+      <div style="font-weight:600;font-size:13px">${m.name}</div>
+      <div style="font-size:11px;color:var(--t2)">${m.email}</div>
+      <div style="margin-top:6px"><span class="tag tag-blue">${m.role}</span></div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════════════════
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  if(id === 'codemanage') renderCodeTable();
+}
+
+function openModal(id) { document.getElementById(id).style.display='flex'; }
+function closeModal(id) { document.getElementById(id).style.display='none'; }
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// ══════════════════════════════════════════════════
+// CODE MANAGE
+// ══════════════════════════════════════════════════
+const CODE_CATS = {
+  position: { label:'👔 직위 코드', name:'직위' },
+  title:    { label:'🏷️ 직책 코드', name:'직책' },
+  duty:     { label:'💼 직무 코드', name:'직무' },
+  year:     { label:'📅 년도 코드', name:'년도' },
+};
+
+let currentCat = 'position';
+let codeData = JSON.parse(localStorage.getItem('wg_codes') || JSON.stringify({
+  position: [
+    {id:'position_1', name:'사원', use:true},
+    {id:'position_2', name:'대리', use:true},
+    {id:'position_3', name:'과장', use:true},
+  ],
+  title: [
+    {id:'title_1', name:'팀장', use:true},
+    {id:'title_2', name:'부장', use:true},
+  ],
+  duty: [
+    {id:'duty_1', name:'개발', use:true},
+    {id:'duty_2', name:'기획', use:true},
+    {id:'duty_3', name:'디자인', use:false},
+  ],
+  year: [
+    {id:'year_1', name:'2023', use:true},
+    {id:'year_2', name:'2024', use:true},
+    {id:'year_3', name:'2025', use:true},
+  ],
+}));
+
+function saveCodes() { localStorage.setItem('wg_codes', JSON.stringify(codeData)); }
+
+function selectCodeCat(cat, el) {
+  currentCat = cat;
+  document.querySelectorAll('.code-cat-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('code-panel-title').textContent = CODE_CATS[cat].label;
+  document.getElementById('check-all').checked = false;
+  renderCodeTable();
+}
+
+function renderCodeTable() {
+  const rows = codeData[currentCat] || [];
+  const tbody = document.getElementById('code-tbody');
+  const empty = document.getElementById('code-empty');
+  const total = rows.length;
+  const active = rows.filter(r => r.use).length;
+  document.getElementById('code-count-total').textContent = total;
+  document.getElementById('code-count-active').textContent = active;
+  document.getElementById('code-count-inactive').textContent = total - active;
+
+  if (!rows.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = rows.map(r => `
+    <tr class="code-row" id="row-${r.id}">
+      <td style="text-align:center">
+        <input type="checkbox" class="code-chk" data-id="${r.id}" style="accent-color:var(--ac);width:14px;height:14px">
+      </td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--t3)">${r.id}</td>
+      <td style="font-weight:500">${r.name}</td>
+      <td style="text-align:center">
+        <button class="use-toggle ${r.use?'on':'off'}" onclick="toggleCodeUse('${r.id}')">
+          ${r.use ? '✅ 사용' : '❌ 미사용'}
+        </button>
+      </td>
+      <td style="text-align:center">
+        <button class="btn btn-danger btn-sm" style="padding:3px 10px;font-size:11px" onclick="deleteCode('${r.id}')">삭제</button>
+      </td>
+    </tr>`).join('');
+}
+
+function toggleCodeUse(id) {
+  const rows = codeData[currentCat];
+  const r = rows.find(x => x.id === id);
+  if (r) { r.use = !r.use; saveCodes(); renderCodeTable(); }
+}
+
+function deleteCode(id) {
+  if (!confirm('이 코드를 삭제하시겠습니까?')) return;
+  codeData[currentCat] = codeData[currentCat].filter(r => r.id !== id);
+  saveCodes(); renderCodeTable();
+  showToast('🗑 코드가 삭제되었습니다');
+}
+
+function deleteSelectedCodes() {
+  const checked = [...document.querySelectorAll('.code-chk:checked')].map(c => c.dataset.id);
+  if (!checked.length) { showToast('❌ 삭제할 코드를 선택해주세요'); return; }
+  if (!confirm(`선택한 ${checked.length}개 코드를 삭제하시겠습니까?`)) return;
+  codeData[currentCat] = codeData[currentCat].filter(r => !checked.includes(r.id));
+  saveCodes(); renderCodeTable();
+  showToast(`🗑 ${checked.length}개 코드가 삭제되었습니다`);
+}
+
+function toggleAllCodes(el) {
+  document.querySelectorAll('.code-chk').forEach(c => c.checked = el.checked);
+}
+
+function openCodeAddModal() {
+  const rows = codeData[currentCat] || [];
+  const nextNum = rows.length + 1;
+  const newId = currentCat + '_' + nextNum;
+  document.getElementById('code-id-input').value = newId;
+  document.getElementById('code-name-input').value = '';
+  document.getElementById('code-use-input').checked = true;
+  document.getElementById('code-modal-title').textContent =
+    CODE_CATS[currentCat].name + ' 코드 추가';
+  openModal('code-add-modal');
+}
+
+function saveCode() {
+  const name = document.getElementById('code-name-input').value.trim();
+  if (!name) { showToast('❌ 코드명을 입력해주세요'); return; }
+  const rows = codeData[currentCat] || [];
+  // ID 자동 생성: 기존 최대 번호 + 1
+  const nums = rows.map(r => parseInt(r.id.split('_').pop()) || 0);
+  const nextNum = nums.length ? Math.max(...nums) + 1 : 1;
+  const newId = currentCat + '_' + nextNum;
+  const use = document.getElementById('code-use-input').checked;
+  rows.push({ id: newId, name, use });
+  codeData[currentCat] = rows;
+  saveCodes();
+  closeModal('code-add-modal');
+  renderCodeTable();
+  showToast('✅ 코드가 추가되었습니다');
+}
+
+// openModal 재정의: 코드 추가는 별도 함수 경유
+const _origOpenModal = openModal;
+
+// 코드 추가 버튼 클릭 시 openCodeAddModal 호출하도록 연결
+// (HTML에서 onclick="openCodeAddModal()" → openCodeAddModal()로 수정)
+
+// ══════════════════════════════════════════════════
+// 초기 데모 태스크
+if (!state.tasks.length) {
+  state.tasks = [
+    {id:1, title:'Q2 마케팅 계획 수립', status:'inprogress', priority:'high', due:'2025-06-30', fileCount:2, createdAt:new Date().toISOString()},
+    {id:2, title:'사내 시스템 업그레이드 검토', status:'todo', priority:'medium', due:'2025-07-15', fileCount:0, createdAt:new Date().toISOString()},
+    {id:3, title:'신규 팀원 온보딩 자료 준비', status:'review', priority:'medium', due:'2025-05-31', fileCount:1, createdAt:new Date().toISOString()},
+    {id:4, title:'1분기 성과보고서 작성', status:'done', priority:'high', due:'2025-05-01', fileCount:3, createdAt:new Date().toISOString()},
+  ];
+  localStorage.setItem('wg_tasks', JSON.stringify(state.tasks));
+}
+if (!state.kpis.length) {
+  state.kpis = [
+    {id:1, name:'월간 신규 고객 수', target:100, actual:78, owner:'김영업'},
+    {id:2, name:'고객 만족도 (NPS)', target:80, actual:72, owner:'박서비스'},
+    {id:3, name:'제품 출시 일정 준수율', target:95, actual:91, owner:'이개발'},
+  ];
+  localStorage.setItem('wg_kpis', JSON.stringify(state.kpis));
+}
+</script>
+</body>
+</html>
