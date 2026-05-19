@@ -9,6 +9,11 @@
 <script src="https://apis.google.com/js/api.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
@@ -399,8 +404,9 @@ select.form-input{cursor:pointer}
                 <th>직위</th>
                 <th>직책</th>
                 <th>직무</th>
+                <th>권한</th>
                 <th>재직구분</th>
-                <th style="width:100px;text-align:center">관리</th>
+                <th style="width:110px;text-align:center">관리</th>
               </tr>
             </thead>
             <tbody id="emp-tbody"></tbody>
@@ -414,17 +420,18 @@ select.form-input{cursor:pointer}
           <div><div class="page-title">🏢 조직 관리</div><div class="page-sub">부서 및 조직도를 관리합니다</div></div>
           <button class="btn btn-primary" onclick="openDeptModal(null)">+ 부서 추가</button>
         </div>
-        <div style="display:flex;gap:14px">
+        <div style="display:flex;gap:14px;height:calc(100vh - 170px)">
           <!-- 조직도 트리 -->
-          <div style="width:280px;flex-shrink:0;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:14px;overflow-y:auto;max-height:calc(100vh - 200px)">
-            <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px">📁 조직도</div>
-            <div id="org-tree"></div>
+          <div style="width:240px;flex-shrink:0;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:14px;display:flex;flex-direction:column;overflow:hidden">
+            <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px;flex-shrink:0">📁 조직도</div>
+            <div id="org-tree" style="flex:1;overflow-y:auto"></div>
           </div>
           <!-- 부서 목록 -->
-          <div style="flex:1">
+          <div style="flex:1;overflow-y:auto">
             <div class="table-wrap">
               <table>
                 <thead><tr>
+                  <th style="width:60px;text-align:center">정렬</th>
                   <th>부서코드</th><th>부서명</th><th>상위부서</th><th>부서장</th><th>인원수</th><th style="text-align:center">관리</th>
                 </tr></thead>
                 <tbody id="dept-tbody"></tbody>
@@ -578,18 +585,22 @@ select.form-input{cursor:pointer}
 
 <!-- 모달: 직원 추가/수정 -->
 <div id="emp-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('emp-modal')">
-  <div class="modal" style="max-width:560px">
+  <div class="modal" style="max-width:600px">
     <div class="modal-header">
       <div class="modal-title" id="emp-modal-title">직원 추가</div>
       <button class="modal-close" onclick="closeModal('emp-modal')">✕</button>
     </div>
     <div style="display:flex;gap:16px;align-items:flex-start">
-      <!-- 사진 -->
+      <!-- 사진 영역 -->
       <div style="flex-shrink:0;text-align:center">
-        <div id="emp-photo-preview" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin-bottom:8px;overflow:hidden">👤</div>
-        <label style="font-size:11px;color:var(--ac);cursor:pointer">
-          사진 변경<input type="file" id="emp-photo-file" accept="image/*" style="display:none" onchange="previewEmpPhoto(this)">
+        <div id="emp-photo-preview" style="width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:32px;color:#fff;margin-bottom:8px;overflow:hidden;cursor:pointer" onclick="document.getElementById('emp-photo-file').click()">👤</div>
+        <label style="font-size:11px;color:var(--ac);cursor:pointer;display:block;margin-bottom:4px">
+          📷 사진 변경<input type="file" id="emp-photo-file" accept="image/*" style="display:none" onchange="previewEmpPhoto(this)">
         </label>
+        <div style="display:flex;gap:4px;justify-content:center">
+          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="resizePhotoUp()">🔼 크게</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="resizePhotoDown()">🔽 작게</button>
+        </div>
       </div>
       <div style="flex:1;display:flex;flex-direction:column;gap:10px">
         <div class="form-row">
@@ -618,8 +629,21 @@ select.form-input{cursor:pointer}
               <option value="재직">재직</option><option value="휴직">휴직</option><option value="퇴직">퇴직</option>
             </select>
           </div>
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">권한</label>
+            <select class="form-input" id="emp-role">
+              <option value="일반">일반</option>
+              <option value="관리자">관리자</option>
+              <option value="HR담당">HR담당</option>
+              <option value="읽기전용">읽기전용</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
           <div class="form-group" style="margin-bottom:0"><label class="form-label">입사일</label>
             <input type="date" class="form-input" id="emp-joindate">
+          </div>
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">퇴사일</label>
+            <input type="date" class="form-input" id="emp-leavedate" onchange="autoSetRetired(this)">
           </div>
         </div>
       </div>
@@ -645,6 +669,9 @@ select.form-input{cursor:pointer}
     </div>
     <div class="form-group"><label class="form-label">부서장</label>
       <select class="form-input" id="dept-head"><option value="">선택</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">정렬 순서</label>
+      <input type="number" class="form-input" id="dept-sort" placeholder="숫자가 작을수록 위에 표시 (예: 1, 2, 3)" min="1">
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('dept-modal')">닫기</button>
@@ -696,6 +723,19 @@ const CONFIG = {
   FOLDER_NAME: 'WorkGate',
 };
 
+// ── Firebase 초기화 ──
+const firebaseConfig = {
+  apiKey: "AIzaSyCp5wGOI9KIVaNdeS7QSfejtX3XHszy81k",
+  authDomain: "workgate-e6c56.firebaseapp.com",
+  projectId: "workgate-e6c56",
+  storageBucket: "workgate-e6c56.firebasestorage.app",
+  messagingSenderId: "187107745836",
+  appId: "1:187107745836:web:c8f1c7395e157bbc2ff189"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
 // ══════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════
@@ -712,67 +752,93 @@ let state = {
 // ══════════════════════════════════════════════════
 // GOOGLE AUTH
 // ══════════════════════════════════════════════════
-let tokenClient;
+// ── Firebase Auth 상태 감지 ──
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    state.user = { name: user.displayName, email: user.email, picture: user.photoURL };
+    state.accessToken = await user.getIdToken();
+    await loginSuccess(user.displayName, user.photoURL, user.email);
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+});
 
 function signInWithGoogle() {
-  // Google Identity Services 사용
-  if (typeof google === 'undefined') {
-    // API 로드 실패 시 데모 모드
-    enterDemoMode();
-    return;
-  }
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CONFIG.CLIENT_ID,
-    scope: CONFIG.SCOPES,
-    callback: (resp) => {
-      if (resp.error) { showToast('❌ 로그인 실패: ' + resp.error); return; }
-      state.accessToken = resp.access_token;
-      fetchUserInfo();
-    },
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ hd: '' }); // 워크스페이스 도메인 허용
+  auth.signInWithPopup(provider).catch(err => {
+    showToast('❌ 로그인 실패: ' + err.message);
   });
-  tokenClient.requestAccessToken();
 }
 
-async function fetchUserInfo() {
-  try {
-    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: 'Bearer ' + state.accessToken }
-    });
-    const u = await r.json();
-    state.user = u;
-    loginSuccess(u.name, u.picture, u.email);
-  } catch(e) { enterDemoMode(); }
-}
-
-function enterDemoMode() {
-  // Google API 없이 데모로 실행
-  state.user = { name: '홍길동', email: 'demo@example.com', picture: null };
-  state.accessToken = 'DEMO';
-  loginSuccess('홍길동', null, 'demo@example.com');
-  showToast('💡 데모 모드로 실행 중 (Google API 키 설정 필요)');
-}
-
-function loginSuccess(name, picture, email) {
+async function loginSuccess(name, picture, email) {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('user-name').textContent = name;
-  document.getElementById('dash-name').textContent = name.split(' ')[0];
+  document.getElementById('dash-name').textContent = (name||'').split(' ')[0];
   const av = document.getElementById('user-avatar');
   if (picture) { av.innerHTML = `<img src="${picture}" class="avatar">`; }
-  else { av.textContent = name[0]; }
-  // 날짜
+  else { av.textContent = (name||'U')[0]; }
   document.getElementById('dash-date').textContent =
     new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric',weekday:'long'});
+
+  // 직원 자동 등록 (Firestore에 없으면 신규 등록)
+  await autoRegisterEmployee(email, name, picture);
+  await loadFirestoreData();
   initApp();
 }
 
+async function autoRegisterEmployee(email, name, picture) {
+  try {
+    const ref = db.collection('employees').doc(email);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      // 신규 로그인 → 직원 목록에 자동 추가
+      const now = new Date().toLocaleString('ko-KR');
+      await ref.set({
+        uid: 'emp_' + Date.now(),
+        id: email,
+        name: name || email,
+        photo: picture || '',
+        dept: '', position: '', title: '', duty: '',
+        role: '일반', status: '재직',
+        joindate: new Date().toISOString().slice(0,10),
+        leavedate: '',
+        history: [{ date: now, changes: ['최초 로그인 자동 등록'] }],
+        createdAt: now,
+      });
+      showToast('👋 ' + name + '님이 직원 목록에 자동 등록되었습니다!');
+    }
+  } catch(e) { console.error('직원 자동 등록 오류:', e); }
+}
+
+async function loadFirestoreData() {
+  try {
+    // 직원 데이터 로드
+    const empSnap = await db.collection('employees').get();
+    employees = empSnap.docs.map(d => d.data());
+    localStorage.setItem('wg_employees', JSON.stringify(employees));
+
+    // 부서 데이터 로드
+    const deptSnap = await db.collection('departments').get();
+    if (!deptSnap.empty) {
+      departments = deptSnap.docs.map(d => d.data());
+      localStorage.setItem('wg_departments', JSON.stringify(departments));
+    }
+
+    // 코드 데이터 로드
+    const codeSnap = await db.collection('codes').doc('all').get();
+    if (codeSnap.exists) {
+      Object.assign(codeData, codeSnap.data());
+      localStorage.setItem('wg_codes', JSON.stringify(codeData));
+    }
+  } catch(e) { console.error('Firestore 로드 오류:', e); }
+}
+
 function signOut() {
-  if (state.accessToken && state.accessToken !== 'DEMO' && typeof google !== 'undefined') {
-    google.accounts.oauth2.revoke(state.accessToken);
-  }
+  auth.signOut();
   state.accessToken = null; state.user = null;
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
 }
 
 // ══════════════════════════════════════════════════
@@ -784,8 +850,10 @@ function initApp() {
   renderDashboard();
   renderMembers();
   populateEmpFilterDept();
-  if (state.accessToken !== 'DEMO') {
-    ensureWorkGateFolder().then(() => loadDriveFiles());
+  renderEmployeeTable();
+  // 구글 드라이브 연동
+  if (state.accessToken && state.accessToken !== 'DEMO') {
+    ensureWorkGateFolder().then(() => loadDriveFiles()).catch(() => loadDemoFiles());
   } else {
     loadDemoFiles();
   }
@@ -1142,8 +1210,20 @@ let departments = JSON.parse(localStorage.getItem('wg_departments') || JSON.stri
 let editingEmpId = null;
 let editingDeptId = null;
 
-function saveEmployees() { localStorage.setItem('wg_employees', JSON.stringify(employees)); }
-function saveDepartments() { localStorage.setItem('wg_departments', JSON.stringify(departments)); }
+function saveEmployees() {
+  localStorage.setItem('wg_employees', JSON.stringify(employees));
+  // Firestore 동기화
+  employees.forEach(e => {
+    if (e.id) db.collection('employees').doc(e.id).set(e).catch(err => console.error(err));
+  });
+}
+function saveDepartments() {
+  localStorage.setItem('wg_departments', JSON.stringify(departments));
+  // Firestore 동기화
+  departments.forEach(d => {
+    db.collection('departments').doc(d.id).set(d).catch(err => console.error(err));
+  });
+}
 
 const STATUS_COLORS = { '재직':'tag-green', '휴직':'tag-amber', '퇴직':'tag-red' };
 
@@ -1165,23 +1245,38 @@ function renderEmployeeTable() {
   }
   tbody.innerHTML = list.map(e => `
     <tr style="cursor:pointer" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">
-      <td style="text-align:center"><input type="checkbox" class="emp-chk" data-id="${e.uid}" style="accent-color:var(--ac)"></td>
-      <td style="text-align:center">
+      <td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" class="emp-chk" data-id="${e.uid}" style="accent-color:var(--ac)"></td>
+      <td style="text-align:center" onclick="toggleEmpHistory('${e.uid}')">
         ${e.photo
           ? `<img src="${e.photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover">`
           : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#fff;margin:0 auto">${(e.name||'?')[0]}</div>`}
       </td>
-      <td style="font-size:12px;color:var(--t2);font-family:monospace">${e.id||'-'}</td>
-      <td style="font-weight:500">${e.name||'-'}</td>
-      <td>${e.dept||'-'}</td>
-      <td>${e.position||'-'}</td>
-      <td>${e.title||'-'}</td>
-      <td>${e.duty||'-'}</td>
-      <td><span class="tag ${STATUS_COLORS[e.status]||'tag-blue'}">${e.status||'재직'}</span></td>
+      <td style="font-size:12px;color:var(--t2);font-family:monospace" onclick="toggleEmpHistory('${e.uid}')">${e.id||'-'}</td>
+      <td style="font-weight:500" onclick="toggleEmpHistory('${e.uid}')">${e.name||'-'}</td>
+      <td onclick="toggleEmpHistory('${e.uid}')">${e.dept||'-'}</td>
+      <td onclick="toggleEmpHistory('${e.uid}')">${e.position||'-'}</td>
+      <td onclick="toggleEmpHistory('${e.uid}')">${e.title||'-'}</td>
+      <td onclick="toggleEmpHistory('${e.uid}')">${e.duty||'-'}</td>
+      <td onclick="toggleEmpHistory('${e.uid}')"><span class="tag tag-purple">${e.role||'일반'}</span></td>
+      <td onclick="toggleEmpHistory('${e.uid}')"><span class="tag ${STATUS_COLORS[e.status]||'tag-blue'}">${e.status||'재직'}</span></td>
       <td style="text-align:center">
         <div style="display:flex;gap:4px;justify-content:center">
           <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px;color:var(--ac);border-color:var(--ac)" onclick="openEmployeeModal('${e.uid}')">수정</button>
           <button class="btn btn-danger btn-sm" style="padding:3px 8px;font-size:11px" onclick="deleteEmployee('${e.uid}')">삭제</button>
+        </div>
+      </td>
+    </tr>
+    <tr id="hist-${e.uid}" style="display:none">
+      <td colspan="11" style="padding:0">
+        <div style="background:var(--surface);padding:12px 16px;border-top:1px solid var(--border)">
+          <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">📋 변경 이력</div>
+          ${(e.history||[]).length === 0
+            ? '<div style="font-size:12px;color:var(--t3)">변경 이력이 없습니다</div>'
+            : [...(e.history||[])].reverse().map(h => `
+              <div style="display:flex;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px">
+                <span style="color:var(--t3);white-space:nowrap;min-width:130px">${h.date}</span>
+                <span style="color:var(--t2)">${h.changes.join(' / ')}</span>
+              </div>`).join('')}
         </div>
       </td>
     </tr>`).join('');
@@ -1219,29 +1314,67 @@ function openEmployeeModal(uid) {
     document.getElementById('emp-position').value = e.position||'';
     document.getElementById('emp-title').value = e.title||'';
     document.getElementById('emp-duty').value = e.duty||'';
+    document.getElementById('emp-role').value = e.role||'일반';
     document.getElementById('emp-status').value = e.status||'재직';
     document.getElementById('emp-joindate').value = e.joindate||'';
+    document.getElementById('emp-leavedate').value = e.leavedate||'';
+    photoSize = 100;
     const prev = document.getElementById('emp-photo-preview');
-    prev.innerHTML = e.photo ? `<img src="${e.photo}" style="width:80px;height:80px;object-fit:cover">` : '👤';
+    prev.style.width = '100px'; prev.style.height = '100px';
+    prev.innerHTML = e.photo ? `<img src="${e.photo}" style="width:100px;height:100px;object-fit:cover;border-radius:50%">` : '👤';
   } else {
     document.getElementById('emp-modal-title').textContent = '직원 추가';
     document.getElementById('emp-modal-save-btn').textContent = '저장';
-    ['emp-id','emp-name','emp-joindate'].forEach(id => document.getElementById(id).value = '');
+    ['emp-id','emp-name','emp-joindate','emp-leavedate'].forEach(id => document.getElementById(id).value = '');
     ['emp-dept','emp-position','emp-title','emp-duty'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('emp-status').value = '재직';
-    document.getElementById('emp-photo-preview').innerHTML = '👤';
+    document.getElementById('emp-role').value = '일반';
+    photoSize = 100;
+    const prev2 = document.getElementById('emp-photo-preview');
+    prev2.style.width = '100px'; prev2.style.height = '100px';
+    prev2.innerHTML = '👤';
   }
   openModal('emp-modal');
 }
+
+let photoSize = 100;
 
 function previewEmpPhoto(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    document.getElementById('emp-photo-preview').innerHTML = `<img src="${e.target.result}" style="width:80px;height:80px;object-fit:cover;border-radius:50%">`;
+    const prev = document.getElementById('emp-photo-preview');
+    prev.innerHTML = `<img src="${e.target.result}" style="width:${photoSize}px;height:${photoSize}px;object-fit:cover;border-radius:50%">`;
+    prev.style.width = photoSize + 'px';
+    prev.style.height = photoSize + 'px';
   };
   reader.readAsDataURL(file);
+}
+
+function resizePhotoUp() {
+  photoSize = Math.min(photoSize + 20, 200);
+  applyPhotoSize();
+}
+
+function resizePhotoDown() {
+  photoSize = Math.max(photoSize - 20, 40);
+  applyPhotoSize();
+}
+
+function applyPhotoSize() {
+  const prev = document.getElementById('emp-photo-preview');
+  prev.style.width = photoSize + 'px';
+  prev.style.height = photoSize + 'px';
+  const img = prev.querySelector('img');
+  if (img) { img.style.width = photoSize + 'px'; img.style.height = photoSize + 'px'; }
+}
+
+function autoSetRetired(input) {
+  if (input.value) {
+    document.getElementById('emp-status').value = '퇴직';
+    showToast('📅 퇴사일 입력 — 재직구분이 퇴직으로 변경되었습니다');
+  }
 }
 
 function saveEmployee() {
@@ -1250,22 +1383,52 @@ function saveEmployee() {
   if (!id || !name) { showToast('❌ 사번과 이름은 필수입니다'); return; }
   const photoEl = document.getElementById('emp-photo-preview').querySelector('img');
   const photo = photoEl ? photoEl.src : '';
-  const empData = {
-    uid: editingEmpId || ('emp_' + Date.now()),
-    id, name,
-    dept: document.getElementById('emp-dept').value,
-    position: document.getElementById('emp-position').value,
-    title: document.getElementById('emp-title').value,
-    duty: document.getElementById('emp-duty').value,
-    status: document.getElementById('emp-status').value,
-    joindate: document.getElementById('emp-joindate').value,
-    photo,
-  };
+  const now = new Date().toLocaleString('ko-KR');
+
   if (editingEmpId) {
     const idx = employees.findIndex(e => e.uid === editingEmpId);
-    if (idx > -1) employees[idx] = empData;
+    if (idx < 0) return;
+    const prev = {...employees[idx]};
+    const empData = {
+      ...prev,
+      id, name,
+      dept: document.getElementById('emp-dept').value,
+      position: document.getElementById('emp-position').value,
+      title: document.getElementById('emp-title').value,
+      duty: document.getElementById('emp-duty').value,
+      role: document.getElementById('emp-role').value,
+      status: document.getElementById('emp-status').value,
+      joindate: document.getElementById('emp-joindate').value,
+      leavedate: document.getElementById('emp-leavedate').value,
+      photo: photo || prev.photo,
+      history: [...(prev.history||[]), {
+        date: now,
+        changes: buildChangeLog(prev, {
+          dept: document.getElementById('emp-dept').value,
+          position: document.getElementById('emp-position').value,
+          title: document.getElementById('emp-title').value,
+          duty: document.getElementById('emp-duty').value,
+          role: document.getElementById('emp-role').value,
+          status: document.getElementById('emp-status').value,
+          leavedate: document.getElementById('emp-leavedate').value,
+        })
+      }].filter(h => h.changes.length > 0),
+    };
+    employees[idx] = empData;
     showToast('✅ 직원 정보가 수정되었습니다');
   } else {
+    const empData = {
+      uid: 'emp_' + Date.now(), id, name,
+      dept: document.getElementById('emp-dept').value,
+      position: document.getElementById('emp-position').value,
+      title: document.getElementById('emp-title').value,
+      duty: document.getElementById('emp-duty').value,
+      role: document.getElementById('emp-role').value,
+      status: document.getElementById('emp-status').value,
+      joindate: document.getElementById('emp-joindate').value,
+      leavedate: document.getElementById('emp-leavedate').value,
+      photo, history: [{date: now, changes: ['최초 등록']}],
+    };
     employees.push(empData);
     showToast('✅ 직원이 추가되었습니다');
   }
@@ -1276,10 +1439,27 @@ function saveEmployee() {
   editingEmpId = null;
 }
 
+function buildChangeLog(prev, next) {
+  const labels = {dept:'부서',position:'직위',title:'직책',duty:'직무',role:'권한',status:'재직구분',leavedate:'퇴사일'};
+  return Object.keys(labels).filter(k => (prev[k]||'') !== (next[k]||''))
+    .map(k => `${labels[k]}: "${prev[k]||'-'}" → "${next[k]||'-'}"`);
+}
+
+function toggleEmpHistory(uid) {
+  const row = document.getElementById('hist-' + uid);
+  if (!row) return;
+  const isOpen = row.style.display !== 'none';
+  document.querySelectorAll('[id^="hist-"]').forEach(r => r.style.display = 'none');
+  if (!isOpen) row.style.display = 'table-row';
+}
+
 function deleteEmployee(uid) {
   if (!confirm('이 직원을 삭제하시겠습니까?')) return;
+  const emp = employees.find(e => e.uid === uid);
   employees = employees.filter(e => e.uid !== uid);
   saveEmployees();
+  // Firestore에서도 삭제
+  if (emp && emp.id) db.collection('employees').doc(emp.id).delete().catch(err => console.error(err));
   renderEmployeeTable();
   showToast('🗑 직원이 삭제되었습니다');
 }
@@ -1304,10 +1484,16 @@ function renderDeptTable() {
     renderOrgTree();
     return;
   }
-  tbody.innerHTML = departments.map(d => {
+  const sorted = [...departments].sort((a,b) => (a.sortOrder||99) - (b.sortOrder||99));
+  tbody.innerHTML = sorted.map(d => {
     const parent = departments.find(x => x.id === d.parent);
     const empCount = employees.filter(e => e.dept === d.name).length;
     return `<tr>
+      <td style="text-align:center">
+        <input type="number" min="1" max="999" value="${d.sortOrder||''}" placeholder="-"
+          style="width:48px;text-align:center;border:1px solid var(--border);border-radius:6px;padding:3px 4px;font-size:12px;background:var(--surface);color:var(--t1)"
+          onchange="updateDeptSort('${d.id}', this.value)">
+      </td>
       <td style="font-family:monospace;font-size:12px;color:var(--t3)">${d.code}</td>
       <td style="font-weight:500">${d.name}</td>
       <td>${parent ? parent.name : '<span style="color:var(--t3)">-</span>'}</td>
@@ -1361,12 +1547,14 @@ function openDeptModal(id) {
     document.getElementById('dept-name').value = d.name||'';
     document.getElementById('dept-parent').value = d.parent||'';
     document.getElementById('dept-head').value = d.head||'';
+    document.getElementById('dept-sort').value = d.sortOrder||'';
   } else {
     document.getElementById('dept-modal-title').textContent = '부서 추가';
     document.getElementById('dept-modal-save-btn').textContent = '저장';
     ['dept-code','dept-name'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('dept-parent').value = '';
     document.getElementById('dept-head').value = '';
+    document.getElementById('dept-sort').value = '';
   }
   openModal('dept-modal');
 }
@@ -1380,6 +1568,7 @@ function saveDept() {
     code, name,
     parent: document.getElementById('dept-parent').value,
     head: document.getElementById('dept-head').value,
+    sortOrder: parseInt(document.getElementById('dept-sort').value) || 99,
   };
   if (editingDeptId) {
     const idx = departments.findIndex(d => d.id === editingDeptId);
@@ -1396,10 +1585,16 @@ function saveDept() {
   editingDeptId = null;
 }
 
+function updateDeptSort(id, val) {
+  const d = departments.find(x => x.id === id);
+  if (d) { d.sortOrder = parseInt(val) || 99; saveDepartments(); renderDeptTable(); }
+}
+
 function deleteDept(id) {
   if (!confirm('이 부서를 삭제하시겠습니까?')) return;
   departments = departments.filter(d => d.id !== id);
   saveDepartments();
+  db.collection('departments').doc(id).delete().catch(err => console.error(err));
   renderDeptTable();
   showToast('🗑 부서가 삭제되었습니다');
 }
