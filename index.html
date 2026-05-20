@@ -422,9 +422,9 @@ select.form-input{cursor:pointer}
         </div>
         <div style="display:flex;gap:14px;height:calc(100vh - 170px)">
           <!-- 조직도 트리 -->
-          <div style="width:240px;flex-shrink:0;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:14px;display:flex;flex-direction:column;overflow:hidden">
+          <div style="width:300px;flex-shrink:0;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:14px;display:flex;flex-direction:column;overflow:hidden">
             <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px;flex-shrink:0">📁 조직도</div>
-            <div id="org-tree" style="flex:1;overflow-y:auto"></div>
+            <div id="org-tree" style="flex:1;overflow-y:auto;overflow-x:hidden"></div>
           </div>
           <!-- 부서 목록 -->
           <div style="flex:1;overflow-y:auto">
@@ -591,15 +591,23 @@ select.form-input{cursor:pointer}
       <button class="modal-close" onclick="closeModal('emp-modal')">✕</button>
     </div>
     <div style="display:flex;gap:16px;align-items:flex-start">
-      <!-- 사진 영역 -->
-      <div style="flex-shrink:0;text-align:center">
-        <div id="emp-photo-preview" style="width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:32px;color:#fff;margin-bottom:8px;overflow:hidden;cursor:pointer" onclick="document.getElementById('emp-photo-file').click()">👤</div>
-        <label style="font-size:11px;color:var(--ac);cursor:pointer;display:block;margin-bottom:4px">
-          📷 사진 변경<input type="file" id="emp-photo-file" accept="image/*" style="display:none" onchange="previewEmpPhoto(this)">
+      <!-- 사진 영역 (크롭) -->
+      <div style="flex-shrink:0;text-align:center;width:140px">
+        <!-- 크롭 컨테이너 -->
+        <div id="crop-container" style="width:120px;height:120px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;margin:0 auto 8px;position:relative;cursor:pointer;border:2px dashed var(--border2)" onclick="document.getElementById('emp-photo-file').click()">
+          <div id="emp-photo-preview" style="font-size:36px;color:#fff;position:relative;user-select:none">👤</div>
+        </div>
+        <label style="font-size:11px;color:var(--ac);cursor:pointer;display:block;margin-bottom:6px">
+          📷 사진 선택<input type="file" id="emp-photo-file" accept="image/*" style="display:none" onchange="previewEmpPhoto(this)">
         </label>
-        <div style="display:flex;gap:4px;justify-content:center">
-          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="resizePhotoUp()">🔼 크게</button>
-          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="resizePhotoDown()">🔽 작게</button>
+        <!-- 크롭 조작 버튼 (사진 선택 후 표시) -->
+        <div id="crop-controls" style="display:none;flex-direction:column;gap:4px;align-items:center">
+          <div style="font-size:10px;color:var(--t2);margin-bottom:2px">드래그로 위치 조정</div>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="cropZoomIn()">🔍+</button>
+            <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="cropZoomOut()">🔍-</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;margin-top:2px;color:var(--rd)" onclick="clearPhoto()">🗑 삭제</button>
         </div>
       </div>
       <div style="flex:1;display:flex;flex-direction:column;gap:10px">
@@ -1318,10 +1326,14 @@ function openEmployeeModal(uid) {
     document.getElementById('emp-status').value = e.status||'재직';
     document.getElementById('emp-joindate').value = e.joindate||'';
     document.getElementById('emp-leavedate').value = e.leavedate||'';
-    photoSize = 100;
-    const prev = document.getElementById('emp-photo-preview');
-    prev.style.width = '100px'; prev.style.height = '100px';
-    prev.innerHTML = e.photo ? `<img src="${e.photo}" style="width:100px;height:100px;object-fit:cover;border-radius:50%">` : '👤';
+    // 기존 사진 표시
+    if (e.photo) {
+      cropState = { imgSrc: e.photo, scale:1, x:0, y:0 };
+      renderCrop();
+      document.getElementById('crop-controls').style.display = 'flex';
+    } else {
+      clearPhoto();
+    }
   } else {
     document.getElementById('emp-modal-title').textContent = '직원 추가';
     document.getElementById('emp-modal-save-btn').textContent = '저장';
@@ -1329,46 +1341,92 @@ function openEmployeeModal(uid) {
     ['emp-dept','emp-position','emp-title','emp-duty'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('emp-status').value = '재직';
     document.getElementById('emp-role').value = '일반';
-    photoSize = 100;
-    const prev2 = document.getElementById('emp-photo-preview');
-    prev2.style.width = '100px'; prev2.style.height = '100px';
-    prev2.innerHTML = '👤';
+    clearPhoto();
   }
   openModal('emp-modal');
 }
 
-let photoSize = 100;
+// ── 사진 크롭 ──
+let cropState = { imgSrc:'', scale:1, x:0, y:0, dragging:false, startX:0, startY:0, startOX:0, startOY:0 };
 
 function previewEmpPhoto(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const prev = document.getElementById('emp-photo-preview');
-    prev.innerHTML = `<img src="${e.target.result}" style="width:${photoSize}px;height:${photoSize}px;object-fit:cover;border-radius:50%">`;
-    prev.style.width = photoSize + 'px';
-    prev.style.height = photoSize + 'px';
+    cropState = { imgSrc: e.target.result, scale:1, x:0, y:0, dragging:false, startX:0, startY:0, startOX:0, startOY:0 };
+    renderCrop();
+    document.getElementById('crop-controls').style.display = 'flex';
+    document.getElementById('crop-container').style.cursor = 'grab';
   };
   reader.readAsDataURL(file);
 }
 
-function resizePhotoUp() {
-  photoSize = Math.min(photoSize + 20, 200);
-  applyPhotoSize();
-}
-
-function resizePhotoDown() {
-  photoSize = Math.max(photoSize - 20, 40);
-  applyPhotoSize();
-}
-
-function applyPhotoSize() {
+function renderCrop() {
   const prev = document.getElementById('emp-photo-preview');
-  prev.style.width = photoSize + 'px';
-  prev.style.height = photoSize + 'px';
-  const img = prev.querySelector('img');
-  if (img) { img.style.width = photoSize + 'px'; img.style.height = photoSize + 'px'; }
+  const size = 120 * cropState.scale;
+  prev.innerHTML = `<img src="${cropState.imgSrc}"
+    style="width:${size}px;height:${size}px;object-fit:cover;position:absolute;
+           left:${60+cropState.x-size/2}px;top:${60+cropState.y-size/2}px;
+           pointer-events:none;user-select:none;border-radius:0">`;
+  prev.style.cssText = 'position:absolute;inset:0;overflow:hidden;border-radius:0';
 }
+
+function cropZoomIn() { cropState.scale = Math.min(cropState.scale + 0.15, 3); renderCrop(); }
+function cropZoomOut() { cropState.scale = Math.max(cropState.scale - 0.15, 0.5); renderCrop(); }
+
+function clearPhoto() {
+  cropState = { imgSrc:'', scale:1, x:0, y:0 };
+  const prev = document.getElementById('emp-photo-preview');
+  prev.innerHTML = '👤';
+  prev.style.cssText = 'font-size:36px;color:#fff;position:relative;user-select:none';
+  document.getElementById('crop-controls').style.display = 'none';
+  document.getElementById('crop-container').style.cursor = 'pointer';
+}
+
+function getCroppedPhoto() {
+  if (!cropState.imgSrc) return '';
+  const canvas = document.createElement('canvas');
+  canvas.width = 200; canvas.height = 200;
+  const ctx = canvas.getContext('2d');
+  ctx.beginPath(); ctx.arc(100, 100, 100, 0, Math.PI*2); ctx.clip();
+  const img = new Image();
+  img.src = cropState.imgSrc;
+  const size = 120 * cropState.scale;
+  ctx.drawImage(img, (60+cropState.x-size/2)*(200/120), (60+cropState.y-size/2)*(200/120), size*(200/120), size*(200/120));
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+// 드래그 이벤트
+document.addEventListener('DOMContentLoaded', () => {
+  const container = document.getElementById('crop-container');
+  if (!container) return;
+  container.addEventListener('mousedown', e => {
+    if (!cropState.imgSrc) return;
+    cropState.dragging = true;
+    cropState.startX = e.clientX; cropState.startY = e.clientY;
+    cropState.startOX = cropState.x; cropState.startOY = cropState.y;
+    container.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!cropState.dragging) return;
+    cropState.x = cropState.startOX + (e.clientX - cropState.startX);
+    cropState.y = cropState.startOY + (e.clientY - cropState.startY);
+    renderCrop();
+  });
+  document.addEventListener('mouseup', () => {
+    cropState.dragging = false;
+    if (document.getElementById('crop-container'))
+      document.getElementById('crop-container').style.cursor = cropState.imgSrc ? 'grab' : 'pointer';
+  });
+  container.addEventListener('wheel', e => {
+    if (!cropState.imgSrc) return;
+    e.preventDefault();
+    cropState.scale = Math.min(Math.max(cropState.scale - e.deltaY*0.001, 0.5), 3);
+    renderCrop();
+  }, { passive: false });
+});
 
 function autoSetRetired(input) {
   if (input.value) {
@@ -1381,8 +1439,8 @@ function saveEmployee() {
   const id = document.getElementById('emp-id').value.trim();
   const name = document.getElementById('emp-name').value.trim();
   if (!id || !name) { showToast('❌ 사번과 이름은 필수입니다'); return; }
-  const photoEl = document.getElementById('emp-photo-preview').querySelector('img');
-  const photo = photoEl ? photoEl.src : '';
+  const photo = cropState.imgSrc ? getCroppedPhoto() : 
+    (document.getElementById('emp-photo-preview').querySelector('img')?.src || '');
   const now = new Date().toLocaleString('ko-KR');
 
   if (editingEmpId) {
@@ -1510,24 +1568,37 @@ function renderDeptTable() {
   renderOrgTree();
 }
 
+let orgCollapsed = {};
+
 function renderOrgTree() {
   const tree = document.getElementById('org-tree');
   if (!tree) return;
-  const roots = departments.filter(d => !d.parent);
+  const roots = [...departments].filter(d => !d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+
   function buildTree(dept, level) {
-    const children = departments.filter(d => d.parent === dept.id);
+    const children = [...departments].filter(d => d.parent === dept.id).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
     const empCount = employees.filter(e => e.dept === dept.name).length;
-    return `<div style="margin-left:${level*16}px;margin-bottom:4px">
-      <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;cursor:pointer;transition:background .15s" 
+    const hasChildren = children.length > 0;
+    const isCollapsed = orgCollapsed[dept.id];
+    const chevron = hasChildren ? (isCollapsed ? '▶' : '▼') : '';
+    return `<div style="margin-left:${level*14}px;margin-bottom:2px">
+      <div style="display:flex;align-items:center;gap:5px;padding:6px 8px;border-radius:6px;cursor:pointer;transition:background .15s;white-space:nowrap;min-width:0"
+           onclick="toggleOrgNode('${dept.id}')"
            onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">
-        <span style="color:var(--t3)">${children.length?'📂':'📄'}</span>
-        <span style="font-size:13px;font-weight:${level===0?'600':'400'}">${dept.name}</span>
-        <span class="tag tag-blue" style="font-size:10px;padding:1px 6px">${empCount}명</span>
+        <span style="color:var(--t3);font-size:10px;width:10px;flex-shrink:0">${chevron}</span>
+        <span style="font-size:13px;flex-shrink:0">${hasChildren?'📂':'📄'}</span>
+        <span style="font-size:13px;font-weight:${level===0?'600':'400'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dept.name}</span>
+        <span class="tag tag-blue" style="font-size:10px;padding:1px 5px;flex-shrink:0">${empCount}</span>
       </div>
-      ${children.map(c => buildTree(c, level+1)).join('')}
+      ${!isCollapsed ? children.map(c => buildTree(c, level+1)).join('') : ''}
     </div>`;
   }
   tree.innerHTML = roots.map(r => buildTree(r, 0)).join('');
+}
+
+function toggleOrgNode(id) {
+  orgCollapsed[id] = !orgCollapsed[id];
+  renderOrgTree();
 }
 
 function openDeptModal(id) {
@@ -1658,7 +1729,11 @@ let codeData = JSON.parse(localStorage.getItem('wg_codes') || JSON.stringify({
   ],
 }));
 
-function saveCodes() { localStorage.setItem('wg_codes', JSON.stringify(codeData)); }
+function saveCodes() {
+  localStorage.setItem('wg_codes', JSON.stringify(codeData));
+  // Firestore 동기화
+  db.collection('codes').doc('all').set(codeData).catch(err => console.error('코드 저장 오류:', err));
+}
 
 function selectCodeCat(cat, el) {
   currentCat = cat;
