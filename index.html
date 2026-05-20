@@ -1034,23 +1034,22 @@ function initApp() {
   renderMembers();
   populateEmpFilterDept();
   renderEmployeeTable();
-  // 구글 드라이브 연동
-  if (state.accessToken && state.accessToken !== 'DEMO') {
-    ensureWorkGateFolder().then(() => loadDriveFiles()).catch(() => loadDemoFiles());
-  } else {
-    loadDemoFiles();
-  }
+  // 구글 드라이브 연동 (Firebase 토큰은 Drive API 미지원 → 데모 모드)
+  // Drive API는 별도 OAuth 설정 필요 — 현재는 파일 목록 표시 생략
+  loadDemoFiles();
 }
 
 // ══════════════════════════════════════════════════
 // GOOGLE DRIVE API
 // ══════════════════════════════════════════════════
 async function driveRequest(path, options = {}) {
+  // Firebase ID 토큰은 Drive API에 사용 불가 — 별도 Drive OAuth 필요
   const url = 'https://www.googleapis.com/drive/v3' + path;
   const resp = await fetch(url, {
     ...options,
     headers: { Authorization: 'Bearer ' + state.accessToken, 'Content-Type': 'application/json', ...options.headers }
   });
+  if (!resp.ok) throw new Error('Drive API ' + resp.status);
   return resp.json();
 }
 
