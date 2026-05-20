@@ -2223,16 +2223,38 @@ function renderOrgView() {
   let rx=GAP;
   roots.forEach(r=>{place(r.id,rx);rx+=sw(r.id)+GAP*4;});
 
-  // Y 좌표: lv -> y (직원행 포함 간격)
+  // Y 좌표: 각 레벨의 직원 최대 행 수 고려해서 동적 간격 계산
   const lvs=Object.values(pos).map(p=>p.lv);
   const minLv=Math.min(...lvs), maxLv=Math.max(...lvs);
-  // 각 레벨의 Y는 고정 — LEVEL_GAP+EMP_ROW_H
-  function ly(lv){return (lv-minLv)*(LEVEL_GAP+EMP_ROW_H)+40;}
+
+  // 각 레벨별 최대 직원 수 계산 → 행 높이 결정
+  const lvHeights={};
+  for(let lv=minLv; lv<=maxLv; lv++){
+    const lvDepts=Object.entries(pos).filter(([id,p])=>p.lv===lv).map(([id])=>id);
+    let maxEmp=0;
+    lvDepts.forEach(function(id){
+      const d=departments.find(x=>x.id===id);
+      if(d) maxEmp=Math.max(maxEmp, employees.filter(e=>e.dept===d.name&&e.status!=='퇴직').length);
+    });
+    // 직원 1줄=70px, 2줄이상=100px, 없으면=20px
+    const empH = maxEmp===0?20 : maxEmp<=3?70 : 100;
+    lvHeights[lv] = CH + empH + 30; // 카드높이 + 직원행 + 여백
+  }
+
+  // 누적 Y 계산
+  const lvY={};
+  let curY=60;
+  for(let lv=minLv; lv<=maxLv; lv++){
+    lvY[lv]=curY;
+    curY += lvHeights[lv] + 50; // 레벨 높이 + 레벨간 간격
+  }
+
+  function ly(lv){return lvY[lv]||60;}
 
   // 캔버스
   const cxs=Object.values(pos).map(p=>p.cx);
   const CAN_W=Math.max(...cxs)+CW/2+GAP*2;
-  const CAN_H=ly(maxLv)+CH+EMP_ROW_H+60;
+  const CAN_H=curY+60;
 
   // SVG 연결선
   let svg='';
@@ -2245,25 +2267,26 @@ function renderOrgView() {
     if(!pp) return;
 
     const side=p.side||'bottom';
-    const x1=pp.cx, y1b=ly(pp.lv)+CH; // 부모 하단
-    const x2=p.cx,  y2t=ly(p.lv);     // 자식 상단
-    const x1t=ly(pp.lv);               // 부모 상단
+    // 부모/자식 카드 중앙 좌표
+    const x1=pp.cx;                    // 부모 중앙 X
+    const y1b=ly(pp.lv)+CH;           // 부모 카드 하단 Y
+    const y1m=ly(pp.lv)+CH/2;         // 부모 카드 중앙 Y
+    const x2=p.cx;                     // 자식 중앙 X
+    const y2t=ly(p.lv);               // 자식 카드 상단 Y
+    const y2m=ly(p.lv)+CH/2;          // 자식 카드 중앙 Y
 
     if(side==='left'){
-      // 가로선: 부모 좌측 ~ 자식 우측, 중간 Y
-      const midY=ly(pp.lv)+CH/2;
-      svg+='<line x1="'+(pp.cx-CW/2)+'" y1="'+midY+'" x2="'+(p.cx+CW/2)+'" y2="'+midY+'" stroke="#94a3b8" stroke-width="1.5"/>';
+      // 가로선: 부모 좌측 중앙 ~ 자식 우측 중앙
+      svg+='<line x1="'+(x1-CW/2)+'" y1="'+y1m+'" x2="'+(x2+CW/2)+'" y2="'+y1m+'" stroke="#94a3b8" stroke-width="1.5"/>';
     } else if(side==='right'){
-      const midY=ly(pp.lv)+CH/2;
-      svg+='<line x1="'+(pp.cx+CW/2)+'" y1="'+midY+'" x2="'+(p.cx-CW/2)+'" y2="'+midY+'" stroke="#94a3b8" stroke-width="1.5"/>';
+      svg+='<line x1="'+(x1+CW/2)+'" y1="'+y1m+'" x2="'+(x2-CW/2)+'" y2="'+y1m+'" stroke="#94a3b8" stroke-width="1.5"/>';
     } else if(side==='top-left'||side==='top-right'){
       const dir=side==='top-left'?-1:1;
-      const px=pp.cx+dir*CW/2;
-      const connY=ly(pp.lv);
-      svg+='<polyline points="'+x2+','+(ly(p.lv)+CH)+' '+x2+','+connY+' '+px+','+connY+'" stroke="#94a3b8" stroke-width="1.5" fill="none"/>';
+      const px=x1+dir*CW/2;
+      svg+='<polyline points="'+x2+','+(ly(p.lv)+CH)+' '+x2+','+ly(pp.lv)+' '+px+','+ly(pp.lv)+'" stroke="#94a3b8" stroke-width="1.5" fill="none"/>';
     } else {
-      // bottom: 부모 하단 → 꺾임 → 자식 상단
-      const midY=y1b+Math.round((y2t-y1b)*0.4);
+      // bottom: 부모 하단 중앙 → 중간점 → 자식 상단 중앙
+      const midY=Math.round((y1b+y2t)/2);
       svg+='<polyline points="'+x1+','+y1b+' '+x1+','+midY+' '+x2+','+midY+' '+x2+','+y2t+'" stroke="#94a3b8" stroke-width="1.5" fill="none"/>';
     }
   });
