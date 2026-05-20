@@ -2172,9 +2172,10 @@ function renderOrgView() {
   // 좌표 계산
   const pos={}; // id->{cx,lv}
 
-  function place(id, left) {
+  function place(id, left, forceLv) {
     const w=sw(id);
-    const lv=getLevel(id);
+    // forceLv: left/right 자식은 부모 lv 강제 적용
+    const lv = forceLv !== undefined ? forceLv : getLevel(id);
     pos[id]={cx:left+w/2, lv};
 
     // bottom 자식
@@ -2182,32 +2183,41 @@ function renderOrgView() {
     let lx=left;
     bots.forEach(d=>{place(d.id,lx);lx+=sw(d.id)+GAP;});
 
-    // left 자식 — 부모와 같은 Y 행, 왼쪽으로
+    // left 자식 — 부모와 완전히 같은 lv (Y좌표 동일)
     const lefts=[...departments].filter(d=>d.parent===id&&d.position==='left').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
     lefts.forEach((d,i)=>{
-      const lv2=d.orgLevel?parseInt(d.orgLevel):lv;
-      pos[d.id]={cx:left+w/2-(CW+GAP)*(i+1), lv:lv2, side:'left', pid:id};
-      // left 자식의 자식들도 배치
+      const dCx = pos[id].cx - (CW+GAP)*(i+1);
+      pos[d.id]={cx:dCx, lv:lv, side:'left', pid:id}; // ← lv 강제로 부모와 동일
+      // left 자식의 하위 조직도 배치 (lv+1로)
       const subBots=[...departments].filter(c=>c.parent===d.id&&(!c.position||c.position==='bottom')).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-      let slx=pos[d.id].cx-sw(d.id)/2;
+      let slx=dCx-sw(d.id)/2;
       subBots.forEach(c=>{place(c.id,slx);slx+=sw(c.id)+GAP;});
+      // left의 left/right도 처리
+      const subLefts=[...departments].filter(c=>c.parent===d.id&&c.position==='left').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+      const subRights=[...departments].filter(c=>c.parent===d.id&&c.position==='right').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+      subLefts.forEach((c,j)=>{pos[c.id]={cx:dCx-(CW+GAP)*(j+1), lv:lv, side:'left', pid:d.id};});
+      subRights.forEach((c,j)=>{pos[c.id]={cx:dCx+(CW+GAP)*(j+1)+CW, lv:lv, side:'right', pid:d.id};});
     });
 
-    // right 자식 — 부모와 같은 Y 행, 오른쪽으로
+    // right 자식 — 부모와 완전히 같은 lv
     const rights=[...departments].filter(d=>d.parent===id&&d.position==='right').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
     rights.forEach((d,i)=>{
-      const lv2=d.orgLevel?parseInt(d.orgLevel):lv;
-      pos[d.id]={cx:left+w/2+(CW+GAP)*(i+1)+CW/2, lv:lv2, side:'right', pid:id};
+      const dCx = pos[id].cx + (CW+GAP)*(i+1) + CW/2;
+      pos[d.id]={cx:dCx, lv:lv, side:'right', pid:id}; // ← lv 강제로 부모와 동일
       const subBots=[...departments].filter(c=>c.parent===d.id&&(!c.position||c.position==='bottom')).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-      let slx=pos[d.id].cx-sw(d.id)/2;
+      let slx=dCx-sw(d.id)/2;
       subBots.forEach(c=>{place(c.id,slx);slx+=sw(c.id)+GAP;});
+      const subLefts=[...departments].filter(c=>c.parent===d.id&&c.position==='left').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+      const subRights=[...departments].filter(c=>c.parent===d.id&&c.position==='right').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+      subLefts.forEach((c,j)=>{pos[c.id]={cx:dCx-(CW+GAP)*(j+1), lv:lv, side:'left', pid:d.id};});
+      subRights.forEach((c,j)=>{pos[c.id]={cx:dCx+(CW+GAP)*(j+1)+CW, lv:lv, side:'right', pid:d.id};});
     });
 
-    // top-left/top-right — 부모보다 한 레벨 위 (lv-1), 같은 행
+    // top-left/top-right — 부모보다 1레벨 위
     const tls=[...departments].filter(d=>d.parent===id&&d.position==='top-left').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
     const trs=[...departments].filter(d=>d.parent===id&&d.position==='top-right').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-    tls.forEach((d,i)=>{pos[d.id]={cx:left+w/2-(CW+GAP)*(i+1), lv:lv-1, side:'top-left', pid:id};});
-    trs.forEach((d,i)=>{pos[d.id]={cx:left+w/2+(CW+GAP)*(i+1)+CW/2, lv:lv-1, side:'top-right', pid:id};});
+    tls.forEach((d,i)=>{pos[d.id]={cx:pos[id].cx-(CW+GAP)*(i+1), lv:lv-1, side:'top-left', pid:id};});
+    trs.forEach((d,i)=>{pos[d.id]={cx:pos[id].cx+(CW+GAP)*(i+1)+CW/2, lv:lv-1, side:'top-right', pid:id};});
   }
 
   let rx=GAP;
