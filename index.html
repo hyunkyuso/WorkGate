@@ -1446,9 +1446,18 @@ function openEmployeeModal(uid) {
     document.getElementById('emp-leavedate').value = e.leavedate||'';
     // 기존 사진 표시
     if (e.photo) {
-      cropState = { imgSrc: e.photo, scale:1, x:0, y:0 };
-      renderCrop();
-      document.getElementById('crop-controls').style.display = 'flex';
+      clearPhoto(); // 먼저 초기화
+      const srcImg = document.getElementById('crop-source-img');
+      srcImg.src = e.photo;
+      srcImg.onload = () => {
+        // 이미지 로드 완료 후 스케일 계산
+        const ratio = Math.max(150/srcImg.naturalWidth, 150/srcImg.naturalHeight);
+        cropState = { imgSrc: e.photo, scale: ratio, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0 };
+        renderCrop();
+        document.getElementById('crop-controls').style.display = 'flex';
+      };
+      // 이미 캐시된 이미지라면 onload가 안 될 수 있으므로
+      if (srcImg.complete && srcImg.naturalWidth > 0) srcImg.onload();
     } else {
       clearPhoto();
     }
@@ -1503,44 +1512,48 @@ function renderCrop() {
 
 function updatePreviewCircle() {
   const srcImg = document.getElementById('crop-source-img');
-  if (!srcImg || !cropState.imgSrc) return;
-  const canvas = document.createElement('canvas');
-  canvas.width = 100; canvas.height = 100;
-  const ctx = canvas.getContext('2d');
-  ctx.beginPath(); ctx.arc(50,50,50,0,Math.PI*2); ctx.clip();
-  // 에디터(150px) → 미리보기(100px) 비율: 100/120 (크롭 원 지름 120)
-  const ratio = 100/120;
-  const imgW = srcImg.naturalWidth * cropState.scale;
-  const imgH = srcImg.naturalHeight * cropState.scale;
-  const imgL = cropState.x - imgW/2;
-  const imgT = cropState.y - imgH/2;
-  // 크롭 원 좌상단: (75-60, 75-60) = (15,15)
-  const drawX = (imgL - 15) * ratio;
-  const drawY = (imgT - 15) * ratio;
-  ctx.drawImage(srcImg, drawX, drawY, imgW*ratio, imgH*ratio);
-  const prev = document.getElementById('emp-photo-preview');
-  prev.innerHTML = `<img src="${canvas.toDataURL()}" style="width:100px;height:100px;border-radius:50%;object-fit:cover">`;
-  prev.style.cssText = '';
+  if (!srcImg || !cropState.imgSrc || !srcImg.complete || srcImg.naturalWidth === 0) return;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 100; canvas.height = 100;
+    const ctx = canvas.getContext('2d');
+    ctx.beginPath(); ctx.arc(50,50,50,0,Math.PI*2); ctx.clip();
+    // 에디터(150px) → 미리보기(100px) 비율: 100/120 (크롭 원 지름 120)
+    const ratio = 100/120;
+    const imgW = srcImg.naturalWidth * cropState.scale;
+    const imgH = srcImg.naturalHeight * cropState.scale;
+    const imgL = cropState.x - imgW/2;
+    const imgT = cropState.y - imgH/2;
+    // 크롭 원 좌상단: (75-60, 75-60) = (15,15)
+    const drawX = (imgL - 15) * ratio;
+    const drawY = (imgT - 15) * ratio;
+    ctx.drawImage(srcImg, drawX, drawY, imgW*ratio, imgH*ratio);
+    const prev = document.getElementById('emp-photo-preview');
+    prev.innerHTML = `<img src="${canvas.toDataURL()}" style="width:100px;height:100px;border-radius:50%;object-fit:cover">`;
+    prev.style.cssText = '';
+  } catch(err) { /* 크로스오리진 이미지 등 오류 무시 */ }
 }
 
 function cropZoomIn() {
-  cropState.scale = Math.min(cropState.scale * 1.15, cropState.scale * 3);
-  cropState.scale = Math.min(cropState.scale + 0.05, 10);
+  cropState.scale = Math.min(cropState.scale * 1.15, 10);
   renderCrop();
 }
 function cropZoomOut() {
-  cropState.scale = Math.max(cropState.scale - 0.05, 0.1);
+  cropState.scale = Math.max(cropState.scale / 1.15, 0.1);
   renderCrop();
 }
 
 function clearPhoto() {
-  cropState = { imgSrc:'', scale:1, x:75, y:75 };
+  cropState = { imgSrc:'', scale:1, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0 };
   const prev = document.getElementById('emp-photo-preview');
   prev.innerHTML = '👤';
   prev.style.cssText = 'font-size:32px;color:#fff';
   const srcImg = document.getElementById('crop-source-img');
-  if (srcImg) srcImg.src = '';
+  if (srcImg) { srcImg.src = ''; srcImg.style.cssText = 'position:absolute;user-select:none;pointer-events:none'; }
   document.getElementById('crop-controls').style.display = 'none';
+  // 파일 input 초기화 (같은 파일 재선택 가능하도록)
+  const fileInput = document.getElementById('emp-photo-file');
+  if (fileInput) fileInput.value = '';
 }
 
 function getCroppedPhoto() {
@@ -1600,8 +1613,15 @@ function saveEmployee() {
   const id = document.getElementById('emp-id').value.trim();
   const name = document.getElementById('emp-name').value.trim();
   if (!id || !name) { showToast('❌ 사번과 이름은 필수입니다'); return; }
-  const photo = cropState.imgSrc ? getCroppedPhoto() : 
-    (document.getElementById('emp-photo-preview').querySelector('img')?.src || '');
+  // 새로 크롭한 사진이 있으면 크롭 결과 사용, 없으면 기존 사진 유지
+  let photo = '';
+  if (cropState.imgSrc) {
+    photo = getCroppedPhoto();
+  } else if (editingEmpId) {
+    // 수정 모드에서 사진 안 바꾼 경우 기존 사진 유지
+    const prevEmp = employees.find(e => e.uid === editingEmpId);
+    photo = prevEmp?.photo || '';
+  }
   const now = new Date().toLocaleString('ko-KR');
 
   if (editingEmpId) {
@@ -2011,7 +2031,14 @@ function showPage(id, el) {
 }
 
 function openModal(id) { document.getElementById(id).style.display='flex'; }
-function closeModal(id) { document.getElementById(id).style.display='none'; }
+function closeModal(id) {
+  document.getElementById(id).style.display='none';
+  // 직원 모달 닫을 때 크롭 상태 초기화
+  if (id === 'emp-modal') {
+    clearPhoto();
+    editingEmpId = null;
+  }
+}
 
 let toastTimer;
 function showToast(msg) {
