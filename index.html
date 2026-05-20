@@ -2012,169 +2012,103 @@ function sortEmpsByRank(emps, headName) {
 }
 
 // ══════════════════════════════════════════════
-// 레벨별 정렬 조직도 — 같은 레벨은 같은 행에
+// 좌표 기반 조직도 — 레벨별 수평 정렬 보장
 // ══════════════════════════════════════════════
 
-// 1. 트리 구조를 레벨별 노드 배열로 변환
-function buildLevelMap(deptId, level, parentX, levelMap, posMap) {
-  const dept = deptId ? departments.find(d=>d.id===deptId) : null;
-  if (!levelMap[level]) levelMap[level] = [];
-  const nodeIdx = levelMap[level].length;
-  levelMap[level].push({ deptId, parentX, nodeIdx });
+const NODE_W = 130;   // 노드 너비
+const NODE_H = 52;    // 노드 높이
+const LEVEL_H = 140;  // 레벨간 세로 간격
+const NODE_GAP = 16;  // 노드간 가로 간격
+
+// 트리 레이아웃 계산 (Reingold-Tilford 간략 버전)
+function calcLayout(deptId, level, levelNodes) {
+  if (!levelNodes[level]) levelNodes[level] = [];
 
   const children = [...departments]
-    .filter(d=>d.parent===deptId)
-    .sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    .filter(d => d.parent === deptId && (!d.position || d.position === 'bottom'))
+    .sort((a,b) => (a.sortOrder||99)-(b.sortOrder||99));
 
-  children.forEach(function(d) {
-    buildLevelMap(d.id, level+1, nodeIdx, levelMap, posMap);
+  // 좌/우 자식은 별도 처리
+  const leftChildren  = [...departments].filter(d=>d.parent===deptId&&d.position==='left').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+  const rightChildren = [...departments].filter(d=>d.parent===deptId&&d.position==='right').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+  const topLeftChildren  = [...departments].filter(d=>d.parent===deptId&&d.position==='top-left').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+  const topRightChildren = [...departments].filter(d=>d.parent===deptId&&d.position==='top-right').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+
+  // 자식 재귀
+  let childWidths = children.map(d => calcLayout(d.id, level+1, levelNodes));
+  const childrenWidth = childWidths.reduce((s,w)=>s+w, 0) + Math.max(0, children.length-1) * NODE_GAP;
+  const myWidth = Math.max(NODE_W, childrenWidth);
+
+  // 좌/우 자식 너비 계산
+  let leftW = leftChildren.reduce((s,d) => s + calcLayout(d.id, level, levelNodes) + NODE_GAP, 0);
+  let rightW = rightChildren.reduce((s,d) => s + calcLayout(d.id, level, levelNodes) + NODE_GAP, 0);
+
+  levelNodes[level].push({ deptId, width: myWidth, children, leftChildren, rightChildren, topLeftChildren, topRightChildren });
+  return myWidth + leftW + rightW;
+}
+
+// 좌표 할당
+function assignX(deptId, level, x, levelNodes, posMap) {
+  const dept = departments.find(d=>d.id===deptId);
+  const nodeInfo = levelNodes[level] ? levelNodes[level].find(n=>n.deptId===deptId) : null;
+  if (!nodeInfo) { posMap[deptId] = {x, level}; return x + NODE_W + NODE_GAP; }
+
+  const children = nodeInfo.children;
+  const leftChildren  = nodeInfo.leftChildren  || [];
+  const rightChildren = nodeInfo.rightChildren || [];
+
+  // 아래 자식들의 총 너비
+  let childTotalW = children.reduce((s,d)=>{
+    const ci = levelNodes[level+1]&&levelNodes[level+1].find(n=>n.deptId===d.id);
+    return s + (ci?ci.width:NODE_W) + NODE_GAP;
+  },0);
+  if (childTotalW > 0) childTotalW -= NODE_GAP;
+
+  // 현재 노드 X = 아래 자식들의 중앙
+  let nodeX = x;
+  if (children.length > 0) {
+    // 아래 자식 배치 후 중앙 계산
+    let cx = x;
+    const childXs = children.map(d=>{
+      const ci = levelNodes[level+1]&&levelNodes[level+1].find(n=>n.deptId===d.id);
+      const w = ci ? ci.width : NODE_W;
+      const dx = cx + (w - NODE_W) / 2;
+      cx += w + NODE_GAP;
+      return dx;
+    });
+    nodeX = (childXs[0] + childXs[childXs.length-1]) / 2;
+  }
+
+  posMap[deptId] = { x: nodeX, level };
+
+  // 아래 자식 실제 배치
+  let cx = x;
+  children.forEach(d => {
+    const ci = levelNodes[level+1]&&levelNodes[level+1].find(n=>n.deptId===d.id);
+    const w = ci ? ci.width : NODE_W;
+    assignX(d.id, level+1, cx, levelNodes, posMap);
+    cx += w + NODE_GAP;
   });
+
+  // 좌 자식 (같은 레벨, 왼쪽)
+  let lx = nodeX - NODE_GAP;
+  leftChildren.slice().reverse().forEach(d => {
+    const ci = levelNodes[level]&&levelNodes[level].find(n=>n.deptId===d.id);
+    const w = ci ? ci.width : NODE_W;
+    lx -= w + NODE_GAP;
+    posMap[d.id] = { x: lx + NODE_GAP + (w-NODE_W)/2, level, side:'left' };
+  });
+
+  // 우 자식
+  let rx = nodeX + NODE_W + NODE_GAP;
+  rightChildren.forEach(d => {
+    posMap[d.id] = { x: rx, level, side:'right' };
+    rx += NODE_W + NODE_GAP * 2;
+  });
+
+  return nodeX;
 }
 
-// 2. 부서 카드 HTML (레벨별 색상)
-function deptCardHTML(deptId, level) {
-  const dept = deptId ? departments.find(d=>d.id===deptId) : null;
-  const deptName = dept ? dept.name : '전체';
-  const headName = dept ? (dept.head||'') : '';
-  const totalCnt = dept ? employees.filter(e=>e.dept===deptName&&e.status!=='퇴직').length : 0;
-  const lvlClass = 'level-' + Math.min(level,4);
-  return '<div class="ov-dept-card ' + lvlClass + '" onclick="showDeptDetail(\'' + deptId + '\')" style="cursor:pointer">' +
-    deptName + '<div class="ov-dept-sub">' + totalCnt + '명' + (headName?' · '+headName:'') + '</div></div>';
-}
-
-// 3. 직원 버블 HTML
-function empColHTML(deptId) {
-  const dept = deptId ? departments.find(d=>d.id===deptId) : null;
-  if (!dept) return '';
-  const headName = dept.head||'';
-  const deptEmps = employees.filter(e=>e.dept===dept.name&&e.status!=='퇴직');
-  const sorted = sortEmpsByRank(deptEmps, headName);
-  if (!sorted.length) return '';
-  return '<div class="ov-emps-row" style="margin-top:6px">' +
-    sorted.map(function(e){ return empBubbleHTML(e, e.name===headName&&!!headName); }).join('') +
-    '</div>';
-}
-
-// 4. 재귀 트리 — 각 노드를 table-cell처럼 배치해서 레벨별 정렬
-function buildTreeNode(deptId, level) {
-  const dept = deptId ? departments.find(d=>d.id===deptId) : null;
-  const deptName = dept ? dept.name : '전체';
-  const headName = dept ? (dept.head||'') : '';
-  const deptEmps = dept ? employees.filter(e=>e.dept===deptName&&e.status!=='퇴직') : [];
-  const sortedEmps = sortEmpsByRank(deptEmps, headName);
-  const totalCnt = deptEmps.length;
-  const lvlClass = 'level-' + Math.min(level,4);
-
-  const allChildren = [...departments]
-    .filter(d=>d.parent===deptId)
-    .sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-
-  const topLeftChildren  = allChildren.filter(d=>d.position==='top-left');
-  const topRightChildren = allChildren.filter(d=>d.position==='top-right');
-  const leftChildren     = allChildren.filter(d=>d.position==='left');
-  const rightChildren    = allChildren.filter(d=>d.position==='right');
-  const botChildren      = allChildren.filter(d=>!d.position||d.position==='bottom');
-
-  // 부서 박스
-  const deptBox = '<div class="ov-dept-card ' + lvlClass + '" onclick="showDeptDetail(\'' + deptId + '\')" style="cursor:pointer;white-space:nowrap">' +
-    deptName + '<div class="ov-dept-sub">' + totalCnt + '명' + (headName?' · '+headName:'') + '</div></div>';
-
-  // 직원 버블
-  let empRow = '';
-  if (sortedEmps.length > 0) {
-    empRow = '<div class="ov-v-line" style="height:10px"></div>' +
-      '<div class="ov-emps-row">' +
-      sortedEmps.map(function(e){ return empBubbleHTML(e, e.name===headName&&!!headName); }).join('') +
-      '</div>';
-  }
-
-  // 하위 가로 행 생성 — align-items:flex-start 로 레벨 정렬
-  function hRow(children) {
-    if (!children.length) return '';
-    if (children.length === 1) {
-      return '<div style="display:flex;flex-direction:column;align-items:center">' +
-        '<div class="ov-v-line" style="height:16px"></div>' +
-        buildTreeNode(children[0].id, level+1) + '</div>';
-    }
-    const childNodes = children.map(function(d) {
-      return '<div style="display:flex;flex-direction:column;align-items:center">' +
-        '<div class="ov-v-line" style="height:16px"></div>' +
-        buildTreeNode(d.id, level+1) + '</div>';
-    }).join('');
-    // 가로 연결선: 첫번째와 마지막 자식 중앙 사이
-    return '<div style="display:flex;flex-direction:column;align-items:center">' +
-      '<div class="ov-v-line" style="height:16px"></div>' +
-      '<div style="position:relative;display:inline-flex;gap:12px;align-items:flex-start">' +
-      '<div style="position:absolute;top:0;left:70px;right:70px;height:2px;background:#d1d5db;z-index:0"></div>' +
-      childNodes +
-      '</div></div>';
-  }
-
-  // 세로 열 (좌/우)
-  function vCol(children, side) {
-    if (!children.length) return '';
-    return '<div style="display:flex;flex-direction:column;gap:10px;align-items:' +
-      (side==='left'?'flex-end':'flex-start') + '">' +
-      children.map(function(d) {
-        const line = '<div style="width:20px;height:2px;background:#d1d5db;flex-shrink:0;margin-top:14px"></div>';
-        const node = buildTreeNode(d.id, level+1);
-        return '<div style="display:flex;align-items:flex-start">' +
-          (side==='left' ? node + line : line + node) + '</div>';
-      }).join('') + '</div>';
-  }
-
-  let html = '<div class="ov-tree-node">';
-
-  // 위-좌측/위-우측
-  if (topLeftChildren.length || topRightChildren.length) {
-    html += '<div style="display:flex;justify-content:space-between;align-items:flex-end;width:100%;gap:8px">';
-    html += '<div style="display:flex;gap:8px;align-items:flex-end">';
-    topLeftChildren.forEach(function(d) {
-      html += '<div style="display:flex;flex-direction:column;align-items:center">' +
-        buildTreeNode(d.id, level+1) +
-        '<div class="ov-v-line" style="height:14px"></div></div>';
-    });
-    html += '</div>';
-    html += '<div style="display:flex;gap:8px;align-items:flex-end">';
-    topRightChildren.forEach(function(d) {
-      html += '<div style="display:flex;flex-direction:column;align-items:center">' +
-        buildTreeNode(d.id, level+1) +
-        '<div class="ov-v-line" style="height:14px"></div></div>';
-    });
-    html += '</div></div>';
-    if (topLeftChildren.length && topRightChildren.length) {
-      html += '<div style="height:2px;background:#d1d5db;width:80%;margin:0 auto"></div>';
-    }
-  }
-
-  // 좌/우 + 현재 노드
-  const hasLR = leftChildren.length || rightChildren.length;
-  if (hasLR) {
-    html += '<div style="display:flex;align-items:flex-start;gap:0">';
-    if (leftChildren.length) {
-      html += vCol(leftChildren, 'left');
-      html += '<div style="width:16px;height:2px;background:#d1d5db;margin-top:14px;flex-shrink:0"></div>';
-    }
-    html += '<div style="display:flex;flex-direction:column;align-items:center">';
-    html += deptBox + empRow;
-    if (botChildren.length) html += hRow(botChildren);
-    html += '</div>';
-    if (rightChildren.length) {
-      html += '<div style="width:16px;height:2px;background:#d1d5db;margin-top:14px;flex-shrink:0"></div>';
-      html += vCol(rightChildren, 'right');
-    }
-    html += '</div>';
-  } else {
-    html += deptBox + empRow;
-    if (botChildren.length) html += hRow(botChildren);
-  }
-
-  html += '</div>';
-  return html;
-}
-
-// ── 레벨별 정렬 트리 렌더 ──
-// 전체 트리를 레벨 행별로 분리해서 각 레벨이 같은 Y축에 오도록
 function renderOrgView() {
   const chart = document.getElementById('orgview-chart');
   if (!chart) return;
@@ -2214,11 +2148,145 @@ function renderOrgView() {
     return;
   }
 
-  // display:table 방식으로 각 자식 컬럼이 독립적으로 성장하면서 레벨 정렬
-  let html = '<div style="display:inline-flex;gap:32px;align-items:flex-start;padding:24px;justify-content:center">';
-  html += roots.map(function(r){ return buildTreeNode(r.id, 0); }).join('');
-  html += '</div>';
-  chart.innerHTML = html;
+  // ── SVG 좌표 기반 조직도 렌더 ──
+  const CARD_W = 130, CARD_H = 48, LVL_GAP = 110, COL_GAP = 18;
+  const EMP_R = 28; // 직원 아바타 반지름
+
+  // 1단계: 각 노드의 subtree 너비 계산
+  function subWidth(deptId) {
+    const botKids = [...departments].filter(d=>d.parent===deptId&&(!d.position||d.position==='bottom')).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    if (!botKids.length) return CARD_W;
+    const total = botKids.reduce((s,d)=>s+subWidth(d.id), 0) + (botKids.length-1)*COL_GAP;
+    return Math.max(CARD_W, total);
+  }
+
+  // 2단계: 각 노드의 절대 X 좌표 계산
+  const posMap = {}; // deptId -> {cx, level}
+
+  function calcPos(deptId, level, left) {
+    const w = subWidth(deptId);
+    const cx = left + w/2;
+    posMap[deptId] = {cx, level};
+    const botKids = [...departments].filter(d=>d.parent===deptId&&(!d.position||d.position==='bottom')).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    let lx = left;
+    botKids.forEach(d=>{
+      const dw = subWidth(d.id);
+      calcPos(d.id, level+1, lx);
+      lx += dw + COL_GAP;
+    });
+    // 좌측/우측 자식
+    const leftKids  = [...departments].filter(d=>d.parent===deptId&&d.position==='left').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    const rightKids = [...departments].filter(d=>d.parent===deptId&&d.position==='right').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    leftKids.forEach((d,i)=>{ posMap[d.id]={cx: cx-(CARD_W+COL_GAP)*(i+1), level, side:'left'}; });
+    rightKids.forEach((d,i)=>{ posMap[d.id]={cx: cx+(CARD_W+COL_GAP)*(i+1), level, side:'right'}; });
+    // 위-좌측/위-우측
+    const topLeftKids  = [...departments].filter(d=>d.parent===deptId&&d.position==='top-left').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    const topRightKids = [...departments].filter(d=>d.parent===deptId&&d.position==='top-right').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    topLeftKids.forEach((d,i)=>{ posMap[d.id]={cx: cx-(CARD_W+COL_GAP)*(i+1), level: level-1, side:'top-left'}; });
+    topRightKids.forEach((d,i)=>{ posMap[d.id]={cx: cx+(CARD_W+COL_GAP)*(i+1), level: level-1, side:'top-right'}; });
+  }
+
+  // 최상위 루트들 나란히
+  const totalRootsW = roots.reduce((s,r)=>s+subWidth(r.id),0)+(roots.length-1)*COL_GAP*3;
+  let rx = 0;
+  roots.forEach(r=>{
+    const w = subWidth(r.id);
+    calcPos(r.id, 0, rx);
+    rx += w + COL_GAP*3;
+  });
+
+  // 3단계: 레벨별 Y 좌표 계산 (직원 사진 포함 높이 고려)
+  const maxLevel = Math.max(...Object.values(posMap).map(p=>p.level||0));
+  const minLevel = Math.min(...Object.values(posMap).map(p=>p.level||0));
+
+  // 각 레벨 행 Y (위-좌/우측은 음수 레벨)
+  function levelY(lv) { return (lv - minLevel) * LVL_GAP + 20; }
+
+  // 전체 캔버스 크기
+  const allCX = Object.values(posMap).map(p=>p.cx);
+  const canvasW = Math.max(...allCX) + CARD_W/2 + 20;
+  const canvasH = (maxLevel - minLevel + 1) * LVL_GAP + CARD_H + 80;
+
+  // 4단계: HTML + SVG 선 렌더
+  let svgLines = '';
+  let nodes = '';
+
+  // 선 그리기
+  Object.entries(posMap).forEach(function([deptId, pos]) {
+    const dept = departments.find(d=>d.id===deptId);
+    if (!dept || !dept.parent) return;
+    const parentPos = posMap[dept.parent];
+    if (!parentPos) return;
+    const x1 = parentPos.cx;
+    const y1 = levelY(parentPos.level) + CARD_H;
+    const x2 = pos.cx;
+    const y2 = levelY(pos.level);
+    const side = pos.side;
+    if (side === 'left' || side === 'right') {
+      // 좌/우 연결: 가로선
+      const midX = side==='left' ? x1-CARD_W/2 : x1+CARD_W/2;
+      const midY = levelY(parentPos.level) + CARD_H/2;
+      svgLines += '<line x1="'+midX+'" y1="'+midY+'" x2="'+(x2+(side==='left'?CARD_W/2:-CARD_W/2))+'" y2="'+midY+'" stroke="#d1d5db" stroke-width="2"/>';
+    } else if (side === 'top-left' || side === 'top-right') {
+      // 위쪽 연결
+      svgLines += '<line x1="'+(x2)+'" y1="'+(y2+CARD_H)+'" x2="'+x1+'" y2="'+(levelY(parentPos.level))+'" stroke="#d1d5db" stroke-width="2"/>';
+    } else {
+      // 아래 연결: 꺾은선
+      const my = y1 + (y2-y1)/2;
+      svgLines += '<line x1="'+x1+'" y1="'+y1+'" x2="'+x1+'" y2="'+my+'" stroke="#d1d5db" stroke-width="2"/>';
+      svgLines += '<line x1="'+x1+'" y1="'+my+'" x2="'+x2+'" y2="'+my+'" stroke="#d1d5db" stroke-width="2"/>';
+      svgLines += '<line x1="'+x2+'" y1="'+my+'" x2="'+x2+'" y2="'+y2+'" stroke="#d1d5db" stroke-width="2"/>';
+    }
+    // 형제 가로 연결선
+  });
+
+  // 형제 노드들 상단 가로선 추가
+  departments.forEach(function(parent) {
+    const botKids = [...departments].filter(d=>d.parent===parent.id&&(!d.position||d.position==='bottom'));
+    if (botKids.length < 2) return;
+    const pPos = posMap[parent.id];
+    if (!pPos) return;
+    const ys = botKids.map(d=>posMap[d.id]).filter(Boolean);
+    if (!ys.length) return;
+    const lineY = levelY(ys[0].level);
+    const minX = Math.min(...ys.map(p=>p.cx));
+    const maxX = Math.max(...ys.map(p=>p.cx));
+    svgLines += '<line x1="'+minX+'" y1="'+lineY+'" x2="'+maxX+'" y2="'+lineY+'" stroke="#d1d5db" stroke-width="2"/>';
+  });
+
+  // 노드 HTML (절대 위치)
+  Object.entries(posMap).forEach(function([deptId, pos]) {
+    const dept = departments.find(d=>d.id===deptId);
+    if (!dept) return;
+    const lv = pos.level;
+    const x = pos.cx - CARD_W/2;
+    const y = levelY(lv);
+    const headName = dept.head||'';
+    const totalCnt = employees.filter(e=>e.dept===dept.name&&e.status!=='퇴직').length;
+    const lvlClass = 'level-'+Math.min(Math.max(lv-minLevel,0),4);
+
+    nodes += '<div onclick="showDeptDetail(\'' + deptId + '\')" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+CARD_W+'px;cursor:pointer">' +
+      '<div class="ov-dept-card '+lvlClass+'" style="width:100%">'+dept.name+'<div class="ov-dept-sub">'+totalCnt+'명'+(headName?' · '+headName:'')+'</div></div>';
+
+    // 직원 버블
+    const deptEmps = employees.filter(e=>e.dept===dept.name&&e.status!=='퇴직');
+    const sorted = sortEmpsByRank(deptEmps, headName);
+    if (sorted.length > 0) {
+      nodes += '<div class="ov-emps-row" style="margin-top:6px;justify-content:center">';
+      sorted.forEach(function(e) { nodes += empBubbleHTML(e, e.name===headName&&!!headName); });
+      nodes += '</div>';
+    }
+    nodes += '</div>';
+  });
+
+  // 직원 포함 실제 캔버스 높이
+  const realH = canvasH + 80;
+
+  chart.innerHTML = '<div style="position:relative;width:'+canvasW+'px;height:'+realH+'px">' +
+    '<svg style="position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible;z-index:0" xmlns="http://www.w3.org/2000/svg">' +
+    svgLines + '</svg>' +
+    '<div style="position:absolute;top:0;left:0;z-index:1">'+nodes+'</div>' +
+    '</div>';
 
   // 렌더 후 캔버스 중앙 정렬
   setTimeout(() => {
