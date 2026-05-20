@@ -2176,10 +2176,12 @@ function renderOrgView() {
   }
 
   // 자식 분류 (position 필터)
+  // bottom = 위치 없음 또는 'bottom' (left/right/top-left/top-right 제외)
   function kids(id, ptype){
+    const NON_BOT=['left','right','top-left','top-right'];
     return [...departments].filter(d=>{
       if(d.parent!==id) return false;
-      if(ptype==='bottom') return !d.position||d.position==='bottom';
+      if(ptype==='bottom') return !d.position||d.position==='bottom'||(!NON_BOT.includes(d.position));
       return d.position===ptype;
     }).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   }
@@ -2215,6 +2217,24 @@ function renderOrgView() {
       const cx=pos[id].cx + (CW/2+HGAP) + cw/2 + i*(cw+HGAP);
       pos[c.id]={cx, lv, side:'right', pid:id};
       placeBottomKids(c.id, lv);
+    });
+
+    // top-left 자식: 부모보다 1레벨 위, 부모 왼쪽
+    const tlk=kids(id,'top-left');
+    tlk.forEach((c,i)=>{
+      const cw=subW(c.id);
+      const cx=pos[id].cx - (CW/2+HGAP) - cw/2 - i*(cw+HGAP);
+      pos[c.id]={cx, lv:lv-1, side:'top-left', pid:id};
+      placeBottomKids(c.id, lv-1);
+    });
+
+    // top-right 자식: 부모보다 1레벨 위, 부모 오른쪽
+    const trk=kids(id,'top-right');
+    trk.forEach((c,i)=>{
+      const cw=subW(c.id);
+      const cx=pos[id].cx + (CW/2+HGAP) + cw/2 + i*(cw+HGAP);
+      pos[c.id]={cx, lv:lv-1, side:'top-right', pid:id};
+      placeBottomKids(c.id, lv-1);
     });
   }
 
@@ -2283,6 +2303,16 @@ function renderOrgView() {
       svg+='<line x1="'+(p.cx+CW/2)+'" y1="'+midY+'" x2="'+(pp.cx-CW/2)+'" y2="'+midY+'" stroke="'+LC2+'" stroke-width="1.5"/>';
     } else if(p.side==='right'){
       svg+='<line x1="'+(pp.cx+CW/2)+'" y1="'+midY+'" x2="'+(p.cx-CW/2)+'" y2="'+midY+'" stroke="'+LC2+'" stroke-width="1.5"/>';
+    } else if(p.side==='top-left'){
+      // 부모 상단 왼쪽에서 자식 하단으로 꺾은선
+      const pTop=ly(pp.lv);
+      const cBot=ly(p.lv)+CH;
+      const connY=pTop; // 부모 카드 상단 Y
+      svg+='<polyline points="'+(pp.cx-CW/2)+','+connY+' '+p.cx+','+connY+' '+p.cx+','+cBot+'" stroke="'+LC2+'" stroke-width="1.5" fill="none"/>';
+    } else if(p.side==='top-right'){
+      const pTop=ly(pp.lv);
+      const cBot=ly(p.lv)+CH;
+      svg+='<polyline points="'+(pp.cx+CW/2)+','+pTop+' '+p.cx+','+pTop+' '+p.cx+','+cBot+'" stroke="'+LC2+'" stroke-width="1.5" fill="none"/>';
     }
 
     // left/right 자식의 bottom 자식 T자 연결
