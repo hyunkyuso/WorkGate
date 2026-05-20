@@ -994,10 +994,22 @@ function isAdmin() {
 }
 
 function applyRoleUI() {
+  const admin = isAdmin();
   // 관리자만 보이는 메뉴 처리
-  const adminMenus = document.querySelectorAll('.admin-only');
-  adminMenus.forEach(el => {
-    el.style.display = isAdmin() ? '' : 'none';
+  document.querySelectorAll('.admin-only').forEach(el => {
+    // nav-item은 flex, button은 inline-flex, 나머지는 flex
+    if (!admin) {
+      el.style.display = 'none';
+    } else {
+      // 원래 display 값으로 복원
+      if (el.classList.contains('nav-item')) {
+        el.style.display = 'flex';
+      } else if (el.tagName === 'BUTTON') {
+        el.style.display = 'inline-flex';
+      } else {
+        el.style.display = 'flex';
+      }
+    }
   });
   // 상단바에 권한 배지 표시
   const badge = document.getElementById('role-badge');
