@@ -2131,9 +2131,9 @@ function renderOrgView() {
   const chart = document.getElementById('orgview-chart');
   if (!chart) return;
 
+  // 기준일자/통계
   const todayEl = document.getElementById('orgview-today');
   if (todayEl) todayEl.textContent = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
-
   const statsEl = document.getElementById('orgview-stats');
   if (statsEl) {
     const tot=employees.filter(e=>e.status!=='퇴직').length;
@@ -2145,208 +2145,175 @@ function renderOrgView() {
   const roots=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   if(!roots.length){chart.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3)">조직 관리에서 부서를 추가해주세요</div>';return;}
 
-  //━━━━━━━━━━━━━━━━━━━━
-  // 상수
-  //━━━━━━━━━━━━━━━━━━━━
-  const CW=110, CH=44;        // 조직 카드 크기
-  const EW=52, EH=72;         // 직원 1인 너비/높이
-  const HGAP=12, VGAP=60;     // 가로/세로 간격
-  const LINE_COLOR='#94a3b8';
+  // ── 상수 ──
+  const CW=120, CH=46;
+  const EW=54;
+  const HGAP=14, VGAP=80;
+  const LC=['#1e293b','#3b82f6','#f59e0b','#7c3aed','#0891b2','#059669'];
+  function bg(lv){return LC[Math.min(lv,LC.length-1)];}
 
-  // 레벨 색상 (샘플 이미지 기반)
-  function getBg(lv){
-    const cols=['#1e293b','#3b82f6','#f59e0b','#8b5cf6','#0ea5e9','#10b981'];
-    return cols[Math.min(lv,cols.length-1)];
-  }
-
-  // orgLevel 계산
-  function getOrgLv(id){
+  // orgLevel
+  function olv(id){
     const d=departments.find(x=>x.id===id); if(!d) return 0;
-    if(d.orgLevel!=null&&d.orgLevel!='') return parseInt(d.orgLevel);
+    if(d.orgLevel!=null&&d.orgLevel!=='') return parseInt(d.orgLevel);
     if(!d.parent) return 0;
-    return getOrgLv(d.parent)+1;
+    return olv(d.parent)+1;
   }
 
-  // 직원 정렬
-  function getEmps(d){
-    const e=employees.filter(x=>x.dept===d.name&&x.status!=='퇴직');
-    return sortEmpsByRank(e, d.head||'');
-  }
+  // 직원 목록
+  function emps(d){ return sortEmpsByRank(employees.filter(e=>e.dept===d.name&&e.status!=='퇴직'), d.head||''); }
 
-  // 직원 표시 너비
-  function empW(emps){ return emps.length*(EW+4); }
-
-  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // subtree 너비 (bottom 자식 기준)
-  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ── subW: bottom 자식 기반 너비 ──
   function subW(id){
-    const d=departments.find(x=>x.id===id); if(!d) return CW;
-    const emps=getEmps(d);
-    const ew=emps.length?empW(emps):0;
-    const selfW=Math.max(CW, ew);
-    const bots=[...departments].filter(x=>x.parent===id&&(!x.position||x.position==='bottom')).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-    if(!bots.length) return selfW;
-    const childW=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
-    return Math.max(selfW, childW);
+    const bots=kids(id,'bottom');
+    if(!bots.length) return CW;
+    return Math.max(CW, bots.reduce((s,d)=>s+subW(d.id),0)+(bots.length-1)*HGAP);
   }
 
-  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 좌표 계산
-  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const pos={}; // id -> {cx, lv}
+  // 자식 분류
+  function kids(id,pos){
+    return [...departments].filter(d=>d.parent===id&&(pos==='bottom'?(!d.position||d.position==='bottom'):d.position===pos)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+  }
+
+  // ── 1단계: 절대 좌표 계산 ──
+  // pos[id] = {cx, lv, side}
+  const pos={};
 
   function place(id, left){
-    const w=subW(id), lv=getOrgLv(id);
-    const cx=left+w/2;
-    pos[id]={cx, lv};
+    const w=subW(id), lv=olv(id);
+    pos[id]={cx:left+w/2, lv};
 
-    // bottom 자식 배치
-    const bots=[...departments].filter(x=>x.parent===id&&(!x.position||x.position==='bottom')).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    // bottom 자식: lv+1 아래에 배치
+    const bk=kids(id,'bottom');
     let lx=left;
-    bots.forEach(c=>{place(c.id,lx); lx+=subW(c.id)+HGAP;});
+    bk.forEach(c=>{ place(c.id,lx); lx+=subW(c.id)+HGAP; });
 
-    // left 자식: 부모와 같은 lv, 왼쪽
-    const lefts=[...departments].filter(x=>x.parent===id&&x.position==='left').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-    lefts.forEach((c,i)=>{
-      pos[c.id]={cx:cx-(CW+HGAP)*(i+1), lv, side:'left', pid:id};
-      placeSubs(c.id, lv);
+    // left 자식: 부모와 동일 lv, 부모 왼쪽
+    // 여러 개일 때 정렬순서대로 부모에서 멀어지게
+    const lk=kids(id,'left');
+    lk.forEach((c,i)=>{
+      const cw=subW(c.id);
+      const cx=pos[id].cx - (CW/2+HGAP) - cw/2 - i*(cw+HGAP);
+      pos[c.id]={cx, lv, side:'left', pid:id};
+      // left 자식의 bottom 자식들도 배치
+      placeBottomKids(c.id, lv);
     });
 
-    // right 자식: 부모와 같은 lv, 오른쪽
-    const rights=[...departments].filter(x=>x.parent===id&&x.position==='right').sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-    rights.forEach((c,i)=>{
-      pos[c.id]={cx:cx+(CW+HGAP)*(i+1)+CW/2, lv, side:'right', pid:id};
-      placeSubs(c.id, lv);
+    // right 자식: 부모와 동일 lv, 부모 오른쪽
+    const rk=kids(id,'right');
+    rk.forEach((c,i)=>{
+      const cw=subW(c.id);
+      const cx=pos[id].cx + (CW/2+HGAP) + cw/2 + i*(cw+HGAP);
+      pos[c.id]={cx, lv, side:'right', pid:id};
+      placeBottomKids(c.id, lv);
     });
   }
 
-  function placeSubs(id, parentLv){
-    const bots=[...departments].filter(x=>x.parent===id&&(!x.position||x.position==='bottom')).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-    if(!bots.length) return;
+  function placeBottomKids(id, parentLv){
+    const bk=kids(id,'bottom');
+    if(!bk.length) return;
     const pcx=pos[id].cx;
-    const totalW=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
-    let lx=pcx-totalW/2;
-    bots.forEach(c=>{place(c.id,lx); lx+=subW(c.id)+HGAP;});
+    const tw=bk.reduce((s,c)=>s+subW(c.id),0)+(bk.length-1)*HGAP;
+    let lx=pcx-tw/2;
+    bk.forEach(c=>{ place(c.id,lx); lx+=subW(c.id)+HGAP; });
   }
 
-  let rx=HGAP;
-  roots.forEach(r=>{place(r.id,rx); rx+=subW(r.id)+HGAP*4;});
+  // 루트 배치
+  let rx=20;
+  roots.forEach(r=>{ place(r.id,rx); rx+=subW(r.id)+HGAP*6; });
 
-  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Y 좌표: orgLevel → Y
-  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const allLvs=Object.values(pos).map(p=>p.lv);
-  const minLv=Math.min(...allLvs), maxLv=Math.max(...allLvs);
+  // ── 2단계: lv → Y (레벨별 행 높이 동적 계산) ──
+  const allLvs=[...new Set(Object.values(pos).map(p=>p.lv))].sort((a,b)=>a-b);
+  const minLv=allLvs[0], maxLv=allLvs[allLvs.length-1];
 
-  // 각 레벨 최대 직원수 → 행 높이
-  function maxEmpLv(lv){
-    return Object.entries(pos).filter(([id,p])=>p.lv===lv).reduce((mx,[id])=>{
+  function maxEmpCount(lv){
+    return Object.entries(pos).filter(([,p])=>p.lv===lv).reduce((mx,[id])=>{
       const d=departments.find(x=>x.id===id);
-      return Math.max(mx, d?getEmps(d).length:0);
+      return Math.max(mx, d?emps(d).length:0);
     },0);
   }
 
   const lvY={};
   let curY=40;
-  for(let lv=minLv;lv<=maxLv;lv++){
+  allLvs.forEach(lv=>{
     lvY[lv]=curY;
-    const me=maxEmpLv(lv);
-    // 행 높이 = 카드 + 직원행(있으면) + 아래 여백
-    curY += CH + (me>0?EH+8:0) + VGAP;
-  }
-  function ly(lv){return lvY[lv]||40;}
+    const me=maxEmpCount(lv);
+    curY += CH + (me>0? Math.ceil(me/5)*60+8 : 0) + VGAP;
+  });
+  function ly(lv){return lvY[lv]??40;}
 
-  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SVG 연결선
-  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ── 3단계: SVG 연결선 ──
   let svg='', nodes='';
+  const LC2='#94a3b8';
 
-  // 각 부모의 bottom 자식 연결 (T자 연결선)
-  Object.entries(pos).forEach(function([pid, pp]){
-    const bots=[...departments].filter(d=>d.parent===pid&&(!d.position||d.position==='bottom')).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-    if(!bots.length) return;
-    const kids=bots.map(d=>pos[d.id]).filter(Boolean);
-    if(!kids.length) return;
+  // bottom 자식 T자 연결
+  Object.keys(pos).forEach(function(pid){
+    const pp=pos[pid]; if(!pp) return;
+    const bk=kids(pid,'bottom').map(c=>pos[c.id]).filter(Boolean);
+    if(!bk.length) return;
 
-    const px=pp.cx;
-    const py1=ly(pp.lv)+CH;        // 부모 카드 하단
-    const ky=ly(kids[0].lv);       // 자식 카드 상단
-    const hubY=py1+Math.round((ky-py1)*0.5); // 중간 허브
+    const px=pp.cx, py=ly(pp.lv)+CH;
+    const cy2=ly(bk[0].lv);
+    const hy=py+Math.round((cy2-py)*0.5);
 
-    // 부모 → 허브
-    svg+='<line x1="'+px+'" y1="'+py1+'" x2="'+px+'" y2="'+hubY+'" stroke="'+LINE_COLOR+'" stroke-width="1.5"/>';
-
-    // 허브 가로선
-    if(kids.length>1){
-      const x1=Math.min(...kids.map(k=>k.cx));
-      const x2=Math.max(...kids.map(k=>k.cx));
-      svg+='<line x1="'+x1+'" y1="'+hubY+'" x2="'+x2+'" y2="'+hubY+'" stroke="'+LINE_COLOR+'" stroke-width="1.5"/>';
+    svg+='<line x1="'+px+'" y1="'+py+'" x2="'+px+'" y2="'+hy+'" stroke="'+LC2+'" stroke-width="1.5"/>';
+    if(bk.length>1){
+      svg+='<line x1="'+Math.min(...bk.map(k=>k.cx))+'" y1="'+hy+'" x2="'+Math.max(...bk.map(k=>k.cx))+'" y2="'+hy+'" stroke="'+LC2+'" stroke-width="1.5"/>';
     }
-
-    // 각 자식 → 상단
-    kids.forEach(function(k){
-      svg+='<line x1="'+k.cx+'" y1="'+hubY+'" x2="'+k.cx+'" y2="'+ky+'" stroke="'+LINE_COLOR+'" stroke-width="1.5"/>';
-    });
+    bk.forEach(k=>{ svg+='<line x1="'+k.cx+'" y1="'+hy+'" x2="'+k.cx+'" y2="'+cy2+'" stroke="'+LC2+'" stroke-width="1.5"/>'; });
   });
 
-  // left/right 자식 연결 (같은 Y 가로선)
+  // left/right 가로 연결선
   Object.entries(pos).forEach(function([id,p]){
-    if(!p.side||p.side==='bottom') return;
+    if(!p.side) return;
     const dept=departments.find(d=>d.id===id); if(!dept||!dept.parent) return;
     const pp=pos[dept.parent]; if(!pp) return;
     const midY=ly(pp.lv)+CH/2;
+
     if(p.side==='left'){
-      svg+='<line x1="'+(pp.cx-CW/2)+'" y1="'+midY+'" x2="'+(p.cx+CW/2)+'" y2="'+midY+'" stroke="'+LINE_COLOR+'" stroke-width="1.5"/>';
-    } else {
-      svg+='<line x1="'+(pp.cx+CW/2)+'" y1="'+midY+'" x2="'+(p.cx-CW/2)+'" y2="'+midY+'" stroke="'+LINE_COLOR+'" stroke-width="1.5"/>';
+      svg+='<line x1="'+(p.cx+CW/2)+'" y1="'+midY+'" x2="'+(pp.cx-CW/2)+'" y2="'+midY+'" stroke="'+LC2+'" stroke-width="1.5"/>';
+    } else if(p.side==='right'){
+      svg+='<line x1="'+(pp.cx+CW/2)+'" y1="'+midY+'" x2="'+(p.cx-CW/2)+'" y2="'+midY+'" stroke="'+LC2+'" stroke-width="1.5"/>';
     }
-    // left/right 자식의 bottom 자식 연결
-    const bots2=[...departments].filter(d=>d.parent===id&&(!d.position||d.position==='bottom')).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-    if(bots2.length){
-      const kids2=bots2.map(d=>pos[d.id]).filter(Boolean);
-      if(kids2.length){
-        const py2=ly(p.lv)+CH, ky2=ly(kids2[0].lv);
-        const hub2=py2+Math.round((ky2-py2)*0.5);
-        svg+='<line x1="'+p.cx+'" y1="'+py2+'" x2="'+p.cx+'" y2="'+hub2+'" stroke="'+LINE_COLOR+'" stroke-width="1.5"/>';
-        if(kids2.length>1){
-          svg+='<line x1="'+Math.min(...kids2.map(k=>k.cx))+'" y1="'+hub2+'" x2="'+Math.max(...kids2.map(k=>k.cx))+'" y2="'+hub2+'" stroke="'+LINE_COLOR+'" stroke-width="1.5"/>';
-        }
-        kids2.forEach(k=>{ svg+='<line x1="'+k.cx+'" y1="'+hub2+'" x2="'+k.cx+'" y2="'+ky2+'" stroke="'+LINE_COLOR+'" stroke-width="1.5"/>'; });
-      }
+
+    // left/right 자식의 bottom 자식 T자 연결
+    const bk2=kids(id,'bottom').map(c=>pos[c.id]).filter(Boolean);
+    if(bk2.length){
+      const py2=ly(p.lv)+CH, cy3=ly(bk2[0].lv);
+      const hy2=py2+Math.round((cy3-py2)*0.5);
+      svg+='<line x1="'+p.cx+'" y1="'+py2+'" x2="'+p.cx+'" y2="'+hy2+'" stroke="'+LC2+'" stroke-width="1.5"/>';
+      if(bk2.length>1) svg+='<line x1="'+Math.min(...bk2.map(k=>k.cx))+'" y1="'+hy2+'" x2="'+Math.max(...bk2.map(k=>k.cx))+'" y2="'+hy2+'" stroke="'+LC2+'" stroke-width="1.5"/>';
+      bk2.forEach(k=>{ svg+='<line x1="'+k.cx+'" y1="'+hy2+'" x2="'+k.cx+'" y2="'+cy3+'" stroke="'+LC2+'" stroke-width="1.5"/>'; });
     }
   });
 
-  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 노드 HTML
-  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ── 4단계: 노드 HTML ──
   Object.entries(pos).forEach(function([id,p]){
     const dept=departments.find(d=>d.id===id); if(!dept) return;
-    const lv=p.lv, bg=getBg(lv-minLv);
+    const lv=p.lv, color=bg(lv-minLv);
     const headName=dept.head||'';
-    const emps=getEmps(dept);
-    const cnt=emps.length;
-    const cx=p.cx, y=ly(lv);
-    const cardX=cx-CW/2;
+    const es=emps(dept);
+    const x=p.cx-CW/2, y=ly(lv);
 
-    // 카드
-    nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+cardX+'px;top:'+y+'px;width:'+CW+'px;cursor:pointer;z-index:2">';
-    nodes+='<div style="background:'+bg+';color:#fff;border-radius:7px;padding:6px 8px;text-align:center;font-size:10px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">';
-    nodes+=dept.name+'<div style="font-size:9px;font-weight:400;opacity:.8;margin-top:1px">'+cnt+'명'+(headName?' · '+headName:'')+'</div></div>';
+    nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+CW+'px;cursor:pointer;z-index:2">';
+    nodes+='<div style="background:'+color+';color:#fff;border-radius:8px;padding:7px 9px;text-align:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">';
+    nodes+=dept.name+'<div style="font-size:9px;font-weight:400;opacity:.8;margin-top:1px">'+es.length+'명'+(headName?' · '+headName:'')+'</div></div>';
 
-    // 직원 버블 (카드 아래)
-    if(emps.length){
-      nodes+='<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-top:5px;width:'+(Math.max(CW, empW(emps)+8))+'px;margin-left:'+Math.min(0, (CW-empW(emps))/2-4)+'px">';
-      emps.forEach(function(e){
+    if(es.length){
+      const rowW=Math.max(CW, es.length*EW + (es.length-1)*3);
+      const offX=Math.min(0, (CW-rowW)/2);
+      nodes+='<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;width:'+rowW+'px;margin-left:'+offX+'px">';
+      es.forEach(function(e){
         const isH=e.name===headName&&!!headName;
         const ini=(e.name||'?').charAt(0);
-        const ec=['#4f46e5','#7c3aed','#0891b2','#059669','#d97706','#dc2626'];
+        const ec=['#4f46e5','#7c3aed','#0891b2','#059669','#d97706'];
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
-        const sz=isH?40:32;
+        const sz=isH?42:34;
         nodes+='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
-        nodes+='<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;overflow:hidden;border:'+(isH?'2px solid '+bg:'1px solid #e2e8f0')+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:'+(isH?15:12)+'px;font-weight:700;color:#fff;margin:0 auto">';
+        nodes+='<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;overflow:hidden;border:'+(isH?'2px solid '+color:'1px solid #e2e8f0')+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:'+(isH?16:12)+'px;font-weight:700;color:#fff;margin:0 auto">';
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         nodes+='</div>';
-        nodes+='<div style="font-size:9px;color:'+(isH?bg:'#1e293b')+';font-weight:'+(isH?700:400)+';text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis;margin-top:1px">'+e.name+'</div>';
+        nodes+='<div style="font-size:9px;color:'+(isH?color:'#1e293b')+';font-weight:'+(isH?700:400)+';text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis;margin-top:1px">'+e.name+'</div>';
         if(e.position) nodes+='<div style="font-size:8px;color:#64748b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis">'+e.position+'</div>';
         nodes+='</div>';
       });
@@ -2356,7 +2323,7 @@ function renderOrgView() {
   });
 
   const allCX=Object.values(pos).map(p=>p.cx);
-  const CAN_W=Math.max(...allCX)+CW/2+HGAP*4;
+  const CAN_W=Math.max(...allCX)+CW/2+40;
   const CAN_H=curY+60;
 
   chart.innerHTML='<div style="position:relative;width:'+CAN_W+'px;height:'+CAN_H+'px">'+
@@ -2373,7 +2340,7 @@ function renderOrgView() {
   },80);
 }
 
-// ── 줌/드래그 ──// ── 줌/드래그 ──
+// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──
 let orgScale = 0.8, orgOffX = 0, orgOffY = 0;
 let orgDragging = false, orgDragX = 0, orgDragY = 0, orgDragOX = 0, orgDragOY = 0;
 
