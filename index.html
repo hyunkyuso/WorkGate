@@ -176,6 +176,28 @@ select.form-input{cursor:pointer}
 .drive-status.disconnected{background:var(--rdd);color:var(--rd)}
 .drive-status.loading{background:var(--amd);color:var(--am)}
 
+/* ── ORGVIEW 세로형 조직도 ── */
+.ov-dept-block{display:flex;flex-direction:column;align-items:center;min-width:180px}
+.ov-dept-header{background:#fff;border:1.5px solid var(--border);border-radius:var(--r2);padding:12px 18px;text-align:center;width:100%;cursor:pointer;transition:all .2s;box-shadow:var(--shadow)}
+.ov-dept-header:hover{border-color:var(--ac);box-shadow:var(--shadow2)}
+.ov-dept-header.active{border-color:var(--ac);background:var(--acd)}
+.ov-dept-name{font-size:14px;font-weight:700;margin-bottom:2px}
+.ov-dept-count{font-size:11px;color:var(--t2)}
+.ov-connector-v{width:2px;height:20px;background:var(--border2);margin:0 auto}
+.ov-connector-h{display:flex;align-items:flex-start;position:relative}
+.ov-connector-h::before{content:'';position:absolute;top:0;left:50%;right:50%;height:2px;background:var(--border2)}
+.ov-children{display:flex;gap:16px;align-items:flex-start;position:relative}
+.ov-children::before{content:'';position:absolute;top:0;left:calc(90px);right:calc(90px);height:2px;background:var(--border2)}
+.ov-emp-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:0;max-width:600px}
+.ov-emp-card{background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:12px 10px;text-align:center;width:110px;transition:all .2s;cursor:default}
+.ov-emp-card:hover{border-color:var(--ac);box-shadow:var(--shadow2)}
+.ov-emp-card.is-head{border-color:var(--ac);background:var(--acd);order:-1}
+.ov-avatar{width:52px;height:52px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;overflow:hidden;border:2px solid var(--border)}
+.ov-emp-card.is-head .ov-avatar{border-color:var(--ac)}
+.ov-emp-name{font-size:12px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-emp-pos{font-size:10px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-head-badge{font-size:9px;background:var(--ac);color:#fff;padding:1px 6px;border-radius:100px;margin-bottom:4px;display:inline-block}
+
 /* ── CODE MANAGE ── */
 .code-cat-item{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:500;color:var(--t2);cursor:pointer;transition:all .15s;border-left:3px solid transparent}
 .code-cat-item:hover{background:var(--surface);color:var(--t1)}
@@ -371,35 +393,16 @@ select.form-input{cursor:pointer}
       <!-- 직원 조회 (조직도 뷰) -->
       <div id="page-orgview" class="page">
         <div class="page-header">
-          <div><div class="page-title">👁️ 직원 조회</div><div class="page-sub">조직별 직원 현황을 한눈에 확인합니다</div></div>
-        </div>
-
-        <!-- 조직 네비게이션 -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" id="orgview-up-btn" onclick="orgviewGoUp()" style="display:none">
-            ⬆ 상위 조직
-          </button>
-          <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2)" id="orgview-breadcrumb"></div>
-          <div style="margin-left:auto;display:flex;gap:6px">
+          <div><div class="page-title">👁️ 직원 조회</div><div class="page-sub">세로형 조직도로 직원 현황을 확인합니다</div></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn btn-ghost btn-sm" id="orgview-up-btn" onclick="orgviewGoUp()" style="display:none">⬆ 상위 조직</button>
             <button class="btn btn-ghost btn-sm" onclick="orgviewGoRoot()">🏠 최상위</button>
           </div>
         </div>
-
-        <!-- 현재 조직 헤더 -->
-        <div id="orgview-current-dept" style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
-          <div style="font-size:28px">🏢</div>
-          <div>
-            <div style="font-size:16px;font-weight:700" id="orgview-dept-name">전체 조직</div>
-            <div style="font-size:12px;color:var(--t2)" id="orgview-dept-info"></div>
-          </div>
-        </div>
-
-        <!-- 하위 조직 버튼들 -->
-        <div id="orgview-sub-depts" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"></div>
-
-        <!-- 직원 카드 그리드 -->
-        <div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px" id="orgview-members-label"></div>
-        <div id="orgview-members" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px"></div>
+        <!-- 브레드크럼 -->
+        <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);margin-bottom:16px;flex-wrap:wrap" id="orgview-breadcrumb"></div>
+        <!-- 세로형 조직도 컨테이너 -->
+        <div id="orgview-chart" style="overflow-x:auto;padding-bottom:16px"></div>
       </div>
 
       <!-- 직원 관리 -->
@@ -1889,13 +1892,80 @@ function orgviewGoTo(deptId) {
   renderOrgView();
 }
 
-function renderOrgView() {
-  const currentDept = departments.find(d => d.id === orgviewCurrentId);
-  const subDepts = [...departments]
-    .filter(d => d.parent === orgviewCurrentId)
-    .sort((a,b) => (a.sortOrder||99)-(b.sortOrder||99));
+// ── 직원카드 HTML 생성 ──
+function empCardHTML(e, headName) {
+  const isHead = headName && e.name === headName;
+  const initials = (e.name||'?').charAt(0);
+  const avatarBg = isHead
+    ? 'linear-gradient(135deg,var(--ac),var(--pu))'
+    : 'linear-gradient(135deg,#64748b,#94a3b8)';
+  return `<div class="ov-emp-card${isHead?' is-head':''}">
+    ${isHead ? '<div class="ov-head-badge">부서장</div>' : ''}
+    <div class="ov-avatar" style="background:${avatarBg}">
+      ${e.photo
+        ? `<img src="${e.photo}" style="width:100%;height:100%;object-fit:cover">`
+        : `<span>${initials}</span>`}
+    </div>
+    <div class="ov-emp-name" title="${e.name||''}">${e.name||'-'}</div>
+    <div class="ov-emp-pos">${[e.position,e.title].filter(Boolean).join(' · ')||'&nbsp;'}</div>
+  </div>`;
+}
 
-  // 브레드크럼 구성
+// ── 부서 블록 HTML 재귀 생성 ──
+function deptBlockHTML(deptId, depth) {
+  const dept = deptId ? departments.find(d=>d.id===deptId) : null;
+  const deptName = dept ? dept.name : '전체 조직';
+  const headName = dept?.head || '';
+  const subDepts = [...departments]
+    .filter(d => d.parent === deptId)
+    .sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+
+  // 현재 부서 직원 (부서장 먼저, 나머지 이름순)
+  const deptEmps = dept
+    ? employees.filter(e => e.dept === deptName && e.status !== '퇴직')
+    : [];
+  const sortedEmps = [
+    ...deptEmps.filter(e=>e.name===headName),
+    ...deptEmps.filter(e=>e.name!==headName).sort((a,b)=>a.name.localeCompare(b.name,'ko'))
+  ];
+
+  const totalCnt = dept
+    ? employees.filter(e=>e.dept===deptName&&e.status!=='퇴직').length
+    : employees.filter(e=>e.status!=='퇴직').length;
+
+  // 부서 헤더 클릭 → 해당 조직으로 이동
+  const headerClick = deptId
+    ? `onclick="orgviewGoTo('${deptId}')"`
+    : '';
+
+  let html = `<div class="ov-dept-block">`;
+
+  // 부서 헤더 박스
+  html += `<div class="ov-dept-header" ${headerClick}>
+    <div class="ov-dept-name">🏢 ${deptName}</div>
+    <div class="ov-dept-count">${totalCnt}명${headName?` · 장: ${headName}`:''}</div>
+  </div>`;
+
+  // 부서장 + 조직원 카드 (있을 때만)
+  if (sortedEmps.length > 0) {
+    html += `<div class="ov-connector-v"></div>`;
+    html += `<div class="ov-emp-row">${sortedEmps.map(e=>empCardHTML(e,headName)).join('')}</div>`;
+  }
+
+  // 하위 부서 (있을 때만)
+  if (subDepts.length > 0) {
+    html += `<div class="ov-connector-v"></div>`;
+    html += `<div class="ov-children">`;
+    html += subDepts.map(d => deptBlockHTML(d.id, depth+1)).join('');
+    html += `</div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function renderOrgView() {
+  // 브레드크럼
   const breadcrumb = document.getElementById('orgview-breadcrumb');
   const path = [];
   let pid = orgviewCurrentId;
@@ -1904,92 +1974,36 @@ function renderOrgView() {
     if(d) { path.unshift(d); pid = d.parent; } else break;
   }
   breadcrumb.innerHTML = ['전체'].concat(path.map(d=>d.name))
-    .map((n,i,arr) => `<span style="color:${i===arr.length-1?'var(--t1)':'var(--ac)'};cursor:pointer" onclick="orgviewGoLevel(${i})">${n}</span>`)
-    .join(' <span style="color:var(--t3)">›</span> ');
+    .map((n,i,arr) => `<span style="color:${i===arr.length-1?'var(--t1)':'var(--ac)'};cursor:pointer;font-weight:${i===arr.length-1?'600':'400'}" onclick="orgviewGoLevel(${i})">${n}</span>`)
+    .join(' <span style="color:var(--t3);margin:0 4px">›</span> ');
 
   // 상위 버튼
   document.getElementById('orgview-up-btn').style.display = orgviewStack.length ? 'inline-flex' : 'none';
 
-  // 현재 조직명
-  document.getElementById('orgview-dept-name').textContent = currentDept ? currentDept.name : '전체 조직';
+  // 세로형 조직도 렌더
+  const chart = document.getElementById('orgview-chart');
+  if (!chart) return;
 
-  // 현재 조직 직원 수 및 부서장
-  const deptEmps = currentDept
-    ? employees.filter(e => e.dept === currentDept.name && e.status !== '퇴직')
-    : employees.filter(e => e.status !== '퇴직');
-  const headEmp = currentDept && currentDept.head
-    ? employees.find(e => e.name === currentDept.head)
-    : null;
-  document.getElementById('orgview-dept-info').textContent =
-    `${headEmp ? '부서장: ' + headEmp.name + '  ·  ' : ''}총 ${deptEmps.length}명`;
+  if (orgviewCurrentId === '') {
+    // 전체 최상위: 루트 부서들 나열
+    const roots = [...departments]
+      .filter(d => !d.parent)
+      .sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
 
-  // 하위 조직 버튼
-  const subEl = document.getElementById('orgview-sub-depts');
-  if (subDepts.length) {
-    subEl.innerHTML = subDepts.map(d => {
-      const cnt = employees.filter(e => e.dept === d.name && e.status !== '퇴직').length;
-      return `<div onclick="orgviewGoTo('${d.id}')"
-        style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .2s;font-size:13px"
-        onmouseover="this.style.borderColor='var(--ac)';this.style.background='var(--acd)'"
-        onmouseout="this.style.borderColor='var(--border)';this.style.background='#fff'">
-        <span style="font-size:18px">📂</span>
-        <div>
-          <div style="font-weight:600">${d.name}</div>
-          <div style="font-size:11px;color:var(--t2)">${cnt}명</div>
-        </div>
-        <span style="margin-left:auto;color:var(--t3)">›</span>
-      </div>`;
-    }).join('');
-  } else {
-    subEl.innerHTML = '';
-  }
-
-  // 직원 카드
-  const label = document.getElementById('orgview-members-label');
-  const membersEl = document.getElementById('orgview-members');
-
-  // 부서장 먼저, 나머지는 이름순
-  let showEmps = currentDept
-    ? employees.filter(e => e.dept === currentDept.name && e.status !== '퇴직')
-    : (orgviewCurrentId === '' && subDepts.length === 0
-        ? employees.filter(e => e.status !== '퇴직')
-        : []);
-
-  // 부서장을 맨 위로
-  const headName = currentDept?.head || '';
-  showEmps = [
-    ...showEmps.filter(e => e.name === headName),
-    ...showEmps.filter(e => e.name !== headName).sort((a,b)=>a.name.localeCompare(b.name,'ko'))
-  ];
-
-  label.textContent = showEmps.length ? `👥 ${currentDept?.name||'전체'} 구성원 (${showEmps.length}명)` : '';
-
-  if (!showEmps.length) {
-    membersEl.innerHTML = subDepts.length
-      ? '<div style="color:var(--t3);font-size:13px">하위 조직을 선택하세요</div>'
-      : '<div style="color:var(--t3);font-size:13px">등록된 직원이 없습니다</div>';
-    return;
-  }
-
-  membersEl.innerHTML = showEmps.map((e, idx) => {
-    const isHead = e.name === headName && headName;
-    return `<div style="background:#fff;border:1px solid ${isHead?'var(--ac)':'var(--border)'};border-radius:var(--r2);padding:16px;text-align:center;position:relative;${isHead?'box-shadow:var(--shadow2)':''}">
-      ${isHead ? '<div style="position:absolute;top:8px;right:8px;font-size:10px;background:var(--acd);color:var(--ac);padding:2px 6px;border-radius:100px;font-weight:600">부서장</div>' : ''}
-      <div style="width:64px;height:64px;border-radius:50%;margin:0 auto 10px;overflow:hidden;border:2px solid ${isHead?'var(--ac)':'var(--border)'}">
-        ${e.photo
-          ? `<img src="${e.photo}" style="width:100%;height:100%;object-fit:cover">`
-          : `<div style="width:64px;height:64px;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff">${(e.name||'?')[0]}</div>`}
-      </div>
-      <div style="font-weight:600;font-size:14px;margin-bottom:4px">${e.name||'-'}</div>
-      <div style="font-size:12px;color:var(--t2);margin-bottom:2px">${e.position||''} ${e.title?'· '+e.title:''}</div>
-      <div style="font-size:11px;color:var(--t3)">${e.dept||''}</div>
-      <div style="margin-top:6px"><span class="tag ${e.status==='재직'?'tag-green':e.status==='휴직'?'tag-amber':'tag-red'}">${e.status||'재직'}</span></div>
+    if (!roots.length) {
+      chart.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:40px;text-align:center">등록된 부서가 없습니다.<br>조직 관리에서 부서를 추가해주세요.</div>';
+      return;
+    }
+    chart.innerHTML = `<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+      ${roots.map(d => deptBlockHTML(d.id, 0)).join('')}
     </div>`;
-  }).join('');
+  } else {
+    // 특정 부서: 해당 부서 + 하위 조직도
+    chart.innerHTML = deptBlockHTML(orgviewCurrentId, 0);
+  }
 }
 
 function orgviewGoLevel(idx) {
-  // 브레드크럼 클릭 시 해당 레벨로 이동
   if (idx === 0) { orgviewGoRoot(); return; }
   const path = [];
   let pid = orgviewCurrentId;
