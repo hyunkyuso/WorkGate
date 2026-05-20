@@ -9,10 +9,7 @@
 <script src="https://apis.google.com/js/api.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<!-- Firebase SDK는 body 끝에 로드 -->
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
@@ -720,6 +717,14 @@ select.form-input{cursor:pointer}
 <!-- 토스트 -->
 <div class="toast" id="toast"></div>
 
+<!-- JS는 하단에 로드 -->
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<!-- 앱 메인 스크립트 (Firebase SDK 로드 완료 후 실행) -->
 <script>
 // ══════════════════════════════════════════════════
 // CONFIG — 실제 사용 시 Google Cloud Console에서 발급
@@ -731,18 +736,8 @@ const CONFIG = {
   FOLDER_NAME: 'WorkGate',
 };
 
-// ── Firebase 초기화 ──
-const firebaseConfig = {
-  apiKey: "AIzaSyCp5wGOI9KIVaNdeS7QSfejtX3XHszy81k",
-  authDomain: "workgate-e6c56.firebaseapp.com",
-  projectId: "workgate-e6c56",
-  storageBucket: "workgate-e6c56.firebasestorage.app",
-  messagingSenderId: "187107745836",
-  appId: "1:187107745836:web:c8f1c7395e157bbc2ff189"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
+// ── Firebase — body 끝 스크립트 로드 후 초기화 ──
+var db, auth;
 
 // ══════════════════════════════════════════════════
 // STATE
@@ -760,17 +755,19 @@ let state = {
 // ══════════════════════════════════════════════════
 // GOOGLE AUTH
 // ══════════════════════════════════════════════════
-// ── Firebase Auth 상태 감지 ──
-auth.onAuthStateChanged(async (user) => {
-  if (user) {
-    state.user = { name: user.displayName, email: user.email, picture: user.photoURL };
-    state.accessToken = await user.getIdToken();
-    await loginSuccess(user.displayName, user.photoURL, user.email);
-  } else {
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
-  }
-});
+// ── Firebase Auth 상태 감지 (initFirebase에서 호출) ──
+function setupAuthListener() {
+  auth.onAuthStateChanged(async (user) => {
+    if (user) {
+      state.user = { name: user.displayName, email: user.email, picture: user.photoURL };
+      state.accessToken = await user.getIdToken();
+      await loginSuccess(user.displayName, user.photoURL, user.email);
+    } else {
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    }
+  });
+}
 
 function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
@@ -835,10 +832,18 @@ async function loadFirestoreData() {
       localStorage.setItem('wg_departments', JSON.stringify(departments));
     }
 
-    // 코드 데이터 로드
+    // 코드 데이터 로드 (Firestore 우선, 없으면 기본값 유지)
     const codeSnap = await db.collection('codes').doc('all').get();
     if (codeSnap.exists) {
-      Object.assign(codeData, codeSnap.data());
+      const firestoreData = codeSnap.data();
+      // Firestore 데이터로 완전 덮어쓰기
+      Object.keys(firestoreData).forEach(key => {
+        codeData[key] = firestoreData[key];
+      });
+      localStorage.setItem('wg_codes', JSON.stringify(codeData));
+    } else {
+      // Firestore에 없으면 기본값 저장
+      await db.collection('codes').doc('all').set(codeData);
       localStorage.setItem('wg_codes', JSON.stringify(codeData));
     }
   } catch(e) { console.error('Firestore 로드 오류:', e); }
@@ -1680,7 +1685,15 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
-  if(id === 'codemanage') renderCodeTable();
+  if(id === 'codemanage') {
+    // 항상 최신 Firestore 데이터로 렌더
+    db.collection('codes').doc('all').get().then(snap => {
+      if (snap.exists) {
+        Object.keys(snap.data()).forEach(k => { codeData[k] = snap.data()[k]; });
+      }
+      renderCodeTable();
+    }).catch(() => renderCodeTable());
+  }
   if(id === 'employees') { populateEmpFilterDept(); renderEmployeeTable(); }
   if(id === 'organization') renderDeptTable();
 }
@@ -1707,7 +1720,8 @@ const CODE_CATS = {
 };
 
 let currentCat = 'position';
-let codeData = JSON.parse(localStorage.getItem('wg_codes') || JSON.stringify({
+// codeData는 Firestore에서 로드 후 세팅 (localStorage는 캐시용)
+let codeData = {
   position: [
     {id:'position_1', name:'사원', use:true},
     {id:'position_2', name:'대리', use:true},
@@ -1727,7 +1741,7 @@ let codeData = JSON.parse(localStorage.getItem('wg_codes') || JSON.stringify({
     {id:'year_2', name:'2024', use:true},
     {id:'year_3', name:'2025', use:true},
   ],
-}));
+};
 
 function saveCodes() {
   localStorage.setItem('wg_codes', JSON.stringify(codeData));
@@ -1888,6 +1902,22 @@ if (!state.kpis.length) {
   ];
   localStorage.setItem('wg_kpis', JSON.stringify(state.kpis));
 }
+
+// ── Firebase 초기화 ──
+(function() {
+  const firebaseConfig = {
+    apiKey: "AIzaSyCp5wGOI9KIVaNdeS7QSfejtX3XHszy81k",
+    authDomain: "workgate-e6c56.firebaseapp.com",
+    projectId: "workgate-e6c56",
+    storageBucket: "workgate-e6c56.firebasestorage.app",
+    messagingSenderId: "187107745836",
+    appId: "1:187107745836:web:c8f1c7395e157bbc2ff189"
+  };
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  auth = firebase.auth();
+  setupAuthListener();
+})();
 </script>
 </body>
 </html>
