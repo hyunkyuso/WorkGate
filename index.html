@@ -883,17 +883,18 @@ function startMyRoleListener(email) {
     if (!snap.exists) return;
     const data = snap.data();
     const newRole = data.role || '일반';
-    if (newRole !== state.myRole) {
-      state.myRole = newRole;
-      applyRoleUI();
-      if (newRole === '관리자' || newRole === 'HR담당') {
-        showToast('🔑 관리자 권한이 부여되었습니다!');
-      }
-    }
+    state.myRole = newRole;
+    applyRoleUI();
     // 직원 목록도 업데이트
     const idx = employees.findIndex(e => e.id === email);
     if (idx > -1) employees[idx] = data;
     else employees.push(data);
+    if (newRole === '관리자' || newRole === 'HR담당') {
+      const badge = document.getElementById('role-badge');
+      if (badge && badge.style.display === 'none') {
+        showToast('🔑 관리자 권한이 확인되었습니다!');
+      }
+    }
   });
 }
 
@@ -916,14 +917,12 @@ async function loginSuccess(name, picture, email) {
   document.getElementById('dash-date').textContent =
     new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric',weekday:'long'});
 
+  // 이메일 먼저 저장 (loadFirestoreData에서 권한 체크에 필요)
+  state.myEmail = email;
   // 직원 자동 등록 (Firestore에 없으면 신규 등록)
   await autoRegisterEmployee(email, name, picture);
   await loadFirestoreData();
-  // 현재 로그인 사용자 권한 확인
-  const myEmp = employees.find(e => e.id === email);
-  state.myRole = myEmp?.role || '일반';
-  state.myEmail = email;
-  // 관리자 여부 UI 반영
+  // 관리자 여부 UI 반영 (loadFirestoreData 내에서 이미 호출되지만 한 번 더)
   applyRoleUI();
   initApp();
 }
@@ -984,7 +983,9 @@ async function loadFirestoreData() {
   // 로드 완료 후 현재 사용자 권한 재확인
   if (state.myEmail) {
     const myEmp = employees.find(e => e.id === state.myEmail);
-    state.myRole = myEmp?.role || '일반';
+    const newRole = myEmp ? (myEmp.role || '일반') : '일반';
+    state.myRole = newRole;
+    console.log('권한 확인:', state.myEmail, '->', newRole, '/ 직원수:', employees.length);
     applyRoleUI();
   }
 }
