@@ -990,7 +990,12 @@ async function loadFirestoreData() {
     // 부서 데이터 로드
     const deptSnap = await db.collection('departments').get();
     if (!deptSnap.empty) {
-      departments = deptSnap.docs.map(d => d.data());
+      departments = deptSnap.docs.map(d => {
+        const data = d.data();
+        // position 기본값 보장
+        if (!data.position) data.position = 'bottom';
+        return data;
+      });
       localStorage.setItem('wg_departments', JSON.stringify(departments));
     }
 
@@ -2170,9 +2175,13 @@ function renderOrgView() {
     return Math.max(CW, bots.reduce((s,d)=>s+subW(d.id),0)+(bots.length-1)*HGAP);
   }
 
-  // 자식 분류
-  function kids(id,pos){
-    return [...departments].filter(d=>d.parent===id&&(pos==='bottom'?(!d.position||d.position==='bottom'):d.position===pos)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+  // 자식 분류 (position 필터)
+  function kids(id, ptype){
+    return [...departments].filter(d=>{
+      if(d.parent!==id) return false;
+      if(ptype==='bottom') return !d.position||d.position==='bottom';
+      return d.position===ptype;
+    }).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   }
 
   // ── 1단계: 절대 좌표 계산 ──
