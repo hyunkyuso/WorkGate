@@ -193,7 +193,9 @@ select.form-input{cursor:pointer}
 .ov-emp-bubble .ov-emp-pos{font-size:9px;color:#5a5f7a;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}
 .ov-emp-bubble.is-head .ov-avatar{width:64px;height:64px;border-color:var(--ac);border-width:3px;box-shadow:0 4px 12px rgba(79,110,247,.4)}
 .ov-emp-bubble.is-head .ov-emp-name{font-size:13px;font-weight:700;color:var(--ac)}
-.ov-v-line{width:2px;background:#d1d5db;margin:0 auto}
+.ov-v-line{width:2px;background:#d1d5db;margin:0 auto;flex-shrink:0}
+.ov-tree-hline-wrap{position:relative;display:inline-flex;gap:12px;align-items:flex-start}
+.ov-h-connector{position:absolute;top:0;left:50%;transform:translateX(-50%);height:2px;background:#d1d5db;width:calc(100% - 140px);min-width:20px}
 .ov-h-line{height:2px;background:#d1d5db;position:absolute;top:0}
 .ov-children-wrap{display:flex;gap:0;align-items:flex-start;position:relative}
 .ov-child-col{display:flex;flex-direction:column;align-items:center;position:relative}
@@ -491,7 +493,7 @@ select.form-input{cursor:pointer}
               <table>
                 <thead><tr>
                   <th style="width:60px;text-align:center">정렬</th>
-                  <th>부서코드</th><th>부서명</th><th>상위부서</th><th>부서장</th><th>인원수</th><th style="text-align:center">관리</th>
+                  <th>부서코드</th><th>부서명</th><th>상위부서</th><th>부서장</th><th>위치</th><th>인원수</th><th style="text-align:center">관리</th>
                 </tr></thead>
                 <tbody id="dept-tbody"></tbody>
               </table>
@@ -784,6 +786,15 @@ select.form-input{cursor:pointer}
     </div>
     <div class="form-group"><label class="form-label">정렬 순서</label>
       <input type="number" class="form-input" id="dept-sort" placeholder="숫자가 작을수록 위에 표시 (예: 1, 2, 3)" min="1">
+    </div>
+    <div class="form-group"><label class="form-label">조직도 위치</label>
+      <select class="form-input" id="dept-position">
+        <option value="bottom">아래 (기본)</option>
+        <option value="left">좌측</option>
+        <option value="right">우측</option>
+        <option value="top">위</option>
+      </select>
+      <div style="font-size:11px;color:var(--t2);margin-top:4px">직원조회 조직도에서 이 부서가 상위 부서의 어느 방향에 표시될지 설정합니다</div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('dept-modal')">닫기</button>
@@ -1804,6 +1815,12 @@ function renderDeptTable() {
       <td style="font-weight:500">${d.name}</td>
       <td>${parent ? parent.name : '<span style="color:var(--t3)">-</span>'}</td>
       <td>${d.head||'<span style="color:var(--t3)">-</span>'}</td>
+      <td style="text-align:center">
+        ${d.position==='left'?'<span class="tag tag-blue">좌측</span>':
+          d.position==='right'?'<span class="tag tag-purple">우측</span>':
+          d.position==='top'?'<span class="tag tag-amber">위</span>':
+          '<span class="tag tag-gray" style="background:var(--surface);color:var(--t3)">아래</span>'}
+      </td>
       <td style="text-align:center"><span class="tag tag-blue">${empCount}명</span></td>
       <td style="text-align:center">
         <div style="display:flex;gap:4px;justify-content:center">
@@ -1867,6 +1884,7 @@ function openDeptModal(id) {
     document.getElementById('dept-parent').value = d.parent||'';
     document.getElementById('dept-head').value = d.head||'';
     document.getElementById('dept-sort').value = d.sortOrder||'';
+    document.getElementById('dept-position').value = d.position||'bottom';
   } else {
     document.getElementById('dept-modal-title').textContent = '부서 추가';
     document.getElementById('dept-modal-save-btn').textContent = '저장';
@@ -1874,6 +1892,7 @@ function openDeptModal(id) {
     document.getElementById('dept-parent').value = '';
     document.getElementById('dept-head').value = '';
     document.getElementById('dept-sort').value = '';
+    document.getElementById('dept-position').value = 'bottom';
   }
   openModal('dept-modal');
 }
@@ -1888,6 +1907,7 @@ function saveDept() {
     parent: document.getElementById('dept-parent').value,
     head: document.getElementById('dept-head').value,
     sortOrder: parseInt(document.getElementById('dept-sort').value) || 99,
+    position: document.getElementById('dept-position').value || 'bottom',
   };
   if (editingDeptId) {
     const idx = departments.findIndex(d => d.id === editingDeptId);
@@ -1988,72 +2008,123 @@ function sortEmpsByRank(emps, headName) {
 function buildTreeNode(deptId, level) {
   const dept = deptId ? departments.find(d=>d.id===deptId) : null;
   const deptName = dept ? dept.name : '전체';
-  const subDepts = [...departments]
-    .filter(d=>d.parent===deptId)
-    .sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-
   const headName = dept ? (dept.head||'') : '';
   const deptEmps = dept ? employees.filter(e=>e.dept===deptName&&e.status!=='퇴직') : [];
   const sortedEmps = sortEmpsByRank(deptEmps, headName);
   const totalCnt = deptEmps.length;
   const lvlClass = 'level-' + Math.min(level,4);
 
-  let html = '<div class="ov-tree-node" style="padding:0 6px;display:flex;flex-direction:column;align-items:center">';
+  // 하위 부서를 position별로 분류
+  const allChildren = [...departments]
+    .filter(d=>d.parent===deptId)
+    .sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+  const leftChildren  = allChildren.filter(d=>(d.position||'bottom')==='left');
+  const rightChildren = allChildren.filter(d=>(d.position||'bottom')==='right');
+  const topChildren   = allChildren.filter(d=>(d.position||'bottom')==='top');
+  const botChildren   = allChildren.filter(d=>(d.position||'bottom')==='bottom'||!(d.position));
 
-  // 부서 박스
-  html += '<div class="ov-dept-card ' + lvlClass + '" onclick="showDeptDetail(\'' + deptId + '\')" style="cursor:pointer" title="' + deptName + ' - 클릭하여 상세보기">';
-  html += deptName;
-  html += '<div class="ov-dept-sub">' + totalCnt + '명' + (headName?' · '+headName:'') + '</div>';
-  html += '</div>';
+  // 부서 박스 HTML
+  const deptBox = '<div class="ov-dept-card ' + lvlClass + '" onclick="showDeptDetail(\'' + deptId + '\')" style="cursor:pointer">' +
+    deptName + '<div class="ov-dept-sub">' + totalCnt + '명' + (headName?' · '+headName:'') + '</div></div>';
 
-  // 세로선 + 직원 버블
+  // 직원 버블 HTML
+  let empRow = '';
   if (sortedEmps.length > 0) {
-    html += '<div class="ov-v-line" style="height:14px"></div>';
-    html += '<div class="ov-emps-row">';
-    sortedEmps.forEach(function(e) {
-      html += empBubbleHTML(e, e.name===headName && !!headName);
-    });
+    empRow = '<div class="ov-v-line" style="height:10px"></div>' +
+      '<div class="ov-emps-row">' +
+      sortedEmps.map(function(e){ return empBubbleHTML(e, e.name===headName&&!!headName); }).join('') +
+      '</div>';
+  }
+
+  // 하위 부서 행 생성 함수
+  function childRow(children) {
+    if (!children.length) return '';
+    if (children.length === 1) {
+      return '<div class="ov-v-line" style="height:16px"></div>' +
+        '<div style="display:flex;flex-direction:column;align-items:center">' +
+        buildTreeNode(children[0].id, level+1) + '</div>';
+    }
+    // 여러 자식: 가로 연결선
+    const childNodes = children.map(function(d) {
+      return '<div style="display:flex;flex-direction:column;align-items:center;position:relative">' +
+        '<div class="ov-v-line" style="height:16px"></div>' +
+        buildTreeNode(d.id, level+1) + '</div>';
+    }).join('');
+    return '<div class="ov-v-line" style="height:16px"></div>' +
+      '<div class="ov-tree-hline-wrap" style="position:relative;display:inline-flex;gap:12px;align-items:flex-start">' +
+      '<div class="ov-h-connector"></div>' +
+      childNodes + '</div>';
+  }
+
+  // 좌우 배치가 있는 경우 — 3열 레이아웃
+  const hasLR = leftChildren.length > 0 || rightChildren.length > 0;
+  let html = '<div class="ov-tree-node">';
+
+  // 위쪽 자식 (top)
+  if (topChildren.length > 0) {
+    html += '<div style="display:flex;justify-content:center;margin-bottom:0">';
+    html += childRow(topChildren);
     html += '</div>';
   }
 
-  // 하위 부서 연결선 + 자식 노드
-  if (subDepts.length > 0) {
-    html += '<div class="ov-v-line" style="height:18px"></div>';
+  if (hasLR) {
+    // 3열: 좌측 자식 | 현재 노드 | 우측 자식
+    html += '<div style="display:flex;align-items:flex-start;gap:0">';
 
-    if (subDepts.length === 1) {
-      // 자식 1개: 세로선만
-      html += '<div style="display:flex;flex-direction:column;align-items:center">';
-      html += buildTreeNode(subDepts[0].id, level+1);
-      html += '</div>';
-    } else {
-      // 자식 여러개: SVG로 정확한 연결선 그리기
-      // 각 자식 노드를 먼저 렌더링해서 너비 계산
-      const childCount = subDepts.length;
-      const childWidth = 180; // 노드당 평균 너비(px)
-      const gap = 16;
-      const totalW = childCount * childWidth + (childCount-1) * gap;
-      const halfW = totalW / 2;
-
-      html += '<div style="position:relative;display:flex;flex-direction:column;align-items:center;width:100%">';
-      // 가로 연결선: 첫번째 자식 중앙 ~ 마지막 자식 중앙
-      html += '<div style="position:relative;width:100%;height:18px;">';
-      html += '<div style="position:absolute;left:50%;width:0;height:18px;border-left:2px solid #d1d5db;top:0;transform:translateX(-1px)"></div>';
-      html += '</div>';
-
-      html += '<div style="display:flex;align-items:flex-start;gap:' + gap + 'px;position:relative">';
-      // 자식들 위에 가로선 오버레이 (첫번째~마지막 중앙 연결)
-      html += '<div style="position:absolute;top:0;left:' + (childWidth/2) + 'px;right:' + (childWidth/2) + 'px;height:2px;background:#d1d5db;z-index:1"></div>';
-
-      subDepts.forEach(function(d) {
-        html += '<div style="display:flex;flex-direction:column;align-items:center;position:relative;z-index:2">';
-        // 각 자식 위쪽 세로선
-        html += '<div class="ov-v-line" style="height:16px"></div>';
-        html += buildTreeNode(d.id, level+1);
-        html += '</div>';
+    // 좌측 자식
+    if (leftChildren.length > 0) {
+      html += '<div style="display:flex;flex-direction:column;align-items:flex-end;padding-right:0">';
+      // 세로로 나열
+      leftChildren.forEach(function(d) {
+        html += '<div style="display:flex;align-items:center;margin-bottom:8px">' +
+          buildTreeNode(d.id, level+1) +
+          '<div style="width:24px;height:2px;background:#d1d5db;flex-shrink:0"></div>' +
+          '</div>';
       });
+      html += '</div>';
+    }
 
-      html += '</div>'; // flex row
-      html += '</div>'; // relative
+    // 현재 노드 (중앙 세로선 포함)
+    html += '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">';
+    if (leftChildren.length > 0 || rightChildren.length > 0) {
+      // 좌우 연결을 위한 가로선
+      const lw = leftChildren.length > 0 ? '24px' : '0';
+      const rw = rightChildren.length > 0 ? '24px' : '0';
+      html += '<div style="display:flex;align-items:center">' +
+        '<div style="width:' + lw + ';height:2px;background:#d1d5db"></div>' +
+        deptBox +
+        '<div style="width:' + rw + ';height:2px;background:#d1d5db"></div>' +
+        '</div>';
+    } else {
+      html += deptBox;
+    }
+    html += empRow;
+    // 아래 자식
+    if (botChildren.length > 0) {
+      html += childRow(botChildren);
+    }
+    html += '</div>';
+
+    // 우측 자식
+    if (rightChildren.length > 0) {
+      html += '<div style="display:flex;flex-direction:column;align-items:flex-start;padding-left:0">';
+      rightChildren.forEach(function(d) {
+        html += '<div style="display:flex;align-items:center;margin-bottom:8px">' +
+          '<div style="width:24px;height:2px;background:#d1d5db;flex-shrink:0"></div>' +
+          buildTreeNode(d.id, level+1) +
+          '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '</div>'; // 3열 끝
+
+  } else {
+    // 좌우 없음 — 기본 세로 트리
+    html += deptBox;
+    html += empRow;
+    if (botChildren.length > 0) {
+      html += childRow(botChildren);
     }
   }
 
