@@ -1954,6 +1954,26 @@ function empBubbleHTML(e, isHead) {
   </div>`;
 }
 
+// ── 직급 정렬 순서 ──
+const RANK_ORDER = ['본부장','부서장','팀장','부장','차장','과장','대리','주임','사원','인턴',''];
+
+function rankIndex(pos) {
+  const idx = RANK_ORDER.findIndex(r => r && pos && pos.includes(r));
+  return idx === -1 ? RANK_ORDER.length - 1 : idx;
+}
+
+function sortEmpsByRank(emps, headName) {
+  // 1순위: 부서장(headName), 2순위: 직급순, 3순위: 이름순
+  return [
+    ...emps.filter(e=>e.name===headName),
+    ...emps.filter(e=>e.name!==headName).sort((a,b)=>{
+      const ra = rankIndex(a.position||''), rb = rankIndex(b.position||'');
+      if (ra !== rb) return ra - rb;
+      return (a.name||'').localeCompare(b.name||'','ko');
+    })
+  ];
+}
+
 // ── 재귀 트리 노드 HTML ──
 function buildTreeNode(deptId, level) {
   const dept = deptId ? departments.find(d=>d.id===deptId) : null;
@@ -1962,59 +1982,72 @@ function buildTreeNode(deptId, level) {
     .filter(d=>d.parent===deptId)
     .sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
 
-  const headName = dept?.head || '';
-  const deptEmps = dept
-    ? employees.filter(e=>e.dept===deptName&&e.status!=='퇴직')
-    : [];
-  // 부서장 먼저
-  const sortedEmps = [
-    ...deptEmps.filter(e=>e.name===headName),
-    ...deptEmps.filter(e=>e.name!==headName).sort((a,b)=>a.name.localeCompare(b.name,'ko'))
-  ];
-
+  const headName = dept ? (dept.head||'') : '';
+  const deptEmps = dept ? employees.filter(e=>e.dept===deptName&&e.status!=='퇴직') : [];
+  const sortedEmps = sortEmpsByRank(deptEmps, headName);
   const totalCnt = deptEmps.length;
-  const lvlClass = `level-${Math.min(level,4)}`;
+  const lvlClass = 'level-' + Math.min(level,4);
 
-  let html = `<div class="ov-tree-node" style="padding:0 8px">`;
+  let html = '<div class="ov-tree-node" style="padding:0 6px;display:flex;flex-direction:column;align-items:center">';
 
-  // 부서 박스 (클릭 시 상세 모달)
-  html += `<div class="ov-dept-card ${lvlClass}" onclick="showDeptDetail('${deptId}')" style="cursor:pointer" title="${deptName} 클릭하여 상세보기">
-    ${deptName}
-    <div class="ov-dept-sub">${totalCnt}명${headName?' · '+headName:''}</div>
-  </div>`;
+  // 부서 박스
+  html += '<div class="ov-dept-card ' + lvlClass + '" onclick="showDeptDetail(\'' + deptId + '\')" style="cursor:pointer" title="' + deptName + ' - 클릭하여 상세보기">';
+  html += deptName;
+  html += '<div class="ov-dept-sub">' + totalCnt + '명' + (headName?' · '+headName:'') + '</div>';
+  html += '</div>';
 
-  // 세로선 + 직원
+  // 세로선 + 직원 버블
   if (sortedEmps.length > 0) {
-    html += `<div class="ov-v-line" style="height:16px"></div>`;
-    html += `<div class="ov-emps-row">`;
-    html += sortedEmps.map(e=>empBubbleHTML(e, e.name===headName&&!!headName)).join('');
-    html += `</div>`;
+    html += '<div class="ov-v-line" style="height:14px"></div>';
+    html += '<div class="ov-emps-row">';
+    sortedEmps.forEach(function(e) {
+      html += empBubbleHTML(e, e.name===headName && !!headName);
+    });
+    html += '</div>';
   }
 
-  // 하위 부서
+  // 하위 부서 연결선 + 자식 노드
   if (subDepts.length > 0) {
-    html += `<div class="ov-v-line" style="height:20px"></div>`;
+    html += '<div class="ov-v-line" style="height:18px"></div>';
 
-    // 가로 연결선
-    if (subDepts.length > 1) {
-      html += `<div style="display:flex;align-items:flex-start;position:relative;width:100%">
-        <div style="position:absolute;top:0;left:calc(50% - ${(subDepts.length-1)*80}px + 80px);right:calc(50% - ${(subDepts.length-1)*80}px + 80px);height:2px;background:#d1d5db;min-width:60%;max-width:90%;left:10%;right:10%"></div>
-        <div style="display:flex;gap:16px;align-items:flex-start;width:100%">`;
-      html += subDepts.map(d=>`
-        <div style="display:flex;flex-direction:column;align-items:center;flex:1">
-          <div class="ov-v-line" style="height:20px"></div>
-          ${buildTreeNode(d.id, level+1)}
-        </div>`).join('');
-      html += `</div></div>`;
+    if (subDepts.length === 1) {
+      // 자식 1개: 세로선만
+      html += '<div style="display:flex;flex-direction:column;align-items:center">';
+      html += buildTreeNode(subDepts[0].id, level+1);
+      html += '</div>';
     } else {
-      html += subDepts.map(d=>`
-        <div style="display:flex;flex-direction:column;align-items:center">
-          ${buildTreeNode(d.id, level+1)}
-        </div>`).join('');
+      // 자식 여러개: SVG로 정확한 연결선 그리기
+      // 각 자식 노드를 먼저 렌더링해서 너비 계산
+      const childCount = subDepts.length;
+      const childWidth = 180; // 노드당 평균 너비(px)
+      const gap = 16;
+      const totalW = childCount * childWidth + (childCount-1) * gap;
+      const halfW = totalW / 2;
+
+      html += '<div style="position:relative;display:flex;flex-direction:column;align-items:center;width:100%">';
+      // 가로 연결선: 첫번째 자식 중앙 ~ 마지막 자식 중앙
+      html += '<div style="position:relative;width:100%;height:18px;">';
+      html += '<div style="position:absolute;left:50%;width:0;height:18px;border-left:2px solid #d1d5db;top:0;transform:translateX(-1px)"></div>';
+      html += '</div>';
+
+      html += '<div style="display:flex;align-items:flex-start;gap:' + gap + 'px;position:relative">';
+      // 자식들 위에 가로선 오버레이 (첫번째~마지막 중앙 연결)
+      html += '<div style="position:absolute;top:0;left:' + (childWidth/2) + 'px;right:' + (childWidth/2) + 'px;height:2px;background:#d1d5db;z-index:1"></div>';
+
+      subDepts.forEach(function(d) {
+        html += '<div style="display:flex;flex-direction:column;align-items:center;position:relative;z-index:2">';
+        // 각 자식 위쪽 세로선
+        html += '<div class="ov-v-line" style="height:16px"></div>';
+        html += buildTreeNode(d.id, level+1);
+        html += '</div>';
+      });
+
+      html += '</div>'; // flex row
+      html += '</div>'; // relative
     }
   }
 
-  html += `</div>`;
+  html += '</div>';
   return html;
 }
 
@@ -2310,80 +2343,79 @@ function downloadExcel() {
   showToast('📊 Excel 파일 다운로드 완료!');
 }
 
-// ── PPT 다운로드 (HTML → 새창 인쇄/저장) ──
+// ── PPT 다운로드 — 직원 사진 포함 가로 A4 PDF ──
 function downloadPPT() {
   const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
-  const totalActive = employees.filter(e=>e.status!=='퇴직').length;
-  const statsText = document.getElementById('orgview-stats')?.textContent || '';
+  const totalActive = employees.filter(function(e){return e.status!=='퇴직';}).length;
+  const statsText = (document.getElementById('orgview-stats')||{}).textContent || '';
+
+  // 현재 조직도 HTML 그대로 사용 (사진 포함)
   const chart = document.getElementById('orgview-chart');
   if (!chart) return;
 
-  // PPT용 스타일 (16:9 비율)
+  // 현재 페이지의 ov- CSS 추출
+  let ovCSS = '';
+  try {
+    Array.from(document.styleSheets).forEach(function(ss) {
+      try {
+        Array.from(ss.cssRules).forEach(function(rule) {
+          if (rule.cssText && (rule.cssText.indexOf('ov-') > -1 || rule.cssText.indexOf('.tag') > -1)) {
+            ovCSS += rule.cssText + ' ';
+          }
+        });
+      } catch(e) {}
+    });
+  } catch(e) {}
+
   const win = window.open('', '_blank');
-  win.document.write(`<!DOCTYPE html><html lang="ko"><head>
-    <meta charset="utf-8">
-    <title>조직도</title>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap');
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'Noto Sans KR',sans-serif;background:#fff;width:1280px;min-height:720px}
-      .slide{width:1280px;min-height:720px;padding:32px 40px;display:flex;flex-direction:column;background:#fff}
-      .slide-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:3px solid #1a1d2e}
-      .slide-title{font-size:28px;font-weight:700;color:#1a1d2e}
-      .slide-sub{font-size:13px;color:#666;margin-top:4px}
-      .slide-stats{text-align:right}
-      .stats-total{font-size:20px;font-weight:700;color:#4F6EF7}
-      .stats-detail{font-size:12px;color:#666;margin-top:4px}
-      .slide-body{flex:1;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;transform-origin:top center}
-      .ov-tree-node{display:flex;flex-direction:column;align-items:center;position:relative}
-      .ov-dept-card{color:#fff;border-radius:8px;padding:8px 14px;text-align:center;min-width:110px;max-width:150px;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-      .ov-dept-card.level-0{background:#1a1d2e;min-width:130px}
-      .ov-dept-card.level-1{background:#4F6EF7}
-      .ov-dept-card.level-2{background:#7c3aed}
-      .ov-dept-card.level-3{background:#0ea5e9}
-      .ov-dept-card.level-4{background:#10b981}
-      .ov-dept-sub{font-size:9px;opacity:.8;margin-top:2px}
-      .ov-emp-bubble{display:flex;flex-direction:column;align-items:center;gap:2px}
-      .ov-emp-bubble .ov-avatar{width:44px;height:44px;border-radius:50%;border:2px solid #fff;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15)}
-      .ov-emp-bubble.is-head .ov-avatar{width:56px;height:56px;border-color:#4F6EF7;border-width:3px}
-      .ov-emp-bubble .ov-emp-name{font-size:10px;font-weight:600;color:#1a1d2e;white-space:nowrap;max-width:70px;overflow:hidden;text-overflow:ellipsis}
-      .ov-emp-bubble .ov-emp-pos{font-size:8px;color:#666;white-space:nowrap}
-      .ov-emp-bubble.is-head .ov-emp-name{font-size:11px;font-weight:700;color:#4F6EF7}
-      .ov-v-line{width:2px;background:#d1d5db;margin:0 auto}
-      .ov-emps-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:0 6px}
-      .slide-footer{margin-top:16px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#999;text-align:right}
-      @media print{
-        body{width:100%}
-        .slide{min-height:auto}
-        @page{size:A4 landscape;margin:8mm}
-      }
-    </style>
-  </head><body>
-    <div class="slide">
-      <div class="slide-header">
-        <div>
-          <div class="slide-title">조직도</div>
-          <div class="slide-sub">기준일자: ${today}</div>
-        </div>
-        <div class="slide-stats">
-          <div class="stats-total">전체 ${totalActive}명</div>
-          <div class="stats-detail">${statsText}</div>
-        </div>
-      </div>
-      <div class="slide-body">
-        <div style="transform:scale(0.75);transform-origin:top center">
-          ${chart.innerHTML}
-        </div>
-      </div>
-      <div class="slide-footer">WorkGate 조직도 · ${today}</div>
-    </div>
-    <script>
-      // 자동으로 인쇄 대화상자 (PDF로 저장 가능)
-      setTimeout(()=>{ window.print(); }, 1000);
-    <\/script>
-  </body></html>`);
+  if (!win) { showToast('❌ 팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.'); return; }
+
+  win.document.write('<!DOCTYPE html><html lang="ko"><head>' +
+    '<meta charset="utf-8"><title>조직도_' + today + '</title>' +
+    '<style>' +
+    '@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap");' +
+    '*{box-sizing:border-box;margin:0;padding:0}' +
+    'body{font-family:"Noto Sans KR",sans-serif;background:#fff;}' +
+    '.slide{width:100%;padding:20px 24px;background:#fff;}' +
+    '.slide-hdr{display:flex;justify-content:space-between;align-items:center;' +
+    'padding-bottom:12px;border-bottom:3px solid #1a1d2e;margin-bottom:18px;}' +
+    '.slide-title{font-size:20px;font-weight:700;color:#1a1d2e;}' +
+    '.slide-meta{font-size:11px;color:#666;margin-top:3px;}' +
+    '.slide-stats{text-align:right;font-size:11px;color:#444;}' +
+    '.stats-num{font-size:18px;font-weight:700;color:#4F6EF7;}' +
+    '.slide-body{display:flex;justify-content:center;align-items:flex-start;}' +
+    '.slide-ftr{margin-top:14px;padding-top:8px;border-top:1px solid #e5e7eb;' +
+    'font-size:10px;color:#999;text-align:right;}' +
+    ovCSS +
+    // 인쇄 설정
+    '@media print{' +
+    'body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+    '@page{size:A3 landscape;margin:8mm;}' +
+    '.slide{padding:12px 16px;}' +
+    '}' +
+    '</style></head><body>' +
+    '<div class="slide">' +
+    '<div class="slide-hdr">' +
+    '<div><div class="slide-title">조직도</div>' +
+    '<div class="slide-meta">기준일자: ' + today + '</div></div>' +
+    '<div class="slide-stats">' +
+    '<div class="stats-num">전체 ' + totalActive + '명</div>' +
+    '<div>' + statsText + '</div>' +
+    '</div></div>' +
+    '<div class="slide-body">' +
+    '<div style="transform:scale(0.65);transform-origin:top center;width:max-content">' +
+    chart.innerHTML +
+    '</div></div>' +
+    '<div class="slide-ftr">WorkGate 조직도 &nbsp;·&nbsp; ' + today + '</div>' +
+    '</div>' +
+    '<script>' +
+    'window.onload = function() {' +
+    '  setTimeout(function(){ window.print(); }, 1200);' +
+    '};' +
+    '<\/script>' +
+    '</body></html>');
   win.document.close();
-  showToast('📑 PPT용 조직도 생성 완료! 인쇄 창에서 PDF로 저장하세요.');
+  showToast('📑 A3 가로 조직도 출력창이 열렸습니다! PDF로 저장하세요.');
 }
 
 function renderMembers() {} // 하위호환 유지
