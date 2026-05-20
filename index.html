@@ -180,7 +180,10 @@ select.form-input{cursor:pointer}
 /* ── ORGVIEW 세로형 조직도 ── */
 /* ── ORGVIEW 트리형 조직도 ── */
 .ov-tree-node{display:flex;flex-direction:column;align-items:center;position:relative}
-.ov-dept-card{background:#4F6EF7;color:#fff;border-radius:8px;padding:8px 14px;text-align:center;min-width:120px;max-width:160px;cursor:default;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 8px rgba(79,110,247,.3)}
+/* 레벨별 수직 정렬 — 같은 레벨은 같은 라인에 */
+.ov-level-row{display:flex;gap:12px;align-items:flex-start}
+.ov-level-col{display:flex;flex-direction:column;align-items:center}
+.ov-dept-card{background:#4F6EF7;color:#fff;border-radius:8px;padding:8px 14px;text-align:center;min-width:110px;max-width:150px;cursor:default;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 8px rgba(79,110,247,.3);flex-shrink:0}
 .ov-dept-card.level-0{background:#1a1d2e;min-width:140px}
 .ov-dept-card.level-1{background:#4F6EF7}
 .ov-dept-card.level-2{background:#7c3aed}
@@ -789,12 +792,15 @@ select.form-input{cursor:pointer}
     </div>
     <div class="form-group"><label class="form-label">조직도 위치</label>
       <select class="form-input" id="dept-position">
-        <option value="bottom">아래 (기본)</option>
-        <option value="left">좌측</option>
-        <option value="right">우측</option>
-        <option value="top">위</option>
+        <option value="bottom">아래 (기본) — 하단 가로 배열</option>
+        <option value="top-left">위-좌측 — 상단 왼쪽부터</option>
+        <option value="top-right">위-우측 — 상단 오른쪽부터</option>
+        <option value="left">좌측 — 중앙 왼쪽 세로</option>
+        <option value="right">우측 — 중앙 오른쪽 세로</option>
       </select>
-      <div style="font-size:11px;color:var(--t2);margin-top:4px">직원조회 조직도에서 이 부서가 상위 부서의 어느 방향에 표시될지 설정합니다</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:4px">
+        💡 이미지2처럼: 글로벌사업본부→좌측, 경영관리본부→우측, 베트남경영관리팀→위-좌측, AI전략기획→아래
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('dept-modal')">닫기</button>
@@ -1818,8 +1824,9 @@ function renderDeptTable() {
       <td style="text-align:center">
         ${d.position==='left'?'<span class="tag tag-blue">좌측</span>':
           d.position==='right'?'<span class="tag tag-purple">우측</span>':
-          d.position==='top'?'<span class="tag tag-amber">위</span>':
-          '<span class="tag tag-gray" style="background:var(--surface);color:var(--t3)">아래</span>'}
+          d.position==='top-left'?'<span class="tag tag-green">위-좌측</span>':
+          d.position==='top-right'?'<span class="tag tag-amber">위-우측</span>':
+          '<span class="tag" style="background:var(--surface);color:var(--t3)">아래</span>'}
       </td>
       <td style="text-align:center"><span class="tag tag-blue">${empCount}명</span></td>
       <td style="text-align:center">
@@ -2004,7 +2011,51 @@ function sortEmpsByRank(emps, headName) {
   ];
 }
 
-// ── 재귀 트리 노드 HTML ──
+// ══════════════════════════════════════════════
+// 레벨별 정렬 조직도 — 같은 레벨은 같은 행에
+// ══════════════════════════════════════════════
+
+// 1. 트리 구조를 레벨별 노드 배열로 변환
+function buildLevelMap(deptId, level, parentX, levelMap, posMap) {
+  const dept = deptId ? departments.find(d=>d.id===deptId) : null;
+  if (!levelMap[level]) levelMap[level] = [];
+  const nodeIdx = levelMap[level].length;
+  levelMap[level].push({ deptId, parentX, nodeIdx });
+
+  const children = [...departments]
+    .filter(d=>d.parent===deptId)
+    .sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+
+  children.forEach(function(d) {
+    buildLevelMap(d.id, level+1, nodeIdx, levelMap, posMap);
+  });
+}
+
+// 2. 부서 카드 HTML (레벨별 색상)
+function deptCardHTML(deptId, level) {
+  const dept = deptId ? departments.find(d=>d.id===deptId) : null;
+  const deptName = dept ? dept.name : '전체';
+  const headName = dept ? (dept.head||'') : '';
+  const totalCnt = dept ? employees.filter(e=>e.dept===deptName&&e.status!=='퇴직').length : 0;
+  const lvlClass = 'level-' + Math.min(level,4);
+  return '<div class="ov-dept-card ' + lvlClass + '" onclick="showDeptDetail(\'' + deptId + '\')" style="cursor:pointer">' +
+    deptName + '<div class="ov-dept-sub">' + totalCnt + '명' + (headName?' · '+headName:'') + '</div></div>';
+}
+
+// 3. 직원 버블 HTML
+function empColHTML(deptId) {
+  const dept = deptId ? departments.find(d=>d.id===deptId) : null;
+  if (!dept) return '';
+  const headName = dept.head||'';
+  const deptEmps = employees.filter(e=>e.dept===dept.name&&e.status!=='퇴직');
+  const sorted = sortEmpsByRank(deptEmps, headName);
+  if (!sorted.length) return '';
+  return '<div class="ov-emps-row" style="margin-top:6px">' +
+    sorted.map(function(e){ return empBubbleHTML(e, e.name===headName&&!!headName); }).join('') +
+    '</div>';
+}
+
+// 4. 재귀 트리 — 각 노드를 table-cell처럼 배치해서 레벨별 정렬
 function buildTreeNode(deptId, level) {
   const dept = deptId ? departments.find(d=>d.id===deptId) : null;
   const deptName = dept ? dept.name : '전체';
@@ -2014,20 +2065,21 @@ function buildTreeNode(deptId, level) {
   const totalCnt = deptEmps.length;
   const lvlClass = 'level-' + Math.min(level,4);
 
-  // 하위 부서를 position별로 분류
   const allChildren = [...departments]
     .filter(d=>d.parent===deptId)
     .sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-  const leftChildren  = allChildren.filter(d=>(d.position||'bottom')==='left');
-  const rightChildren = allChildren.filter(d=>(d.position||'bottom')==='right');
-  const topChildren   = allChildren.filter(d=>(d.position||'bottom')==='top');
-  const botChildren   = allChildren.filter(d=>(d.position||'bottom')==='bottom'||!(d.position));
 
-  // 부서 박스 HTML
-  const deptBox = '<div class="ov-dept-card ' + lvlClass + '" onclick="showDeptDetail(\'' + deptId + '\')" style="cursor:pointer">' +
+  const topLeftChildren  = allChildren.filter(d=>d.position==='top-left');
+  const topRightChildren = allChildren.filter(d=>d.position==='top-right');
+  const leftChildren     = allChildren.filter(d=>d.position==='left');
+  const rightChildren    = allChildren.filter(d=>d.position==='right');
+  const botChildren      = allChildren.filter(d=>!d.position||d.position==='bottom');
+
+  // 부서 박스
+  const deptBox = '<div class="ov-dept-card ' + lvlClass + '" onclick="showDeptDetail(\'' + deptId + '\')" style="cursor:pointer;white-space:nowrap">' +
     deptName + '<div class="ov-dept-sub">' + totalCnt + '명' + (headName?' · '+headName:'') + '</div></div>';
 
-  // 직원 버블 HTML
+  // 직원 버블
   let empRow = '';
   if (sortedEmps.length > 0) {
     empRow = '<div class="ov-v-line" style="height:10px"></div>' +
@@ -2036,103 +2088,93 @@ function buildTreeNode(deptId, level) {
       '</div>';
   }
 
-  // 하위 부서 행 생성 함수
-  function childRow(children) {
+  // 하위 가로 행 생성 — align-items:flex-start 로 레벨 정렬
+  function hRow(children) {
     if (!children.length) return '';
     if (children.length === 1) {
-      return '<div class="ov-v-line" style="height:16px"></div>' +
-        '<div style="display:flex;flex-direction:column;align-items:center">' +
+      return '<div style="display:flex;flex-direction:column;align-items:center">' +
+        '<div class="ov-v-line" style="height:16px"></div>' +
         buildTreeNode(children[0].id, level+1) + '</div>';
     }
-    // 여러 자식: 가로 연결선
     const childNodes = children.map(function(d) {
-      return '<div style="display:flex;flex-direction:column;align-items:center;position:relative">' +
+      return '<div style="display:flex;flex-direction:column;align-items:center">' +
         '<div class="ov-v-line" style="height:16px"></div>' +
         buildTreeNode(d.id, level+1) + '</div>';
     }).join('');
-    return '<div class="ov-v-line" style="height:16px"></div>' +
-      '<div class="ov-tree-hline-wrap" style="position:relative;display:inline-flex;gap:12px;align-items:flex-start">' +
-      '<div class="ov-h-connector"></div>' +
-      childNodes + '</div>';
+    // 가로 연결선: 첫번째와 마지막 자식 중앙 사이
+    return '<div style="display:flex;flex-direction:column;align-items:center">' +
+      '<div class="ov-v-line" style="height:16px"></div>' +
+      '<div style="position:relative;display:inline-flex;gap:12px;align-items:flex-start">' +
+      '<div style="position:absolute;top:0;left:70px;right:70px;height:2px;background:#d1d5db;z-index:0"></div>' +
+      childNodes +
+      '</div></div>';
   }
 
-  // 좌우 배치가 있는 경우 — 3열 레이아웃
-  const hasLR = leftChildren.length > 0 || rightChildren.length > 0;
+  // 세로 열 (좌/우)
+  function vCol(children, side) {
+    if (!children.length) return '';
+    return '<div style="display:flex;flex-direction:column;gap:10px;align-items:' +
+      (side==='left'?'flex-end':'flex-start') + '">' +
+      children.map(function(d) {
+        const line = '<div style="width:20px;height:2px;background:#d1d5db;flex-shrink:0;margin-top:14px"></div>';
+        const node = buildTreeNode(d.id, level+1);
+        return '<div style="display:flex;align-items:flex-start">' +
+          (side==='left' ? node + line : line + node) + '</div>';
+      }).join('') + '</div>';
+  }
+
   let html = '<div class="ov-tree-node">';
 
-  // 위쪽 자식 (top)
-  if (topChildren.length > 0) {
-    html += '<div style="display:flex;justify-content:center;margin-bottom:0">';
-    html += childRow(topChildren);
+  // 위-좌측/위-우측
+  if (topLeftChildren.length || topRightChildren.length) {
+    html += '<div style="display:flex;justify-content:space-between;align-items:flex-end;width:100%;gap:8px">';
+    html += '<div style="display:flex;gap:8px;align-items:flex-end">';
+    topLeftChildren.forEach(function(d) {
+      html += '<div style="display:flex;flex-direction:column;align-items:center">' +
+        buildTreeNode(d.id, level+1) +
+        '<div class="ov-v-line" style="height:14px"></div></div>';
+    });
     html += '</div>';
+    html += '<div style="display:flex;gap:8px;align-items:flex-end">';
+    topRightChildren.forEach(function(d) {
+      html += '<div style="display:flex;flex-direction:column;align-items:center">' +
+        buildTreeNode(d.id, level+1) +
+        '<div class="ov-v-line" style="height:14px"></div></div>';
+    });
+    html += '</div></div>';
+    if (topLeftChildren.length && topRightChildren.length) {
+      html += '<div style="height:2px;background:#d1d5db;width:80%;margin:0 auto"></div>';
+    }
   }
 
+  // 좌/우 + 현재 노드
+  const hasLR = leftChildren.length || rightChildren.length;
   if (hasLR) {
-    // 3열: 좌측 자식 | 현재 노드 | 우측 자식
     html += '<div style="display:flex;align-items:flex-start;gap:0">';
-
-    // 좌측 자식
-    if (leftChildren.length > 0) {
-      html += '<div style="display:flex;flex-direction:column;align-items:flex-end;padding-right:0">';
-      // 세로로 나열
-      leftChildren.forEach(function(d) {
-        html += '<div style="display:flex;align-items:center;margin-bottom:8px">' +
-          buildTreeNode(d.id, level+1) +
-          '<div style="width:24px;height:2px;background:#d1d5db;flex-shrink:0"></div>' +
-          '</div>';
-      });
-      html += '</div>';
+    if (leftChildren.length) {
+      html += vCol(leftChildren, 'left');
+      html += '<div style="width:16px;height:2px;background:#d1d5db;margin-top:14px;flex-shrink:0"></div>';
     }
-
-    // 현재 노드 (중앙 세로선 포함)
-    html += '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">';
-    if (leftChildren.length > 0 || rightChildren.length > 0) {
-      // 좌우 연결을 위한 가로선
-      const lw = leftChildren.length > 0 ? '24px' : '0';
-      const rw = rightChildren.length > 0 ? '24px' : '0';
-      html += '<div style="display:flex;align-items:center">' +
-        '<div style="width:' + lw + ';height:2px;background:#d1d5db"></div>' +
-        deptBox +
-        '<div style="width:' + rw + ';height:2px;background:#d1d5db"></div>' +
-        '</div>';
-    } else {
-      html += deptBox;
-    }
-    html += empRow;
-    // 아래 자식
-    if (botChildren.length > 0) {
-      html += childRow(botChildren);
+    html += '<div style="display:flex;flex-direction:column;align-items:center">';
+    html += deptBox + empRow;
+    if (botChildren.length) html += hRow(botChildren);
+    html += '</div>';
+    if (rightChildren.length) {
+      html += '<div style="width:16px;height:2px;background:#d1d5db;margin-top:14px;flex-shrink:0"></div>';
+      html += vCol(rightChildren, 'right');
     }
     html += '</div>';
-
-    // 우측 자식
-    if (rightChildren.length > 0) {
-      html += '<div style="display:flex;flex-direction:column;align-items:flex-start;padding-left:0">';
-      rightChildren.forEach(function(d) {
-        html += '<div style="display:flex;align-items:center;margin-bottom:8px">' +
-          '<div style="width:24px;height:2px;background:#d1d5db;flex-shrink:0"></div>' +
-          buildTreeNode(d.id, level+1) +
-          '</div>';
-      });
-      html += '</div>';
-    }
-
-    html += '</div>'; // 3열 끝
-
   } else {
-    // 좌우 없음 — 기본 세로 트리
-    html += deptBox;
-    html += empRow;
-    if (botChildren.length > 0) {
-      html += childRow(botChildren);
-    }
+    html += deptBox + empRow;
+    if (botChildren.length) html += hRow(botChildren);
   }
 
   html += '</div>';
   return html;
 }
 
-// ── 메인 렌더 ──
+// ── 레벨별 정렬 트리 렌더 ──
+// 전체 트리를 레벨 행별로 분리해서 각 레벨이 같은 Y축에 오도록
 function renderOrgView() {
   const chart = document.getElementById('orgview-chart');
   if (!chart) return;
@@ -2172,9 +2214,10 @@ function renderOrgView() {
     return;
   }
 
-  let html = `<div style="display:flex;gap:40px;align-items:flex-start;padding:24px;justify-content:center;flex-wrap:nowrap">`;
-  html += roots.map(r=>buildTreeNode(r.id, 0)).join('');
-  html += `</div>`;
+  // display:table 방식으로 각 자식 컬럼이 독립적으로 성장하면서 레벨 정렬
+  let html = '<div style="display:inline-flex;gap:32px;align-items:flex-start;padding:24px;justify-content:center">';
+  html += roots.map(function(r){ return buildTreeNode(r.id, 0); }).join('');
+  html += '</div>';
   chart.innerHTML = html;
 
   // 렌더 후 캔버스 중앙 정렬
