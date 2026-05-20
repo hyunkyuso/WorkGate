@@ -2136,129 +2136,125 @@ function renderOrgView() {
   const chart = document.getElementById('orgview-chart');
   if (!chart) return;
 
-  // 기준일자/통계
-  const todayEl = document.getElementById('orgview-today');
-  if (todayEl) todayEl.textContent = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
-  const statsEl = document.getElementById('orgview-stats');
-  if (statsEl) {
+  // 통계/날짜
+  const todayEl=document.getElementById('orgview-today');
+  if(todayEl) todayEl.textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+  const statsEl=document.getElementById('orgview-stats');
+  if(statsEl){
     const tot=employees.filter(e=>e.status!=='퇴직').length;
     function ca(id){const d=departments.find(x=>x.id===id);if(!d)return 0;return employees.filter(e=>e.dept===d.name&&e.status!=='퇴직').length+departments.filter(x=>x.parent===id).reduce((s,x)=>s+ca(x.id),0);}
     const r2=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-    statsEl.innerHTML='<span style="font-weight:700;color:var(--t1)">전체 '+tot+'명</span><span style="color:var(--border2)">|</span>'+r2.map(r=>'<span style="color:var(--t2)">'+r.name+' <strong style="color:var(--t1)">'+ca(r.id)+'명</strong></span>').join('<span style="color:var(--border2);margin:0 4px">·</span>');
+    statsEl.innerHTML='<span style="font-weight:700;color:var(--t1)">전체 '+tot+'명</span><span style="color:var(--border2)">|</span>'+r2.map(r=>'<span style="color:var(--t2)">'+r.name+' <strong>'+ca(r.id)+'명</strong></span>').join('·');
   }
 
   const roots=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   if(!roots.length){chart.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3)">조직 관리에서 부서를 추가해주세요</div>';return;}
 
-  // ── 상수 ──
-  const CW=120, CH=46;
-  const EW=54;
-  const HGAP=14, VGAP=80;
+  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 상수
+  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const CW=120, CH=46;   // 카드 너비/높이
+  const EW=56;           // 직원 1인 너비
+  const HGAP=14;         // 가로 간격
+  const ROW_H=150;       // 레벨 간 세로 간격
   const LC=['#1e293b','#3b82f6','#f59e0b','#7c3aed','#0891b2','#059669'];
   function bg(lv){return LC[Math.min(lv,LC.length-1)];}
+  const LINE='#94a3b8';
 
   // orgLevel
   function olv(id){
-    const d=departments.find(x=>x.id===id); if(!d) return 0;
-    if(d.orgLevel!=null&&d.orgLevel!=='') return parseInt(d.orgLevel);
-    if(!d.parent) return 0;
+    const d=departments.find(x=>x.id===id);if(!d)return 0;
+    if(d.orgLevel!=null&&d.orgLevel!=='')return parseInt(d.orgLevel);
+    if(!d.parent)return 0;
     return olv(d.parent)+1;
   }
 
-  // 직원 목록
-  function emps(d){ return sortEmpsByRank(employees.filter(e=>e.dept===d.name&&e.status!=='퇴직'), d.head||''); }
+  // 직원
+  function getEmps(d){return sortEmpsByRank(employees.filter(e=>e.dept===d.name&&e.status!=='퇴직'),d.head||'');}
 
-  // ── subW: bottom 자식 기반 너비 ──
+  // position 분류
+  function isBottom(d){return !d.position||d.position==='bottom';}
+  function isLeft(d){return d.position==='left';}
+  function isRight(d){return d.position==='right';}
+  function isTopLeft(d){return d.position==='top-left';}
+  function isTopRight(d){return d.position==='top-right';}
+
+  // bottom 자식 서브트리 너비
   function subW(id){
-    const bots=kids(id,'bottom');
-    if(!bots.length) return CW;
-    return Math.max(CW, bots.reduce((s,d)=>s+subW(d.id),0)+(bots.length-1)*HGAP);
+    const bots=[...departments].filter(d=>d.parent===id&&isBottom(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    if(!bots.length)return CW;
+    return Math.max(CW,bots.reduce((s,d)=>s+subW(d.id),0)+(bots.length-1)*HGAP);
   }
 
-  // 자식 분류 (position 필터)
-  // bottom = 위치 없음 또는 'bottom' (left/right/top-left/top-right 제외)
-  function kids(id, ptype){
-    const NON_BOT=['left','right','top-left','top-right'];
-    return [...departments].filter(d=>{
-      if(d.parent!==id) return false;
-      if(ptype==='bottom') return !d.position||d.position==='bottom'||(!NON_BOT.includes(d.position));
-      return d.position===ptype;
-    }).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-  }
-
-  // ── 1단계: 절대 좌표 계산 ──
+  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 좌표 계산
   // pos[id] = {cx, lv, side}
+  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const pos={};
 
-  function place(id, left){
+  function placeNode(id, left){
     const w=subW(id), lv=olv(id);
     pos[id]={cx:left+w/2, lv};
 
-    // bottom 자식: lv+1 아래에 배치
-    const bk=kids(id,'bottom');
+    // bottom 자식
+    const bots=[...departments].filter(d=>d.parent===id&&isBottom(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
     let lx=left;
-    bk.forEach(c=>{ place(c.id,lx); lx+=subW(c.id)+HGAP; });
+    bots.forEach(c=>{placeNode(c.id,lx);lx+=subW(c.id)+HGAP;});
 
-    // left 자식: 부모와 동일 lv, 부모 왼쪽
-    // 여러 개일 때 정렬순서대로 부모에서 멀어지게
-    const lk=kids(id,'left');
-    lk.forEach((c,i)=>{
-      const cw=subW(c.id);
-      const cx=pos[id].cx - (CW/2+HGAP) - cw/2 - i*(cw+HGAP);
-      pos[c.id]={cx, lv, side:'left', pid:id};
-      // left 자식의 bottom 자식들도 배치
-      placeBottomKids(c.id, lv);
+    // left 자식 — 부모 lv와 동일, 부모 바로 왼쪽
+    const lks=[...departments].filter(d=>d.parent===id&&isLeft(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    lks.forEach((c,i)=>{
+      pos[c.id]={cx:pos[id].cx-(CW+HGAP)*(i+1), lv, side:'left', pid:id};
+      placeSubsOf(c.id, lv);
     });
 
-    // right 자식: 부모와 동일 lv, 부모 오른쪽
-    const rk=kids(id,'right');
-    rk.forEach((c,i)=>{
-      const cw=subW(c.id);
-      const cx=pos[id].cx + (CW/2+HGAP) + cw/2 + i*(cw+HGAP);
-      pos[c.id]={cx, lv, side:'right', pid:id};
-      placeBottomKids(c.id, lv);
+    // right 자식 — 부모 lv와 동일, 부모 바로 오른쪽
+    const rks=[...departments].filter(d=>d.parent===id&&isRight(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    rks.forEach((c,i)=>{
+      pos[c.id]={cx:pos[id].cx+(CW+HGAP)*(i+1), lv, side:'right', pid:id};
+      placeSubsOf(c.id, lv);
     });
 
-    // top-left 자식: 부모보다 1레벨 위, 부모 왼쪽
-    const tlk=kids(id,'top-left');
-    tlk.forEach((c,i)=>{
-      const cw=subW(c.id);
-      const cx=pos[id].cx - (CW/2+HGAP) - cw/2 - i*(cw+HGAP);
-      pos[c.id]={cx, lv:lv-1, side:'top-left', pid:id};
-      placeBottomKids(c.id, lv-1);
+    // top-left — lv-1, 부모 왼쪽
+    const tlks=[...departments].filter(d=>d.parent===id&&isTopLeft(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    tlks.forEach((c,i)=>{
+      pos[c.id]={cx:pos[id].cx-(CW+HGAP)*(i+1), lv:lv-1, side:'top-left', pid:id};
+      placeSubsOf(c.id, lv-1);
     });
 
-    // top-right 자식: 부모보다 1레벨 위, 부모 오른쪽
-    const trk=kids(id,'top-right');
-    trk.forEach((c,i)=>{
-      const cw=subW(c.id);
-      const cx=pos[id].cx + (CW/2+HGAP) + cw/2 + i*(cw+HGAP);
-      pos[c.id]={cx, lv:lv-1, side:'top-right', pid:id};
-      placeBottomKids(c.id, lv-1);
+    // top-right — lv-1, 부모 오른쪽
+    const trks=[...departments].filter(d=>d.parent===id&&isTopRight(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    trks.forEach((c,i)=>{
+      pos[c.id]={cx:pos[id].cx+(CW+HGAP)*(i+1), lv:lv-1, side:'top-right', pid:id};
+      placeSubsOf(c.id, lv-1);
     });
   }
 
-  function placeBottomKids(id, parentLv){
-    const bk=kids(id,'bottom');
-    if(!bk.length) return;
+  // left/right/top 자식의 bottom 하위 배치
+  function placeSubsOf(id, parentLv){
+    const bots=[...departments].filter(d=>d.parent===id&&isBottom(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    if(!bots.length)return;
     const pcx=pos[id].cx;
-    const tw=bk.reduce((s,c)=>s+subW(c.id),0)+(bk.length-1)*HGAP;
+    const tw=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
     let lx=pcx-tw/2;
-    bk.forEach(c=>{ place(c.id,lx); lx+=subW(c.id)+HGAP; });
+    bots.forEach(c=>{placeNode(c.id,lx);lx+=subW(c.id)+HGAP;});
   }
 
   // 루트 배치
-  let rx=20;
-  roots.forEach(r=>{ place(r.id,rx); rx+=subW(r.id)+HGAP*6; });
+  let rx=HGAP*2;
+  roots.forEach(r=>{placeNode(r.id,rx);rx+=subW(r.id)+HGAP*6;});
 
-  // ── 2단계: lv → Y (레벨별 행 높이 동적 계산) ──
+  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Y 좌표
+  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const allLvs=[...new Set(Object.values(pos).map(p=>p.lv))].sort((a,b)=>a-b);
-  const minLv=allLvs[0], maxLv=allLvs[allLvs.length-1];
+  const minLv=allLvs[0];
 
-  function maxEmpCount(lv){
+  // 각 레벨 최대 직원수
+  function maxEmp(lv){
     return Object.entries(pos).filter(([,p])=>p.lv===lv).reduce((mx,[id])=>{
       const d=departments.find(x=>x.id===id);
-      return Math.max(mx, d?emps(d).length:0);
+      return Math.max(mx,d?getEmps(d).length:0);
     },0);
   }
 
@@ -2266,82 +2262,80 @@ function renderOrgView() {
   let curY=40;
   allLvs.forEach(lv=>{
     lvY[lv]=curY;
-    const me=maxEmpCount(lv);
-    curY += CH + (me>0? Math.ceil(me/5)*60+8 : 0) + VGAP;
+    const me=maxEmp(lv);
+    const empH=me>0?Math.ceil(me/5)*62+10:0;
+    curY+=CH+empH+ROW_H;
   });
   function ly(lv){return lvY[lv]??40;}
 
-  // ── 3단계: SVG 연결선 ──
+  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SVG 선 + HTML 노드
+  //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   let svg='', nodes='';
-  const LC2='#94a3b8';
 
-  // bottom 자식 T자 연결
+  // bottom T자 연결선
   Object.keys(pos).forEach(function(pid){
-    const pp=pos[pid]; if(!pp) return;
-    const bk=kids(pid,'bottom').map(c=>pos[c.id]).filter(Boolean);
-    if(!bk.length) return;
-
+    const pp=pos[pid];if(!pp)return;
+    const bots=[...departments].filter(d=>d.parent===pid&&isBottom(d)).map(d=>pos[d.id]).filter(Boolean).sort((a,b)=>a.cx-b.cx);
+    if(!bots.length)return;
     const px=pp.cx, py=ly(pp.lv)+CH;
-    const cy2=ly(bk[0].lv);
-    const hy=py+Math.round((cy2-py)*0.5);
-
-    svg+='<line x1="'+px+'" y1="'+py+'" x2="'+px+'" y2="'+hy+'" stroke="'+LC2+'" stroke-width="1.5"/>';
-    if(bk.length>1){
-      svg+='<line x1="'+Math.min(...bk.map(k=>k.cx))+'" y1="'+hy+'" x2="'+Math.max(...bk.map(k=>k.cx))+'" y2="'+hy+'" stroke="'+LC2+'" stroke-width="1.5"/>';
+    const ky=ly(bots[0].lv);
+    const hy=py+Math.round((ky-py)*0.45);
+    svg+='<line x1="'+px+'" y1="'+py+'" x2="'+px+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+    if(bots.length>1){
+      svg+='<line x1="'+Math.min(...bots.map(k=>k.cx))+'" y1="'+hy+'" x2="'+Math.max(...bots.map(k=>k.cx))+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
     }
-    bk.forEach(k=>{ svg+='<line x1="'+k.cx+'" y1="'+hy+'" x2="'+k.cx+'" y2="'+cy2+'" stroke="'+LC2+'" stroke-width="1.5"/>'; });
+    bots.forEach(k=>{svg+='<line x1="'+k.cx+'" y1="'+hy+'" x2="'+k.cx+'" y2="'+ky+'" stroke="'+LINE+'" stroke-width="1.5"/>';});
   });
 
-  // left/right 가로 연결선
+  // left/right/top-left/top-right 가로 연결선
   Object.entries(pos).forEach(function([id,p]){
-    if(!p.side) return;
-    const dept=departments.find(d=>d.id===id); if(!dept||!dept.parent) return;
-    const pp=pos[dept.parent]; if(!pp) return;
-    const midY=ly(pp.lv)+CH/2;
+    if(!p.side)return;
+    const dept=departments.find(d=>d.id===id);if(!dept||!dept.parent)return;
+    const pp=pos[dept.parent];if(!pp)return;
 
-    if(p.side==='left'){
-      svg+='<line x1="'+(p.cx+CW/2)+'" y1="'+midY+'" x2="'+(pp.cx-CW/2)+'" y2="'+midY+'" stroke="'+LC2+'" stroke-width="1.5"/>';
-    } else if(p.side==='right'){
-      svg+='<line x1="'+(pp.cx+CW/2)+'" y1="'+midY+'" x2="'+(p.cx-CW/2)+'" y2="'+midY+'" stroke="'+LC2+'" stroke-width="1.5"/>';
-    } else if(p.side==='top-left'){
-      // 부모 상단 왼쪽에서 자식 하단으로 꺾은선
-      const pTop=ly(pp.lv);
-      const cBot=ly(p.lv)+CH;
-      const connY=pTop; // 부모 카드 상단 Y
-      svg+='<polyline points="'+(pp.cx-CW/2)+','+connY+' '+p.cx+','+connY+' '+p.cx+','+cBot+'" stroke="'+LC2+'" stroke-width="1.5" fill="none"/>';
-    } else if(p.side==='top-right'){
-      const pTop=ly(pp.lv);
-      const cBot=ly(p.lv)+CH;
-      svg+='<polyline points="'+(pp.cx+CW/2)+','+pTop+' '+p.cx+','+pTop+' '+p.cx+','+cBot+'" stroke="'+LC2+'" stroke-width="1.5" fill="none"/>';
+    if(p.side==='left'||p.side==='right'){
+      // 부모 카드 중간 Y에서 가로선
+      const midY=ly(pp.lv)+CH/2;
+      if(p.side==='left'){
+        svg+='<line x1="'+(p.cx+CW/2)+'" y1="'+midY+'" x2="'+(pp.cx-CW/2)+'" y2="'+midY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+      } else {
+        svg+='<line x1="'+(pp.cx+CW/2)+'" y1="'+midY+'" x2="'+(p.cx-CW/2)+'" y2="'+midY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+      }
+    } else if(p.side==='top-left'||p.side==='top-right'){
+      // 부모 카드 상단에서 꺾어서 자식 하단으로
+      const pTopY=ly(pp.lv);
+      const cBotY=ly(p.lv)+CH;
+      const pEdgeX=p.side==='top-left'?pp.cx-CW/2:pp.cx+CW/2;
+      svg+='<polyline points="'+pEdgeX+','+pTopY+' '+p.cx+','+pTopY+' '+p.cx+','+cBotY+'" stroke="'+LINE+'" stroke-width="1.5" fill="none"/>';
     }
 
-    // left/right 자식의 bottom 자식 T자 연결
-    const bk2=kids(id,'bottom').map(c=>pos[c.id]).filter(Boolean);
-    if(bk2.length){
-      const py2=ly(p.lv)+CH, cy3=ly(bk2[0].lv);
-      const hy2=py2+Math.round((cy3-py2)*0.5);
-      svg+='<line x1="'+p.cx+'" y1="'+py2+'" x2="'+p.cx+'" y2="'+hy2+'" stroke="'+LC2+'" stroke-width="1.5"/>';
-      if(bk2.length>1) svg+='<line x1="'+Math.min(...bk2.map(k=>k.cx))+'" y1="'+hy2+'" x2="'+Math.max(...bk2.map(k=>k.cx))+'" y2="'+hy2+'" stroke="'+LC2+'" stroke-width="1.5"/>';
-      bk2.forEach(k=>{ svg+='<line x1="'+k.cx+'" y1="'+hy2+'" x2="'+k.cx+'" y2="'+cy3+'" stroke="'+LC2+'" stroke-width="1.5"/>'; });
+    // 이 노드의 bottom 자식 T자 연결
+    const bots2=[...departments].filter(d=>d.parent===id&&isBottom(d)).map(d=>pos[d.id]).filter(Boolean);
+    if(bots2.length){
+      const py2=ly(p.lv)+CH, ky2=ly(bots2[0].lv);
+      const hy2=py2+Math.round((ky2-py2)*0.45);
+      svg+='<line x1="'+p.cx+'" y1="'+py2+'" x2="'+p.cx+'" y2="'+hy2+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+      if(bots2.length>1) svg+='<line x1="'+Math.min(...bots2.map(k=>k.cx))+'" y1="'+hy2+'" x2="'+Math.max(...bots2.map(k=>k.cx))+'" y2="'+hy2+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+      bots2.forEach(k=>{svg+='<line x1="'+k.cx+'" y1="'+hy2+'" x2="'+k.cx+'" y2="'+ky2+'" stroke="'+LINE+'" stroke-width="1.5"/>';});
     }
   });
 
-  // ── 4단계: 노드 HTML ──
+  // 노드 HTML
   Object.entries(pos).forEach(function([id,p]){
-    const dept=departments.find(d=>d.id===id); if(!dept) return;
+    const dept=departments.find(d=>d.id===id);if(!dept)return;
     const lv=p.lv, color=bg(lv-minLv);
     const headName=dept.head||'';
-    const es=emps(dept);
+    const es=getEmps(dept);
     const x=p.cx-CW/2, y=ly(lv);
 
     nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+CW+'px;cursor:pointer;z-index:2">';
-    nodes+='<div style="background:'+color+';color:#fff;border-radius:8px;padding:7px 9px;text-align:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">';
+    nodes+='<div style="background:'+color+';color:#fff;border-radius:8px;padding:7px 9px;text-align:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2)">';
     nodes+=dept.name+'<div style="font-size:9px;font-weight:400;opacity:.8;margin-top:1px">'+es.length+'명'+(headName?' · '+headName:'')+'</div></div>';
 
     if(es.length){
-      const rowW=Math.max(CW, es.length*EW + (es.length-1)*3);
-      const offX=Math.min(0, (CW-rowW)/2);
-      nodes+='<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;width:'+rowW+'px;margin-left:'+offX+'px">';
+      const rowW=Math.max(CW,es.length*EW+(es.length-1)*3);
+      nodes+='<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;width:'+rowW+'px;margin-left:'+Math.min(0,(CW-rowW)/2)+'px">';
       es.forEach(function(e){
         const isH=e.name===headName&&!!headName;
         const ini=(e.name||'?').charAt(0);
@@ -2349,7 +2343,7 @@ function renderOrgView() {
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
         const sz=isH?42:34;
         nodes+='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
-        nodes+='<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;overflow:hidden;border:'+(isH?'2px solid '+color:'1px solid #e2e8f0')+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:'+(isH?16:12)+'px;font-weight:700;color:#fff;margin:0 auto">';
+        nodes+='<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;overflow:hidden;border:'+(isH?'2px solid '+color:'1px solid #e2e8f0')+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:'+(isH?15:12)+'px;font-weight:700;color:#fff;margin:0 auto">';
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         nodes+='</div>';
         nodes+='<div style="font-size:9px;color:'+(isH?color:'#1e293b')+';font-weight:'+(isH?700:400)+';text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis;margin-top:1px">'+e.name+'</div>';
@@ -2371,7 +2365,7 @@ function renderOrgView() {
 
   setTimeout(function(){
     const wrap=document.getElementById('orgview-wrap');
-    if(!wrap) return;
+    if(!wrap)return;
     orgScale=Math.min(0.8,(wrap.clientWidth-40)/CAN_W);
     orgOffX=Math.max((wrap.clientWidth-CAN_W*orgScale)/2,20);
     orgOffY=20;
@@ -2379,7 +2373,7 @@ function renderOrgView() {
   },80);
 }
 
-// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──
+// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──
 let orgScale = 0.8, orgOffX = 0, orgOffY = 0;
 let orgDragging = false, orgDragX = 0, orgDragY = 0, orgDragOX = 0, orgDragOY = 0;
 
