@@ -2149,185 +2149,197 @@ function renderOrgView() {
   const roots=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   if(!roots.length){chart.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3)">부서를 추가해주세요</div>';return;}
 
-  // ━━━ 상수 ━━━
   const CW=118, CH=44, EW=54, HGAP=16, LINE='#94a3b8';
-  // 레벨별 색상
+  // 레벨 색상
   const LC=['#1e293b','#3b82f6','#f59e0b','#7c3aed','#0891b2','#059669'];
   function bg(lv){return LC[Math.min(Math.max(lv,0),LC.length-1)];}
 
   function getEmps(d){return sortEmpsByRank(employees.filter(e=>e.dept===d.name&&e.status!=='퇴직'),d.head||'');}
+  function nodeH(id){
+    const d=departments.find(x=>x.id===id);if(!d)return CH;
+    return CH+(getEmps(d).length>0?Math.ceil(getEmps(d).length/5)*60+8:0);
+  }
   function isBot(d){return !d.position||d.position==='bottom';}
-  function getSortedKids(pid,ptype){
-    return [...departments].filter(d=>d.parent===pid&&(ptype==='bot'?isBot(d):d.position===ptype)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+  function gk(pid,pt){
+    if(pt==='bot') return [...departments].filter(d=>d.parent===pid&&isBot(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    return [...departments].filter(d=>d.parent===pid&&d.position===pt).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   }
 
-  // orgLevel: 직접 설정 우선, 없으면 트리 깊이
-  function orgLv(id,v){
-    v=v||{}; if(v[id])return 0; v[id]=true;
-    const d=departments.find(x=>x.id===id); if(!d)return 0;
+  // orgLevel (입력값 우선, 없으면 트리 깊이)
+  function olv(id,v){
+    v=v||{};if(v[id])return 0;v[id]=true;
+    const d=departments.find(x=>x.id===id);if(!d)return 0;
     if(d.orgLevel!=null&&d.orgLevel!=='')return parseInt(d.orgLevel);
     if(!d.parent)return 0;
-    return orgLv(d.parent,v)+1;
+    return olv(d.parent,v)+1;
   }
 
-  // ━━━ bottom 서브트리 너비 ━━━
+  // bottom 서브트리 너비
   function subW(id){
-    const bots=getSortedKids(id,'bot');
+    const bots=gk(id,'bot');
     if(!bots.length)return CW;
     return Math.max(CW,bots.reduce((s,d)=>s+subW(d.id),0)+(bots.length-1)*HGAP);
   }
 
-  // ━━━ 노드 높이 (카드+직원) ━━━
-  function nodeH(id){
-    const d=departments.find(x=>x.id===id); if(!d)return CH;
-    const ec=getEmps(d).length;
-    return CH+(ec>0?Math.ceil(ec/5)*60+8:0);
-  }
-
-  // ━━━ 배치: pos[id]={cx,absY,lv,side} ━━━
-  const pos={};
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 핵심 아이디어:
+  // left/right/top-left/top-right는 부모의 bottom 자식들과
+  // 동일한 Y 행(허브 Y)에 배치됨
+  // 즉, T자 가로선에서 좌/우로 뻗어나감
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const pos={}; // id->{cx,absY,lv}
 
   function placeAll(id, left, absY, lv){
-    // 1. 이 노드 배치
-    const w=subW(id);
-    const cx=left+w/2;
-    pos[id]={cx, absY, lv, side:null};
+    const w=subW(id), cx=left+w/2;
+    pos[id]={cx, absY, lv};
 
-    // 2. left/right/top-left/top-right 자식 → 같은 absY에 가로 배치
-    // (이들은 부모와 완전히 같은 행)
-    const lks=getSortedKids(id,'left');
-    const rks=getSortedKids(id,'right');
-    const tlks=getSortedKids(id,'top-left');
-    const trks=getSortedKids(id,'top-right');
+    const bots=gk(id,'bot');
+    const lks=gk(id,'left');
+    const rks=gk(id,'right');
+    const tlks=gk(id,'top-left');
+    const trks=gk(id,'top-right');
 
-    // left: 부모 왼쪽 → 오른쪽부터 배치
-    let lx=cx-CW/2-HGAP;
-    lks.slice().reverse().forEach(function(c){
-      const tw=sideTreeW(c.id);
-      lx-=tw;
-      placeSideTree(c.id, lx, lx+tw/2, absY, lv, 'left');
-      lx-=HGAP;
-    });
+    if(!bots.length&&!lks.length&&!rks.length&&!tlks.length&&!trks.length)return;
 
-    // right: 부모 오른쪽
-    let rx=cx+CW/2+HGAP;
-    rks.forEach(function(c){
-      const tw=sideTreeW(c.id);
-      placeSideTree(c.id, rx, rx+tw/2, absY, lv, 'right');
-      rx+=tw+HGAP;
-    });
-
-    // top-left: 부모 위에, 왼쪽 (선 없음)
-    // absY를 부모보다 위로 → 나중에 전체 Y를 아래로 밀거나, 일단 음수로 배치 후 오프셋
-    let tlx=cx-CW/2-HGAP;
-    tlks.slice().reverse().forEach(function(c){
-      const tw=sideTreeW(c.id);
-      tlx-=tw;
-      placeSideTree(c.id, tlx, tlx+tw/2, absY-nodeH(id)-50, lv, 'top-left');
-      tlx-=HGAP;
-    });
-
-    // top-right: 부모 위에, 오른쪽 (선 없음)
-    let trx=cx+CW/2+HGAP;
-    trks.forEach(function(c){
-      const tw=sideTreeW(c.id);
-      placeSideTree(c.id, trx, trx+tw/2, absY-nodeH(id)-50, lv, 'top-right');
-      trx+=tw+HGAP;
-    });
-
-    // 3. bottom 자식 → 아래로 배치
-    const bots=getSortedKids(id,'bot');
-    if(!bots.length)return;
-
-    // bottom 자식의 Y = 이 노드 하단 + 간격
-    // 단, left/right 자식의 bottom 하위도 같은 Y여야 함
-    // → 이 노드의 직접 bottom 자식들만 처리
+    // 자식 Y = 부모 하단 + 간격
     const childY=absY+nodeH(id)+50;
-    let blx=left;
+
+    // bottom 자식 X 계산
+    const botW=bots.reduce((s,d)=>s+subW(d.id),0)+(bots.length-1)*HGAP;
+
+    // left/right 전체 너비 계산
+    const lkW=lks.reduce((s,c)=>s+subW(c.id)+HGAP,0);
+    const rkW=rks.reduce((s,c)=>s+subW(c.id)+HGAP,0);
+
+    // 허브 X 범위 (bottom+left+right 모두 포함한 총 너비)
+    // bottom 자식들을 중앙 정렬, left는 왼쪽, right는 오른쪽
+    const totalW=lkW+botW+rkW;
+    const startX=cx-totalW/2;
+
+    // left 자식 배치 (childY에서, 왼쪽부터)
+    let lx=startX;
+    lks.forEach(function(c){
+      const cw=subW(c.id), ccx=lx+cw/2;
+      pos[c.id]={cx:ccx, absY:childY, lv:lv+1};
+      // left의 하위 배치
+      placeSubOf(c.id, ccx, childY, lv+1);
+      lx+=cw+HGAP;
+    });
+
+    // bottom 자식 배치 (center)
+    let blx=startX+lkW;
     bots.forEach(function(c){
       placeAll(c.id, blx, childY, lv+1);
       blx+=subW(c.id)+HGAP;
     });
-  }
 
-  // side 트리의 전체 너비 (side 자식의 side 포함)
-  function sideTreeW(id){
-    let w=CW;
-    const rks=getSortedKids(id,'right');
-    const lks=getSortedKids(id,'left');
-    rks.forEach(c=>{w+=sideTreeW(c.id)+HGAP;});
-    lks.forEach(c=>{w+=sideTreeW(c.id)+HGAP;});
-    return Math.max(w,subW(id));
-  }
-
-  // side 트리 배치 (left/right 자식 + 그들의 bottom 하위)
-  function placeSideTree(id, left, cx, absY, lv, side){
-    pos[id]={cx, absY, lv, side};
-
-    // 이 side 노드의 left/right 자식 (연쇄 left/right)
-    const lks=getSortedKids(id,'left');
-    const rks=getSortedKids(id,'right');
-    let lx2=cx-CW/2-HGAP;
-    lks.slice().reverse().forEach(function(c){
-      const tw=sideTreeW(c.id);lx2-=tw;
-      placeSideTree(c.id,lx2,lx2+tw/2,absY,lv,'left');lx2-=HGAP;
-    });
-    let rx2=cx+CW/2+HGAP;
+    // right 자식 배치 (오른쪽)
+    let rx=startX+lkW+botW;
+    if(botW>0) rx+=HGAP;
     rks.forEach(function(c){
-      const tw=sideTreeW(c.id);
-      placeSideTree(c.id,rx2,rx2+tw/2,absY,lv,'right');rx2+=tw+HGAP;
+      const cw=subW(c.id), ccx=rx+cw/2;
+      pos[c.id]={cx:ccx, absY:childY, lv:lv+1};
+      placeSubOf(c.id, ccx, childY, lv+1);
+      rx+=cw+HGAP;
     });
 
-    // 이 side 노드의 bottom 자식들 → 아래로 배치
-    const bots=getSortedKids(id,'bot');
-    if(!bots.length)return;
-    const childY=absY+nodeH(id)+50;
-    let blx=cx-subW(id)/2;
-    bots.forEach(function(c){
-      placeAll(c.id,blx,childY,lv+1);
-      blx+=subW(c.id)+HGAP;
+    // top-left/top-right: 선 없이, childY와 같은 Y에 배치
+    // (부모 세로선에서 위쪽으로 나가는 대신, 그냥 같은 childY 행 좌/우)
+    // 실제 샘플: 정도유아이티의 세로선 가로선에서 경영관리본부가 오른쪽으로
+    // → top-right = right처럼 처리하되 선 없음
+    let tlx=startX-HGAP;
+    tlks.slice().reverse().forEach(function(c){
+      const cw=subW(c.id);
+      tlx-=cw;
+      const ccx=tlx+cw/2;
+      pos[c.id]={cx:ccx, absY:childY, lv:lv+1};
+      placeSubOf(c.id, ccx, childY, lv+1);
+      tlx-=HGAP;
+    });
+    let trx=startX+lkW+botW+rkW;
+    if(rkW>0||botW>0) trx+=HGAP;
+    trks.forEach(function(c){
+      const cw=subW(c.id), ccx=trx+cw/2;
+      pos[c.id]={cx:ccx, absY:childY, lv:lv+1};
+      placeSubOf(c.id, ccx, childY, lv+1);
+      trx+=cw+HGAP;
     });
   }
 
-  // ━━━ 루트 배치 ━━━
-  let rx2=HGAP*2; const ROOT_Y=120;
-  roots.forEach(r=>{placeAll(r.id,rx2,ROOT_Y,0);rx2+=subW(r.id)+HGAP*6;});
+  // side 노드의 하위 배치 (left/right의 bottom 자식들)
+  function placeSubOf(id, pcx, pY, plv){
+    const bots=gk(id,'bot');
+    if(!bots.length)return;
+    const childY=pY+nodeH(id)+50;
+    const tw=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
+    let lx=pcx-tw/2;
+    bots.forEach(function(c){
+      placeAll(c.id,lx,childY,plv+1);
+      lx+=subW(c.id)+HGAP;
+    });
+    // side의 side도 처리
+    const lks2=gk(id,'left'),rks2=gk(id,'right');
+    let lsx=pcx-CW/2-HGAP;
+    lks2.slice().reverse().forEach(function(c){
+      const cw=subW(c.id);lsx-=cw;
+      pos[c.id]={cx:lsx+cw/2,absY:pY,lv:plv};
+      placeSubOf(c.id,lsx+cw/2,pY,plv);lsx-=HGAP;
+    });
+    let rsx=pcx+CW/2+HGAP;
+    rks2.forEach(function(c){
+      const cw=subW(c.id);
+      pos[c.id]={cx:rsx+cw/2,absY:pY,lv:plv};
+      placeSubOf(c.id,rsx+cw/2,pY,plv);rsx+=cw+HGAP;
+    });
+  }
 
-  // top-left/top-right가 음수 Y를 가질 수 있으므로 전체 Y 오프셋
-  const allY=Object.values(pos).map(p=>p.absY);
-  const minY=Math.min(...allY);
-  const yOff=minY<20?20-minY:0;
-  if(yOff>0) Object.values(pos).forEach(p=>{p.absY+=yOff;});
+  let rx2=HGAP*2;
+  roots.forEach(r=>{placeAll(r.id,rx2,60,0);rx2+=subW(r.id)+HGAP*6;});
 
-  // ━━━ SVG ━━━
+  // ━━━ SVG 선 ━━━
   let svg='',nodes='';
 
-  // bottom T자 연결선
+  // 각 부모 → 자식들 (bottom+left+right+top) 연결
+  // 허브 Y에서 부모까지 세로선, 허브 가로선, 각 자식 위로 세로선
   Object.keys(pos).forEach(function(pid){
     const pp=pos[pid];if(!pp)return;
-    const bots=getSortedKids(pid,'bot').map(d=>pos[d.id]).filter(Boolean);
-    if(!bots.length)return;
-    const px=pp.cx, py=pp.absY+CH;
-    const ky=bots[0].absY;
-    const hy=py+Math.round((ky-py)*0.45);
-    svg+='<line x1="'+px+'" y1="'+py+'" x2="'+px+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-    if(bots.length>1){
-      svg+='<line x1="'+Math.min(...bots.map(k=>k.cx))+'" y1="'+hy+'" x2="'+Math.max(...bots.map(k=>k.cx))+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-    }
-    bots.forEach(k=>{svg+='<line x1="'+k.cx+'" y1="'+hy+'" x2="'+k.cx+'" y2="'+ky+'" stroke="'+LINE+'" stroke-width="1.5"/>';});
-  });
+    const dept=departments.find(d=>d.id===pid);if(!dept)return;
 
-  // left/right 가로 연결선 (top-left/top-right 제외)
-  Object.entries(pos).forEach(function([id,p]){
-    if(!p.side||p.side==='top-left'||p.side==='top-right')return;
-    const dept=departments.find(d=>d.id===id);if(!dept||!dept.parent)return;
-    const pp=pos[dept.parent];if(!pp)return;
-    const midY=pp.absY+CH/2;
-    if(p.side==='left'){
-      svg+='<line x1="'+(p.cx+CW/2)+'" y1="'+midY+'" x2="'+(pp.cx-CW/2)+'" y2="'+midY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-    } else {
-      svg+='<line x1="'+(pp.cx+CW/2)+'" y1="'+midY+'" x2="'+(p.cx-CW/2)+'" y2="'+midY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+    // 이 부모의 모든 자식 (모든 방향)
+    const allKids=[
+      ...gk(pid,'bot'),
+      ...gk(pid,'left'),
+      ...gk(pid,'right'),
+      ...gk(pid,'top-left'),
+      ...gk(pid,'top-right'),
+    ].map(d=>pos[d.id]).filter(Boolean);
+
+    if(!allKids.length)return;
+
+    // 모두 같은 childY를 가짐
+    const childY=allKids[0].absY;
+    const hubY=pp.absY+nodeH(pid)+Math.round((childY-(pp.absY+nodeH(pid)))*0.45);
+
+    // 부모 → 허브
+    svg+='<line x1="'+pp.cx+'" y1="'+(pp.absY+CH)+'" x2="'+pp.cx+'" y2="'+hubY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+
+    // 허브 가로선
+    const minX=Math.min(...allKids.map(k=>k.cx));
+    const maxX=Math.max(...allKids.map(k=>k.cx));
+    if(minX<maxX){
+      svg+='<line x1="'+minX+'" y1="'+hubY+'" x2="'+maxX+'" y2="'+hubY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
     }
+
+    // 각 자식 → 상단 (top-left/top-right는 선 없음)
+    const botIds=new Set([...gk(pid,'bot'),...gk(pid,'left'),...gk(pid,'right')].map(d=>d.id));
+    allKids.forEach(function(k){
+      const kDept=departments.find(d=>pos[d.id]===k);
+      // top-left/top-right면 선 안 그림
+      const isTop=kDept&&(kDept.position==='top-left'||kDept.position==='top-right');
+      if(!isTop){
+        svg+='<line x1="'+k.cx+'" y1="'+hubY+'" x2="'+k.cx+'" y2="'+childY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+      }
+    });
   });
 
   // ━━━ 노드 HTML ━━━
@@ -2366,7 +2378,7 @@ function renderOrgView() {
   const allCX=Object.values(pos).map(p=>p.cx);
   const allYf=Object.values(pos).map(p=>p.absY);
   const CAN_W=Math.max(...allCX)+CW/2+40;
-  const CAN_H=Math.max(...allYf)+CH+80+80;
+  const CAN_H=Math.max(...allYf)+CH+100;
 
   chart.innerHTML='<div style="position:relative;width:'+CAN_W+'px;height:'+CAN_H+'px">'+
     '<svg style="position:absolute;top:0;left:0;width:'+CAN_W+'px;height:'+CAN_H+'px;z-index:0;overflow:visible">'+svg+'</svg>'+
@@ -2382,7 +2394,7 @@ function renderOrgView() {
   },80);
 }
 
-// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──
+// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──
 let orgScale = 0.8, orgOffX = 0, orgOffY = 0;
 let orgDragging = false, orgDragX = 0, orgDragY = 0, orgDragOX = 0, orgDragOY = 0;
 
