@@ -2151,7 +2151,7 @@ function renderOrgView() {
   if(!roots.length){chart.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3)">부서를 추가해주세요</div>';return;}
 
   // ━━━ 상수 ━━━
-  const CW=118, CH=44, EW=54, HGAP=16, LINE='#94a3b8';
+  const CW=118, CH=44, EW=54, HGAP=20, LINE='#94a3b8';
   const LC=['#1e293b','#3b82f6','#f59e0b','#7c3aed','#0891b2','#059669'];
   function bg(lv){return LC[Math.min(Math.max(lv,0),LC.length-1)];}
   function getEmps(d){return sortEmpsByRank(employees.filter(e=>e.dept===d.name&&e.status!=='퇴직'),d.head||'');}
@@ -2161,12 +2161,14 @@ function renderOrgView() {
     return CH+(ec>0?Math.ceil(ec/5)*60+8:0);
   }
   function isBot(d){return !d.position||d.position==='bottom';}
-  function isZone2(d){return d.position&&d.position.startsWith('zone2-');}
-  function gk(pid,ptype){
-    if(ptype==='bot') return [...departments].filter(d=>d.parent===pid&&isBot(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-    if(ptype==='zone2') return [...departments].filter(d=>d.parent===pid&&isZone2(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-    return [...departments].filter(d=>d.parent===pid&&d.position===ptype).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+  function isZ2(d){return d.position&&d.position.startsWith('zone2-');}
+  function gk(pid,pt){
+    if(pt==='bot') return [...departments].filter(d=>d.parent===pid&&isBot(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    if(pt==='z2')  return [...departments].filter(d=>d.parent===pid&&isZ2(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    return [...departments].filter(d=>d.parent===pid&&d.position===pt).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   }
+
+  // orgLevel
   function olv(id,v){
     v=v||{};if(v[id])return 0;v[id]=true;
     const d=departments.find(x=>x.id===id);if(!d)return 0;
@@ -2174,200 +2176,121 @@ function renderOrgView() {
     if(!d.parent)return 0;
     return olv(d.parent,v)+1;
   }
+
+  // bottom 서브트리 너비
   function subW(id){
     const bots=gk(id,'bot');
     if(!bots.length)return CW;
     return Math.max(CW,bots.reduce((s,d)=>s+subW(d.id),0)+(bots.length-1)*HGAP);
   }
-  // zone2 포함 서브트리 너비
-  function subWZ(id){
+
+  // ━━━ 각 구역 높이 계산 ━━━
+  function z2TreeMaxH(id){
+    // 2구역 노드 하나의 최대 세로 높이 (하위 포함)
+    let h=nodeH(id);
     const bots=gk(id,'bot');
-    const z2=gk(id,'zone2');
-    const botW=bots.length?Math.max(CW,bots.reduce((s,d)=>s+subWZ(d.id),0)+(bots.length-1)*HGAP):CW;
-    const z2W=z2.reduce((s,d)=>s+subWZ(d.id)+HGAP,0);
-    return Math.max(CW, botW+z2W);
+    if(bots.length){
+      let childH=0;
+      bots.forEach(c=>{childH=Math.max(childH,z3TreeH(c.id));});
+      h+=60+childH;
+    }
+    return h;
+  }
+  function z3TreeH(id){
+    let h=nodeH(id);
+    const bots=gk(id,'bot');
+    if(bots.length){
+      let childH=0;
+      bots.forEach(c=>{childH=Math.max(childH,z3TreeH(c.id));});
+      h+=60+childH;
+    }
+    return h;
   }
 
   // ━━━ 배치 ━━━
-  const pos={}; // id->{cx,absY,lv}
+  const pos={};
   let svg='', nodes='';
 
-  // 루트 하나씩 처리 (루트가 여러개면 나란히)
-  let rx=HGAP*2;
-
   roots.forEach(function(root){
-    // zone2 자식들 (이 루트의 직접 zone2 자식)
-    const z2All=gk(root.id,'zone2');
-    const z2Left=z2All.filter(d=>d.position.includes('left')).sort((a,b)=>{
-      const n1=parseInt(d.position.split('-').pop())||1;
-      return (parseInt(a.position.split('-').pop())||1)-(parseInt(b.position.split('-').pop())||1);
-    });
-    const z2Right=z2All.filter(d=>d.position.includes('right')).sort((a,b)=>{
-      return (parseInt(a.position.split('-').pop())||1)-(parseInt(b.position.split('-').pop())||1);
-    });
+    const z2kids=gk(root.id,'z2');
+    const z2left=z2kids.filter(d=>d.position.includes('left')).sort((a,b)=>(parseInt(a.position.split('-').pop())||1)-(parseInt(b.position.split('-').pop())||1));
+    const z2right=z2kids.filter(d=>d.position.includes('right')).sort((a,b)=>(parseInt(a.position.split('-').pop())||1)-(parseInt(b.position.split('-').pop())||1));
+    const z3kids=gk(root.id,'bot');
 
-    // 3구역(bottom) 너비 계산
-    const botW=subW(root.id);
-
-    // 2구역 너비
-    function z2TreeW(id){
-      const z2k=gk(id,'zone2');
-      const bk=gk(id,'bot');
-      let w=subW(id);
-      z2k.forEach(c=>{w+=z2TreeW(c.id)+HGAP;});
-      return w;
-    }
-    const lTotalW=z2Left.reduce((s,d)=>s+z2TreeW(d.id)+HGAP,0);
-    const rTotalW=z2Right.reduce((s,d)=>s+z2TreeW(d.id)+HGAP,0);
-
-    // 전체 너비 = 좌측 + 루트카드 + 우측 + 3구역
-    // 루트는 3구역 위에 중앙 배치
-    const zone3startX=rx+lTotalW+(lTotalW>0?HGAP:0);
-    const rootCX=zone3startX+botW/2;
-    const totalRootW=lTotalW+(lTotalW>0?HGAP:0)+botW+(rTotalW>0?HGAP:0)+rTotalW;
-
-    // ━━━ 1구역: 루트 카드 배치 ━━━
+    // ── 각 구역 Y 계산 ──
+    const Z1_H=nodeH(root.id);
     const Z1_Y=40;
+    const Z1_BOT=Z1_Y+Z1_H;
+
+    // 2구역: z2kids 중 최대 높이
+    let z2MaxH=0;
+    z2kids.forEach(c=>{z2MaxH=Math.max(z2MaxH,z2TreeMaxH(c.id));});
+    const Z2_Y=Z1_BOT+60;
+    const Z2_H=z2MaxH>0?z2MaxH:0;
+    const Z2_BOT=Z2_Y+Z2_H;
+
+    // 3구역
+    const Z3_Y=z2kids.length>0?Z2_BOT+60:Z1_BOT+60;
+
+    // ── 3구역 너비 계산 ──
+    const z3W=z3kids.reduce((s,d)=>s+subW(d.id),0)+(z3kids.length-1)*HGAP;
+
+    // ── 2구역 너비 계산 ──
+    const z2lW=z2left.reduce((s,d)=>s+subW(d.id),0)+(z2left.length>0?(z2left.length-1)*HGAP:0);
+    const z2rW=z2right.reduce((s,d)=>s+subW(d.id),0)+(z2right.length>0?(z2right.length-1)*HGAP:0);
+
+    // ── 중앙 X ──
+    const centerW=Math.max(CW, z3W, z2lW+HGAP*2+z2rW+(z3W>0?z3W:CW));
+    const rootCX=Math.max(
+      (z2lW>0?z2lW+HGAP*2:HGAP*2)+Math.max(CW,z3W)/2,
+      centerW/2
+    )+HGAP*2;
+
+    // ── 1구역: 루트 ──
     pos[root.id]={cx:rootCX, absY:Z1_Y, lv:0};
 
-    // ━━━ 2구역 Y ━━━
-    const Z2_Y=Z1_Y+nodeH(root.id)+60;
-
-    // 2구역 좌측 배치 (오른쪽부터 왼쪽으로)
-    let lx2=rootCX-CW/2-HGAP;
-    z2Left.slice().reverse().forEach(function(c){
-      const w=z2TreeW(c.id);
-      const ccx=lx2-w/2;
-      lx2-=w+HGAP;
-      placeZ2Tree(c.id, ccx, Z2_Y, 1);
+    // ── 2구역 좌측: 루트 왼쪽에 나란히 ──
+    let lx=rootCX-CW/2-HGAP;
+    z2left.slice().reverse().forEach(function(c){
+      const w=subW(c.id);
+      lx-=w;
+      placeZ2(c.id, lx+w/2, Z2_Y, 1);
+      lx-=HGAP;
     });
 
-    // 2구역 우측 배치
-    let rx2=rootCX+CW/2+HGAP;
-    z2Right.forEach(function(c){
-      const w=z2TreeW(c.id);
-      const ccx=rx2+w/2;
-      placeZ2Tree(c.id, ccx, Z2_Y, 1);
-      rx2+=w+HGAP;
+    // ── 2구역 우측: 루트 오른쪽에 나란히 ──
+    let rx=rootCX+CW/2+HGAP;
+    z2right.forEach(function(c){
+      const w=subW(c.id);
+      placeZ2(c.id, rx+w/2, Z2_Y, 1);
+      rx+=w+HGAP;
     });
 
-    // ━━━ 3구역 Y ━━━
-    // 2구역의 최대 높이 계산
-    let z2MaxH=0;
-    z2All.forEach(function(c){
-      z2MaxH=Math.max(z2MaxH, getZ2Height(c.id));
+    // ── 3구역: T자형 ──
+    let blx=rootCX-z3W/2;
+    z3kids.forEach(function(c){
+      placeZ3(c.id, blx, Z3_Y, 1);
+      blx+=subW(c.id)+HGAP;
     });
-    const Z3_Y=Z2_Y+(z2All.length>0?z2MaxH+60:0);
 
-    // 3구역 T자 배치
-    placeZ3Tree(root.id, zone3startX, Z3_Y, 1);
-
-    // 다음 루트 시작 X
-    rx+=totalRootW+HGAP*8;
-  });
-
-  // zone2 트리 배치
-  function placeZ2Tree(id, cx, absY, lv){
-    pos[id]={cx, absY, lv};
-    // zone2 자식들 (연쇄 zone2)
-    const z2k=gk(id,'zone2');
-    const isLeft=departments.find(d=>d.id===id)?.position?.includes('left');
-    // bottom 자식도 같은 행에 x축으로
-    const bk=gk(id,'bot');
-
-    // 이 노드의 하위 zone2 (같은 행, 연쇄)
-    let sidex=isLeft ? cx-CW/2-HGAP : cx+CW/2+HGAP;
-    if(isLeft){
-      z2k.slice().reverse().forEach(function(c){
-        const w=z2TreeW2(c.id);
-        sidex-=w;
-        placeZ2Tree(c.id, sidex+w/2, absY, lv);
-        sidex-=HGAP;
-      });
-    } else {
-      z2k.forEach(function(c){
-        const w=z2TreeW2(c.id);
-        placeZ2Tree(c.id, sidex+w/2, absY, lv);
-        sidex+=w+HGAP;
-      });
-    }
-
-    // bottom 자식: 이 노드 아래로
-    if(bk.length){
-      const childY=absY+nodeH(id)+50;
-      const tw=bk.reduce((s,c)=>s+subW(c.id),0)+(bk.length-1)*HGAP;
-      let lx=cx-tw/2;
-      bk.forEach(function(c){
-        placeZ3Tree(c.id, lx, childY, lv+1);
-        lx+=subW(c.id)+HGAP;
-      });
-    }
-  }
-
-  function z2TreeW2(id){
-    const z2k=gk(id,'zone2');
-    let w=CW;
-    z2k.forEach(c=>{w+=z2TreeW2(c.id)+HGAP;});
-    return Math.max(w,subW(id));
-  }
-
-  function getZ2Height(id){
-    let h=nodeH(id);
-    const bk=gk(id,'bot');
-    if(bk.length){
-      h+=50;
-      bk.forEach(c=>{h=Math.max(h,nodeH(id)+50+getZ3Height(c.id));});
-    }
-    const z2k=gk(id,'zone2');
-    z2k.forEach(c=>{const ch=getZ2Height(c);if(ch>h)h=ch;});
-    return h;
-  }
-
-  // 3구역 T자 배치 (재귀)
-  function placeZ3Tree(id, left, absY, lv){
-    const w=subW(id), cx=left+w/2;
-    pos[id]={cx, absY, lv};
-    const bots=gk(id,'bot');
-    if(!bots.length)return;
-    const childY=absY+nodeH(id)+50;
-    let lx=left;
-    bots.forEach(function(c){
-      placeZ3Tree(c.id, lx, childY, lv+1);
-      lx+=subW(c.id)+HGAP;
-    });
-  }
-
-  function getZ3Height(id){
-    let h=nodeH(id);
-    const bots=gk(id,'bot');
-    if(bots.length){h+=50+Math.max(...bots.map(c=>getZ3Height(c.id)));}
-    return h;
-  }
-
-  // ━━━ SVG 연결선 ━━━
-  // 1구역 → 2구역: 루트에서 zone2 자식들로 가로선
-  roots.forEach(function(root){
-    const pp=pos[root.id]; if(!pp)return;
-    const z2All=gk(root.id,'zone2');
-    const z2Left=z2All.filter(d=>d.position.includes('left'));
-    const z2Right=z2All.filter(d=>d.position.includes('right'));
-
-    // 루트 → 좌측 가로선들
-    z2Left.forEach(function(c){
+    // ── SVG: 1→2구역 연결 ──
+    const pp=pos[root.id];
+    // 좌측 연결선 (루트 좌측 중앙에서 각 좌측 노드로 가로선)
+    z2left.forEach(function(c){
       const cp=pos[c.id]; if(!cp)return;
       const midY=pp.absY+CH/2;
       svg+='<line x1="'+(cp.cx+CW/2)+'" y1="'+midY+'" x2="'+(pp.cx-CW/2)+'" y2="'+midY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
     });
-    // 루트 → 우측 가로선들
-    z2Right.forEach(function(c){
+    // 우측 연결선
+    z2right.forEach(function(c){
       const cp=pos[c.id]; if(!cp)return;
       const midY=pp.absY+CH/2;
       svg+='<line x1="'+(pp.cx+CW/2)+'" y1="'+midY+'" x2="'+(cp.cx-CW/2)+'" y2="'+midY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
     });
 
-    // 루트 → 3구역 (세로선 아래로)
-    const bots3=gk(root.id,'bot').map(d=>pos[d.id]).filter(Boolean);
-    if(bots3.length){
+    // ── SVG: 1→3구역 T자 ──
+    if(z3kids.length){
+      const bots3=z3kids.map(d=>pos[d.id]).filter(Boolean);
       const py=pp.absY+CH, ky=bots3[0].absY;
       const hy=py+Math.round((ky-py)*0.45);
       svg+='<line x1="'+pp.cx+'" y1="'+py+'" x2="'+pp.cx+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
@@ -2378,56 +2301,45 @@ function renderOrgView() {
     }
   });
 
-  // zone2 자식들 간 연쇄 가로선
-  Object.entries(pos).forEach(function([id,p]){
-    const dept=departments.find(d=>d.id===id); if(!dept||!isZone2(dept)) return;
-    const pp=pos[dept.parent]; if(!pp) return;
-    const parentDept=departments.find(d=>d.id===dept.parent);
-    if(!parentDept||!isZone2(parentDept)) return; // 루트→zone2는 위에서 처리
-    const midY=pp.absY+CH/2;
-    if(dept.position.includes('left')){
-      svg+='<line x1="'+(p.cx+CW/2)+'" y1="'+midY+'" x2="'+(pp.cx-CW/2)+'" y2="'+midY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-    } else {
-      svg+='<line x1="'+(pp.cx+CW/2)+'" y1="'+midY+'" x2="'+(p.cx-CW/2)+'" y2="'+midY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-    }
-  });
-
-  // zone2의 bottom 자식 → T자
-  Object.entries(pos).forEach(function([id,p]){
-    const dept=departments.find(d=>d.id===id); if(!dept||!isZone2(dept)) return;
-    const bots=gk(id,'bot').map(d=>pos[d.id]).filter(Boolean);
+  // 2구역 배치 함수
+  function placeZ2(id, cx, absY, lv){
+    pos[id]={cx, absY, lv};
+    // bottom 자식 → 아래로 T자
+    const bots=gk(id,'bot');
     if(!bots.length)return;
-    const py=p.absY+CH, ky=bots[0].absY;
+    const childY=absY+nodeH(id)+50;
+    let lx=cx-subW(id)/2;
+    bots.forEach(function(c){placeZ3(c.id,lx,childY,lv+1);lx+=subW(c.id)+HGAP;});
+    // SVG T자
+    const bpos=bots.map(d=>pos[d.id]).filter(Boolean);
+    const py=absY+CH, ky=bpos[0].absY;
     const hy=py+Math.round((ky-py)*0.45);
-    svg+='<line x1="'+p.cx+'" y1="'+py+'" x2="'+p.cx+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-    if(bots.length>1){
-      svg+='<line x1="'+Math.min(...bots.map(k=>k.cx))+'" y1="'+hy+'" x2="'+Math.max(...bots.map(k=>k.cx))+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+    svg+='<line x1="'+cx+'" y1="'+py+'" x2="'+cx+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+    if(bpos.length>1){
+      svg+='<line x1="'+Math.min(...bpos.map(k=>k.cx))+'" y1="'+hy+'" x2="'+Math.max(...bpos.map(k=>k.cx))+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
     }
-    bots.forEach(k=>{svg+='<line x1="'+k.cx+'" y1="'+hy+'" x2="'+k.cx+'" y2="'+ky+'" stroke="'+LINE+'" stroke-width="1.5"/>';});
-  });
+    bpos.forEach(k=>{svg+='<line x1="'+k.cx+'" y1="'+hy+'" x2="'+k.cx+'" y2="'+ky+'" stroke="'+LINE+'" stroke-width="1.5"/>';});
+  }
 
-  // 3구역 T자 연결선
-  Object.entries(pos).forEach(function([id,p]){
-    const dept=departments.find(d=>d.id===id); if(!dept||isZone2(dept)) return;
-    if(!dept.parent) return; // 루트는 위에서 처리
-    const parentDept=departments.find(d=>d.id===dept.parent);
-    if(!parentDept||isZone2(parentDept)) return;
-    // 부모의 bottom 자식들과 T자는 부모 기준으로 그림
-  });
-  // 3구역 내부 T자 (각 부모 기준)
-  Object.keys(pos).forEach(function(pid){
-    const pp=pos[pid]; if(!pp)return;
-    const dept=departments.find(d=>d.id===pid); if(!dept||isZone2(dept)||!dept.parent) return;
-    const bots=gk(pid,'bot').map(d=>pos[d.id]).filter(Boolean);
+  // 3구역 T자 배치
+  function placeZ3(id, left, absY, lv){
+    const w=subW(id), cx=left+w/2;
+    pos[id]={cx, absY, lv};
+    const bots=gk(id,'bot');
     if(!bots.length)return;
-    const py=pp.absY+CH, ky=bots[0].absY;
+    const childY=absY+nodeH(id)+50;
+    let lx=left;
+    bots.forEach(function(c){placeZ3(c.id,lx,childY,lv+1);lx+=subW(c.id)+HGAP;});
+    // SVG T자
+    const bpos=bots.map(d=>pos[d.id]).filter(Boolean);
+    const py=absY+CH, ky=bpos[0].absY;
     const hy=py+Math.round((ky-py)*0.45);
-    svg+='<line x1="'+pp.cx+'" y1="'+py+'" x2="'+pp.cx+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-    if(bots.length>1){
-      svg+='<line x1="'+Math.min(...bots.map(k=>k.cx))+'" y1="'+hy+'" x2="'+Math.max(...bots.map(k=>k.cx))+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+    svg+='<line x1="'+cx+'" y1="'+py+'" x2="'+cx+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+    if(bpos.length>1){
+      svg+='<line x1="'+Math.min(...bpos.map(k=>k.cx))+'" y1="'+hy+'" x2="'+Math.max(...bpos.map(k=>k.cx))+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
     }
-    bots.forEach(k=>{svg+='<line x1="'+k.cx+'" y1="'+hy+'" x2="'+k.cx+'" y2="'+ky+'" stroke="'+LINE+'" stroke-width="1.5"/>';});
-  });
+    bpos.forEach(k=>{svg+='<line x1="'+k.cx+'" y1="'+hy+'" x2="'+k.cx+'" y2="'+ky+'" stroke="'+LINE+'" stroke-width="1.5"/>';});
+  }
 
   // ━━━ 노드 HTML ━━━
   Object.entries(pos).forEach(function([id,p]){
@@ -2481,7 +2393,7 @@ function renderOrgView() {
   },80);
 }
 
-// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──
+// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──
 let orgScale = 0.8, orgOffX = 0, orgOffY = 0;
 let orgDragging = false, orgDragX = 0, orgDragY = 0, orgDragOX = 0, orgDragOY = 0;
 
