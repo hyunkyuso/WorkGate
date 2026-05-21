@@ -418,7 +418,7 @@ select.form-input{cursor:pointer}
               <button class="btn btn-ghost btn-sm" onclick="orgResetView()">⊡ 맞춤</button>
               <button class="btn btn-ghost btn-sm" onclick="printOrgChart()">🖨 인쇄</button>
               <button class="btn btn-ghost btn-sm" onclick="downloadExcel()" style="color:#217346;border-color:#217346">📊 Excel</button>
-              <button class="btn btn-ghost btn-sm" onclick="downloadPPT()" style="color:#C43E1C;border-color:#C43E1C">📑 PPT</button>
+              <button class="btn btn-ghost btn-sm" onclick="downloadPPT()" style="color:#C43E1C;border-color:#C43E1C">🖼 이미지</button>
             </div>
           </div>
         </div>
@@ -2751,41 +2751,65 @@ function printOrgChart() {
   if (!chart) return;
   const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
   const totalActive = employees.filter(e=>e.status!=='퇴직').length;
+  const statsText = (document.getElementById('orgview-stats')||{}).textContent||'';
+
+  // 현재 조직도 CSS 추출
+  let ovCSS = '';
+  try {
+    Array.from(document.styleSheets).forEach(function(ss){
+      try {
+        Array.from(ss.cssRules).forEach(function(rule){
+          if(rule.cssText) ovCSS += rule.cssText + ' ';
+        });
+      } catch(e){}
+    });
+  } catch(e){}
 
   const win = window.open('', '_blank');
-  win.document.write(`<!DOCTYPE html><html lang="ko"><head>
-    <meta charset="utf-8">
-    <title>조직도</title>
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'Noto Sans KR',sans-serif;background:#fff;padding:20px}
-      .print-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #1a1d2e}
-      .print-title{font-size:22px;font-weight:700}
-      .print-meta{font-size:12px;color:#666;margin-top:4px}
-      .print-stats{text-align:right;font-size:12px}
-      .print-stats strong{font-size:14px;font-weight:700;color:#1a1d2e}
-      .print-body{transform-origin:top left}
-      @media print{
-        body{padding:10px}
-        @page{size:A4 landscape;margin:10mm}
-      }
-      ${Array.from(document.styleSheets).map(s=>{try{return Array.from(s.cssRules).filter(r=>r.selectorText&&r.selectorText.includes('ov-')).map(r=>r.cssText).join('')}catch{return ''}}).join('')}
-    </style>
-  </head><body>
-    <div class="print-header">
-      <div>
-        <div class="print-title">조직도</div>
-        <div class="print-meta">기준일자: ${today}</div>
-      </div>
-      <div class="print-stats">
-        전체 <strong>${totalActive}명</strong> 재직<br>
-        <span style="color:#666">${document.getElementById('orgview-stats')?.textContent||''}</span>
-      </div>
-    </div>
-    <div class="print-body">${chart.innerHTML}</div>
-  </body></html>`);
+  if (!win) { showToast('❌ 팝업이 차단되었습니다.'); return; }
+
+  win.document.write('<!DOCTYPE html><html lang="ko"><head>' +
+    '<meta charset="utf-8"><title>조직도</title>' +
+    '<style>' +
+    '*{box-sizing:border-box;margin:0;padding:0}' +
+    'body{font-family:"Noto Sans KR",sans-serif;background:#fff;}' +
+    // 컬러 인쇄 강제
+    '-webkit-print-color-adjust:exact !important;' +
+    'print-color-adjust:exact !important;' +
+    '.hdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px 8px;border-bottom:2px solid #1a1d2e;margin-bottom:10px}' +
+    '.hdr-title{font-size:18px;font-weight:700;color:#1a1d2e}' +
+    '.hdr-meta{font-size:10px;color:#666;margin-top:2px}' +
+    '.hdr-stats{text-align:right;font-size:11px;color:#444}' +
+    '.chart-wrap{display:flex;justify-content:center;padding:0 10px}' +
+    ovCSS +
+    '@media print{' +
+    'html,body{width:100%;height:100%;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
+    '@page{size:A3 landscape;margin:5mm;}' +
+    '.chart-wrap{transform-origin:top center;}' +
+    '}' +
+    '</style></head><body>' +
+    '<div class="hdr">' +
+    '<div><div class="hdr-title">조직도</div><div class="hdr-meta">기준일자: ' + today + '</div></div>' +
+    '<div class="hdr-stats">전체 <strong style="font-size:14px;color:#1a1d2e">' + totalActive + '명</strong><br>' + statsText + '</div>' +
+    '</div>' +
+    '<div class="chart-wrap" id="cw"><div id="ci" style="transform-origin:top left">' + chart.innerHTML + '</div></div>' +
+    '<script>' +
+    'window.onload=function(){' +
+    '  var ci=document.getElementById("ci");' +
+    '  var cw=document.getElementById("cw");' +
+    '  if(!ci||!cw)return;' +
+    // A3 landscape 가용 너비 (420mm - 10mm margin = 410mm ≈ 1550px @96dpi)
+    '  var avail=window.innerWidth-28;' +
+    '  var chartW=ci.scrollWidth;' +
+    '  var scale=chartW>avail?avail/chartW:1;' +
+    '  ci.style.transform="scale("+scale+")";' +
+    '  ci.style.transformOrigin="top left";' +
+    '  cw.style.height=(ci.scrollHeight*scale+20)+"px";' +
+    '  setTimeout(function(){window.print();},800);' +
+    '};' +
+    '<\/script>' +
+    '</body></html>');
   win.document.close();
-  setTimeout(()=>{ win.print(); }, 800);
 }
 
 // ── Excel 다운로드 (직원 명단) ──
@@ -2853,77 +2877,38 @@ function downloadExcel() {
 
 // ── PPT 다운로드 — 직원 사진 포함 가로 A4 PDF ──
 function downloadPPT() {
-  const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
-  const totalActive = employees.filter(function(e){return e.status!=='퇴직';}).length;
-  const statsText = (document.getElementById('orgview-stats')||{}).textContent || '';
-
-  // 현재 조직도 HTML 그대로 사용 (사진 포함)
+  // html2canvas로 조직도 캡처 후 PNG 다운로드
   const chart = document.getElementById('orgview-chart');
   if (!chart) return;
+  const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\. /g,'-').replace('.','');
 
-  // 현재 페이지의 ov- CSS 추출
-  let ovCSS = '';
-  try {
-    Array.from(document.styleSheets).forEach(function(ss) {
-      try {
-        Array.from(ss.cssRules).forEach(function(rule) {
-          if (rule.cssText && (rule.cssText.indexOf('ov-') > -1 || rule.cssText.indexOf('.tag') > -1)) {
-            ovCSS += rule.cssText + ' ';
-          }
-        });
-      } catch(e) {}
+  showToast('📸 조직도 이미지 생성 중...');
+
+  // html2canvas 동적 로드
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  script.onload = function() {
+    html2canvas(chart, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#f8fafc',
+      logging: false
+    }).then(function(canvas) {
+      // PNG 다운로드
+      const link = document.createElement('a');
+      link.download = '조직도_' + today + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('✅ 조직도 이미지가 다운로드되었습니다! PowerPoint에 삽입하세요.');
+    }).catch(function(err) {
+      console.error(err);
+      showToast('❌ 이미지 생성 실패. 다시 시도해주세요.');
     });
-  } catch(e) {}
-
-  const win = window.open('', '_blank');
-  if (!win) { showToast('❌ 팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.'); return; }
-
-  win.document.write('<!DOCTYPE html><html lang="ko"><head>' +
-    '<meta charset="utf-8"><title>조직도_' + today + '</title>' +
-    '<style>' +
-    '@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap");' +
-    '*{box-sizing:border-box;margin:0;padding:0}' +
-    'body{font-family:"Noto Sans KR",sans-serif;background:#fff;}' +
-    '.slide{width:100%;padding:20px 24px;background:#fff;}' +
-    '.slide-hdr{display:flex;justify-content:space-between;align-items:center;' +
-    'padding-bottom:12px;border-bottom:3px solid #1a1d2e;margin-bottom:18px;}' +
-    '.slide-title{font-size:20px;font-weight:700;color:#1a1d2e;}' +
-    '.slide-meta{font-size:11px;color:#666;margin-top:3px;}' +
-    '.slide-stats{text-align:right;font-size:11px;color:#444;}' +
-    '.stats-num{font-size:18px;font-weight:700;color:#4F6EF7;}' +
-    '.slide-body{display:flex;justify-content:center;align-items:flex-start;}' +
-    '.slide-ftr{margin-top:14px;padding-top:8px;border-top:1px solid #e5e7eb;' +
-    'font-size:10px;color:#999;text-align:right;}' +
-    ovCSS +
-    // 인쇄 설정
-    '@media print{' +
-    'body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
-    '@page{size:A3 landscape;margin:8mm;}' +
-    '.slide{padding:12px 16px;}' +
-    '}' +
-    '</style></head><body>' +
-    '<div class="slide">' +
-    '<div class="slide-hdr">' +
-    '<div><div class="slide-title">조직도</div>' +
-    '<div class="slide-meta">기준일자: ' + today + '</div></div>' +
-    '<div class="slide-stats">' +
-    '<div class="stats-num">전체 ' + totalActive + '명</div>' +
-    '<div>' + statsText + '</div>' +
-    '</div></div>' +
-    '<div class="slide-body">' +
-    '<div style="transform:scale(0.65);transform-origin:top center;width:max-content">' +
-    chart.innerHTML +
-    '</div></div>' +
-    '<div class="slide-ftr">WorkGate 조직도 &nbsp;·&nbsp; ' + today + '</div>' +
-    '</div>' +
-    '<script>' +
-    'window.onload = function() {' +
-    '  setTimeout(function(){ window.print(); }, 1200);' +
-    '};' +
-    '<\/script>' +
-    '</body></html>');
-  win.document.close();
-  showToast('📑 A3 가로 조직도 출력창이 열렸습니다! PDF로 저장하세요.');
+  };
+  script.onerror = function() {
+    showToast('❌ 라이브러리 로드 실패. 인터넷 연결을 확인해주세요.');
+  };
+  document.head.appendChild(script);
 }
 
 function renderMembers() {} // 하위호환 유지
