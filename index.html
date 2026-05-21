@@ -2259,13 +2259,34 @@ function renderOrgView() {
           const bd=departments.find(x=>x.id===b.id);
           const bemps=bd?getEmps(bd):[];
           const empRowW=bemps.length*EW+(bemps.length>0?(bemps.length-1)*4:0);
-          const nodeAndEmpW=CW+(empRowW>0?HGAP+empRowW:0);
+          // lv3 하위조직 너비도 포함
+          const subBots2=gkBot(b.id);
+          let subTotalW=0;
+          subBots2.forEach(function(sb){
+            const sbd=departments.find(x=>x.id===sb.id);
+            const semps=sbd?getEmps(sbd):[];
+            const sempW=semps.length*EW+(semps.length>0?(semps.length-1)*4:0);
+            subTotalW+=CW+(sempW>0?HGAP+sempW:0)+HGAP;
+          });
+          const nodeAndEmpW=CW+(empRowW>0?HGAP+empRowW:0)+(subTotalW>0?subTotalW:0);
           bx-=nodeAndEmpW;
-          pos[b.id]={cx:bx+CW/2, absY:curY, lv:2};
-          // 직원들: 카드 바로 오른쪽 ... 아니면 왼쪽
+          const bcx=bx+CW/2;
+          pos[b.id]={cx:bcx, absY:curY, lv:2};
           if(bemps.length){
             pos['emp_'+b.id]={cx:bx+CW+HGAP+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
           }
+          // lv3 하위조직 배치 (왼쪽 방향이므로 emp 오른쪽에)
+          let sbx=bx+CW+(empRowW>0?HGAP+empRowW:0)+HGAP;
+          subBots2.forEach(function(sb){
+            const sbd=departments.find(x=>x.id===sb.id);
+            const semps=sbd?getEmps(sbd):[];
+            const sempW=semps.length*EW+(semps.length>0?(semps.length-1)*4:0);
+            pos[sb.id]={cx:sbx+CW/2, absY:curY, lv:3};
+            if(semps.length){
+              pos['emp_'+sb.id]={cx:sbx+CW+HGAP+sempW/2, absY:curY, empList:semps, deptId:sb.id, color:bg(3)};
+            }
+            sbx+=CW+(sempW>0?HGAP+sempW:0)+HGAP;
+          });
           bx-=HGAP;
         });
 
@@ -2284,17 +2305,31 @@ function renderOrgView() {
         const parentCX=spineX+CW/2+HGAP+CW/2;
         pos[rNode.id]={cx:parentCX, absY:curY, lv:1};
 
-        // 하위조직들: 상위조직 오른쪽으로 나란히
+        // 하위조직들: 상위조직 오른쪽으로 나란히 (재귀적으로 하위도 배치)
         let bx=parentCX+CW/2+HGAP;
         bots.forEach(function(b){
           const bd=departments.find(x=>x.id===b.id);
           const bemps=bd?getEmps(bd):[];
           const empRowW=bemps.length*EW+(bemps.length>0?(bemps.length-1)*4:0);
-          pos[b.id]={cx:bx+CW/2, absY:curY, lv:2};
+          const bcx=bx+CW/2;
+          pos[b.id]={cx:bcx, absY:curY, lv:2};
           if(bemps.length){
             pos['emp_'+b.id]={cx:bx+CW+HGAP+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
           }
-          bx+=CW+(empRowW>0?HGAP+empRowW:0)+HGAP;
+          // lv3 하위조직도 오른쪽으로 나란히 배치
+          const subBots=gkBot(b.id);
+          let sbx=bx+CW+(empRowW>0?HGAP+empRowW:0)+HGAP;
+          subBots.forEach(function(sb){
+            const sbd=departments.find(x=>x.id===sb.id);
+            const semps=sbd?getEmps(sbd):[];
+            const sempRowW=semps.length*EW+(semps.length>0?(semps.length-1)*4:0);
+            pos[sb.id]={cx:sbx+CW/2, absY:curY, lv:3};
+            if(semps.length){
+              pos['emp_'+sb.id]={cx:sbx+CW+HGAP+sempRowW/2, absY:curY, empList:semps, deptId:sb.id, color:bg(3)};
+            }
+            sbx+=CW+(sempRowW>0?HGAP+sempRowW:0)+HGAP;
+          });
+          bx=sbx>bx?sbx:bx+CW+(empRowW>0?HGAP+empRowW:0)+HGAP;
         });
 
         // SVG: spine 교차점 → 우측 상위조직 가로선
@@ -2344,19 +2379,7 @@ function renderOrgView() {
     const childY=absY+nodeH(id)+VGAP;
     let lx=left;
     bots.forEach(function(c){placeZ3(c.id,lx,childY,lv+1);lx+=subW(c.id)+HGAP;});
-    // lv1(본부→부서)만 T자 라인, lv2이상 없음
-    if(lv!==1)return;
-    const bpos=bots.map(d=>pos[d.id]).filter(Boolean);
-    if(!bpos.length)return;
-    const py=absY+CH, ky=bpos[0].absY;
-    const hy=py+Math.round((ky-py)*0.5);
-    svg+='<line x1="'+cx+'" y1="'+py+'" x2="'+cx+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-    if(bpos.length>1){
-      svg+='<line x1="'+Math.min(...bpos.map(k=>k.cx))+'" y1="'+hy+'" x2="'+Math.max(...bpos.map(k=>k.cx))+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-    }
-    bpos.forEach(function(k){
-      svg+='<line x1="'+k.cx+'" y1="'+hy+'" x2="'+k.cx+'" y2="'+ky+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-    });
+    // 3구역 모든 라인 제거 (루트→본부 T자만 별도 처리)
   }
 
   // 노드 HTML
