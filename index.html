@@ -2290,8 +2290,10 @@ function renderOrgView() {
         // 2. lv1 직원: lv1카드 왼쪽
         let lx2=parentCX-CW/2-HGAP;
         if(lv1Lemps.length){
-          lx2-=lv1LEmpW;
-          pos['emp1_'+lNode.id]={cx:lx2+lv1LEmpW/2, absY:curY, empList:lv1Lemps, deptId:lNode.id, color:bg(1)};
+          const lv1LempsR=lv1Lemps.slice().reverse();
+          const lv1LEmpWR=lv1LempsR.length*(EW+3);
+          lx2-=lv1LEmpWR;
+          pos['emp1_'+lNode.id]={cx:lx2+lv1LEmpWR/2, absY:curY, empList:lv1LempsR, deptId:lNode.id, color:bg(1)};
           lx2-=HGAP;
         }
 
@@ -2306,10 +2308,12 @@ function renderOrgView() {
           pos[b.id]={cx:lx2+CW/2, absY:curY, lv:2};
           lx2-=HGAP;
 
-          // lv2 직원
+          // lv2 직원 (좌측이므로 역순)
           if(bemps.length){
-            lx2-=empRowW;
-            pos['emp_'+b.id]={cx:lx2+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
+            const bempsR=bemps.slice().reverse();
+            const empRowWR=bempsR.length*(EW+3);
+            lx2-=empRowWR;
+            pos['emp_'+b.id]={cx:lx2+empRowWR/2, absY:curY, empList:bempsR, deptId:b.id, color:bg(2)};
             lx2-=HGAP;
           }
 
@@ -2322,10 +2326,12 @@ function renderOrgView() {
             lx2-=CW;
             pos[sb.id]={cx:lx2+CW/2, absY:curY, lv:3};
             lx2-=HGAP;
-            // lv3 직원
+            // lv3 직원 (좌측이므로 역순)
             if(semps.length){
-              lx2-=sempW;
-              pos['emp_'+sb.id]={cx:lx2+sempW/2, absY:curY, empList:semps, deptId:sb.id, color:bg(3)};
+              const sempsR=semps.slice().reverse();
+              const sempWR=sempsR.length*(EW+3);
+              lx2-=sempWR;
+              pos['emp_'+sb.id]={cx:lx2+sempWR/2, absY:curY, empList:sempsR, deptId:sb.id, color:bg(3)};
               lx2-=HGAP;
             }
           });
