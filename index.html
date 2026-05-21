@@ -2765,6 +2765,19 @@ function printOrgChart() {
     });
   } catch(e){}
 
+  // 조직도 실제 크기 (transform 제거 후 측정)
+  const chartDiv = chart.querySelector('div');
+  const chartW = chartDiv ? parseInt(chartDiv.style.width)||chart.scrollWidth : chart.scrollWidth;
+  const chartH = chartDiv ? parseInt(chartDiv.style.height)||chart.scrollHeight : chart.scrollHeight;
+
+  // A4 landscape 실제 인쇄 가용 영역 (mm→px @96dpi: 287mm×190mm)
+  // 297mm - 10mm margin = 287mm = 1087px, 210mm - 10mm = 200mm = 756px
+  const printW = 1087;
+  const printH = 680; // 헤더 제외
+  const scaleW = printW / chartW;
+  const scaleH = printH / chartH;
+  const scale = Math.min(scaleW, scaleH, 1).toFixed(4);
+
   const win = window.open('', '_blank');
   if (!win) { showToast('❌ 팝업이 차단되었습니다.'); return; }
 
@@ -2772,43 +2785,27 @@ function printOrgChart() {
     '<meta charset="utf-8"><title>조직도</title>' +
     '<style>' +
     '*{box-sizing:border-box;margin:0;padding:0}' +
-    'body{font-family:"Noto Sans KR",sans-serif;background:#fff;}' +
-    // 컬러 인쇄 강제
-    '-webkit-print-color-adjust:exact !important;' +
-    'print-color-adjust:exact !important;' +
-    '.hdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px 8px;border-bottom:2px solid #1a1d2e;margin-bottom:10px}' +
-    '.hdr-title{font-size:18px;font-weight:700;color:#1a1d2e}' +
-    '.hdr-meta{font-size:10px;color:#666;margin-top:2px}' +
-    '.hdr-stats{text-align:right;font-size:11px;color:#444}' +
-    '.chart-wrap{display:flex;justify-content:center;padding:0 10px}' +
+    'body{font-family:"Noto Sans KR",sans-serif;background:#fff;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
+    '.hdr{display:flex;justify-content:space-between;align-items:center;padding:8px 12px 6px;border-bottom:2px solid #1a1d2e;margin-bottom:8px}' +
+    '.hdr-title{font-size:16px;font-weight:700;color:#1a1d2e}' +
+    '.hdr-meta{font-size:9px;color:#666;margin-top:2px}' +
+    '.hdr-stats{text-align:right;font-size:10px;color:#444}' +
+    '.chart-wrap{overflow:hidden;line-height:0}' +
     ovCSS +
     '@media print{' +
-    'html,body{width:100%;height:100%;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
+    'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
     '@page{size:A4 landscape;margin:5mm;}' +
-    '.chart-wrap{transform-origin:top left;}' +
-    '#ci{transform-origin:top left;}' +
     '}' +
     '</style></head><body>' +
     '<div class="hdr">' +
     '<div><div class="hdr-title">조직도</div><div class="hdr-meta">기준일자: ' + today + '</div></div>' +
-    '<div class="hdr-stats">전체 <strong style="font-size:14px;color:#1a1d2e">' + totalActive + '명</strong><br>' + statsText + '</div>' +
+    '<div class="hdr-stats">전체 <strong style="font-size:13px;color:#1a1d2e">' + totalActive + '명</strong><br>' + statsText + '</div>' +
     '</div>' +
-    '<div class="chart-wrap" id="cw"><div id="ci" style="transform-origin:top left">' + chart.innerHTML + '</div></div>' +
-    '<script>' +
-    'window.onload=function(){' +
-    '  var ci=document.getElementById("ci");' +
-    '  var cw=document.getElementById("cw");' +
-    '  if(!ci||!cw)return;' +
-    // A3 landscape 가용 너비 (420mm - 10mm margin = 410mm ≈ 1550px @96dpi)
-    '  var avail=1085;' +  // A4 landscape @96dpi
-    '  var chartW=ci.scrollWidth;' +
-    '  var scale=chartW>avail?avail/chartW:1;' +
-    '  ci.style.transform="scale("+scale+")";' +
-    '  ci.style.transformOrigin="top left";' +
-    '  cw.style.height=(ci.scrollHeight*scale+20)+"px";' +
-    '  setTimeout(function(){window.print();},800);' +
-    '};' +
-    '<\/script>' +
+    '<div class="chart-wrap">' +
+    '<div style="transform:scale(' + scale + ');transform-origin:top left;width:' + chartW + 'px;height:' + chartH + 'px">' +
+    chart.innerHTML +
+    '</div></div>' +
+    '<script>setTimeout(function(){window.print();},600);<\/script>' +
     '</body></html>');
   win.document.close();
 }
@@ -2881,83 +2878,50 @@ function downloadPPT() {
   const chart = document.getElementById('orgview-chart');
   if (!chart) return;
   const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\. /g,'-').replace('.','');
-  showToast('📸 조직도 캡처 중...');
+  showToast('📸 조직도 캡처 중... (잠시 기다려주세요)');
+
+  function makePPT(imgData, imgW, imgH) {
+    const pres = new PptxGenJS();
+    pres.layout = 'LAYOUT_WIDE';
+    const slide = pres.addSlide();
+    slide.background = { color: 'FFFFFF' };
+    slide.addText('조직도', { x:0.2, y:0.1, w:8, h:0.45, fontSize:20, bold:true, color:'1a1d2e' });
+    slide.addText('기준일자: ' + today, { x:0.2, y:0.58, w:8, h:0.25, fontSize:10, color:'666666' });
+    const sW=13.3, sH=7.5, hH=0.9;
+    const aW=sW-0.4, aH=sH-hH-0.1;
+    const ratio=imgW/imgH;
+    let w=aW, h=aW/ratio;
+    if(h>aH){h=aH;w=aH*ratio;}
+    slide.addImage({ data:imgData, x:(sW-w)/2, y:hH, w:w, h:h });
+    pres.writeFile({ fileName:'조직도_'+today+'.pptx' })
+      .then(function(){ showToast('✅ PPT 다운로드 완료!'); })
+      .catch(function(e){ console.error(e); showToast('❌ PPT 저장 실패: '+e.message); });
+  }
 
   function doCapture() {
-    html2canvas(chart, {
-      scale: 2, useCORS: true, backgroundColor: '#f8fafc', logging: false
-    }).then(function(canvas) {
+    html2canvas(chart, { scale:1.5, useCORS:true, backgroundColor:'#f8fafc', logging:false,
+      allowTaint:true, foreignObjectRendering:false })
+    .then(function(canvas) {
       const imgData = canvas.toDataURL('image/png');
-      const imgW = canvas.width;
-      const imgH = canvas.height;
-
-      // pptxgenjs로 PPTX 생성
-      function makePPT() {
-        const pres = new PptxGenJS();
-        pres.layout = 'LAYOUT_WIDE'; // 33.87cm × 19.05cm (와이드)
-
-        const slide = pres.addSlide();
-
-        // 배경 흰색
-        slide.background = { color: 'FFFFFF' };
-
-        // 헤더
-        slide.addText('조직도', {
-          x: 0.2, y: 0.1, w: 6, h: 0.4,
-          fontSize: 18, bold: true, color: '1a1d2e', fontFace: 'Arial'
-        });
-        slide.addText('기준일자: ' + today, {
-          x: 0.2, y: 0.55, w: 6, h: 0.25,
-          fontSize: 10, color: '666666', fontFace: 'Arial'
-        });
-
-        // 조직도 이미지 (슬라이드 전체에 맞춤)
-        const slideW = 13.3; // LAYOUT_WIDE 너비(인치)
-        const slideH = 7.5;
-        const hdrH = 0.85;
-        const availH = slideH - hdrH - 0.1;
-        const availW = slideW - 0.4;
-
-        // 비율 유지하면서 맞춤
-        const ratio = imgW / imgH;
-        let w = availW, h = availW / ratio;
-        if (h > availH) { h = availH; w = availH * ratio; }
-        const x = (slideW - w) / 2;
-
-        slide.addImage({
-          data: imgData,
-          x: x, y: hdrH,
-          w: w, h: h
-        });
-
-        pres.writeFile({ fileName: '조직도_' + today + '.pptx' });
-        showToast('✅ PPT 다운로드 완료!');
-      }
-
-      // PptxGenJS 로드 확인
-      if (typeof PptxGenJS !== 'undefined') {
-        makePPT();
+      if(typeof PptxGenJS !== 'undefined') {
+        makePPT(imgData, canvas.width, canvas.height);
       } else {
         const s2 = document.createElement('script');
-        s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js';
-        s2.onload = makePPT;
+        s2.src = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
+        s2.onload = function(){ makePPT(imgData, canvas.width, canvas.height); };
         s2.onerror = function(){ showToast('❌ PptxGenJS 로드 실패'); };
         document.head.appendChild(s2);
       }
-    }).catch(function(err){
-      console.error(err);
-      showToast('❌ 이미지 캡처 실패');
-    });
+    }).catch(function(err){ console.error(err); showToast('❌ 캡처 실패: '+err.message); });
   }
 
-  // html2canvas 로드 확인
-  if (typeof html2canvas !== 'undefined') {
+  if(typeof html2canvas !== 'undefined') {
     doCapture();
   } else {
     const s = document.createElement('script');
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
     s.onload = doCapture;
-    s.onerror = function(){ showToast('❌ html2canvas 로드 실패'); };
+    s.onerror = function(){ showToast('❌ html2canvas 로드 실패. 인터넷 연결 확인'); };
     document.head.appendChild(s);
   }
 }
