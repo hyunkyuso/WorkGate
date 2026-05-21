@@ -2207,7 +2207,8 @@ function renderOrgView() {
 
   roots.forEach(function(root){
     const z2kids=gkZ2(root.id);
-    const z2left=z2kids.filter(d=>d.position.includes('left')).sort((a,b)=>(parseInt(a.position.split('-').pop())||1)-(parseInt(b.position.split('-').pop())||1));
+    // 좌측: 번호 큰 것(z2left-3, z2left-2, z2left-1) 순으로 왼→오 배치
+    const z2left=z2kids.filter(d=>d.position.includes('left')).sort((a,b)=>(parseInt(b.position.split('-').pop())||1)-(parseInt(a.position.split('-').pop())||1));
     const z2right=z2kids.filter(d=>d.position.includes('right')).sort((a,b)=>(parseInt(a.position.split('-').pop())||1)-(parseInt(b.position.split('-').pop())||1));
     const z3kids=gkBot(root.id);
 
@@ -2319,7 +2320,9 @@ function renderOrgView() {
           lbx+=totalW+HGAP;
         });
 
-        // 2구역 좌측 라인 없음
+        // SVG: spine → lv1 카드 가로선
+        const lineY=curY+CH/2;
+        svg+='<line x1="'+spineX+'" y1="'+lineY+'" x2="'+(parentCX+CW/2)+'" y2="'+lineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
       }
 
       // 위 우측: 상위조직은 spine 오른쪽, 하위는 상위 오른쪽으로
@@ -2327,30 +2330,22 @@ function renderOrgView() {
         const d=departments.find(x=>x.id===rNode.id);
         const bots=gkBot(rNode.id);
 
+        // lv1 카드: spine 바로 오른쪽
         const parentCX=spineX+CW/2+HGAP+CW/2;
         pos[rNode.id]={cx:parentCX, absY:curY, lv:1};
-        // lv1 직원 표시 (카드 오른쪽)
-        const lv1Remps=getEmps(departments.find(x=>x.id===rNode.id)||{name:''});
-        if(lv1Remps.length){
-          const lv1EmpW=lv1Remps.length*EW+(lv1Remps.length-1)*4;
-          pos['emp1_'+rNode.id]={cx:parentCX+CW/2+HGAP+lv1EmpW/2, absY:curY, empList:lv1Remps, deptId:rNode.id, color:bg(1)};
-        }
 
-        // 우측 lv2 그룹 배치: [lv2카드][직원][lv3카드][직원] 순서
+        // lv2 그룹 배치: lv1 카드 오른쪽으로
         let bx=parentCX+CW/2+HGAP;
         bots.forEach(function(b){
           const bd=departments.find(x=>x.id===b.id);
           const bemps=bd?getEmps(bd):[];
           const empRowW=bemps.length*(EW+3);
-          // lv2 카드
           pos[b.id]={cx:bx+CW/2, absY:curY, lv:2};
           bx+=CW+HGAP;
-          // lv2 직원 (카드 바로 오른쪽)
           if(bemps.length){
             pos['emp_'+b.id]={cx:bx+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
             bx+=empRowW+HGAP;
           }
-          // lv3 하위조직
           const subBots=gkBot(b.id);
           subBots.forEach(function(sb){
             const sbd=departments.find(x=>x.id===sb.id);
@@ -2365,10 +2360,17 @@ function renderOrgView() {
           });
         });
 
-        // SVG: spine 교차점 → 우측 상위조직 가로선
+        // lv1 직원: lv2그룹들 모두 배치 후 맨 오른쪽에
+        const lv1Remps=getEmps(departments.find(x=>x.id===rNode.id)||{name:''});
+        if(lv1Remps.length){
+          const lv1EmpW=lv1Remps.length*(EW+3);
+          pos['emp1_'+rNode.id]={cx:bx+lv1EmpW/2, absY:curY, empList:lv1Remps, deptId:rNode.id, color:bg(1)};
+          bx+=lv1EmpW+HGAP;
+        }
+
+        // SVG: spine → lv1 카드 가로선
         const lineY=curY+CH/2;
         svg+='<line x1="'+spineX+'" y1="'+lineY+'" x2="'+(parentCX-CW/2)+'" y2="'+lineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-        // 2구역 하위조직 라인 제거
       }
 
       curY+=rowH+VGAP;
@@ -2498,11 +2500,8 @@ function renderOrgView() {
         return h;
       }
       // 직책이 팀장/부서장/과장급인 경우 첫줄 단독
-      const isLeader=function(e){
-        const pos2=e.position||'';
-        return pos2.includes('팀장')||pos2.includes('부서장')||pos2.includes('부장')||pos2.includes('과장')||pos2.includes('차장')||pos2.includes('이사')||pos2.includes('대표')||pos2.includes('전무')||pos2.includes('상무');
-      };
-      const head=es.find(e=>(e.name===headName&&!!headName)||isLeader(e));
+      // 부서장(head) 또는 직책이 '팀장'/'부서장'인 경우만 첫줄 단독
+      const head=es.find(e=>e.name===headName&&!!headName);
       const others=es.filter(e=>e!==head);
       nodes+='<div style="margin-top:6px">';
       if(head&&es.length>1){
