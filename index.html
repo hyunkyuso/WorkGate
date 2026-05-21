@@ -2385,13 +2385,19 @@ function renderOrgView() {
       // 레벨별 최대 높이 계산
       const z3LvH={};
       calcZ3LvHeights(z3kids.map(c=>c.id), 1, z3LvH);
+      // 누락된 레벨 채우기 (lv1~maxLv 연속으로)
+      const z3Lvs=Object.keys(z3LvH).map(Number).sort((a,b)=>a-b);
+      const z3MaxLv=z3Lvs.length?z3Lvs[z3Lvs.length-1]:1;
+      for(let lv=1;lv<=z3MaxLv;lv++){
+        if(!z3LvH[lv]) z3LvH[lv]=CH;
+      }
       // 레벨별 Y 계산 (누적)
       const z3LvY={};
       let lvCurY=Z3_Y;
-      Object.keys(z3LvH).map(Number).sort((a,b)=>a-b).forEach(function(lv){
+      for(let lv=1;lv<=z3MaxLv;lv++){
         z3LvY[lv]=lvCurY;
         lvCurY+=z3LvH[lv]+VGAP;
-      });
+      }
       let blx=spineX-z3TotalW/2;
       z3kids.forEach(function(c){
         placeZ3(c.id,blx,Z3_Y,1,z3LvY);
@@ -2452,7 +2458,17 @@ function renderOrgView() {
 
   function placeZ3(id, left, absY, lv, z3LvY){
     const w=subW(id), cx=left+w/2;
-    const y=z3LvY?z3LvY[lv]:absY;
+    // z3LvY에 해당 lv가 없으면 이전 레벨 Y + nodeH + VGAP
+    let y;
+    if(z3LvY&&z3LvY[lv]!==undefined){
+      y=z3LvY[lv];
+    } else if(z3LvY){
+      // lv가 없으면 가장 가까운 상위 lv Y + 오프셋
+      const prevLv=lv-1;
+      y=(z3LvY[prevLv]||absY)+nodeH(id)+VGAP;
+    } else {
+      y=absY;
+    }
     pos[id]={cx, absY:y, lv};
     const bots=gkBot(id);
     if(!bots.length)return;
@@ -2466,48 +2482,28 @@ function renderOrgView() {
     // 직원 그룹인 경우
     if(p.empList){
       const empList=p.empList, empColor=p.color||bg(2);
-      function empBubble2(e,isH){
+      // 본부장/부서장/팀장 여부
+      const isLeader2=function(e){ const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장'; };
+      const empGap=4;
+      const totalEmpW=empList.length*EW+(empList.length-1)*empGap;
+      const x=p.cx-totalEmpW/2, y=p.absY;
+      // 기존 가로 나열, 본부장/부서장/팀장만 테두리 강조
+      nodes+='<div style="position:absolute;left:'+x+'px;top:'+y+'px;display:flex;gap:'+empGap+'px;z-index:2">';
+      empList.forEach(function(e){
         const ini=(e.name||'?').charAt(0);
         const ec=['#4f46e5','#7c3aed','#0891b2','#059669','#d97706'];
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
-        const sz=isH?40:34;
+        const isL=isLeader2(e);
+        const sz=isL?38:34;
         const dispLabel=(e.title?e.title+' ':'')+(e.position||'');
-        let h='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
-        h+='<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;overflow:hidden;border:'+(isH?'2px solid '+empColor:'1px solid #e2e8f0')+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:'+(isH?14:13)+'px;font-weight:700;color:#fff;margin:0 auto">';
-        h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
-        h+='</div>';
-        h+='<div style="font-size:9px;color:'+(isH?empColor:'#1e293b')+';font-weight:'+(isH?700:400)+';text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+e.name+'</div>';
-        if(dispLabel.trim())h+='<div style="font-size:8px;color:#64748b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis">'+dispLabel.trim()+'</div>';
-        h+='</div>';
-        return h;
-      }
-      // 본부장/부서장/팀장 → 첫줄 단독, 나머지 2명씩
-      const isLeader2=function(e){ const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장'; };
-      const leaderE=empList.find(e=>isLeader2(e));
-      const othersE=leaderE?empList.filter(e=>e!==leaderE):empList;
-      // 총 너비 계산 (최대 2명/줄 기준)
-      const maxPerRow=leaderE&&empList.length>1?2:2;
-      const rowMaxW=Math.min(empList.length,maxPerRow)*EW+(Math.min(empList.length,maxPerRow)-1)*4;
-      const totalW=Math.max(rowMaxW,EW);
-      const x=p.cx-totalW/2, y=p.absY;
-      nodes+='<div style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+totalW+'px;z-index:2">';
-      if(leaderE&&empList.length>1){
-        nodes+='<div style="display:flex;justify-content:center;margin-bottom:3px">'+empBubble2(leaderE,true)+'</div>';
-        for(let ri=0;ri<othersE.length;ri+=2){
-          nodes+='<div style="display:flex;gap:4px;">';
-          nodes+=empBubble2(othersE[ri],false);
-          if(othersE[ri+1])nodes+=empBubble2(othersE[ri+1],false);
-          nodes+='</div>';
-        }
-      } else {
-        for(let ri=0;ri<empList.length;ri+=2){
-          const rowStyle=empList.length===1?'justify-content:center':'';
-          nodes+='<div style="display:flex;gap:4px;'+rowStyle+'">';
-          nodes+=empBubble2(empList[ri],isLeader2(empList[ri]));
-          if(empList[ri+1])nodes+=empBubble2(empList[ri+1],isLeader2(empList[ri+1]));
-          nodes+='</div>';
-        }
-      }
+        nodes+='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
+        nodes+='<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;overflow:hidden;border:'+(isL?'2.5px solid '+empColor:'1px solid #e2e8f0')+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:'+(isL?14:13)+'px;font-weight:700;color:#fff;margin:0 auto">';
+        nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
+        nodes+='</div>';
+        nodes+='<div style="font-size:9px;color:'+(isL?empColor:'#1e293b')+';font-weight:'+(isL?700:400)+';text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+e.name+'</div>';
+        if(dispLabel.trim())nodes+='<div style="font-size:8px;color:#64748b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis">'+dispLabel.trim()+'</div>';
+        nodes+='</div>';
+      });
       nodes+='</div>';
       return;
     }
