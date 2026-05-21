@@ -2286,17 +2286,22 @@ function renderOrgView() {
             const sbd=departments.find(x=>x.id===sb.id);
             const semps=sbd?getEmps(sbd):[];
             const sempW=semps.length*EW+(semps.length>0?(semps.length-1)*4:0);
-            pos[sb.id]={cx:sbx+CW/2, absY:curY, lv:3};
             if(semps.length){
-              pos['emp_'+sb.id]={cx:sbx+CW+HGAP+sempW/2, absY:curY, empList:semps, deptId:sb.id, color:bg(3)};
+              pos['emp_'+sb.id]={cx:sbx+sempW/2, absY:curY, empList:semps, deptId:sb.id, color:bg(3)};
+              pos[sb.id]={cx:sbx+sempW+HGAP+CW/2, absY:curY, lv:3};
+              sbx+=sempW+HGAP+CW+HGAP;
+            } else {
+              pos[sb.id]={cx:sbx+CW/2, absY:curY, lv:3};
+              sbx+=CW+HGAP;
             }
-            sbx+=CW+(sempW>0?HGAP+sempW:0)+HGAP;
           });
-          // lv2 카드
-          pos[b.id]={cx:sbx+CW/2, absY:curY, lv:2};
-          // 직원
+          // lv2 카드 (직원이 있으면 직원 오른쪽에 카드)
           if(bemps.length){
-            pos['emp_'+b.id]={cx:sbx+CW+HGAP+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
+            // 직원은 lv3 다음, 카드 왼쪽에
+            pos['emp_'+b.id]={cx:sbx+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
+            pos[b.id]={cx:sbx+empRowW+HGAP+CW/2, absY:curY, lv:2};
+          } else {
+            pos[b.id]={cx:sbx+CW/2, absY:curY, lv:2};
           }
           lbx+=totalW+HGAP;
         });
