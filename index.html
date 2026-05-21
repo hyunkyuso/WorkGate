@@ -2385,16 +2385,14 @@ function renderOrgView() {
       // 레벨별 최대 높이 계산
       const z3LvH={};
       calcZ3LvHeights(z3kids.map(c=>c.id), 1, z3LvH);
-      // lv1~lv4 모두 확보 (누락 레벨은 CH로)
-      const z3Lvs=Object.keys(z3LvH).map(Number).sort((a,b)=>a-b);
-      const z3MaxLv=z3Lvs.length?z3Lvs[z3Lvs.length-1]:3;
-      for(let lv=1;lv<=Math.max(z3MaxLv,4);lv++){
+      // orgLevel 1~4 모두 확보
+      for(let lv=1;lv<=4;lv++){
         if(!z3LvH[lv]) z3LvH[lv]=CH;
       }
-      // 레벨별 Y 계산 (누적)
+      // orgLevel 기준으로 Y 계산
       const z3LvY={};
       let lvCurY=Z3_Y;
-      for(let lv=1;lv<=Math.max(z3MaxLv,4);lv++){
+      for(let lv=1;lv<=4;lv++){
         z3LvY[lv]=lvCurY;
         lvCurY+=z3LvH[lv]+VGAP;
       }
@@ -2456,9 +2454,12 @@ function renderOrgView() {
 
   function placeZ3(id, left, absY, lv, z3LvY){
     const w=subW(id), cx=left+w/2;
-    // z3LvY에서 Y 결정 (없으면 absY 사용)
-    const y=(z3LvY&&z3LvY[lv]!==undefined)?z3LvY[lv]:absY;
-    pos[id]={cx, absY:y, lv};
+    // orgLevel이 설정된 경우 그것으로 z3LvY 인덱스 결정
+    const dept=departments.find(x=>x.id===id);
+    const orgLvKey=(dept&&dept.orgLevel!=null&&dept.orgLevel!=='')?parseInt(dept.orgLevel):lv;
+    const y=(z3LvY&&z3LvY[orgLvKey]!==undefined)?z3LvY[orgLvKey]:
+            (z3LvY&&z3LvY[lv]!==undefined)?z3LvY[lv]:absY;
+    pos[id]={cx, absY:y, lv:orgLvKey};
     const bots=gkBot(id);
     if(!bots.length)return;
     const totalChildW=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
