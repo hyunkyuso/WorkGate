@@ -2292,9 +2292,11 @@ function renderOrgView() {
             const semps=sbd?getEmps(sbd):[];
             const sempW=semps.length*(EW+3);
             if(semps.length){
+              // 좌측: lv3카드 먼저, 직원 나중 (우측과 반대)
+              pos[sb.id]={cx:sbx+CW/2, absY:curY, lv:3};
+              sbx+=CW+HGAP;
               pos['emp_'+sb.id]={cx:sbx+sempW/2, absY:curY, empList:semps, deptId:sb.id, color:bg(3)};
-              pos[sb.id]={cx:sbx+sempW+HGAP+CW/2, absY:curY, lv:3};
-              sbx+=sempW+HGAP+CW+HGAP;
+              sbx+=sempW+HGAP;
             } else {
               pos[sb.id]={cx:sbx+CW/2, absY:curY, lv:3};
               sbx+=CW+HGAP;
@@ -2463,24 +2465,49 @@ function renderOrgView() {
   Object.entries(pos).forEach(function([id,p]){
     // 직원 그룹인 경우
     if(p.empList){
-      const empList=p.empList, color=p.color||bg(2);
-      const empGap=4;
-      const totalEmpW=empList.length*EW+(empList.length-1)*empGap;
-      const x=p.cx-totalEmpW/2, y=p.absY;
-      nodes+='<div style="position:absolute;left:'+x+'px;top:'+y+'px;display:flex;gap:'+empGap+'px;z-index:2">';
-      empList.forEach(function(e){
+      const empList=p.empList, empColor=p.color||bg(2);
+      function empBubble2(e,isH){
         const ini=(e.name||'?').charAt(0);
         const ec=['#4f46e5','#7c3aed','#0891b2','#059669','#d97706'];
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
-        nodes+='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
-        nodes+='<div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid #e2e8f0;background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;margin:0 auto">';
-        nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
-        nodes+='</div>';
-        nodes+='<div style="font-size:9px;color:#1e293b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+e.name+'</div>';
-        const dispPos=(e.title?e.title+' ':'')+( e.position||'');
-        if(dispPos.trim())nodes+='<div style="font-size:8px;color:#64748b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis">'+dispPos.trim()+'</div>';
-        nodes+='</div>';
-      });
+        const sz=isH?40:34;
+        const dispLabel=(e.title?e.title+' ':'')+(e.position||'');
+        let h='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
+        h+='<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;overflow:hidden;border:'+(isH?'2px solid '+empColor:'1px solid #e2e8f0')+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:'+(isH?14:13)+'px;font-weight:700;color:#fff;margin:0 auto">';
+        h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
+        h+='</div>';
+        h+='<div style="font-size:9px;color:'+(isH?empColor:'#1e293b')+';font-weight:'+(isH?700:400)+';text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+e.name+'</div>';
+        if(dispLabel.trim())h+='<div style="font-size:8px;color:#64748b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis">'+dispLabel.trim()+'</div>';
+        h+='</div>';
+        return h;
+      }
+      // 본부장/부서장/팀장 → 첫줄 단독, 나머지 2명씩
+      const isLeader2=function(e){ const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장'; };
+      const leaderE=empList.find(e=>isLeader2(e));
+      const othersE=leaderE?empList.filter(e=>e!==leaderE):empList;
+      // 총 너비 계산 (최대 2명/줄 기준)
+      const maxPerRow=leaderE&&empList.length>1?2:2;
+      const rowMaxW=Math.min(empList.length,maxPerRow)*EW+(Math.min(empList.length,maxPerRow)-1)*4;
+      const totalW=Math.max(rowMaxW,EW);
+      const x=p.cx-totalW/2, y=p.absY;
+      nodes+='<div style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+totalW+'px;z-index:2">';
+      if(leaderE&&empList.length>1){
+        nodes+='<div style="display:flex;justify-content:center;margin-bottom:3px">'+empBubble2(leaderE,true)+'</div>';
+        for(let ri=0;ri<othersE.length;ri+=2){
+          nodes+='<div style="display:flex;gap:4px;">';
+          nodes+=empBubble2(othersE[ri],false);
+          if(othersE[ri+1])nodes+=empBubble2(othersE[ri+1],false);
+          nodes+='</div>';
+        }
+      } else {
+        for(let ri=0;ri<empList.length;ri+=2){
+          const rowStyle=empList.length===1?'justify-content:center':'';
+          nodes+='<div style="display:flex;gap:4px;'+rowStyle+'">';
+          nodes+=empBubble2(empList[ri],isLeader2(empList[ri]));
+          if(empList[ri+1])nodes+=empBubble2(empList[ri+1],isLeader2(empList[ri+1]));
+          nodes+='</div>';
+        }
+      }
       nodes+='</div>';
       return;
     }
@@ -2505,21 +2532,20 @@ function renderOrgView() {
         const ec=['#4f46e5','#7c3aed','#0891b2','#059669','#d97706'];
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
         const sz=isH?40:32;
+        const dispLabel=(e.title?e.title+' ':'')+(e.position||'');
         let h='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
         h+='<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;overflow:hidden;border:'+(isH?'2px solid '+color:'1px solid #e2e8f0')+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:'+(isH?14:12)+'px;font-weight:700;color:#fff;margin:0 auto">';
         h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         h+='</div>';
         h+='<div style="font-size:9px;color:'+(isH?color:'#1e293b')+';font-weight:'+(isH?700:400)+';text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis;margin-top:1px">'+e.name+'</div>';
-        if(e.position)h+='<div style="font-size:8px;color:#64748b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis">'+e.position+'</div>';
+        if(dispLabel.trim())h+='<div style="font-size:8px;color:#64748b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis">'+dispLabel.trim()+'</div>';
         h+='</div>';
         return h;
       }
-      // 직책이 팀장/부서장/과장급인 경우 첫줄 단독
-      // 직책에 팀장/부서장 포함된 직원이 있으면 첫줄 단독
-      // 팀장 또는 부서장 직책만 첫줄 단독
+      // 본부장/부서장/팀장인 경우 첫줄 단독
       const isLeaderPos=function(e){
-        const t=e.title||'';  // title = 직책 필드
-        return t==='팀장'||t==='부서장';
+        const t=e.title||'';
+        return t==='본부장'||t==='부서장'||t==='팀장';
       };
       // 부서장(headName) 또는 팀장/부서장 직책인 사람 → 첫줄 단독
       const headEmp=es.find(e=>e.name===headName&&!!headName);
