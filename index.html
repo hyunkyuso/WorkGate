@@ -699,21 +699,27 @@ select.form-input{cursor:pointer}
             <img id="crop-source-img" style="position:absolute;transform-origin:center;user-select:none;pointer-events:none">
             <!-- 원형 크롭 오버레이 -->
             <div style="position:absolute;inset:0;pointer-events:none">
-              <svg width="150" height="150" style="position:absolute;inset:0">
+              <svg id="crop-overlay-svg" width="150" height="150" style="position:absolute;inset:0">
                 <defs>
                   <mask id="crop-mask">
                     <rect width="150" height="150" fill="white"/>
-                    <circle cx="75" cy="75" r="60" fill="black"/>
+                    <circle id="crop-mask-circle" cx="75" cy="75" r="60" fill="black"/>
                   </mask>
                 </defs>
                 <rect width="150" height="150" fill="rgba(0,0,0,0.5)" mask="url(#crop-mask)"/>
-                <circle cx="75" cy="75" r="60" fill="none" stroke="white" stroke-width="1.5" stroke-dasharray="4 2"/>
+                <circle id="crop-border-circle" cx="75" cy="75" r="60" fill="none" stroke="white" stroke-width="1.5" stroke-dasharray="4 2"/>
               </svg>
             </div>
           </div>
           <div style="display:flex;gap:4px">
             <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 10px" onclick="cropZoomIn()">🔍 크게</button>
             <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 10px" onclick="cropZoomOut()">🔍 작게</button>
+          </div>
+          <div style="width:100%;padding:0 4px">
+            <div style="font-size:10px;color:var(--t2);margin-bottom:3px;text-align:center">✂️ 크롭 크기 조절</div>
+            <input type="range" min="20" max="72" value="60" step="1"
+              style="width:100%;accent-color:var(--ac)"
+              oninput="cropState.cropR=parseInt(this.value);renderCrop()">
           </div>
           <div style="font-size:10px;color:var(--t3)">드래그로 위치 조정 · 휠로 확대/축소</div>
           <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;color:var(--rd)" onclick="clearPhoto()">🗑 사진 삭제</button>
@@ -1545,7 +1551,7 @@ function openEmployeeModal(uid) {
       srcImg.onload = () => {
         // 이미지 로드 완료 후 스케일 계산
         const ratio = Math.max(150/srcImg.naturalWidth, 150/srcImg.naturalHeight);
-        cropState = { imgSrc: e.photo, scale: ratio, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0 };
+        cropState = { imgSrc: e.photo, scale: ratio, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0, cropR:60 };
         renderCrop();
         document.getElementById('crop-controls').style.display = 'flex';
       };
@@ -1567,7 +1573,7 @@ function openEmployeeModal(uid) {
 }
 
 // ── 사진 크롭 (원본 이미지 위에서 영역 조정) ──
-let cropState = { imgSrc:'', scale:1, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0 };
+let cropState = { imgSrc:'', scale:1, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0, cropR:60 };
 // 에디터 크기: 150x150, 크롭 원: 반지름 60
 
 function previewEmpPhoto(input) {
@@ -1575,7 +1581,7 @@ function previewEmpPhoto(input) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    cropState = { imgSrc: e.target.result, scale:1, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0 };
+    cropState = { imgSrc: e.target.result, scale:1, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0, cropR:60 };
     // 원본 이미지 에디터에 로드
     const srcImg = document.getElementById('crop-source-img');
     srcImg.src = e.target.result;
@@ -1599,6 +1605,15 @@ function renderCrop() {
   const left = cropState.x - w/2;
   const top  = cropState.y - h/2;
   srcImg.style.cssText = `position:absolute;width:${w}px;height:${h}px;left:${left}px;top:${top}px;user-select:none;pointer-events:none`;
+  // SVG 크롭 원 크기 업데이트
+  const r = cropState.cropR || 60;
+  const mc = document.getElementById('crop-mask-circle');
+  const bc = document.getElementById('crop-border-circle');
+  if (mc) mc.setAttribute('r', r);
+  if (bc) bc.setAttribute('r', r);
+  // 슬라이더 값 동기화
+  const slider = document.querySelector('#crop-controls input[type=range]');
+  if (slider && slider.value != r) slider.value = r;
   // 미리보기 원형에도 반영
   updatePreviewCircle();
 }
@@ -1612,14 +1627,15 @@ function updatePreviewCircle() {
     const ctx = canvas.getContext('2d');
     ctx.beginPath(); ctx.arc(50,50,50,0,Math.PI*2); ctx.clip();
     // 에디터(150px) → 미리보기(100px) 비율: 100/120 (크롭 원 지름 120)
-    const ratio = 100/120;
     const imgW = srcImg.naturalWidth * cropState.scale;
     const imgH = srcImg.naturalHeight * cropState.scale;
     const imgL = cropState.x - imgW/2;
     const imgT = cropState.y - imgH/2;
-    // 크롭 원 좌상단: (75-60, 75-60) = (15,15)
-    const drawX = (imgL - 15) * ratio;
-    const drawY = (imgT - 15) * ratio;
+    // 크롭 원 좌상단: (75-r, 75-r)
+    const r = cropState.cropR || 60;
+    const ratio = 100/(r*2);
+    const drawX = (imgL - (75-r)) * ratio;
+    const drawY = (imgT - (75-r)) * ratio;
     ctx.drawImage(srcImg, drawX, drawY, imgW*ratio, imgH*ratio);
     const prev = document.getElementById('emp-photo-preview');
     prev.innerHTML = `<img src="${canvas.toDataURL()}" style="width:100px;height:100px;border-radius:50%;object-fit:cover">`;
@@ -1637,7 +1653,7 @@ function cropZoomOut() {
 }
 
 function clearPhoto() {
-  cropState = { imgSrc:'', scale:1, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0 };
+  cropState = { imgSrc:'', scale:1, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0, cropR:60 };
   const prev = document.getElementById('emp-photo-preview');
   prev.innerHTML = '👤';
   prev.style.cssText = 'font-size:32px;color:#fff';
@@ -1656,12 +1672,13 @@ function getCroppedPhoto() {
   canvas.width = 200; canvas.height = 200;
   const ctx = canvas.getContext('2d');
   ctx.beginPath(); ctx.arc(100,100,100,0,Math.PI*2); ctx.clip();
-  const ratio = 200/120;
+  const r = cropState.cropR || 60;
+  const ratio = 200/(r*2);
   const imgW = srcImg.naturalWidth * cropState.scale;
   const imgH = srcImg.naturalHeight * cropState.scale;
   const imgL = cropState.x - imgW/2;
   const imgT = cropState.y - imgH/2;
-  ctx.drawImage(srcImg, (imgL-15)*ratio, (imgT-15)*ratio, imgW*ratio, imgH*ratio);
+  ctx.drawImage(srcImg, (imgL-(75-r))*ratio, (imgT-(75-r))*ratio, imgW*ratio, imgH*ratio);
   return canvas.toDataURL('image/jpeg', 0.88);
 }
 
