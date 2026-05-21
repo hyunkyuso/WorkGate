@@ -2207,8 +2207,8 @@ function renderOrgView() {
 
   roots.forEach(function(root){
     const z2kids=gkZ2(root.id);
-    // 좌측: 번호 큰 것(z2left-3, z2left-2, z2left-1) 순으로 왼→오 배치
-    const z2left=z2kids.filter(d=>d.position.includes('left')).sort((a,b)=>(parseInt(b.position.split('-').pop())||1)-(parseInt(a.position.split('-').pop())||1));
+    // 좌측: 번호 작은 것(좌1)이 spine에 가장 가까움 → 배치 배열은 역순[좌N...좌1]
+    const z2left=z2kids.filter(d=>d.position.includes('left')).sort((a,b)=>(parseInt(a.position.split('-').pop())||1)-(parseInt(b.position.split('-').pop())||1));
     const z2right=z2kids.filter(d=>d.position.includes('right')).sort((a,b)=>(parseInt(a.position.split('-').pop())||1)-(parseInt(b.position.split('-').pop())||1));
     const z3kids=gkBot(root.id);
 
@@ -2277,25 +2277,14 @@ function renderOrgView() {
         const lv1Lemps=getEmps(departments.find(x=>x.id===lNode.id)||{name:''});
         const lv1LEmpW=lv1Lemps.length*(EW+3);
 
-        // 전체 배치 시작 X (lv1직원 + lv1카드 + lv2그룹들 → spine)
-        const totalBlockW=(lv1LEmpW>0?lv1LEmpW+HGAP:0)+CW+HGAP+allLeftW;
+        // 배치: [lv2그룹들(역순)] [lv1직원] [lv1카드] → spine
+        // lv2그룹 역순: leftGroups[last]가 가장 왼쪽
+        const totalBlockW=allLeftW+(lv1LEmpW>0?lv1LEmpW+HGAP:0)+CW;
         const blockStartX=spineX-CW/2-HGAP-totalBlockW;
 
-        // lv1 직원 (가장 왼쪽)
-        let curBX=blockStartX;
-        if(lv1Lemps.length){
-          pos['emp1_'+lNode.id]={cx:curBX+lv1LEmpW/2, absY:curY, empList:lv1Lemps, deptId:lNode.id, color:bg(1)};
-          curBX+=lv1LEmpW+HGAP;
-        }
-
-        // lv1 카드
-        const parentCX=curBX+CW/2;
-        pos[lNode.id]={cx:parentCX, absY:curY, lv:1};
-        curBX+=CW+HGAP;
-
-        // lv2 그룹들 (lv1 카드 오른쪽)
-        let lbx=curBX;
-        leftGroups.forEach(function(g){
+        // lv2 그룹들 (역순, 가장 왼쪽)
+        let lbx=blockStartX;
+        leftGroups.slice().reverse().forEach(function(g){
           const {b,bd,bemps,empRowW,subBots2,totalW}=g;
           let sbx=lbx;
           subBots2.forEach(function(sb){
@@ -2319,6 +2308,16 @@ function renderOrgView() {
           }
           lbx+=totalW+HGAP;
         });
+
+        // lv1 직원 (lv2그룹 오른쪽)
+        if(lv1Lemps.length){
+          pos['emp1_'+lNode.id]={cx:lbx+lv1LEmpW/2, absY:curY, empList:lv1Lemps, deptId:lNode.id, color:bg(1)};
+          lbx+=lv1LEmpW+HGAP;
+        }
+
+        // lv1 카드 (spine 바로 왼쪽)
+        const parentCX=lbx+CW/2;
+        pos[lNode.id]={cx:parentCX, absY:curY, lv:1};
 
         // SVG: spine → lv1 카드 가로선
         const lineY=curY+CH/2;
@@ -2500,8 +2499,9 @@ function renderOrgView() {
         return h;
       }
       // 직책이 팀장/부서장/과장급인 경우 첫줄 단독
-      // 부서장(head) 또는 직책이 '팀장'/'부서장'인 경우만 첫줄 단독
-      const head=es.find(e=>e.name===headName&&!!headName);
+      // 직책에 팀장/부서장 포함된 직원이 있으면 첫줄 단독
+      const isLeaderPos=function(e){ const p=e.position||''; return p.includes('팀장')||p.includes('부서장'); };
+      const head=es.find(e=>e.name===headName&&!!headName)||es.find(e=>isLeaderPos(e));
       const others=es.filter(e=>e!==head);
       nodes+='<div style="margin-top:6px">';
       if(head&&es.length>1){
