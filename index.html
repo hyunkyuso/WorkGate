@@ -2761,10 +2761,23 @@ function printOrgChart() {
     });
   } catch(e){}
 
-  // 조직도 실제 크기
+  // 조직도 실제 크기 (내부 div의 style.width/height)
   const chartDiv = chart.querySelector('div');
   const chartW = chartDiv ? (parseInt(chartDiv.style.width)||chart.scrollWidth) : chart.scrollWidth;
   const chartH = chartDiv ? (parseInt(chartDiv.style.height)||chart.scrollHeight) : chart.scrollHeight;
+
+  // A4 landscape margin 5mm → 가용: 287×192mm
+  // zoom 방식: 브라우저 인쇄 시 실제 픽셀 크기를 줄여줌
+  // 287mm / chartW(px) * 96(dpi) / 25.4(mm/inch) = zoom%
+  const mmToIn = 1/25.4;
+  const dpi = 96;
+  const availWmm = 287, availHmm = 185; // 헤더 포함
+  const availWpx = availWmm * mmToIn * dpi; // ~1085
+  const availHpx = availHmm * mmToIn * dpi; // ~699
+  const zoomByW = availWpx / chartW;
+  const zoomByH = availHpx / chartH;
+  const zoom = Math.min(zoomByW, zoomByH);
+  const zoomPct = (zoom * 100).toFixed(2) + '%';
 
   const win = window.open('', '_blank');
   if (!win) { showToast('❌ 팝업이 차단되었습니다.'); return; }
@@ -2773,6 +2786,7 @@ function printOrgChart() {
     '<meta charset="utf-8"><title>조직도</title>' +
     '<style>' +
     '*{box-sizing:border-box;margin:0;padding:0}' +
+    'html{zoom:'+zoomPct+'}' +
     'body{font-family:"Noto Sans KR",sans-serif;background:#fff;' +
     '-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
     '.hdr{display:flex;justify-content:space-between;align-items:center;' +
@@ -2780,40 +2794,22 @@ function printOrgChart() {
     '.hdr-title{font-size:15px;font-weight:700;color:#1a1d2e}' +
     '.hdr-meta{font-size:9px;color:#666;margin-top:1px}' +
     '.hdr-stats{text-align:right;font-size:10px;color:#444}' +
-    '.chart-wrap{display:flex;justify-content:center;align-items:flex-start;}' +
+    '.chart-wrap{line-height:0}' +
     ovCSS +
     '@media print{' +
-    'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
+    'html{zoom:'+zoomPct+';-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
     '@page{size:A4 landscape;margin:5mm;}' +
-    '.hdr{margin-bottom:4px;}' +
     '}' +
     '</style></head><body>' +
-    '<div class="hdr" id="hdr">' +
+    '<div class="hdr">' +
     '<div><div class="hdr-title">조직도</div><div class="hdr-meta">기준일자: '+today+'</div></div>' +
     '<div class="hdr-stats">전체 <strong style="font-size:13px;color:#1a1d2e">'+totalActive+'명</strong><br>'+statsText+'</div>' +
     '</div>' +
-    '<div class="chart-wrap" id="cw">' +
-    '<div id="ci" style="transform-origin:top left;width:'+chartW+'px;height:'+chartH+'px">' +
+    '<div class="chart-wrap">' +
+    '<div style="position:relative;width:'+chartW+'px;height:'+chartH+'px">' +
     chart.innerHTML +
     '</div></div>' +
-    '<script>' +
-    // A4 landscape @96dpi: 297×210mm, margin 5mm → 가용: 287×200mm = 1085×756px
-    // 헤더 높이 제외 후 조직도 꽉 차게 scale
-    'window.onload=function(){' +
-    '  var hdr=document.getElementById("hdr");' +
-    '  var ci=document.getElementById("ci");' +
-    '  var hdrH=hdr?hdr.offsetHeight+10:50;' +
-    '  var availW=1085;' +
-    '  var availH=756-hdrH;' +
-    '  var scaleW=availW/'+chartW+';' +
-    '  var scaleH=availH/'+chartH+';' +
-    '  var s=Math.min(scaleW,scaleH);' + // 1보다 커도 허용 (꽉 채움)
-    '  ci.style.transform="scale("+s+")";' +
-    '  ci.style.transformOrigin="top left";' +
-    '  document.getElementById("cw").style.height=('+chartH+'*s+10)+"px";' +
-    '  setTimeout(function(){window.print();},700);' +
-    '};' +
-    '<\/script>' +
+    '<script>setTimeout(function(){window.print();},600);<\/script>' +
     '</body></html>');
   win.document.close();
 }
