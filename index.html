@@ -2319,9 +2319,7 @@ function renderOrgView() {
           lbx+=totalW+HGAP;
         });
 
-        // SVG: spine → lv1 카드 가로선
-        const lineY=curY+CH/2;
-        svg+='<line x1="'+spineX+'" y1="'+lineY+'" x2="'+(parentCX+CW/2)+'" y2="'+lineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+        // 2구역 좌측 라인 없음
       }
 
       // 위 우측: 상위조직은 spine 오른쪽, 하위는 상위 오른쪽으로
@@ -2338,31 +2336,33 @@ function renderOrgView() {
           pos['emp1_'+rNode.id]={cx:parentCX+CW/2+HGAP+lv1EmpW/2, absY:curY, empList:lv1Remps, deptId:rNode.id, color:bg(1)};
         }
 
-        // 하위조직들: 상위조직 오른쪽으로 나란히 (재귀적으로 하위도 배치)
+        // 우측 lv2 그룹 배치: [lv2카드][직원][lv3카드][직원] 순서
         let bx=parentCX+CW/2+HGAP;
         bots.forEach(function(b){
           const bd=departments.find(x=>x.id===b.id);
           const bemps=bd?getEmps(bd):[];
-          const empRowW=bemps.length*EW+(bemps.length>0?(bemps.length-1)*4:0);
-          const bcx=bx+CW/2;
-          pos[b.id]={cx:bcx, absY:curY, lv:2};
+          const empRowW=bemps.length*(EW+3);
+          // lv2 카드
+          pos[b.id]={cx:bx+CW/2, absY:curY, lv:2};
+          bx+=CW+HGAP;
+          // lv2 직원 (카드 바로 오른쪽)
           if(bemps.length){
-            pos['emp_'+b.id]={cx:bx+CW+HGAP+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
+            pos['emp_'+b.id]={cx:bx+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
+            bx+=empRowW+HGAP;
           }
-          // lv3 하위조직도 오른쪽으로 나란히 배치
+          // lv3 하위조직
           const subBots=gkBot(b.id);
-          let sbx=bx+CW+(empRowW>0?HGAP+empRowW:0)+HGAP;
           subBots.forEach(function(sb){
             const sbd=departments.find(x=>x.id===sb.id);
             const semps=sbd?getEmps(sbd):[];
-            const sempRowW=semps.length*EW+(semps.length>0?(semps.length-1)*4:0);
-            pos[sb.id]={cx:sbx+CW/2, absY:curY, lv:3};
+            const sempRowW=semps.length*(EW+3);
+            pos[sb.id]={cx:bx+CW/2, absY:curY, lv:3};
+            bx+=CW+HGAP;
             if(semps.length){
-              pos['emp_'+sb.id]={cx:sbx+CW+HGAP+sempRowW/2, absY:curY, empList:semps, deptId:sb.id, color:bg(3)};
+              pos['emp_'+sb.id]={cx:bx+sempRowW/2, absY:curY, empList:semps, deptId:sb.id, color:bg(3)};
+              bx+=sempRowW+HGAP;
             }
-            sbx+=CW+(sempRowW>0?HGAP+sempRowW:0)+HGAP;
           });
-          bx=sbx>bx?sbx:bx+CW+(empRowW>0?HGAP+empRowW:0)+HGAP;
         });
 
         // SVG: spine 교차점 → 우측 상위조직 가로선
@@ -2473,7 +2473,10 @@ function renderOrgView() {
     const headName=dept.head||'';
     const es=getEmps(dept);
     const x=p.cx-CW/2, y=p.absY;
-    nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+CW+'px;cursor:pointer;z-index:2">';
+    // 3구역 lv1,lv2는 하위 범위 너비로 카드 표시
+    const cardW=((!isZ2(dept)&&!isZ2subNode&&(p.lv===1||p.lv===2)))?Math.max(CW,subW(id)):CW;
+    const cardX=p.cx-cardW/2;
+    nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+cardX+'px;top:'+y+'px;width:'+cardW+'px;cursor:pointer;z-index:2">';
     nodes+='<div style="background:'+color+';color:#fff;border-radius:8px;padding:7px 9px;text-align:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2)">';
     nodes+=dept.name+'<div style="font-size:9px;font-weight:400;opacity:.8;margin-top:1px">'+es.length+'명'+(headName?' · '+headName:'')+'</div></div>';
     // 3구역만 직원 카드 아래 표시 (2구역 하위는 가로 별도 표시)
@@ -2493,9 +2496,13 @@ function renderOrgView() {
         h+='</div>';
         return h;
       }
-      // 직책있는 사람(부서장) 먼저 단독, 나머지 2명씩
-      const head=es.find(e=>e.name===headName&&!!headName);
-      const others=es.filter(e=>!(e.name===headName&&!!headName));
+      // 직책이 팀장/부서장/과장급인 경우 첫줄 단독
+      const isLeader=function(e){
+        const pos2=e.position||'';
+        return pos2.includes('팀장')||pos2.includes('부서장')||pos2.includes('부장')||pos2.includes('과장')||pos2.includes('차장')||pos2.includes('이사')||pos2.includes('대표')||pos2.includes('전무')||pos2.includes('상무');
+      };
+      const head=es.find(e=>(e.name===headName&&!!headName)||isLeader(e));
+      const others=es.filter(e=>e!==head);
       nodes+='<div style="margin-top:6px">';
       if(head&&es.length>1){
         nodes+='<div style="display:flex;justify-content:center;margin-bottom:3px">'+empBubble(head,true)+'</div>';
