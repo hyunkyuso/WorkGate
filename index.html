@@ -2261,6 +2261,7 @@ function renderOrgView() {
           const bemps=bd?getEmps(bd):[];
           const empRowW=bemps.length*(EW+3);
           const subBots2=gkBot(b.id);
+          // 좌측 lv3 순서: [lv3카드][직원] (우측과 반대)
           let subTotalW=0;
           subBots2.forEach(function(sb){
             const sbd=departments.find(x=>x.id===sb.id);
@@ -2268,7 +2269,8 @@ function renderOrgView() {
             const sempW=semps.length*(EW+3);
             subTotalW+=CW+(sempW>0?HGAP+sempW:0)+HGAP;
           });
-          const totalW=subTotalW+CW+(empRowW>0?HGAP+empRowW:0);
+          // lv2 구성: [lv3그룹들][lv2직원][lv2카드]
+          const totalW=subTotalW+(empRowW>0?empRowW+HGAP:0)+CW;
           return {b,bd,bemps,empRowW,subBots2,totalW};
         });
         const allLeftW=leftGroups.reduce((s,g)=>s+g.totalW+HGAP,0);
@@ -2286,28 +2288,26 @@ function renderOrgView() {
         let lbx=blockStartX;
         leftGroups.slice().reverse().forEach(function(g){
           const {b,bd,bemps,empRowW,subBots2,totalW}=g;
+          // 좌측 순서: [lv3카드][lv3직원] ... [lv2직원][lv2카드]
           let sbx=lbx;
-          subBots2.forEach(function(sb){
+          // lv3 역순 배치 (가장 멀리 있는 lv3가 왼쪽)
+          subBots2.slice().reverse().forEach(function(sb){
             const sbd=departments.find(x=>x.id===sb.id);
             const semps=sbd?getEmps(sbd):[];
             const sempW=semps.length*(EW+3);
+            pos[sb.id]={cx:sbx+CW/2, absY:curY, lv:3};
+            sbx+=CW+HGAP;
             if(semps.length){
-              // 좌측: lv3카드 먼저, 직원 나중 (우측과 반대)
-              pos[sb.id]={cx:sbx+CW/2, absY:curY, lv:3};
-              sbx+=CW+HGAP;
               pos['emp_'+sb.id]={cx:sbx+sempW/2, absY:curY, empList:semps, deptId:sb.id, color:bg(3)};
               sbx+=sempW+HGAP;
-            } else {
-              pos[sb.id]={cx:sbx+CW/2, absY:curY, lv:3};
-              sbx+=CW+HGAP;
             }
           });
+          // lv2 직원 → lv2 카드 (spine 방향)
           if(bemps.length){
             pos['emp_'+b.id]={cx:sbx+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
-            pos[b.id]={cx:sbx+empRowW+HGAP+CW/2, absY:curY, lv:2};
-          } else {
-            pos[b.id]={cx:sbx+CW/2, absY:curY, lv:2};
+            sbx+=empRowW+HGAP;
           }
+          pos[b.id]={cx:sbx+CW/2, absY:curY, lv:2};
           lbx+=totalW+HGAP;
         });
 
@@ -2385,16 +2385,16 @@ function renderOrgView() {
       // 레벨별 최대 높이 계산
       const z3LvH={};
       calcZ3LvHeights(z3kids.map(c=>c.id), 1, z3LvH);
-      // 누락된 레벨 채우기 (lv1~maxLv 연속으로)
+      // lv1~lv4 모두 확보 (누락 레벨은 CH로)
       const z3Lvs=Object.keys(z3LvH).map(Number).sort((a,b)=>a-b);
-      const z3MaxLv=z3Lvs.length?z3Lvs[z3Lvs.length-1]:1;
-      for(let lv=1;lv<=z3MaxLv;lv++){
+      const z3MaxLv=z3Lvs.length?z3Lvs[z3Lvs.length-1]:3;
+      for(let lv=1;lv<=Math.max(z3MaxLv,3);lv++){
         if(!z3LvH[lv]) z3LvH[lv]=CH;
       }
       // 레벨별 Y 계산 (누적)
       const z3LvY={};
       let lvCurY=Z3_Y;
-      for(let lv=1;lv<=z3MaxLv;lv++){
+      for(let lv=1;lv<=Math.max(z3MaxLv,3);lv++){
         z3LvY[lv]=lvCurY;
         lvCurY+=z3LvH[lv]+VGAP;
       }
@@ -2434,12 +2434,10 @@ function renderOrgView() {
       if(!d)return;
       const es=getEmps(d);
       if(!es.length){maxH=Math.max(maxH,CH);return;}
-      // 팀장/부서장 있으면 첫줄 1명 + 나머지 2명씩
       const hasLeader=!!es.find(function(e){
-        const p=e.position||'';
         const isHead=d.head&&e.name===d.head;
         const t=e.title||'';
-        return isHead||(t==='팀장'||t==='부서장');
+        return isHead||(t==='본부장'||t==='부서장'||t==='팀장');
       });
       let rows;
       if(hasLeader&&es.length>1){
@@ -2458,17 +2456,8 @@ function renderOrgView() {
 
   function placeZ3(id, left, absY, lv, z3LvY){
     const w=subW(id), cx=left+w/2;
-    // z3LvY에 해당 lv가 없으면 이전 레벨 Y + nodeH + VGAP
-    let y;
-    if(z3LvY&&z3LvY[lv]!==undefined){
-      y=z3LvY[lv];
-    } else if(z3LvY){
-      // lv가 없으면 가장 가까운 상위 lv Y + 오프셋
-      const prevLv=lv-1;
-      y=(z3LvY[prevLv]||absY)+nodeH(id)+VGAP;
-    } else {
-      y=absY;
-    }
+    // z3LvY에서 Y 결정 (없으면 absY 사용)
+    const y=(z3LvY&&z3LvY[lv]!==undefined)?z3LvY[lv]:absY;
     pos[id]={cx, absY:y, lv};
     const bots=gkBot(id);
     if(!bots.length)return;
