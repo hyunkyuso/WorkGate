@@ -2251,6 +2251,12 @@ function renderOrgView() {
         // 상위조직 위치: spine 바로 왼쪽
         const parentCX=spineX-CW/2-HGAP-CW/2;
         pos[lNode.id]={cx:parentCX, absY:curY, lv:1};
+        // lv1 직원 표시 (카드 왼쪽)
+        const lv1Lemps=getEmps(departments.find(x=>x.id===lNode.id)||{name:''});
+        if(lv1Lemps.length){
+          const lv1EmpW=lv1Lemps.length*EW+(lv1Lemps.length-1)*4;
+          pos['emp1_'+lNode.id]={cx:parentCX-CW/2-HGAP-lv1EmpW/2, absY:curY, empList:lv1Lemps, deptId:lNode.id, color:bg(1)};
+        }
 
         // 하위조직들: 상위조직 왼쪽으로 나란히
         // 오른쪽에서 왼쪽 방향: 가장 오른쪽 하위가 상위 바로 왼쪽
@@ -2320,6 +2326,12 @@ function renderOrgView() {
 
         const parentCX=spineX+CW/2+HGAP+CW/2;
         pos[rNode.id]={cx:parentCX, absY:curY, lv:1};
+        // lv1 직원 표시 (카드 오른쪽)
+        const lv1Remps=getEmps(departments.find(x=>x.id===rNode.id)||{name:''});
+        if(lv1Remps.length){
+          const lv1EmpW=lv1Remps.length*EW+(lv1Remps.length-1)*4;
+          pos['emp1_'+rNode.id]={cx:parentCX+CW/2+HGAP+lv1EmpW/2, absY:curY, empList:lv1Remps, deptId:rNode.id, color:bg(1)};
+        }
 
         // 하위조직들: 상위조직 오른쪽으로 나란히 (재귀적으로 하위도 배치)
         let bx=parentCX+CW/2+HGAP;
@@ -2392,10 +2404,16 @@ function renderOrgView() {
     pos[id]={cx, absY, lv};
     const bots=gkBot(id);
     if(!bots.length)return;
-    const childY=absY+nodeH(id)+VGAP;
-    let lx=left;
+    // lv1 직원이 있으면 카드 아래에 표시하고 자식 Y를 더 아래로
+    const d=departments.find(x=>x.id===id);
+    const es=d?getEmps(d):[];
+    const empH=es.length>0?Math.ceil(es.length/5)*62+8:0;
+    const childY=absY+CH+empH+VGAP;
+    // 자식들 중앙 정렬 (cx 기준)
+    const totalChildW=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
+    let lx=cx-totalChildW/2;
     bots.forEach(function(c){placeZ3(c.id,lx,childY,lv+1);lx+=subW(c.id)+HGAP;});
-    // 3구역 모든 라인 제거 (루트→본부 T자만 별도 처리)
+    // 라인 없음
   }
 
   // 노드 HTML
