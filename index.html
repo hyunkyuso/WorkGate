@@ -2753,30 +2753,18 @@ function printOrgChart() {
   const totalActive = employees.filter(e=>e.status!=='퇴직').length;
   const statsText = (document.getElementById('orgview-stats')||{}).textContent||'';
 
-  // 현재 조직도 CSS 추출
+  // CSS 전체 추출
   let ovCSS = '';
   try {
     Array.from(document.styleSheets).forEach(function(ss){
-      try {
-        Array.from(ss.cssRules).forEach(function(rule){
-          if(rule.cssText) ovCSS += rule.cssText + ' ';
-        });
-      } catch(e){}
+      try { Array.from(ss.cssRules).forEach(function(r){ if(r.cssText) ovCSS+=r.cssText+' '; }); } catch(e){}
     });
   } catch(e){}
 
-  // 조직도 실제 크기 (transform 제거 후 측정)
+  // 조직도 실제 크기
   const chartDiv = chart.querySelector('div');
-  const chartW = chartDiv ? parseInt(chartDiv.style.width)||chart.scrollWidth : chart.scrollWidth;
-  const chartH = chartDiv ? parseInt(chartDiv.style.height)||chart.scrollHeight : chart.scrollHeight;
-
-  // A4 landscape 실제 인쇄 가용 영역 (mm→px @96dpi: 287mm×190mm)
-  // 297mm - 10mm margin = 287mm = 1087px, 210mm - 10mm = 200mm = 756px
-  const printW = 1087;
-  const printH = 680; // 헤더 제외
-  const scaleW = printW / chartW;
-  const scaleH = printH / chartH;
-  const scale = Math.min(scaleW, scaleH, 1).toFixed(4);
+  const chartW = chartDiv ? (parseInt(chartDiv.style.width)||chart.scrollWidth) : chart.scrollWidth;
+  const chartH = chartDiv ? (parseInt(chartDiv.style.height)||chart.scrollHeight) : chart.scrollHeight;
 
   const win = window.open('', '_blank');
   if (!win) { showToast('❌ 팝업이 차단되었습니다.'); return; }
@@ -2785,27 +2773,47 @@ function printOrgChart() {
     '<meta charset="utf-8"><title>조직도</title>' +
     '<style>' +
     '*{box-sizing:border-box;margin:0;padding:0}' +
-    'body{font-family:"Noto Sans KR",sans-serif;background:#fff;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
-    '.hdr{display:flex;justify-content:space-between;align-items:center;padding:8px 12px 6px;border-bottom:2px solid #1a1d2e;margin-bottom:8px}' +
-    '.hdr-title{font-size:16px;font-weight:700;color:#1a1d2e}' +
-    '.hdr-meta{font-size:9px;color:#666;margin-top:2px}' +
+    'body{font-family:"Noto Sans KR",sans-serif;background:#fff;' +
+    '-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
+    '.hdr{display:flex;justify-content:space-between;align-items:center;' +
+    'padding:6px 10px 5px;border-bottom:2px solid #1a1d2e;margin-bottom:6px}' +
+    '.hdr-title{font-size:15px;font-weight:700;color:#1a1d2e}' +
+    '.hdr-meta{font-size:9px;color:#666;margin-top:1px}' +
     '.hdr-stats{text-align:right;font-size:10px;color:#444}' +
-    '.chart-wrap{overflow:hidden;line-height:0}' +
+    '.chart-wrap{display:flex;justify-content:center;align-items:flex-start;}' +
     ovCSS +
     '@media print{' +
     'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
     '@page{size:A4 landscape;margin:5mm;}' +
+    '.hdr{margin-bottom:4px;}' +
     '}' +
     '</style></head><body>' +
-    '<div class="hdr">' +
-    '<div><div class="hdr-title">조직도</div><div class="hdr-meta">기준일자: ' + today + '</div></div>' +
-    '<div class="hdr-stats">전체 <strong style="font-size:13px;color:#1a1d2e">' + totalActive + '명</strong><br>' + statsText + '</div>' +
+    '<div class="hdr" id="hdr">' +
+    '<div><div class="hdr-title">조직도</div><div class="hdr-meta">기준일자: '+today+'</div></div>' +
+    '<div class="hdr-stats">전체 <strong style="font-size:13px;color:#1a1d2e">'+totalActive+'명</strong><br>'+statsText+'</div>' +
     '</div>' +
-    '<div class="chart-wrap">' +
-    '<div style="transform:scale(' + scale + ');transform-origin:top left;width:' + chartW + 'px;height:' + chartH + 'px">' +
+    '<div class="chart-wrap" id="cw">' +
+    '<div id="ci" style="transform-origin:top left;width:'+chartW+'px;height:'+chartH+'px">' +
     chart.innerHTML +
     '</div></div>' +
-    '<script>setTimeout(function(){window.print();},600);<\/script>' +
+    '<script>' +
+    // A4 landscape @96dpi: 297×210mm, margin 5mm → 가용: 287×200mm = 1085×756px
+    // 헤더 높이 제외 후 조직도 꽉 차게 scale
+    'window.onload=function(){' +
+    '  var hdr=document.getElementById("hdr");' +
+    '  var ci=document.getElementById("ci");' +
+    '  var hdrH=hdr?hdr.offsetHeight+10:50;' +
+    '  var availW=1085;' +
+    '  var availH=756-hdrH;' +
+    '  var scaleW=availW/'+chartW+';' +
+    '  var scaleH=availH/'+chartH+';' +
+    '  var s=Math.min(scaleW,scaleH);' + // 1보다 커도 허용 (꽉 채움)
+    '  ci.style.transform="scale("+s+")";' +
+    '  ci.style.transformOrigin="top left";' +
+    '  document.getElementById("cw").style.height=('+chartH+'*s+10)+"px";' +
+    '  setTimeout(function(){window.print();},700);' +
+    '};' +
+    '<\/script>' +
     '</body></html>');
   win.document.close();
 }
@@ -2876,9 +2884,9 @@ function downloadExcel() {
 // ── PPT 다운로드 — 직원 사진 포함 가로 A4 PDF ──
 function downloadPPT() {
   const chart = document.getElementById('orgview-chart');
-  if (!chart) return;
+  if (!chart) { showToast('❌ 조직도를 먼저 열어주세요'); return; }
   const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\. /g,'-').replace('.','');
-  showToast('📸 조직도 캡처 중... (잠시 기다려주세요)');
+  showToast('📸 조직도 캡처 중... (10~20초 소요)');
 
   function makePPT(imgData, imgW, imgH) {
     const pres = new PptxGenJS();
@@ -2899,9 +2907,31 @@ function downloadPPT() {
   }
 
   function doCapture() {
-    html2canvas(chart, { scale:1.5, useCORS:true, backgroundColor:'#f8fafc', logging:false,
-      allowTaint:true, foreignObjectRendering:false })
-    .then(function(canvas) {
+    // orgview-chart는 transform:scale로 축소돼 있으므로
+    // 실제 원본 크기 그대로 캡처 (transform 임시 제거)
+    const canvas2 = document.getElementById('orgview-canvas');
+    const savedTransform = canvas2 ? canvas2.style.transform : '';
+    if(canvas2) canvas2.style.transform = 'none';
+
+    const chartW = chart.scrollWidth;
+    const chartH = chart.scrollHeight;
+
+    html2canvas(chart, {
+      scale: 1,
+      useCORS: true,
+      backgroundColor: '#f8fafc',
+      logging: false,
+      allowTaint: true,
+      foreignObjectRendering: false,
+      width: chartW,
+      height: chartH,
+      scrollX: 0,
+      scrollY: 0,
+      x: 0,
+      y: 0
+    }).then(function(canvas) {
+      // transform 복원
+      if(canvas2) canvas2.style.transform = savedTransform;
       const imgData = canvas.toDataURL('image/png');
       if(typeof PptxGenJS !== 'undefined') {
         makePPT(imgData, canvas.width, canvas.height);
@@ -2912,7 +2942,11 @@ function downloadPPT() {
         s2.onerror = function(){ showToast('❌ PptxGenJS 로드 실패'); };
         document.head.appendChild(s2);
       }
-    }).catch(function(err){ console.error(err); showToast('❌ 캡처 실패: '+err.message); });
+    }).catch(function(err){
+      if(canvas2) canvas2.style.transform = savedTransform;
+      console.error(err);
+      showToast('❌ 캡처 실패: '+err.message);
+    });
   }
 
   if(typeof html2canvas !== 'undefined') {
