@@ -418,7 +418,7 @@ select.form-input{cursor:pointer}
               <button class="btn btn-ghost btn-sm" onclick="orgResetView()">⊡ 맞춤</button>
               <button class="btn btn-ghost btn-sm" onclick="printOrgChart()">🖨 인쇄</button>
               <button class="btn btn-ghost btn-sm" onclick="downloadExcel()" style="color:#217346;border-color:#217346">📊 Excel</button>
-              <button class="btn btn-ghost btn-sm" onclick="downloadPPT()" style="color:#C43E1C;border-color:#C43E1C">🖼 이미지</button>
+              <button class="btn btn-ghost btn-sm" onclick="downloadPPT()" style="color:#C43E1C;border-color:#C43E1C">📑 PPT</button>
             </div>
           </div>
         </div>
@@ -2784,8 +2784,9 @@ function printOrgChart() {
     ovCSS +
     '@media print{' +
     'html,body{width:100%;height:100%;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
-    '@page{size:A3 landscape;margin:5mm;}' +
-    '.chart-wrap{transform-origin:top center;}' +
+    '@page{size:A4 landscape;margin:5mm;}' +
+    '.chart-wrap{transform-origin:top left;}' +
+    '#ci{transform-origin:top left;}' +
     '}' +
     '</style></head><body>' +
     '<div class="hdr">' +
@@ -2799,7 +2800,7 @@ function printOrgChart() {
     '  var cw=document.getElementById("cw");' +
     '  if(!ci||!cw)return;' +
     // A3 landscape 가용 너비 (420mm - 10mm margin = 410mm ≈ 1550px @96dpi)
-    '  var avail=window.innerWidth-28;' +
+    '  var avail=1085;' +  // A4 landscape @96dpi
     '  var chartW=ci.scrollWidth;' +
     '  var scale=chartW>avail?avail/chartW:1;' +
     '  ci.style.transform="scale("+scale+")";' +
@@ -2877,38 +2878,88 @@ function downloadExcel() {
 
 // ── PPT 다운로드 — 직원 사진 포함 가로 A4 PDF ──
 function downloadPPT() {
-  // html2canvas로 조직도 캡처 후 PNG 다운로드
   const chart = document.getElementById('orgview-chart');
   if (!chart) return;
   const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\. /g,'-').replace('.','');
+  showToast('📸 조직도 캡처 중...');
 
-  showToast('📸 조직도 이미지 생성 중...');
-
-  // html2canvas 동적 로드
-  const script = document.createElement('script');
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-  script.onload = function() {
+  function doCapture() {
     html2canvas(chart, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#f8fafc',
-      logging: false
+      scale: 2, useCORS: true, backgroundColor: '#f8fafc', logging: false
     }).then(function(canvas) {
-      // PNG 다운로드
-      const link = document.createElement('a');
-      link.download = '조직도_' + today + '.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      showToast('✅ 조직도 이미지가 다운로드되었습니다! PowerPoint에 삽입하세요.');
-    }).catch(function(err) {
+      const imgData = canvas.toDataURL('image/png');
+      const imgW = canvas.width;
+      const imgH = canvas.height;
+
+      // pptxgenjs로 PPTX 생성
+      function makePPT() {
+        const pres = new PptxGenJS();
+        pres.layout = 'LAYOUT_WIDE'; // 33.87cm × 19.05cm (와이드)
+
+        const slide = pres.addSlide();
+
+        // 배경 흰색
+        slide.background = { color: 'FFFFFF' };
+
+        // 헤더
+        slide.addText('조직도', {
+          x: 0.2, y: 0.1, w: 6, h: 0.4,
+          fontSize: 18, bold: true, color: '1a1d2e', fontFace: 'Arial'
+        });
+        slide.addText('기준일자: ' + today, {
+          x: 0.2, y: 0.55, w: 6, h: 0.25,
+          fontSize: 10, color: '666666', fontFace: 'Arial'
+        });
+
+        // 조직도 이미지 (슬라이드 전체에 맞춤)
+        const slideW = 13.3; // LAYOUT_WIDE 너비(인치)
+        const slideH = 7.5;
+        const hdrH = 0.85;
+        const availH = slideH - hdrH - 0.1;
+        const availW = slideW - 0.4;
+
+        // 비율 유지하면서 맞춤
+        const ratio = imgW / imgH;
+        let w = availW, h = availW / ratio;
+        if (h > availH) { h = availH; w = availH * ratio; }
+        const x = (slideW - w) / 2;
+
+        slide.addImage({
+          data: imgData,
+          x: x, y: hdrH,
+          w: w, h: h
+        });
+
+        pres.writeFile({ fileName: '조직도_' + today + '.pptx' });
+        showToast('✅ PPT 다운로드 완료!');
+      }
+
+      // PptxGenJS 로드 확인
+      if (typeof PptxGenJS !== 'undefined') {
+        makePPT();
+      } else {
+        const s2 = document.createElement('script');
+        s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js';
+        s2.onload = makePPT;
+        s2.onerror = function(){ showToast('❌ PptxGenJS 로드 실패'); };
+        document.head.appendChild(s2);
+      }
+    }).catch(function(err){
       console.error(err);
-      showToast('❌ 이미지 생성 실패. 다시 시도해주세요.');
+      showToast('❌ 이미지 캡처 실패');
     });
-  };
-  script.onerror = function() {
-    showToast('❌ 라이브러리 로드 실패. 인터넷 연결을 확인해주세요.');
-  };
-  document.head.appendChild(script);
+  }
+
+  // html2canvas 로드 확인
+  if (typeof html2canvas !== 'undefined') {
+    doCapture();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload = doCapture;
+    s.onerror = function(){ showToast('❌ html2canvas 로드 실패'); };
+    document.head.appendChild(s);
+  }
 }
 
 function renderMembers() {} // 하위호환 유지
