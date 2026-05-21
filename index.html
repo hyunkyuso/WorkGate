@@ -2269,9 +2269,9 @@ function renderOrgView() {
           bx-=HGAP;
         });
 
-        // SVG: spine → 상위조직 가로선
+        // SVG: spine 교차점 → 좌측 상위조직 가로선
         const lineY=curY+CH/2;
-        svg+='<line x1="'+(spineX-CW/2-HGAP)+'" y1="'+lineY+'" x2="'+(parentCX+CW/2)+'" y2="'+lineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+        svg+='<line x1="'+spineX+'" y1="'+lineY+'" x2="'+(parentCX+CW/2)+'" y2="'+lineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
 
         // 2구역 하위조직 라인 제거
       }
@@ -2297,31 +2297,42 @@ function renderOrgView() {
           bx+=CW+(empRowW>0?HGAP+empRowW:0)+HGAP;
         });
 
-        // SVG: spine → 상위조직 가로선
+        // SVG: spine 교차점 → 우측 상위조직 가로선
         const lineY=curY+CH/2;
-        svg+='<line x1="'+(spineX+CW/2+HGAP)+'" y1="'+lineY+'" x2="'+(parentCX-CW/2)+'" y2="'+lineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+        svg+='<line x1="'+spineX+'" y1="'+lineY+'" x2="'+(parentCX-CW/2)+'" y2="'+lineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
         // 2구역 하위조직 라인 제거
       }
 
       curY+=rowH+VGAP;
     }
 
-    // 세로선: 1구역 하단 → 3구역
-    svg+='<line x1="'+spineX+'" y1="'+(Z1_Y+CH)+'" x2="'+spineX+'" y2="'+Z3_Y+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-
-    // 3구역 T자 배치
+    // 3구역 배치 먼저 (X좌표 확정)
     if(z3kids.length){
-      let blx=spineX-z3W/2;
+      const z3TotalW=z3kids.reduce((s,d)=>s+subW(d.id),0)+(z3kids.length-1)*HGAP;
+      let blx=spineX-z3TotalW/2;
       z3kids.forEach(function(c){
         placeZ3(c.id,blx,Z3_Y,1);
         blx+=subW(c.id)+HGAP;
       });
-      // 루트 → lv1(본부) 연결선 (허브 T자)
+    }
+
+    // 세로선: 1구역 하단 → 3구역 허브
+    const hubY3=z3kids.length>0?Z3_Y-30:Z3_Y;
+    svg+='<line x1="'+spineX+'" y1="'+(Z1_Y+CH)+'" x2="'+spineX+'" y2="'+hubY3+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+
+    // 3구역 허브 → 본부 T자 연결선
+    if(z3kids.length){
       const bpos3=z3kids.map(d=>pos[d.id]).filter(Boolean);
-      const hubY=Z3_Y-20;
-      svg+='<line x1="'+spineX+'" y1="'+(Z3_Y-40)+'" x2="'+spineX+'" y2="'+hubY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-      if(bpos3.length>1) svg+='<line x1="'+Math.min(...bpos3.map(k=>k.cx))+'" y1="'+hubY+'" x2="'+Math.max(...bpos3.map(k=>k.cx))+'" y2="'+hubY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-      bpos3.forEach(k=>{svg+='<line x1="'+k.cx+'" y1="'+hubY+'" x2="'+k.cx+'" y2="'+k.absY+'" stroke="'+LINE+'" stroke-width="1.5"/>';});
+      if(bpos3.length){
+        // 허브 가로선
+        const minX3=Math.min(...bpos3.map(k=>k.cx));
+        const maxX3=Math.max(...bpos3.map(k=>k.cx));
+        if(bpos3.length>1) svg+='<line x1="'+minX3+'" y1="'+hubY3+'" x2="'+maxX3+'" y2="'+hubY3+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+        // 허브 → 각 본부 수직선
+        bpos3.forEach(function(k){
+          svg+='<line x1="'+k.cx+'" y1="'+hubY3+'" x2="'+k.cx+'" y2="'+k.absY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+        });
+      }
     }
   });
 
@@ -2333,15 +2344,19 @@ function renderOrgView() {
     const childY=absY+nodeH(id)+VGAP;
     let lx=left;
     bots.forEach(function(c){placeZ3(c.id,lx,childY,lv+1);lx+=subW(c.id)+HGAP;});
-    // lv1(본부)→lv2(부서) 라인만 표시, lv2 이상은 라인 없음
-    if(lv===1){
-      const bpos=bots.map(d=>pos[d.id]).filter(Boolean);
-      const py=absY+CH, ky=bpos[0].absY;
-      const hy=py+Math.round((ky-py)*0.45);
-      svg+='<line x1="'+cx+'" y1="'+py+'" x2="'+cx+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-      if(bpos.length>1) svg+='<line x1="'+Math.min(...bpos.map(k=>k.cx))+'" y1="'+hy+'" x2="'+Math.max(...bpos.map(k=>k.cx))+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
-      bpos.forEach(k=>{svg+='<line x1="'+k.cx+'" y1="'+hy+'" x2="'+k.cx+'" y2="'+ky+'" stroke="'+LINE+'" stroke-width="1.5"/>';});
+    // lv1(본부→부서)만 T자 라인, lv2이상 없음
+    if(lv!==1)return;
+    const bpos=bots.map(d=>pos[d.id]).filter(Boolean);
+    if(!bpos.length)return;
+    const py=absY+CH, ky=bpos[0].absY;
+    const hy=py+Math.round((ky-py)*0.5);
+    svg+='<line x1="'+cx+'" y1="'+py+'" x2="'+cx+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+    if(bpos.length>1){
+      svg+='<line x1="'+Math.min(...bpos.map(k=>k.cx))+'" y1="'+hy+'" x2="'+Math.max(...bpos.map(k=>k.cx))+'" y2="'+hy+'" stroke="'+LINE+'" stroke-width="1.5"/>';
     }
+    bpos.forEach(function(k){
+      svg+='<line x1="'+k.cx+'" y1="'+hy+'" x2="'+k.cx+'" y2="'+ky+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+    });
   }
 
   // 노드 HTML
