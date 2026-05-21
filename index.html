@@ -2450,10 +2450,11 @@ function renderOrgView() {
     // 직원 그룹인 경우
     if(p.empList){
       const empList=p.empList, color=p.color||bg(2);
-      const x=p.cx-p.empList.length*EW/2, y=p.absY;
-      nodes+='<div style="position:absolute;left:'+x+'px;top:'+y+'px;display:flex;gap:4px;z-index:2">';
+      const empGap=4;
+      const totalEmpW=empList.length*EW+(empList.length-1)*empGap;
+      const x=p.cx-totalEmpW/2, y=p.absY;
+      nodes+='<div style="position:absolute;left:'+x+'px;top:'+y+'px;display:flex;gap:'+empGap+'px;z-index:2">';
       empList.forEach(function(e){
-        const isH=false;
         const ini=(e.name||'?').charAt(0);
         const ec=['#4f46e5','#7c3aed','#0891b2','#059669','#d97706'];
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
@@ -2500,7 +2501,11 @@ function renderOrgView() {
       }
       // 직책이 팀장/부서장/과장급인 경우 첫줄 단독
       // 직책에 팀장/부서장 포함된 직원이 있으면 첫줄 단독
-      const isLeaderPos=function(e){ const p=e.position||''; return p.includes('팀장')||p.includes('부서장'); };
+      // 팀장, 부서장, 부장, 이사, 본부장 등 리더급 직책
+      const isLeaderPos=function(e){
+        const p=e.position||'';
+        return p==='팀장'||p==='부서장'||p==='부장'||p==='본부장'||p==='이사'||p==='전무'||p==='상무'||p==='대표이사'||p.endsWith('장');
+      };
       const head=es.find(e=>e.name===headName&&!!headName)||es.find(e=>isLeaderPos(e));
       const others=es.filter(e=>e!==head);
       nodes+='<div style="margin-top:6px">';
