@@ -2473,14 +2473,15 @@ function renderOrgView() {
     const headName=dept.head||'';
     const es=getEmps(dept);
     const x=p.cx-CW/2, y=p.absY;
+    // 2구역 하위 여부 먼저 판별
+    const isZ2subNode = pos['emp_'+id] !== undefined || pos['emp1_'+id] !== undefined;
     // 3구역 lv1,lv2는 하위 범위 너비로 카드 표시
     const cardW=((!isZ2(dept)&&!isZ2subNode&&(p.lv===1||p.lv===2)))?Math.max(CW,subW(id)):CW;
     const cardX=p.cx-cardW/2;
     nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+cardX+'px;top:'+y+'px;width:'+cardW+'px;cursor:pointer;z-index:2">';
     nodes+='<div style="background:'+color+';color:#fff;border-radius:8px;padding:7px 9px;text-align:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2)">';
     nodes+=dept.name+'<div style="font-size:9px;font-weight:400;opacity:.8;margin-top:1px">'+es.length+'명'+(headName?' · '+headName:'')+'</div></div>';
-    // 3구역만 직원 카드 아래 표시 (2구역 하위는 가로 별도 표시)
-    const isZ2subNode = pos['emp_'+id] !== undefined || pos['emp1_'+id] !== undefined;
+    // 3구역만 직원 카드 아래 표시
     if(es.length&&!isZ2(dept)&&!isZ2subNode&&p.lv>0){
       function empBubble(e,isH){
         const ini=(e.name||'?').charAt(0);
