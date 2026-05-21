@@ -2359,12 +2359,12 @@ function renderOrgView() {
           });
         });
 
-        // lv1 직원: lv2그룹들 모두 배치 후 맨 오른쪽에
+        // lv1 직원: lv2 없으면 lv1카드 바로 오른쪽, 있으면 lv2그룹 다음
         const lv1Remps=getEmps(departments.find(x=>x.id===rNode.id)||{name:''});
         if(lv1Remps.length){
           const lv1EmpW=lv1Remps.length*(EW+3);
+          // bx가 parentCX+CW/2+HGAP인 경우(lv2없음) → 그 위치 사용
           pos['emp1_'+rNode.id]={cx:bx+lv1EmpW/2, absY:curY, empList:lv1Remps, deptId:rNode.id, color:bg(1)};
-          bx+=lv1EmpW+HGAP;
         }
 
         // SVG: spine → lv1 카드 가로선
@@ -2418,17 +2418,28 @@ function renderOrgView() {
   // 3구역: 레벨별 최대 높이를 먼저 계산해서 모든 노드가 같은 Y줄에 오도록
   function calcZ3LvHeights(ids, lv, lvH){
     if(!ids.length)return;
-    // 이 레벨의 최대 nodeH 계산
     let maxH=CH;
     ids.forEach(function(id){
       const d=departments.find(x=>x.id===id);
       if(!d)return;
       const es=getEmps(d);
-      const empH=es.length>0?(Math.ceil(Math.min(es.length,2)/2)*62+8):0;
-      maxH=Math.max(maxH, CH+empH);
+      if(!es.length){maxH=Math.max(maxH,CH);return;}
+      // 팀장/부서장 있으면 첫줄 1명 + 나머지 2명씩
+      const hasLeader=!!es.find(function(e){
+        const p=e.position||'';
+        const isHead=d.head&&e.name===d.head;
+        return isHead||(p==='팀장'||p==='부서장');
+      });
+      let rows;
+      if(hasLeader&&es.length>1){
+        rows=1+Math.ceil((es.length-1)/2);
+      } else {
+        rows=Math.ceil(es.length/2);
+      }
+      const empH=rows*62+8;
+      maxH=Math.max(maxH,CH+empH);
     });
     if(!lvH[lv]||lvH[lv]<maxH) lvH[lv]=maxH;
-    // 다음 레벨
     const nextIds=[];
     ids.forEach(function(id){gkBot(id).forEach(function(c){nextIds.push(c.id);});});
     calcZ3LvHeights(nextIds, lv+1, lvH);
@@ -2501,29 +2512,33 @@ function renderOrgView() {
       }
       // 직책이 팀장/부서장/과장급인 경우 첫줄 단독
       // 직책에 팀장/부서장 포함된 직원이 있으면 첫줄 단독
-      // 팀장, 부서장, 부장, 이사, 본부장 등 리더급 직책
+      // 팀장 또는 부서장 직책만 첫줄 단독
       const isLeaderPos=function(e){
         const p=e.position||'';
-        return p==='팀장'||p==='부서장'||p==='부장'||p==='본부장'||p==='이사'||p==='전무'||p==='상무'||p==='대표이사'||p.endsWith('장');
+        return p==='팀장'||p==='부서장';
       };
-      const head=es.find(e=>e.name===headName&&!!headName)||es.find(e=>isLeaderPos(e));
-      const others=es.filter(e=>e!==head);
+      // 부서장(headName) 또는 팀장/부서장 직책인 사람 → 첫줄 단독
+      const headEmp=es.find(e=>e.name===headName&&!!headName);
+      const leaderEmp=!headEmp?es.find(e=>isLeaderPos(e)):null;
+      const head=headEmp||leaderEmp||null;
+      const others=head?es.filter(e=>e!==head):es;
       nodes+='<div style="margin-top:6px">';
       if(head&&es.length>1){
+        // 팀장/부서장 첫줄 단독
         nodes+='<div style="display:flex;justify-content:center;margin-bottom:3px">'+empBubble(head,true)+'</div>';
-        // 나머지 2명씩
         for(let ri=0;ri<others.length;ri+=2){
-          nodes+='<div style="display:flex;gap:3px;justify-content:'+(others.length===1?'center':'flex-start')+'">';
+          nodes+='<div style="display:flex;gap:3px;">';
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
           nodes+='</div>';
         }
       } else {
-        // 1명 가운데, 또는 직책없으면 2명씩
+        // 1명이면 가운데, 없거나 직책없으면 2명씩
         for(let ri=0;ri<es.length;ri+=2){
-          const rowStyle=es.length===1?'justify-content:center':'justify-content:flex-start';
+          const rowStyle=es.length===1?'justify-content:center':'';
           nodes+='<div style="display:flex;gap:3px;'+rowStyle+'">';
-          nodes+=empBubble(es[ri],es[ri].name===headName&&!!headName);
+          const isH1=es[ri].name===headName&&!!headName;
+          nodes+=empBubble(es[ri],isH1);
           if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
           nodes+='</div>';
         }
