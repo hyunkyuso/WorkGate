@@ -2329,12 +2329,22 @@ function renderOrgView() {
         const d=departments.find(x=>x.id===rNode.id);
         const bots=gkBot(rNode.id);
 
+        // lv1 직원 너비 계산
+        const lv1Remps=getEmps(departments.find(x=>x.id===rNode.id)||{name:''});
+        const lv1REmpW=lv1Remps.length*(EW+3);
+
         // lv1 카드: spine 바로 오른쪽
         const parentCX=spineX+CW/2+HGAP+CW/2;
         pos[rNode.id]={cx:parentCX, absY:curY, lv:1};
 
-        // lv2 그룹 배치: lv1 카드 오른쪽으로
+        // lv1 직원: lv1 카드 바로 오른쪽
         let bx=parentCX+CW/2+HGAP;
+        if(lv1Remps.length){
+          pos['emp1_'+rNode.id]={cx:bx+lv1REmpW/2, absY:curY, empList:lv1Remps, deptId:rNode.id, color:bg(1)};
+          bx+=lv1REmpW+HGAP;
+        }
+
+        // lv2 그룹: lv1직원 다음
         bots.forEach(function(b){
           const bd=departments.find(x=>x.id===b.id);
           const bemps=bd?getEmps(bd):[];
@@ -2358,14 +2368,6 @@ function renderOrgView() {
             }
           });
         });
-
-        // lv1 직원: lv2 없으면 lv1카드 바로 오른쪽, 있으면 lv2그룹 다음
-        const lv1Remps=getEmps(departments.find(x=>x.id===rNode.id)||{name:''});
-        if(lv1Remps.length){
-          const lv1EmpW=lv1Remps.length*(EW+3);
-          // bx가 parentCX+CW/2+HGAP인 경우(lv2없음) → 그 위치 사용
-          pos['emp1_'+rNode.id]={cx:bx+lv1EmpW/2, absY:curY, empList:lv1Remps, deptId:rNode.id, color:bg(1)};
-        }
 
         // SVG: spine → lv1 카드 가로선
         const lineY=curY+CH/2;
@@ -2428,7 +2430,8 @@ function renderOrgView() {
       const hasLeader=!!es.find(function(e){
         const p=e.position||'';
         const isHead=d.head&&e.name===d.head;
-        return isHead||(p==='팀장'||p==='부서장');
+        const t=e.title||'';
+        return isHead||(t==='팀장'||t==='부서장');
       });
       let rows;
       if(hasLeader&&es.length>1){
@@ -2474,7 +2477,8 @@ function renderOrgView() {
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         nodes+='</div>';
         nodes+='<div style="font-size:9px;color:#1e293b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+e.name+'</div>';
-        if(e.position)nodes+='<div style="font-size:8px;color:#64748b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis">'+e.position+'</div>';
+        const dispPos=(e.title?e.title+' ':'')+( e.position||'');
+        if(dispPos.trim())nodes+='<div style="font-size:8px;color:#64748b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis">'+dispPos.trim()+'</div>';
         nodes+='</div>';
       });
       nodes+='</div>';
@@ -2514,8 +2518,8 @@ function renderOrgView() {
       // 직책에 팀장/부서장 포함된 직원이 있으면 첫줄 단독
       // 팀장 또는 부서장 직책만 첫줄 단독
       const isLeaderPos=function(e){
-        const p=e.position||'';
-        return p==='팀장'||p==='부서장';
+        const t=e.title||'';  // title = 직책 필드
+        return t==='팀장'||t==='부서장';
       };
       // 부서장(headName) 또는 팀장/부서장 직책인 사람 → 첫줄 단독
       const headEmp=es.find(e=>e.name===headName&&!!headName);
