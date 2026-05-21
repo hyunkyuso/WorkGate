@@ -2254,12 +2254,13 @@ function renderOrgView() {
 
         // 하위조직들: 상위조직 왼쪽으로 나란히
         // 오른쪽에서 왼쪽 방향: 가장 오른쪽 하위가 상위 바로 왼쪽
-        let bx=parentCX-CW/2-HGAP;
-        bots.slice().reverse().forEach(function(b){
+        // 좌측: 전체 너비 먼저 계산 후 왼쪽 끝부터 오른쪽으로 배치
+        // 순서: [lv3들...] [lv2카드+직원] [lv3들...] [lv2카드+직원] ... → spine
+        // 각 lv2 그룹 = lv3들 + lv2카드 + 직원들 (왼→오 순서)
+        const leftGroups=bots.map(function(b){
           const bd=departments.find(x=>x.id===b.id);
           const bemps=bd?getEmps(bd):[];
           const empRowW=bemps.length*EW+(bemps.length>0?(bemps.length-1)*4:0);
-          // lv3 하위조직 너비도 포함
           const subBots2=gkBot(b.id);
           let subTotalW=0;
           subBots2.forEach(function(sb){
@@ -2268,15 +2269,19 @@ function renderOrgView() {
             const sempW=semps.length*EW+(semps.length>0?(semps.length-1)*4:0);
             subTotalW+=CW+(sempW>0?HGAP+sempW:0)+HGAP;
           });
-          const nodeAndEmpW=CW+(empRowW>0?HGAP+empRowW:0)+(subTotalW>0?subTotalW:0);
-          bx-=nodeAndEmpW;
-          const bcx=bx+CW/2;
-          pos[b.id]={cx:bcx, absY:curY, lv:2};
-          if(bemps.length){
-            pos['emp_'+b.id]={cx:bx+CW+HGAP+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
-          }
-          // lv3 하위조직 배치 (왼쪽 방향이므로 emp 오른쪽에)
-          let sbx=bx+CW+(empRowW>0?HGAP+empRowW:0)+HGAP;
+          const totalW=subTotalW+CW+(empRowW>0?HGAP+empRowW:0);
+          return {b, bd, bemps, empRowW, subBots2, totalW};
+        });
+
+        // 전체 너비 계산
+        const allLeftW=leftGroups.reduce((s,g)=>s+g.totalW+HGAP,0);
+        // 시작 X: spine 왼쪽에서 allLeftW만큼 왼쪽
+        let lbx=parentCX-CW/2-HGAP-allLeftW;
+
+        leftGroups.forEach(function(g){
+          const {b, bd, bemps, empRowW, subBots2, totalW}=g;
+          // lv3 하위조직들 먼저 (왼쪽에)
+          let sbx=lbx;
           subBots2.forEach(function(sb){
             const sbd=departments.find(x=>x.id===sb.id);
             const semps=sbd?getEmps(sbd):[];
@@ -2287,7 +2292,13 @@ function renderOrgView() {
             }
             sbx+=CW+(sempW>0?HGAP+sempW:0)+HGAP;
           });
-          bx-=HGAP;
+          // lv2 카드
+          pos[b.id]={cx:sbx+CW/2, absY:curY, lv:2};
+          // 직원
+          if(bemps.length){
+            pos['emp_'+b.id]={cx:sbx+CW+HGAP+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
+          }
+          lbx+=totalW+HGAP;
         });
 
         // SVG: spine 교차점 → 좌측 상위조직 가로선
