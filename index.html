@@ -2585,9 +2585,9 @@ function renderOrgView() {
         // 직책있고 여러명 → 첫줄 단독, 나머지 2명씩
         nodes+='<div style="display:flex;justify-content:center;margin-bottom:3px">'+empBubble(head,true)+'</div>';
         for(let ri=0;ri<others.length;ri+=2){
-          // 마지막 줄이 1명이면 가운데 정렬
-          const isLastSingle=(ri+1>=others.length);
-          nodes+='<div style="display:flex;gap:3px;'+(isLastSingle?'justify-content:center':'')+'">';
+          // others가 1명(직책1+나머지1)이면 가운데, 그외 왼쪽
+          const centerRow=(others.length===1);
+          nodes+='<div style="display:flex;gap:3px;'+(centerRow?'justify-content:center':'')+'">';
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
           nodes+='</div>';
@@ -2787,11 +2787,11 @@ function printOrgChart() {
         if(t+h > maxY) maxY = t+h;
       });
     }
-    const PAD = 24;
+    const PAD = 40;
     minX = Math.max(0, minX - PAD);
     minY = Math.max(0, minY - PAD);
     maxX = Math.min(cW, maxX + PAD);
-    maxY = Math.min(cH, maxY + PAD);
+    maxY = Math.min(cH, maxY + PAD * 3); // 아래 여유 충분히
     const cropW = maxX > minX ? maxX - minX : cW;
     const cropH = maxY > minY ? maxY - minY : cH;
 
