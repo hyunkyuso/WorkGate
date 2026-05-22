@@ -2766,7 +2766,14 @@ function printOrgChart() {
 
   // 실제 크기
   const cW = Math.max(parseInt(inner.style.width)||0, inner.scrollWidth);
-  const cH = Math.max(parseInt(inner.style.height)||0, inner.scrollHeight) + 60;
+  // 실제 최하단 노드 위치로 정확한 높이 계산
+  let realH = 0;
+  inner.querySelectorAll('[style*="position:absolute"]').forEach(function(el){
+    const t = parseInt(el.style.top)||0;
+    const h = el.offsetHeight||60;
+    if(t+h > realH) realH = t+h;
+  });
+  const cH = Math.max(parseInt(inner.style.height)||0, realH) + 20;
 
   // 전체 CSS 추출
   let allCSS = '';
