@@ -2771,16 +2771,16 @@ function printOrgChart() {
     const inner = chart.querySelector('div');
     if (!inner) { if(cvs) cvs.style.transform=savedCvs; showToast('❌ 조직도 없음'); return; }
 
-    const fullW = parseInt(inner.style.width) || 0;
-    const fullH = parseInt(inner.style.height) || 0;
+    const fullW = Math.max(parseInt(inner.style.width)||0, inner.scrollWidth);
+    const fullH = Math.max(parseInt(inner.style.height)||0, inner.scrollHeight) + 50;
 
     if (!fullW || !fullH) { if(cvs) cvs.style.transform=savedCvs; showToast('❌ 조직도 크기 오류'); return; }
 
-    // inner div 직접 캡처 (chart 컨테이너 무시)
+    // inner div 직접 캡처 (scrollHeight 기준)
     html2canvas(inner, {
       scale: 3, useCORS: true, backgroundColor: '#f8fafc',
       logging: false, allowTaint: true,
-      width: fullW, height: fullH + 200,
+      width: fullW, height: fullH,
       x: 0, y: 0
     }).then(function(canvas) {
       if (cvs) cvs.style.transform = savedCvs;
