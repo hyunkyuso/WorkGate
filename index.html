@@ -2538,14 +2538,16 @@ function renderOrgView() {
       }
       // orgLevel 기준으로 Y 계산 (z3LvH = CH + maxRows*62 + 8)
       const z3LvY={};
+      const z3MaxRows={}; // 레벨별 최대 행수 (직원 정렬용)
       let lvCurY=Z3_Y;
       for(let lv=1;lv<=4;lv++){
         z3LvY[lv]=lvCurY;
+        z3MaxRows[lv]=z3LvH['rows_'+lv]||0;
         lvCurY+=z3LvH[lv]+VGAP;
       }
       let blx=spineX-z3TotalW/2;
       z3kids.forEach(function(c){
-        placeZ3(c.id,blx,Z3_Y,1,z3LvY);
+        placeZ3(c.id,blx,Z3_Y,1,z3LvY,z3MaxRows);
         blx+=subW(c.id)+HGAP;
       });
     }
@@ -2607,18 +2609,19 @@ function renderOrgView() {
     calcZ3LvHeights(nextIds, lv+1, lvH);
   }
 
-  function placeZ3(id, left, absY, lv, z3LvY){
+  function placeZ3(id, left, absY, lv, z3LvY, z3MaxRows){
     const w=subW(id), cx=left+w/2;
     const dept=departments.find(x=>x.id===id);
     const orgLvKey=(dept&&dept.orgLevel!=null&&dept.orgLevel!=='')?parseInt(dept.orgLevel):lv;
     const y=(z3LvY&&z3LvY[orgLvKey]!==undefined)?z3LvY[orgLvKey]:
             (z3LvY&&z3LvY[lv]!==undefined)?z3LvY[lv]:absY;
-    pos[id]={cx, absY:y, lv:orgLvKey};
+    const lvMaxRows=(z3MaxRows&&z3MaxRows[orgLvKey])||0;
+    pos[id]={cx, absY:y, lv:orgLvKey, lvMaxRows};
     const bots=gkBot(id);
     if(!bots.length)return;
     const totalChildW=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
     let lx=cx-totalChildW/2;
-    bots.forEach(function(c){placeZ3(c.id,lx,y,lv+1,z3LvY);lx+=subW(c.id)+HGAP;});
+    bots.forEach(function(c){placeZ3(c.id,lx,y,lv+1,z3LvY,z3MaxRows);lx+=subW(c.id)+HGAP;});
   }
 
   // 노드 HTML
