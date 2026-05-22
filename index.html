@@ -2521,7 +2521,7 @@ function renderOrgView() {
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
         const isL=isLeader2(e);
         const sz=isL?38:34;
-        const border2=isL?'2px solid '+empColor:'2px solid #1e293b';
+        const border2=isL?'2px solid '+empColor:'1.5px solid #94a3b8';
         nodes+='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
         nodes+='<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:'+border2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;margin:0 auto">';
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
@@ -2560,7 +2560,7 @@ function renderOrgView() {
         const ec=['#4f46e5','#7c3aed','#0891b2','#059669','#d97706'];
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
         const isL=isH||isLeaderPos(e);
-        const border=isL?'2px solid '+color:'2px solid #1e293b';
+        const border=isL?'2px solid '+color:'1.5px solid #94a3b8';
         let h='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
         h+='<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:'+border+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;margin:0 auto">';
         h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
@@ -2768,28 +2768,32 @@ function printOrgChart() {
     const saved = cvs ? cvs.style.transform : '';
     if (cvs) cvs.style.transform = 'none';
 
-    // 조직도 내부 실제 노드들의 bounding box 계산
-    const allNodes = chart.querySelectorAll('[style*="position:absolute"]');
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    allNodes.forEach(function(el) {
-      const r = el.getBoundingClientRect();
-      const cr = chart.getBoundingClientRect();
-      const x1 = r.left - cr.left;
-      const y1 = r.top - cr.top;
-      const x2 = x1 + r.width;
-      const y2 = y1 + r.height;
-      if (x1 < minX) minX = x1;
-      if (y1 < minY) minY = y1;
-      if (x2 > maxX) maxX = x2;
-      if (y2 > maxY) maxY = y2;
-    });
-    const PAD = 20; // 여백
+    // 내부 div (실제 조직도 컨텐츠)의 실제 크기
+    const inner = chart.querySelector('div');
+    const cW = inner ? (parseInt(inner.style.width) || chart.scrollWidth) : chart.scrollWidth;
+    const cH = inner ? (parseInt(inner.style.height) || chart.scrollHeight) : chart.scrollHeight;
+
+    // 실제 노드들의 bounding 계산 (여백 제거)
+    let minX = cW, minY = cH, maxX = 0, maxY = 0;
+    if (inner) {
+      inner.querySelectorAll('[style*="position:absolute"]').forEach(function(el){
+        const l = parseInt(el.style.left) || 0;
+        const t = parseInt(el.style.top) || 0;
+        const w = el.offsetWidth || 0;
+        const h = el.offsetHeight || 0;
+        if(l < minX) minX = l;
+        if(t < minY) minY = t;
+        if(l+w > maxX) maxX = l+w;
+        if(t+h > maxY) maxY = t+h;
+      });
+    }
+    const PAD = 24;
     minX = Math.max(0, minX - PAD);
     minY = Math.max(0, minY - PAD);
-    maxX = Math.min(chart.scrollWidth, maxX + PAD);
-    maxY = Math.min(chart.scrollHeight, maxY + PAD);
-    const cropW = maxX - minX;
-    const cropH = maxY - minY;
+    maxX = Math.min(cW, maxX + PAD);
+    maxY = Math.min(cH, maxY + PAD);
+    const cropW = maxX > minX ? maxX - minX : cW;
+    const cropH = maxY > minY ? maxY - minY : cH;
 
     html2canvas(chart, {
       scale: 3, useCORS: true, backgroundColor: '#f8fafc',
@@ -2799,15 +2803,13 @@ function printOrgChart() {
       if (cvs) cvs.style.transform = saved;
 
       const imgData = canvas.toDataURL('image/png', 1.0);
-      const imgW = canvas.width, imgH = canvas.height;
-      const ratio = imgW / imgH;
+      const ratio = cropW / cropH;
 
-      // A4 landscape margin 8mm → 가용: 281×194mm, 헤더 9mm → 이미지 가용: 281×185mm
+      // A4 landscape margin 8mm → 가용 281×194mm, 헤더 9mm → 이미지 185mm
       const AW = 281, AH = 185;
       let ih = AH, iw = AH * ratio;
       if (iw > AW) { iw = AW; ih = AW / ratio; }
       const ml = ((AW - iw) / 2).toFixed(1);
-      const mt = ((AH - ih) / 2).toFixed(1);
 
       const win = window.open('', '_blank');
       if (!win) { showToast('❌ 팝업 차단됨'); return; }
@@ -2817,29 +2819,24 @@ function printOrgChart() {
         '<style>' +
         '*{margin:0;padding:0;box-sizing:border-box}' +
         'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
-        '.hdr{width:'+AW+'mm;height:9mm;display:flex;justify-content:space-between;align-items:center;padding:0 3mm;border-bottom:0.4mm solid #1a1d2e;}' +
-        '.hdr-l .t{font-size:4mm;font-weight:700;color:#1a1d2e}' +
-        '.hdr-l .m{font-size:2.5mm;color:#666}' +
-        '.hdr-r strong{font-size:5mm;font-weight:700;color:#1a1d2e}' +
-        '.hdr-r{font-size:3mm;color:#444}' +
-        '.chart-box{width:'+AW+'mm;height:'+AH+'mm;display:flex;align-items:center;justify-content:center;}' +
-        '@media print{' +
-        '@page{size:A4 landscape;margin:8mm}' +
-        'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
-        '}' +
+        '.hdr{width:'+AW+'mm;height:9mm;display:flex;justify-content:space-between;align-items:center;padding:0 3mm;border-bottom:0.4mm solid #1a1d2e}' +
+        '.t{font-size:4mm;font-weight:700;color:#1a1d2e}' +
+        '.m{font-size:2.5mm;color:#666}' +
+        '.r{font-size:3mm;color:#444}' +
+        '.r strong{font-size:5mm;font-weight:700;color:#1a1d2e}' +
+        '@media print{@page{size:A4 landscape;margin:8mm}' +
+        'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}' +
         '</style></head><body>' +
         '<div class="hdr">' +
-        '<div class="hdr-l"><div class="t">조직도</div><div class="m">기준일자: '+today+'</div></div>' +
-        '<div class="hdr-r">전체 <strong>'+totalActive+'</strong>명</div>' +
+        '<div><div class="t">조직도</div><div class="m">기준일자: '+today+'</div></div>' +
+        '<div class="r">전체 <strong>'+totalActive+'</strong>명</div>' +
         '</div>' +
-        '<div class="chart-box">' +
-        '<img src="'+imgData+'" style="display:block;width:'+iw.toFixed(1)+'mm;height:'+ih.toFixed(1)+'mm">' +
-        '</div>' +
+        '<img src="'+imgData+'" style="display:block;width:'+iw.toFixed(1)+'mm;height:'+ih.toFixed(1)+'mm;margin-left:'+ml+'mm;margin-top:1mm">' +
         '<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script>' +
         '</body></html>'
       );
       win.document.close();
-    }).catch(function(e){ if(cvs) cvs.style.transform=saved; showToast('❌ 캡처 실패'); console.error(e); });
+    }).catch(function(e){ if(cvs) cvs.style.transform=saved; showToast('❌ 캡처 실패:'+e.message); console.error(e); });
   }
 
   if (typeof html2canvas !== 'undefined') {
