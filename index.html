@@ -2765,15 +2765,18 @@ function printOrgChart() {
   const totalActive = employees.filter(e=>e.status!=='퇴직').length;
 
   // 실제 크기
-  const cW = Math.max(parseInt(inner.style.width)||0, inner.scrollWidth);
-  // 실제 최하단 노드 위치로 정확한 높이 계산
-  let realH = 0;
+  // 실제 노드들의 범위로 정확한 크기 계산
+  let realW = 0, realH = 0;
   inner.querySelectorAll('[style*="position:absolute"]').forEach(function(el){
+    const l = parseInt(el.style.left)||0;
     const t = parseInt(el.style.top)||0;
-    const h = el.offsetHeight||60;
+    const w = el.offsetWidth||0;
+    const h = el.offsetHeight||0;
+    if(l+w > realW) realW = l+w;
     if(t+h > realH) realH = t+h;
   });
-  const cH = Math.max(parseInt(inner.style.height)||0, realH) + 20;
+  const cW = realW > 0 ? realW + 20 : Math.max(parseInt(inner.style.width)||0, inner.scrollWidth);
+  const cH = realH > 0 ? realH + 20 : Math.max(parseInt(inner.style.height)||0, inner.scrollHeight);
 
   // 전체 CSS 추출
   let allCSS = '';
