@@ -2152,10 +2152,14 @@ function rankIndex(pos) {
 }
 
 function sortEmpsByRank(emps, headName) {
-  // 1순위: 부서장(headName), 2순위: 직급순, 3순위: 이름순
+  const leaderTitles = ['대표이사','본부장','본부원','부서장','부서원','팀장','팀원'];
+  // 1순위: 부서장(headName), 2순위: 리더 직책, 3순위: 직급순, 4순위: 이름순
   return [
     ...emps.filter(e=>e.name===headName),
     ...emps.filter(e=>e.name!==headName).sort((a,b)=>{
+      const aLeader = leaderTitles.includes(a.title||'') ? 0 : 1;
+      const bLeader = leaderTitles.includes(b.title||'') ? 0 : 1;
+      if (aLeader !== bLeader) return aLeader - bLeader;
       const ra = rankIndex(a.position||''), rb = rankIndex(b.position||'');
       if (ra !== rb) return ra - rb;
       return (a.name||'').localeCompare(b.name||'','ko');
