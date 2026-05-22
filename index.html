@@ -2243,7 +2243,6 @@ function assignX(deptId, level, x, levelNodes, posMap) {
 function renderOrgView() {
   const chart = document.getElementById('orgview-chart');
   if (!chart) return;
-  const z3LvH={}; // 레벨별 최대 높이 (수평 맞춤용)
 
   const todayEl=document.getElementById('orgview-today');
   if(todayEl) todayEl.textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
@@ -2276,7 +2275,7 @@ function renderOrgView() {
   }
   function nodeH(id){
     const d=departments.find(x=>x.id===id);if(!d)return CH;
-    return CH+(getEmps(d).length>0?Math.ceil(getEmps(d).length/6)*62+8:0);
+    return CH+(getEmps(d).length>0?Math.ceil(getEmps(d).length/6)*72+8:0);
   }
   function isBot(d){return !d.position||d.position==='bottom';}
   function isZ2(d){return d.position&&d.position.startsWith('zone2-');}
@@ -2521,6 +2520,7 @@ function renderOrgView() {
     if(z3kids.length){
       const z3TotalW=z3kids.reduce((s,d)=>s+subW(d.id),0)+(z3kids.length-1)*HGAP;
       // 레벨별 최대 높이 계산
+      const z3LvH={};
       calcZ3LvHeights(z3kids.map(c=>c.id), 1, z3LvH);
       // orgLevel 1~4 모두 확보
       for(let lv=1;lv<=4;lv++){
@@ -2580,7 +2580,7 @@ function renderOrgView() {
       } else {
         rows=Math.ceil(es.length/2);
       }
-      const empH=rows*62+8;
+      const empH=rows*72+8;
       maxH=Math.max(maxH,CH+empH);
     });
     if(!lvH[lv]||lvH[lv]<maxH) lvH[lv]=maxH;
@@ -2596,7 +2596,7 @@ function renderOrgView() {
     const orgLvKey=(dept&&dept.orgLevel!=null&&dept.orgLevel!=='')?parseInt(dept.orgLevel):lv;
     const y=(z3LvY&&z3LvY[orgLvKey]!==undefined)?z3LvY[orgLvKey]:
             (z3LvY&&z3LvY[lv]!==undefined)?z3LvY[lv]:absY;
-    pos[id]={cx, absY:y, lv:orgLvKey, z3lv:lv};
+    pos[id]={cx, absY:y, lv:orgLvKey};
     const bots=gkBot(id);
     if(!bots.length)return;
     const totalChildW=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
@@ -2692,16 +2692,7 @@ function renderOrgView() {
       const leaderEmp=es.find(e=>isLeaderPos(e)); // headName 있어도 직책자 찾기
       const head=headEmp||leaderEmp||null;
       const others=head?es.filter(e=>e!==head):es;
-      // 이 카드의 실제 rows 계산 (calcZ3LvHeights와 동일 로직)
-      const hasLeaderR=!!(headEmp||leaderEmp);
-      let thisRowsR;
-      if(hasLeaderR&&es.length===1){ thisRowsR=1; }
-      else if(hasLeaderR&&es.length>1){ thisRowsR=1+Math.ceil((es.length-1)/2); }
-      else { thisRowsR=Math.ceil(es.length/2)||1; }
-      const thisCardH=CH+thisRowsR*62+8;
-      const lvMaxH=(p.z3lv&&z3LvH&&z3LvH[p.z3lv])?z3LvH[p.z3lv]:thisCardH;
-      const topPad=Math.max(6, 6+(lvMaxH-thisCardH));
-      nodes+='<div style="margin-top:'+topPad+'px">';
+      nodes+='<div style="margin-top:6px">';
       if(head&&es.length===1){
         // 직책있고 1명 → 가운데 정렬
         nodes+='<div style="display:flex;justify-content:center">'+empBubble(head,true)+'</div>';
