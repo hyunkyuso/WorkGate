@@ -2775,7 +2775,9 @@ function printOrgChart() {
     const minY = 20;
     const captureH = fullH - minY + 200; // 아래 버블 여유
 
-    html2canvas(chart, {
+    // inner div를 직접 캡처 (chart 컨테이너 오프셋 제거)
+    const captureTarget = inner || chart;
+    html2canvas(captureTarget, {
       scale: 3, useCORS: true, backgroundColor: '#f8fafc',
       logging: false, allowTaint: true,
       x: 0, y: minY, width: fullW, height: captureH
