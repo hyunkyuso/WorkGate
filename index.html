@@ -2760,7 +2760,6 @@ function printOrgChart() {
   if (!chart) return;
   const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
   const totalActive = employees.filter(e=>e.status!=='퇴직').length;
-
   showToast('🖨 인쇄 준비 중...');
 
   function doprint() {
@@ -2770,50 +2769,43 @@ function printOrgChart() {
 
     const inner = chart.querySelector('div');
     const fullW = inner ? (parseInt(inner.style.width) || chart.scrollWidth) : chart.scrollWidth;
-    const fullH = inner ? (parseInt(inner.style.height) || chart.scrollHeight) : chart.scrollHeight;
 
-    // 위쪽 빈공간만 제거: 노드 중 가장 작은 top값
+    // 실제 렌더된 전체 높이: inner.scrollHeight가 버블 포함 실제 높이
+    const styleH = inner ? parseInt(inner.style.height) : 0;
+    const scrollH = inner ? inner.scrollHeight : chart.scrollHeight;
+    const fullH = Math.max(styleH, scrollH) + 120; // 여유 120px
+
+    // 위쪽 빈공간 minY
     let minY = fullH;
     if (inner) {
       inner.querySelectorAll('[style*="position:absolute"]').forEach(function(el){
         const t = parseInt(el.style.top) || 0;
-        if (t < minY) minY = t;
+        if (t > 0 && t < minY) minY = t;
       });
     }
     const PAD = 20;
     minY = Math.max(0, minY - PAD);
+    const cropH = fullH - minY;
 
-    // 전체 너비 사용, 높이는 minY부터 끝까지
     html2canvas(chart, {
-      scale: 2, useCORS: true, backgroundColor: '#f8fafc',
+      scale: 3, useCORS: true, backgroundColor: '#f8fafc',
       logging: false, allowTaint: true,
-      x: 0, y: minY,
-      width: fullW,
-      height: fullH - minY
+      x: 0, y: minY, width: fullW, height: cropH
     }).then(function(canvas) {
       if (cvs) cvs.style.transform = saved;
-
-      // canvas 실제 크기 기준으로 비율 계산
-      const imgW = canvas.width;
-      const imgH = canvas.height;
-      const ratio = imgW / imgH;
-
-      // A4 landscape margin 8mm → 가용 281×194mm, 헤더 9mm
-      const AW = 281, AH = 185;
-      // 높이 기준으로 맞추되 너비 초과시 너비 기준
-      let iw = AH * ratio;
-      let ih = AH;
-      if (iw > AW) { iw = AW; ih = AW / ratio; }
-
-      const ml = ((AW - iw) / 2).toFixed(1);
       const imgData = canvas.toDataURL('image/png', 1.0);
+
+      // canvas 실제 비율로 mm 계산
+      const ratio = canvas.width / canvas.height;
+      const AW = 281, AH = 185;
+      let ih = AH, iw = AH * ratio;
+      if (iw > AW) { iw = AW; ih = AW / ratio; }
+      const ml = ((AW - iw) / 2).toFixed(1);
 
       const win = window.open('', '_blank');
       if (!win) { showToast('❌ 팝업 차단됨'); return; }
       win.document.write(
-        '<!DOCTYPE html><html><head>' +
-        '<meta charset="utf-8"><title>조직도</title>' +
-        '<style>' +
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>조직도</title><style>' +
         '*{margin:0;padding:0;box-sizing:border-box}' +
         'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
         '.hdr{width:'+AW+'mm;height:9mm;display:flex;justify-content:space-between;align-items:center;padding:0 3mm;border-bottom:0.4mm solid #1a1d2e}' +
@@ -2824,29 +2816,20 @@ function printOrgChart() {
         '</style></head><body>' +
         '<div class="hdr">' +
         '<div><div class="t">조직도</div><div class="m">기준일자: '+today+'</div></div>' +
-        '<div class="r">전체 <strong>'+totalActive+'</strong>명</div>' +
-        '</div>' +
-        '<img src="'+imgData+'" style="display:block;' +
-        'width:'+iw.toFixed(1)+'mm;height:'+ih.toFixed(1)+'mm;' +
-        'margin-left:'+ml+'mm;margin-top:1mm">' +
+        '<div class="r">전체 <strong>'+totalActive+'</strong>명</div></div>' +
+        '<img src="'+imgData+'" style="display:block;width:'+iw.toFixed(1)+'mm;height:'+ih.toFixed(1)+'mm;margin-left:'+ml+'mm;margin-top:1mm">' +
         '<script>window.onload=function(){setTimeout(function(){window.print();},600);}<\/script>' +
         '</body></html>'
       );
       win.document.close();
-    }).catch(function(e){
-      if(cvs) cvs.style.transform=saved;
-      showToast('❌ 캡처 실패:'+e.message);
-      console.error(e);
-    });
+    }).catch(function(e){if(cvs)cvs.style.transform=saved;showToast('❌'+e.message);console.error(e);});
   }
 
-  if (typeof html2canvas !== 'undefined') {
-    doprint();
-  } else {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-    s.onload = doprint;
-    s.onerror = function(){ showToast('❌ 라이브러리 로드 실패'); };
+  if(typeof html2canvas!=='undefined'){doprint();}
+  else{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload=doprint;s.onerror=function(){showToast('❌ 로드 실패');};
     document.head.appendChild(s);
   }
 }
