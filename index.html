@@ -2569,14 +2569,17 @@ function renderOrgView() {
       if(!d)return;
       const es=getEmps(d);
       if(!es.length){maxH=Math.max(maxH,CH);return;}
-      const hasLeader=!!es.find(function(e){
-        const isHead=d.head&&e.name===d.head;
-        const t=e.title||'';
-        return isHead||(t==='본부장'||t==='부서장'||t==='팀장');
-      });
+      // 실제 렌더링과 동일한 head 판별
+      const isLeaderPos=function(e){const t=e.title||'';return t==='본부장'||t==='부서장'||t==='팀장';};
+      const headEmp=es.find(e=>e.name===(d.head||'')&&!!d.head);
+      const leaderEmp=es.find(e=>isLeaderPos(e));
+      const head=headEmp||leaderEmp||null;
+      const others=head?es.filter(e=>e!==head):es;
       let rows;
-      if(hasLeader&&es.length>1){
-        rows=1+Math.ceil((es.length-1)/2);
+      if(head&&es.length===1){
+        rows=1;
+      } else if(head&&es.length>1){
+        rows=1+Math.ceil(others.length/2);
       } else {
         rows=Math.ceil(es.length/2);
       }
