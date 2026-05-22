@@ -2541,8 +2541,8 @@ function renderOrgView() {
       let lvCurY=Z3_Y;
       for(let lv=1;lv<=4;lv++){
         z3LvY[lv]=lvCurY;
-        z3LvY['emp_'+lv]=lvCurY+CH+6; // 직원 버블 시작 Y
-        lvCurY+=z3LvH[lv]+VGAP;
+        z3LvY['emp_'+lv]=lvCurY+CH+8; // 직원 버블 시작 Y (카드 헤더 바로 아래)
+        lvCurY+=z3LvH[lv]+VGAP+20;   // 여유 20px 추가로 겹침 방지
       }
       let blx=spineX-z3TotalW/2;
       z3kids.forEach(function(c){
@@ -2586,10 +2586,16 @@ function renderOrgView() {
       const leaderEmp=es.find(e=>isLeaderPos(e));
       const head=headEmp||leaderEmp||null;
       const others=head?es.filter(e=>e!==head):es;
+      // 보수적 rows: head 있으면 1+ceil(나머지/2), 없으면 ceil(전체/2)
+      // head 판별 실패 대비: 둘 중 큰 값 사용
+      const rowsWithHead = 1 + Math.ceil((es.length-1)/2);
+      const rowsNoHead = Math.ceil(es.length/2);
       let rows;
       if(head&&es.length===1){ rows=1; }
-      else if(head&&es.length>1){ rows=1+Math.ceil(others.length/2); }
-      else { rows=Math.ceil(es.length/2); }
+      else if(head&&es.length>1){ rows=rowsWithHead; }
+      else { rows=rowsNoHead; }
+      // head 판별이 불확실할 경우를 대비해 최대값 사용
+      rows=Math.max(rows, rowsNoHead);
       if(rows>maxRows) maxRows=rows;
     });
     const empH=maxRows>0?maxRows*62+8:0;
