@@ -194,6 +194,8 @@ select.form-input{cursor:pointer}
 .ov-emp-bubble .ov-avatar{width:52px;height:52px;border-radius:50%;border:3px solid #fff;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .ov-emp-bubble .ov-emp-name{font-size:11px;font-weight:600;color:#1a1d2e;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}
 .ov-emp-bubble .ov-emp-pos{font-size:9px;color:#5a5f7a;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}
+.ov-emp-bubble .ov-emp-name{display:flex;align-items:center;gap:2px;white-space:nowrap}
+.ov-emp-pos-inline{font-size:8px;font-weight:600;color:#5a5f7a;white-space:nowrap}
 .ov-emp-bubble.is-head .ov-avatar{width:64px;height:64px;border-color:var(--ac);border-width:3px;box-shadow:0 4px 12px rgba(79,110,247,.4)}
 .ov-emp-bubble.is-head .ov-emp-name{font-size:13px;font-weight:700;color:var(--ac)}
 .ov-v-line{width:2px;background:#d1d5db;margin:0 auto;flex-shrink:0}
@@ -2027,8 +2029,7 @@ function empBubbleHTML(e, isHead) {
         ? `<img src="${e.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
         : `<span>${initials}</span>`}
     </div>
-    <div class="ov-emp-name" title="${e.name||''}">${e.name||'-'}</div>
-    <div class="ov-emp-pos">${e.position||''}</div>
+    <div class="ov-emp-name" title="${e.name||''}"><strong>${e.name||'-'}</strong>${e.position?' <span class="ov-emp-pos-inline">'+e.position+'</span>':''}</div>
   </div>`;
 }
 
@@ -2520,13 +2521,15 @@ function renderOrgView() {
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
         const isL=isLeader2(e);
         const sz=isL?38:34;
-        const dispLabel=(e.title?e.title+' ':'')+(e.position||'');
         nodes+='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
         nodes+='<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;overflow:hidden;border:'+(isL?'2.5px solid '+empColor:'1px solid #e2e8f0')+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:'+(isL?14:13)+'px;font-weight:700;color:#fff;margin:0 auto">';
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         nodes+='</div>';
-        nodes+='<div style="font-size:9px;color:'+(isL?empColor:'#1e293b')+';font-weight:'+(isL?700:400)+';text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+e.name+'</div>';
-        if(dispLabel.trim())nodes+='<div style="font-size:8px;color:#64748b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis">'+dispLabel.trim()+'</div>';
+        // 이름(굵게) + 직위 옆에, 직책 제거
+        nodes+='<div style="display:flex;align-items:center;gap:2px;margin-top:2px;max-width:'+(EW+8)+'px">';
+        nodes+='<span style="font-size:9px;font-weight:700;color:'+(isL?empColor:'#1e293b')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+e.name+'</span>';
+        if(e.position) nodes+='<span style="font-size:8px;font-weight:600;color:#5a5f7a;white-space:nowrap">'+e.position+'</span>';
+        nodes+='</div>';
         nodes+='</div>';
       });
       nodes+='</div>';
@@ -2558,13 +2561,15 @@ function renderOrgView() {
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
         const isL=isH||isLeaderPos(e); // 직책자도 테두리 강조
         const sz=isL?40:32;
-        const dispLabel=(e.title?e.title+' ':'')+(e.position||'');
         let h='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
         h+='<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;overflow:hidden;border:'+(isL?'2px solid '+color:'1px solid #e2e8f0')+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:'+(isL?14:12)+'px;font-weight:700;color:#fff;margin:0 auto">';
         h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         h+='</div>';
-        h+='<div style="font-size:9px;color:'+(isL?color:'#1e293b')+';font-weight:'+(isL?700:400)+';text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis;margin-top:1px">'+e.name+'</div>';
-        if(dispLabel.trim())h+='<div style="font-size:8px;color:#64748b;text-align:center;white-space:nowrap;max-width:'+EW+'px;overflow:hidden;text-overflow:ellipsis">'+dispLabel.trim()+'</div>';
+        // 이름(굵게) + 직위 옆에 나란히, 직책 제거
+        h+='<div style="display:flex;align-items:center;gap:2px;margin-top:1px;max-width:'+(EW+8)+'px">';
+        h+='<span style="font-size:9px;font-weight:700;color:'+(isL?color:'#1e293b')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+e.name+'</span>';
+        if(e.position) h+='<span style="font-size:8px;font-weight:600;color:#5a5f7a;white-space:nowrap">'+e.position+'</span>';
+        h+='</div>';
         h+='</div>';
         return h;
       }
@@ -2770,15 +2775,17 @@ function printOrgChart() {
       const imgW = canvas.width, imgH = canvas.height;
       const ratio = imgW / imgH;
 
-      // A4 landscape margin 10mm → 가용: 277×190mm
-      // 헤더: 10mm 고정 → 조직도 가용: 277×180mm
-      const HDR = 10;   // mm
-      const AW = 277;   // mm
-      const AH = 190 - HDR; // 180mm
+      // A4 landscape margin 8mm → 가용: 281×194mm
+      // 헤더: 9mm → 조직도 가용: 281×185mm
+      const HDR = 9;
+      const AW = 281;
+      const AH = 185;
 
-      // 비율 유지 최대 확대
-      let iw = AW, ih = AW / ratio;
-      if (ih > AH) { ih = AH; iw = AH * ratio; }
+      // 높이 기준으로 꽉 채움 (아래 빈공간 없애기)
+      let ih = AH;
+      let iw = AH * ratio;
+      // 너비가 넘치면 너비 기준으로
+      if (iw > AW) { iw = AW; ih = AW / ratio; }
       const ml = ((AW - iw) / 2).toFixed(1);
 
       const win = window.open('', '_blank');
@@ -2789,30 +2796,24 @@ function printOrgChart() {
         '<style>' +
         '*{margin:0;padding:0;box-sizing:border-box}' +
         'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
-        // 헤더: 10mm 고정
-        '.hdr{width:' + AW + 'mm;height:' + HDR + 'mm;' +
-        'display:flex;justify-content:space-between;align-items:center;' +
-        'padding:0 3mm;border-bottom:0.5mm solid #1a1d2e;}' +
-        '.hdr-t{font-size:4.5mm;font-weight:700;color:#1a1d2e;line-height:1}' +
-        '.hdr-m{font-size:2.8mm;color:#666;line-height:1}' +
-        '.hdr-r{font-size:3.5mm;color:#444;font-weight:600}' +
+        '.hdr{width:'+AW+'mm;height:'+HDR+'mm;display:flex;justify-content:space-between;align-items:center;padding:0 3mm;border-bottom:0.4mm solid #1a1d2e;}' +
+        '.hdr-l .t{font-size:4mm;font-weight:700;color:#1a1d2e;line-height:1.1}' +
+        '.hdr-l .m{font-size:2.5mm;color:#666;line-height:1}' +
+        '.hdr-r{font-size:3mm;color:#444}' +
+        '.hdr-r strong{font-size:5mm;font-weight:700;color:#1a1d2e}' +
+        '.chart-box{width:'+AW+'mm;height:'+AH+'mm;display:flex;align-items:center;justify-content:center;}' +
         '@media print{' +
-        '@page{size:A4 landscape;margin:10mm}' +
+        '@page{size:A4 landscape;margin:8mm}' +
         'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
         '}' +
         '</style></head><body>' +
-        // 헤더
         '<div class="hdr">' +
-        '<div>' +
-        '<div class="hdr-t">조직도</div>' +
-        '<div class="hdr-m">기준일자: ' + today + '</div>' +
+        '<div class="hdr-l"><div class="t">조직도</div><div class="m">기준일자: '+today+'</div></div>' +
+        '<div class="hdr-r">전체 <strong>'+totalActive+'</strong>명</div>' +
         '</div>' +
-        '<div class="hdr-r">전체 <strong style="font-size:5mm">' + totalActive + '</strong>명</div>' +
+        '<div class="chart-box">' +
+        '<img src="'+imgData+'" style="display:block;width:'+iw.toFixed(1)+'mm;height:'+ih.toFixed(1)+'mm">' +
         '</div>' +
-        // 조직도 이미지
-        '<img src="' + imgData + '" ' +
-        'style="display:block;width:' + iw.toFixed(1) + 'mm;height:' + ih.toFixed(1) + 'mm;' +
-        'margin-left:' + ml + 'mm;margin-top:1mm">' +
         '<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script>' +
         '</body></html>'
       );
