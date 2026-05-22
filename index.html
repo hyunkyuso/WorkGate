@@ -2657,7 +2657,16 @@ function renderOrgView() {
     nodes+='<div style="background:'+color+';color:#fff;border-radius:8px;padding:7px 9px;text-align:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
     // 인원수: lv1=전체합산, lv2=lv2+lv3합산, lv3=직속만
     const dispCount = getDeptCountWithConcurrent(id);
-    nodes+=dept.name+'<div style="font-size:9px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명'+(p.lv>0&&headName?' · '+headName:'')+'</div></div>';
+    // lv0: 대표이사 이름을 직원 목록에서 찾아 표시
+    let cardSubLabel = '';
+    if(p.lv===0){
+      const ceoEmp = employees.find(e=>e.status!=='퇴직'&&(e.title==='대표이사'||e.title==='CEO'||(e.position==='대표이사'||e.position==='CEO')));
+      if(ceoEmp) cardSubLabel = ceoEmp.name;
+      else if(es.length) cardSubLabel = es[0].name;
+    } else if(headName){
+      cardSubLabel = headName;
+    }
+    nodes+=dept.name+'<div style="font-size:9px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명'+(cardSubLabel?' · '+cardSubLabel:'')+'</div></div>';
     // 3구역만 직원 카드 아래 표시
     if(es.length&&!isZ2(dept)&&!isZ2subNode&&p.lv>0){
       // 직책 판별
@@ -2691,7 +2700,7 @@ function renderOrgView() {
       const leaderEmp=es.find(e=>isLeaderPos(e)); // headName 있어도 직책자 찾기
       const head=headEmp||leaderEmp||null;
       const others=head?es.filter(e=>e!==head):es;
-      nodes+='<div style="margin-top:6px">';
+      nodes+='<div style="margin-top:6px;width:'+cardW+'px">';
       if(head&&es.length===1){
         // 직책있고 1명 → 가운데 정렬
         nodes+='<div style="display:flex;justify-content:center">'+empBubble(head,true)+'</div>';
