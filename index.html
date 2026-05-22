@@ -2536,13 +2536,12 @@ function renderOrgView() {
       for(let lv=1;lv<=4;lv++){
         if(!z3LvH[lv]) z3LvH[lv]=CH;
       }
-      // orgLevel 기준으로 Y 계산
+      // orgLevel 기준으로 Y 계산 (z3LvH = CH + maxRows*62 + 8)
       const z3LvY={};
       let lvCurY=Z3_Y;
       for(let lv=1;lv<=4;lv++){
         z3LvY[lv]=lvCurY;
-        z3LvY['emp_'+lv]=lvCurY+CH+8; // 직원 버블 시작 Y (카드 헤더 바로 아래)
-        lvCurY+=z3LvH[lv]+VGAP+20;   // 여유 20px 추가로 겹침 방지
+        lvCurY+=z3LvH[lv]+VGAP;
       }
       let blx=spineX-z3TotalW/2;
       z3kids.forEach(function(c){
@@ -2614,9 +2613,7 @@ function renderOrgView() {
     const orgLvKey=(dept&&dept.orgLevel!=null&&dept.orgLevel!=='')?parseInt(dept.orgLevel):lv;
     const y=(z3LvY&&z3LvY[orgLvKey]!==undefined)?z3LvY[orgLvKey]:
             (z3LvY&&z3LvY[lv]!==undefined)?z3LvY[lv]:absY;
-    // 직원 행 시작 Y: z3LvY['emp_'+lv] 기준 (같은 레벨 모든 카드 동일)
-    const empBaseY=(z3LvY&&z3LvY['emp_'+orgLvKey]!==undefined)?z3LvY['emp_'+orgLvKey]:(y+CH+6);
-    pos[id]={cx, absY:y, lv:orgLvKey, empBaseY};
+    pos[id]={cx, absY:y, lv:orgLvKey};
     const bots=gkBot(id);
     if(!bots.length)return;
     const totalChildW=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
@@ -2679,8 +2676,7 @@ function renderOrgView() {
     // 인원수: lv1=전체합산, lv2=lv2+lv3합산, lv3=직속만
     const dispCount = getDeptCountWithConcurrent(id);
     nodes+=dept.name+'<div style="font-size:9px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명'+(p.lv>0&&headName?' · '+headName:'')+'</div></div>';
-    nodes+='</div>';
-    // 3구역만 직원 카드 아래 별도 절대 배치 (같은 레벨 카드끼리 행 Y 맞춤)
+    // 3구역만 직원 카드 아래 표시 (카드 div 안)
     if(es.length&&!isZ2(dept)&&!isZ2subNode&&p.lv>0){
       const isLeaderPos=function(e){
         const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장';
@@ -2714,37 +2710,30 @@ function renderOrgView() {
       const othersRowW=others.length>=2?bw(others[0])+3+bw(others[1]):others.length===1?bw(others[0]):0;
       const headBW=head?bw(head):0;
       const contW=Math.max(headBW, othersRowW, EW);
-      // empBaseY: placeZ3에서 저장한 카드Y+CH+6, 없으면 직접 계산
-      const baseY=p.empBaseY!==undefined?p.empBaseY:(y+CH+6);
-      const empLeft=p.cx-contW/2;
-      // 각 행을 절대 Y로 개별 배치
-      const rows=[];
-      if(head){ rows.push([head]); }
-      for(let ri=0;ri<others.length;ri+=2){
-        rows.push(others[ri+1]?[others[ri],others[ri+1]]:[others[ri]]);
-      }
-      if(!head){
-        const allRows=[];
-        for(let ri=0;ri<es.length;ri+=2){
-          allRows.push(es[ri+1]?[es[ri],es[ri+1]]:[es[ri]]);
+      const empContLeft=(cardW-contW)/2;
+      nodes+='<div style="margin-top:6px;margin-left:'+empContLeft+'px;width:'+contW+'px">';
+      if(head&&es.length===1){
+        nodes+='<div style="display:flex;justify-content:center">'+empBubble(head,true)+'</div>';
+      } else if(head&&es.length>1){
+        nodes+='<div style="display:flex;justify-content:center;margin-bottom:3px">'+empBubble(head,true)+'</div>';
+        for(let ri=0;ri<others.length;ri+=2){
+          nodes+='<div style="display:flex;gap:3px">';
+          nodes+=empBubble(others[ri],false);
+          if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
+          nodes+='</div>';
         }
-        rows.length=0;
-        allRows.forEach(function(r){rows.push(r);});
+      } else {
+        for(let ri=0;ri<es.length;ri+=2){
+          nodes+='<div style="display:flex;gap:3px">';
+          const isH1=es[ri].name===headName&&!!headName;
+          nodes+=empBubble(es[ri],isH1);
+          if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
+          nodes+='</div>';
+        }
       }
-      rows.forEach(function(row,ri){
-        const rowY=baseY+ri*62;
-        const isHeadRow=(head&&ri===0);
-        const rowContW=isHeadRow?bw(row[0]):(row.length>=2?bw(row[0])+3+bw(row[1]):bw(row[0]));
-        const rowLeft=isHeadRow?(p.cx-rowContW/2):empLeft;
-        const justify=isHeadRow?'justify-content:center;':'';
-        nodes+='<div style="position:absolute;left:'+rowLeft+'px;top:'+rowY+'px;display:flex;gap:3px;'+justify+'z-index:2">';
-        row.forEach(function(e,ei){
-          const isH=(isHeadRow&&ei===0);
-          nodes+=empBubble(e,isH);
-        });
-        nodes+='</div>';
-      });
+      nodes+='</div>';
     }
+    nodes+='</div>';
   });
 
   const allCX=Object.values(pos).filter(p=>p.cx!=null).map(p=>p.cx);
