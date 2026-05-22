@@ -2541,6 +2541,7 @@ function renderOrgView() {
       let lvCurY=Z3_Y;
       for(let lv=1;lv<=4;lv++){
         z3LvY[lv]=lvCurY;
+        z3LvY['emp_'+lv]=lvCurY+CH+6; // 직원 버블 시작 Y
         lvCurY+=z3LvH[lv]+VGAP;
       }
       let blx=spineX-z3TotalW/2;
@@ -2570,34 +2571,32 @@ function renderOrgView() {
     }
   });
 
-  // 3구역: 레벨별 최대 높이를 먼저 계산해서 모든 노드가 같은 Y줄에 오도록
+  // 3구역: 레벨별 최대 행수 계산 → 각 행의 Y좌표를 동일하게 맞춤
+  // z3LvRowY[lv][row] = 해당 레벨, 해당 직원행의 절대 Y
   function calcZ3LvHeights(ids, lv, lvH){
     if(!ids.length)return;
-    let maxH=CH;
+    let maxRows=0;
     ids.forEach(function(id){
       const d=departments.find(x=>x.id===id);
       if(!d)return;
       const es=getEmps(d);
-      if(!es.length){maxH=Math.max(maxH,CH);return;}
-      // 실제 렌더링과 동일한 head 판별
+      if(!es.length)return;
       const isLeaderPos=function(e){const t=e.title||'';return t==='본부장'||t==='부서장'||t==='팀장';};
       const headEmp=es.find(e=>e.name===(d.head||'')&&!!d.head);
       const leaderEmp=es.find(e=>isLeaderPos(e));
       const head=headEmp||leaderEmp||null;
       const others=head?es.filter(e=>e!==head):es;
       let rows;
-      if(head&&es.length===1){
-        rows=1;
-      } else if(head&&es.length>1){
-        rows=1+Math.ceil(others.length/2);
-      } else {
-        rows=Math.ceil(es.length/2);
-      }
-      // 행 높이: 겸직 버블은 72px로 넓어도 높이는 동일(62px)
-      const empH=rows*62+8;
-      maxH=Math.max(maxH,CH+empH);
+      if(head&&es.length===1){ rows=1; }
+      else if(head&&es.length>1){ rows=1+Math.ceil(others.length/2); }
+      else { rows=Math.ceil(es.length/2); }
+      if(rows>maxRows) maxRows=rows;
     });
-    if(!lvH[lv]||lvH[lv]<maxH) lvH[lv]=maxH;
+    const empH=maxRows>0?maxRows*62+8:0;
+    const totalH=CH+(empH>0?empH:0);
+    if(!lvH[lv]||lvH[lv]<totalH) lvH[lv]=totalH;
+    // 이 레벨의 최대 행수 저장 (행별 Y 계산용)
+    if(!lvH['rows_'+lv]||lvH['rows_'+lv]<maxRows) lvH['rows_'+lv]=maxRows;
     const nextIds=[];
     ids.forEach(function(id){gkBot(id).forEach(function(c){nextIds.push(c.id);});});
     calcZ3LvHeights(nextIds, lv+1, lvH);
@@ -2605,12 +2604,13 @@ function renderOrgView() {
 
   function placeZ3(id, left, absY, lv, z3LvY){
     const w=subW(id), cx=left+w/2;
-    // orgLevel이 설정된 경우 그것으로 z3LvY 인덱스 결정
     const dept=departments.find(x=>x.id===id);
     const orgLvKey=(dept&&dept.orgLevel!=null&&dept.orgLevel!=='')?parseInt(dept.orgLevel):lv;
     const y=(z3LvY&&z3LvY[orgLvKey]!==undefined)?z3LvY[orgLvKey]:
             (z3LvY&&z3LvY[lv]!==undefined)?z3LvY[lv]:absY;
-    pos[id]={cx, absY:y, lv:orgLvKey};
+    // 직원 행 시작 Y: z3LvY['emp_'+lv] 기준 (같은 레벨 모든 카드 동일)
+    const empBaseY=(z3LvY&&z3LvY['emp_'+orgLvKey]!==undefined)?z3LvY['emp_'+orgLvKey]:(y+CH+6);
+    pos[id]={cx, absY:y, lv:orgLvKey, empBaseY};
     const bots=gkBot(id);
     if(!bots.length)return;
     const totalChildW=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
@@ -2673,9 +2673,9 @@ function renderOrgView() {
     // 인원수: lv1=전체합산, lv2=lv2+lv3합산, lv3=직속만
     const dispCount = getDeptCountWithConcurrent(id);
     nodes+=dept.name+'<div style="font-size:9px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명'+(p.lv>0&&headName?' · '+headName:'')+'</div></div>';
-    // 3구역만 직원 카드 아래 표시
+    nodes+='</div>';
+    // 3구역만 직원 카드 아래 별도 절대 배치 (같은 레벨 카드끼리 행 Y 맞춤)
     if(es.length&&!isZ2(dept)&&!isZ2subNode&&p.lv>0){
-      // 직책 판별
       const isLeaderPos=function(e){
         const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장';
       };
@@ -2685,7 +2685,6 @@ function renderOrgView() {
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
         const isL=isH||isLeaderPos(e);
         const avatarBorder=isL?'2px solid '+color:'1.5px solid #94a3b8';
-        // 겸직: 전체 박스에 점선 테두리, 너비 확장
         const BW=e.isConcurrent?72:EW;
         const boxStyle=e.isConcurrent
           ?'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
@@ -2698,48 +2697,48 @@ function renderOrgView() {
         if(e.position) h+='<span style="font-size:11px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
         h+='<span style="font-size:11px;font-weight:700;color:'+(isL?color:'#1e293b')+';white-space:nowrap">'+e.name+'</span>';
         h+='</div>';
-
         h+='</div>';
         return h;
       }
-      // 부서장(headName) 또는 직책이 본부장/부서장/팀장인 사람 → 첫줄 단독
       const headEmp=es.find(e=>e.name===headName&&!!headName);
-      const leaderEmp=es.find(e=>isLeaderPos(e)); // headName 있어도 직책자 찾기
+      const leaderEmp=es.find(e=>isLeaderPos(e));
       const head=headEmp||leaderEmp||null;
       const others=head?es.filter(e=>e!==head):es;
-      // 버블 실제 너비: 겸직이면 72, 아니면 EW(56)
       function bw(e){return (e&&e.isConcurrent)?72:EW;}
-      // others 한 행 너비(2명) vs head 너비 중 큰 값으로 컨테이너 너비 결정
       const othersRowW=others.length>=2?bw(others[0])+3+bw(others[1]):others.length===1?bw(others[0]):0;
       const headBW=head?bw(head):0;
       const contW=Math.max(headBW, othersRowW, EW);
-      const empContLeft=(cardW-contW)/2;
-      nodes+='<div style="margin-top:6px;margin-left:'+empContLeft+'px;width:'+contW+'px">';
-      if(head&&es.length===1){
-        // 직책있고 1명 → 가운데 정렬
-        nodes+='<div style="display:flex;justify-content:center">'+empBubble(head,true)+'</div>';
-      } else if(head&&es.length>1){
-        // 직책있고 여러명 → 첫줄 단독 가운데, 나머지 2명씩 왼쪽 정렬
-        nodes+='<div style="display:flex;justify-content:center;margin-bottom:3px">'+empBubble(head,true)+'</div>';
-        for(let ri=0;ri<others.length;ri+=2){
-          nodes+='<div style="display:flex;gap:3px">';
-          nodes+=empBubble(others[ri],false);
-          if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
-          nodes+='</div>';
-        }
-      } else {
-        // 직책없으면 2명씩 왼쪽 정렬
-        for(let ri=0;ri<es.length;ri+=2){
-          nodes+='<div style="display:flex;gap:3px">';
-          const isH1=es[ri].name===headName&&!!headName;
-          nodes+=empBubble(es[ri],isH1);
-          if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
-          nodes+='</div>';
-        }
+      // empBaseY: placeZ3에서 저장한 카드Y+CH+6, 없으면 직접 계산
+      const baseY=p.empBaseY!==undefined?p.empBaseY:(y+CH+6);
+      const empLeft=p.cx-contW/2;
+      // 각 행을 절대 Y로 개별 배치
+      const rows=[];
+      if(head){ rows.push([head]); }
+      for(let ri=0;ri<others.length;ri+=2){
+        rows.push(others[ri+1]?[others[ri],others[ri+1]]:[others[ri]]);
       }
-      nodes+='</div>';
+      if(!head){
+        const allRows=[];
+        for(let ri=0;ri<es.length;ri+=2){
+          allRows.push(es[ri+1]?[es[ri],es[ri+1]]:[es[ri]]);
+        }
+        rows.length=0;
+        allRows.forEach(function(r){rows.push(r);});
+      }
+      rows.forEach(function(row,ri){
+        const rowY=baseY+ri*62;
+        const isHeadRow=(head&&ri===0);
+        const rowContW=isHeadRow?bw(row[0]):(row.length>=2?bw(row[0])+3+bw(row[1]):bw(row[0]));
+        const rowLeft=isHeadRow?(p.cx-rowContW/2):empLeft;
+        const justify=isHeadRow?'justify-content:center;':'';
+        nodes+='<div style="position:absolute;left:'+rowLeft+'px;top:'+rowY+'px;display:flex;gap:3px;'+justify+'z-index:2">';
+        row.forEach(function(e,ei){
+          const isH=(isHeadRow&&ei===0);
+          nodes+=empBubble(e,isH);
+        });
+        nodes+='</div>';
+      });
     }
-    nodes+='</div>';
   });
 
   const allCX=Object.values(pos).filter(p=>p.cx!=null).map(p=>p.cx);
