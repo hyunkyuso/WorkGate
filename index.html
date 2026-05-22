@@ -2778,9 +2778,13 @@ function printOrgChart() {
 
   // A4 landscape 가용: 281×185mm
   const AW = 281, AH = 185;
-  const scale = Math.min(AW / (cW * 0.2646), AH / (cH * 0.2646)); // px to mm: 1px = 0.2646mm
-  const iw = (cW * 0.2646 * scale).toFixed(1);
-  const ih = (cH * 0.2646 * scale).toFixed(1);
+  // px→mm: 96dpi 기준 1px = 0.2646mm
+  const pxToMm = 0.2646;
+  const scaleW = AW / (cW * pxToMm);
+  const scaleH = AH / (cH * pxToMm);
+  const scale = Math.min(scaleW, scaleH);
+  const iw = (cW * pxToMm * scale).toFixed(1);
+  const ih = (cH * pxToMm * scale).toFixed(1);
   const ml = ((AW - parseFloat(iw)) / 2).toFixed(1);
 
   const win = window.open('', '_blank');
@@ -2793,8 +2797,8 @@ function printOrgChart() {
     '.hdr{width:'+AW+'mm;height:9mm;display:flex;justify-content:space-between;align-items:center;padding:0 3mm;border-bottom:0.4mm solid #1a1d2e}' +
     '.t{font-size:4mm;font-weight:700;color:#1a1d2e}.m{font-size:2.5mm;color:#666}' +
     '.r strong{font-size:5mm;font-weight:700;color:#1a1d2e}.r{font-size:3mm;color:#444}' +
-    '.chart-box{width:'+AW+'mm;height:'+AH+'mm;overflow:hidden}' +
-    '.chart-scale{zoom:'+scale.toFixed(4)+';width:'+cW+'px;height:'+cH+'px;position:relative}' +
+    '.chart-box{width:'+AW+'mm;height:'+AH+'mm;overflow:hidden;display:flex;justify-content:center;align-items:flex-start}' +
+    '.chart-scale{zoom:'+scale.toFixed(4)+';width:'+cW+'px;height:'+cH+'px;position:relative;flex-shrink:0}' +
     '@media print{@page{size:A4 landscape;margin:8mm}' +
     'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}' +
     '</style></head><body>' +
