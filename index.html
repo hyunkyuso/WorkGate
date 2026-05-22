@@ -2769,43 +2769,44 @@ function printOrgChart() {
     if (cvs) cvs.style.transform = 'none';
 
     const inner = chart.querySelector('div');
-    const cW = inner ? (parseInt(inner.style.width) || chart.scrollWidth) : chart.scrollWidth;
-    const cH = inner ? (parseInt(inner.style.height) || chart.scrollHeight) : chart.scrollHeight;
+    const fullW = inner ? (parseInt(inner.style.width) || chart.scrollWidth) : chart.scrollWidth;
+    const fullH = inner ? (parseInt(inner.style.height) || chart.scrollHeight) : chart.scrollHeight;
 
-    // 위쪽 빈 공간만 제거 (minY), 아래는 전체 높이 사용
-    let minX = cW, minY = cH, maxX = 0;
+    // 위쪽 빈공간만 제거: 노드 중 가장 작은 top값
+    let minY = fullH;
     if (inner) {
       inner.querySelectorAll('[style*="position:absolute"]').forEach(function(el){
-        const l = parseInt(el.style.left) || 0;
         const t = parseInt(el.style.top) || 0;
-        const w = el.offsetWidth || 0;
-        if (l < minX) minX = l;
         if (t < minY) minY = t;
-        if (l + w > maxX) maxX = l + w;
       });
     }
-    const PAD = 30;
-    minX = Math.max(0, minX - PAD);
+    const PAD = 20;
     minY = Math.max(0, minY - PAD);
-    maxX = Math.min(cW, maxX + PAD);
-    const cropW = maxX > minX ? maxX - minX : cW;
-    // 아래는 전체 높이 사용 (잘림 방지)
-    const cropH = cH - minY;
 
+    // 전체 너비 사용, 높이는 minY부터 끝까지
     html2canvas(chart, {
-      scale: 3, useCORS: true, backgroundColor: '#f8fafc',
+      scale: 2, useCORS: true, backgroundColor: '#f8fafc',
       logging: false, allowTaint: true,
-      x: minX, y: minY, width: cropW, height: cropH
+      x: 0, y: minY,
+      width: fullW,
+      height: fullH - minY
     }).then(function(canvas) {
       if (cvs) cvs.style.transform = saved;
 
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      const ratio = cropW / cropH;
+      // canvas 실제 크기 기준으로 비율 계산
+      const imgW = canvas.width;
+      const imgH = canvas.height;
+      const ratio = imgW / imgH;
 
+      // A4 landscape margin 8mm → 가용 281×194mm, 헤더 9mm
       const AW = 281, AH = 185;
-      let ih = AH, iw = AH * ratio;
+      // 높이 기준으로 맞추되 너비 초과시 너비 기준
+      let iw = AH * ratio;
+      let ih = AH;
       if (iw > AW) { iw = AW; ih = AW / ratio; }
+
       const ml = ((AW - iw) / 2).toFixed(1);
+      const imgData = canvas.toDataURL('image/png', 1.0);
 
       const win = window.open('', '_blank');
       if (!win) { showToast('❌ 팝업 차단됨'); return; }
@@ -2816,10 +2817,8 @@ function printOrgChart() {
         '*{margin:0;padding:0;box-sizing:border-box}' +
         'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
         '.hdr{width:'+AW+'mm;height:9mm;display:flex;justify-content:space-between;align-items:center;padding:0 3mm;border-bottom:0.4mm solid #1a1d2e}' +
-        '.t{font-size:4mm;font-weight:700;color:#1a1d2e}' +
-        '.m{font-size:2.5mm;color:#666}' +
-        '.r strong{font-size:5mm;font-weight:700;color:#1a1d2e}' +
-        '.r{font-size:3mm;color:#444}' +
+        '.t{font-size:4mm;font-weight:700;color:#1a1d2e}.m{font-size:2.5mm;color:#666}' +
+        '.r strong{font-size:5mm;font-weight:700;color:#1a1d2e}.r{font-size:3mm;color:#444}' +
         '@media print{@page{size:A4 landscape;margin:8mm}' +
         'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}' +
         '</style></head><body>' +
@@ -2827,12 +2826,18 @@ function printOrgChart() {
         '<div><div class="t">조직도</div><div class="m">기준일자: '+today+'</div></div>' +
         '<div class="r">전체 <strong>'+totalActive+'</strong>명</div>' +
         '</div>' +
-        '<img src="'+imgData+'" style="display:block;width:'+iw.toFixed(1)+'mm;height:'+ih.toFixed(1)+'mm;margin-left:'+ml+'mm;margin-top:1mm">' +
-        '<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script>' +
+        '<img src="'+imgData+'" style="display:block;' +
+        'width:'+iw.toFixed(1)+'mm;height:'+ih.toFixed(1)+'mm;' +
+        'margin-left:'+ml+'mm;margin-top:1mm">' +
+        '<script>window.onload=function(){setTimeout(function(){window.print();},600);}<\/script>' +
         '</body></html>'
       );
       win.document.close();
-    }).catch(function(e){ if(cvs) cvs.style.transform=saved; showToast('❌ 캡처 실패:'+e.message); console.error(e); });
+    }).catch(function(e){
+      if(cvs) cvs.style.transform=saved;
+      showToast('❌ 캡처 실패:'+e.message);
+      console.error(e);
+    });
   }
 
   if (typeof html2canvas !== 'undefined') {
