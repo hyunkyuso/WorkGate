@@ -2649,10 +2649,12 @@ function renderOrgView() {
     // 2구역 하위 여부 먼저 판별
     const isZ2subNode = pos['emp_'+id] !== undefined || pos['emp1_'+id] !== undefined;
     // 3구역 lv1,lv2는 하위 범위 너비로 카드 표시
-    const cardW=((!isZ2(dept)&&!isZ2subNode&&(p.lv===1||p.lv===2)))?Math.max(CW,subW(id)):CW;
+    // lv0(대표이사)는 이름 길이에 맞게 너비 동적 조정
+    let cardW=((!isZ2(dept)&&!isZ2subNode&&(p.lv===1||p.lv===2)))?Math.max(CW,subW(id)):CW;
+    if(p.lv===0) cardW=Math.max(CW, dept.name.length*12+28);
     const cardX=p.cx-cardW/2;
     nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+cardX+'px;top:'+y+'px;width:'+cardW+'px;cursor:pointer;z-index:2">';
-    nodes+='<div style="background:'+color+';color:#fff;border-radius:8px;padding:7px 9px;text-align:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2)">';
+    nodes+='<div style="background:'+color+';color:#fff;border-radius:8px;padding:7px 9px;text-align:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
     // 인원수: lv1=전체합산, lv2=lv2+lv3합산, lv3=직속만
     const dispCount = getDeptCountWithConcurrent(id);
     nodes+=dept.name+'<div style="font-size:9px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명'+(headName?' · '+headName:'')+'</div></div>';
