@@ -2243,6 +2243,7 @@ function assignX(deptId, level, x, levelNodes, posMap) {
 function renderOrgView() {
   const chart = document.getElementById('orgview-chart');
   if (!chart) return;
+  const z3LvH={}; // 레벨별 최대 높이 (수평 맞춤용)
 
   const todayEl=document.getElementById('orgview-today');
   if(todayEl) todayEl.textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
@@ -2517,7 +2518,6 @@ function renderOrgView() {
     }
 
     // 3구역 배치: 레벨별 Y 먼저 계산
-    const z3LvH={}; // 렌더링 시 접근 가능하도록 블록 밖 선언
     if(z3kids.length){
       const z3TotalW=z3kids.reduce((s,d)=>s+subW(d.id),0)+(z3kids.length-1)*HGAP;
       // 레벨별 최대 높이 계산
