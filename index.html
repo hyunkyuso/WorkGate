@@ -2657,7 +2657,7 @@ function renderOrgView() {
     nodes+='<div style="background:'+color+';color:#fff;border-radius:8px;padding:7px 9px;text-align:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
     // 인원수: lv1=전체합산, lv2=lv2+lv3합산, lv3=직속만
     const dispCount = getDeptCountWithConcurrent(id);
-    nodes+=dept.name+'<div style="font-size:9px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명'+(headName?' · '+headName:'')+'</div></div>';
+    nodes+=dept.name+'<div style="font-size:9px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명'+(p.lv>0&&headName?' · '+headName:'')+'</div></div>';
     // 3구역만 직원 카드 아래 표시
     if(es.length&&!isZ2(dept)&&!isZ2subNode&&p.lv>0){
       // 직책 판별
@@ -2699,9 +2699,10 @@ function renderOrgView() {
         // 직책있고 여러명 → 첫줄 단독, 나머지 2명씩
         nodes+='<div style="display:flex;justify-content:center;margin-bottom:3px">'+empBubble(head,true)+'</div>';
         for(let ri=0;ri<others.length;ri+=2){
-          // others가 1명(직책1+나머지1)이면 가운데, 그외 왼쪽
-          const centerRow=(others.length===1);
-          nodes+='<div style="display:flex;gap:3px;'+(centerRow?'justify-content:center':'')+'">';
+          // 마지막 줄이 1명이면 가운데 정렬
+          const isLastRow=(ri+2>=others.length);
+          const centerRow=isLastRow&&(others.length%2===1);
+          nodes+='<div style="display:flex;gap:3px;justify-content:center">';
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
           nodes+='</div>';
@@ -2709,8 +2710,7 @@ function renderOrgView() {
       } else {
         // 직책없으면 2명씩 (1명이면 가운데)
         for(let ri=0;ri<es.length;ri+=2){
-          const rowStyle=es.length===1?'justify-content:center':'';
-          nodes+='<div style="display:flex;gap:3px;'+rowStyle+'">';
+          nodes+='<div style="display:flex;gap:3px;justify-content:center">';
           const isH1=es[ri].name===headName&&!!headName;
           nodes+=empBubble(es[ri],isH1);
           if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
