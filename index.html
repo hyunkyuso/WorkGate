@@ -2753,94 +2753,77 @@ function printOrgChart() {
   const totalActive = employees.filter(e=>e.status!=='퇴직').length;
   const statsText = (document.getElementById('orgview-stats')||{}).textContent||'';
 
-  // CSS 전체 추출
-  let ovCSS = '';
-  try {
-    Array.from(document.styleSheets).forEach(function(ss){
-      try { Array.from(ss.cssRules).forEach(function(r){ if(r.cssText) ovCSS+=r.cssText+' '; }); } catch(e){}
-    });
-  } catch(e){}
-  // CSS 변수 고정값으로 앞에 추가 (인쇄창에서 :root 변수 적용 보장)
-  ovCSS = ':root{--bg:#f5f6fa;--white:#ffffff;--surface:#f0f2f8;--border:#e2e5ef;' +
-    '--t1:#1a1d2e;--t2:#5a5f7a;--t3:#9ca0b8;--ac:#4f6ef7;--ac2:#3a57e8;' +
-    '--pu:#7c3aed;--rd:#e53e3e;--gn:#38a169;--am:#d97706;' +
-    '--r:8px;--r2:12px;}' + ovCSS;
+  showToast('🖨 인쇄 준비 중...');
 
-  // 조직도 실제 크기 (내부 div의 style.width/height)
-  const chartDiv = chart.querySelector('div');
-  const chartW = chartDiv ? (parseInt(chartDiv.style.width)||chart.scrollWidth) : chart.scrollWidth;
-  const chartH = chartDiv ? (parseInt(chartDiv.style.height)||chart.scrollHeight) : chart.scrollHeight;
+  // html2canvas로 조직도 캡처
+  function doprint() {
+    // transform 임시 제거
+    const cvs = document.getElementById('orgview-canvas');
+    const saved = cvs ? cvs.style.transform : '';
+    if (cvs) cvs.style.transform = 'none';
 
-  // A4 landscape margin 5mm → 가용: 287×192mm
-  // zoom 방식: 브라우저 인쇄 시 실제 픽셀 크기를 줄여줌
-  // 287mm / chartW(px) * 96(dpi) / 25.4(mm/inch) = zoom%
-  const mmToIn = 1/25.4;
-  const dpi = 96;
-  // A4 landscape 가용: 287×197mm (헤더 ~13mm 제외)
-  const availWpx = Math.round(287 * dpi * mmToIn); // 1085px
-  const availHpx = Math.round(197 * dpi * mmToIn); // 745px
-  const zoomByW = availWpx / chartW;
-  const zoomByH = availHpx / chartH;
-  const zoom = Math.min(zoomByW, zoomByH);
-  const zoomPct = (zoom * 100).toFixed(2) + '%';
+    html2canvas(chart, {
+      scale: 2, useCORS: true, backgroundColor: '#f8fafc',
+      logging: false, allowTaint: true,
+      width: chart.scrollWidth, height: chart.scrollHeight, x: 0, y: 0
+    }).then(function(canvas) {
+      if (cvs) cvs.style.transform = saved;
 
-  const win = window.open('', '_blank');
-  if (!win) { showToast('❌ 팝업이 차단되었습니다.'); return; }
+      const imgData = canvas.toDataURL('image/png');
+      const imgW = canvas.width, imgH = canvas.height;
 
-  // A4 landscape @96dpi: 297×210mm, margin 5mm → 1085×756px
-  // 헤더 40px 제외 → 조직도 가용: 1085×716px
-  const PAGE_W = 1085, PAGE_H = 756, HDR_H = 40;
-  const availW = PAGE_W;
-  const availH = PAGE_H - HDR_H;
-  const scale = Math.min(availW / chartW, availH / chartH);
-  const scaledW = Math.round(chartW * scale);
-  const scaledH = Math.round(chartH * scale);
-  // 중앙 정렬용 여백
-  const offsetX = Math.max(0, Math.round((availW - scaledW) / 2));
+      // A4 landscape 인쇄 가용: 277×187mm (margin 10mm)
+      // 96dpi 기준 px: 1047 × 707
+      const PW = 1047, PH = 707;
+      const ratio = imgW / imgH;
+      let w = PW, h = PW / ratio;
+      if (h > PH) { h = PH; w = PH * ratio; }
+      const x = Math.round((PW - w) / 2);
+      const y = Math.round((PH - h) / 2);
 
-  win.document.write('<!DOCTYPE html><html lang="ko"><head>' +
-    '<meta charset="utf-8"><title>조직도</title>' +
-    '<style>' +
-    '*{box-sizing:border-box;margin:0;padding:0}' +
-    'body{font-family:"Noto Sans KR",sans-serif;background:#fff;' +
-    'width:'+PAGE_W+'px;overflow:hidden;' +
-    '-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
-    // 헤더: 원본 크기 고정
-    '.hdr{display:flex;justify-content:space-between;align-items:center;' +
-    'width:'+PAGE_W+'px;padding:5px 12px 4px;' +
-    'border-bottom:2px solid #1a1d2e;margin-bottom:5px;}' +
-    '.hdr-title{font-size:15px;font-weight:700;color:#1a1d2e}' +
-    '.hdr-meta{font-size:9px;color:#666;margin-top:1px}' +
-    '.hdr-stats{text-align:right;font-size:10px;color:#444}' +
-    // 조직도 래퍼: 중앙 정렬
-    '.chart-outer{width:'+PAGE_W+'px;height:'+scaledH+'px;position:relative;overflow:visible;}' +
-    '.chart-inner{position:absolute;left:'+offsetX+'px;top:0;' +
-    'transform:scale('+scale.toFixed(4)+');transform-origin:top left;' +
-    'width:'+chartW+'px;height:'+chartH+'px;overflow:visible;}' +
-    // ov- 클래스 및 직원 이름/직위 스타일 명시
-    '.ov-emp-bubble{display:flex;flex-direction:column;align-items:center;gap:2px}' +
-    '.ov-emp-bubble .ov-avatar{width:52px;height:52px;border-radius:50%;border:3px solid #fff;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15)}' +
-    '.ov-emp-bubble .ov-emp-name{font-size:11px;font-weight:600;color:#1a1d2e;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}' +
-    '.ov-emp-bubble .ov-emp-pos{font-size:9px;color:#5a5f7a;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}' +
-    '.ov-emp-bubble.is-head .ov-avatar{width:64px;height:64px;border-color:#4f6ef7;box-shadow:0 4px 12px rgba(79,110,247,.4)}' +
-    '.ov-emp-bubble.is-head .ov-emp-name{font-size:13px;font-weight:700;color:#4f6ef7}' +
-    ovCSS +
-    '@media print{' +
-    'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}' +
-    '@page{size:A4 landscape;margin:5mm;}' +
-    '}' +
-    '</style></head><body>' +
-    '<div class="hdr">' +
-    '<div><div class="hdr-title">조직도</div><div class="hdr-meta">기준일자: '+today+'</div></div>' +
-    '<div class="hdr-stats">전체 <strong style="font-size:14px;color:#1a1d2e">'+totalActive+'명</strong><br>'+statsText+'</div>' +
-    '</div>' +
-    '<div class="chart-outer"><div class="chart-inner">' +
-    chart.innerHTML +
-    '</div></div>' +
-    '<script>setTimeout(function(){window.print();},600);<\/script>' +
-    '</body></html>');
-  win.document.close();
+      const win = window.open('', '_blank');
+      if (!win) { showToast('❌ 팝업이 차단됨'); return; }
+      win.document.write('<!DOCTYPE html><html><head>' +
+        '<meta charset="utf-8"><title>조직도</title>' +
+        '<style>' +
+        '*{margin:0;padding:0;box-sizing:border-box}' +
+        'html,body{width:'+PW+'px;background:#fff;' +
+        '-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
+        '.hdr{display:flex;justify-content:space-between;align-items:center;' +
+        'padding:5px 10px 4px;border-bottom:2px solid #1a1d2e;margin-bottom:6px}' +
+        '.hdr-t{font-size:15px;font-weight:700;color:#1a1d2e}' +
+        '.hdr-m{font-size:9px;color:#666;margin-top:1px}' +
+        '.hdr-s{text-align:right;font-size:10px;color:#444}' +
+        '.wrap{width:'+PW+'px;display:flex;justify-content:center;align-items:center}' +
+        '@media print{' +
+        'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
+        '@page{size:A4 landscape;margin:10mm}' +
+        '}' +
+        '</style></head><body>' +
+        '<div class="hdr">' +
+        '<div><div class="hdr-t">조직도</div><div class="hdr-m">기준일자: '+today+'</div></div>' +
+        '<div class="hdr-s">전체 <strong style="font-size:13px;color:#1a1d2e">'+totalActive+'명</strong><br>'+statsText+'</div>' +
+        '</div>' +
+        '<div class="wrap">' +
+        '<img src="'+imgData+'" style="width:'+Math.round(w)+'px;height:'+Math.round(h)+'px;display:block">' +
+        '</div>' +
+        '<script>window.onload=function(){setTimeout(function(){window.print();},400);}<\/script>' +
+        '</body></html>');
+      win.document.close();
+    }).catch(function(e){ if(cvs) cvs.style.transform=saved; showToast('❌ 캡처 실패'); console.error(e); });
+  }
+
+  if (typeof html2canvas !== 'undefined') {
+    doprint();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload = doprint;
+    s.onerror = function(){ showToast('❌ 라이브러리 로드 실패'); };
+    document.head.appendChild(s);
+  }
 }
+
 
 // ── Excel 다운로드 (직원 명단) ──
 function downloadExcel() {
