@@ -2658,16 +2658,7 @@ function renderOrgView() {
     nodes+='<div style="background:'+color+';color:#fff;border-radius:8px;padding:7px 9px;text-align:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
     // 인원수: lv1=전체합산, lv2=lv2+lv3합산, lv3=직속만
     const dispCount = getDeptCountWithConcurrent(id);
-    // lv0: 대표이사 이름을 직원 목록에서 찾아 표시
-    let cardSubLabel = '';
-    if(p.lv===0){
-      const ceoEmp = employees.find(e=>e.status!=='퇴직'&&(e.title==='대표이사'||e.title==='CEO'||(e.position==='대표이사'||e.position==='CEO')));
-      if(ceoEmp) cardSubLabel = ceoEmp.name;
-      else if(es.length) cardSubLabel = es[0].name;
-    } else if(headName){
-      cardSubLabel = headName;
-    }
-    nodes+=dept.name+'<div style="font-size:9px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명'+(cardSubLabel?' · '+cardSubLabel:'')+'</div></div>';
+    nodes+=dept.name+'<div style="font-size:9px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명'+(p.lv>0&&headName?' · '+headName:'')+'</div></div>';
     // 3구역만 직원 카드 아래 표시
     if(es.length&&!isZ2(dept)&&!isZ2subNode&&p.lv>0){
       // 직책 판별
@@ -2680,17 +2671,18 @@ function renderOrgView() {
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
         const isL=isH||isLeaderPos(e);
         const avatarBorder=isL?'2px solid '+color:'1.5px solid #94a3b8';
-        // 겸직: 전체 박스에 점선 테두리
+        // 겸직: 전체 박스에 점선 테두리, 너비 확장
+        const BW=e.isConcurrent?72:EW;
         const boxStyle=e.isConcurrent
-          ?'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
-          :'display:flex;flex-direction:column;align-items:center;width:'+EW+'px';
+          ?'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
+          :'display:flex;flex-direction:column;align-items:center;width:'+BW+'px';
         let h='<div style="'+boxStyle+'">';
         h+='<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;margin:0 auto">';
         h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         h+='</div>';
-        h+='<div style="display:flex;align-items:center;gap:2px;margin-top:1px;max-width:'+(EW+8)+'px">';
+        h+='<div style="display:flex;align-items:center;gap:2px;margin-top:1px;max-width:'+(BW+8)+'px;overflow:visible">';
         if(e.position) h+='<span style="font-size:11px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
-        h+='<span style="font-size:11px;font-weight:700;color:'+(isL?color:'#1e293b')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+e.name+'</span>';
+        h+='<span style="font-size:11px;font-weight:700;color:'+(isL?color:'#1e293b')+';white-space:nowrap">'+e.name+'</span>';
         h+='</div>';
 
         h+='</div>';
