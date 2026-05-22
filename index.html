@@ -1847,6 +1847,33 @@ function saveEmployee() {
       }].filter(h => h.changes.length > 0),
     };
     employees[idx] = empData;
+    // 직책 변경 시 dept.head 자동 업데이트
+    const leaderTitles = ['본부장','부서장','팀장'];
+    const newTitle = empData.title || '';
+    const deptName = empData.dept || '';
+    const dept = departments.find(d => d.name === deptName);
+    if (dept) {
+      if (leaderTitles.includes(newTitle)) {
+        // 새 직책이 리더 → head로 설정
+        dept.head = empData.name;
+      } else if (dept.head === empData.name) {
+        // 기존 head였는데 직책이 해제됨 → head 초기화
+        dept.head = '';
+      }
+      saveDepartments();
+    }
+    // 겸직 부서 head도 동일하게 업데이트
+    (empData.concurrent||[]).forEach(function(c) {
+      const cd = departments.find(d => d.name === c.dept);
+      if (!cd) return;
+      const cTitle = c.title || '';
+      if (leaderTitles.includes(cTitle)) {
+        cd.head = empData.name;
+      } else if (cd.head === empData.name) {
+        cd.head = '';
+      }
+      saveDepartments();
+    });
     showToast('✅ 직원 정보가 수정되었습니다');
   } else {
     const empData = {
