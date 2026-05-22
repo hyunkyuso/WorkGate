@@ -773,6 +773,12 @@ select.form-input{cursor:pointer}
         </div>
       </div>
     </div>
+        <!-- 겸직 섹션 -->
+        <div class="form-group" style="margin-top:4px">
+          <label class="form-label">겸직 (추가 부서/직책)</label>
+          <div id="concurrent-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addConcurrentRow()" style="font-size:11px">+ 겸직 추가</button>
+        </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('emp-modal')">닫기</button>
       <button class="btn btn-primary" id="emp-modal-save-btn" onclick="saveEmployee()">저장</button>
@@ -1434,6 +1440,81 @@ let departments = JSON.parse(localStorage.getItem('wg_departments') || JSON.stri
 let editingEmpId = null;
 let editingDeptId = null;
 
+// ── 겸직 관련 함수 ──
+function addConcurrentRow(dept='', title='') {
+  const list = document.getElementById('concurrent-list');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;align-items:center';
+  // 부서 셀렉트
+  let deptOpts = '<option value="">부서 선택</option>';
+  departments.forEach(d=>{ deptOpts+=`<option value="${d.name}" ${d.name===dept?'selected':''}>${d.name}</option>`; });
+  row.innerHTML = `
+    <select class="form-input" style="flex:1;font-size:12px">${deptOpts}</select>
+    <input type="text" class="form-input" placeholder="직책" value="${title}" style="flex:1;font-size:12px">
+    <button type="button" onclick="this.parentElement.remove()" style="border:none;background:none;color:#e53e3e;cursor:pointer;font-size:16px">✕</button>
+  `;
+  list.appendChild(row);
+}
+
+function loadConcurrentRows(concurrent) {
+  const list = document.getElementById('concurrent-list');
+  list.innerHTML = '';
+  (concurrent||[]).forEach(c => addConcurrentRow(c.dept, c.title));
+}
+
+function getConcurrentRows() {
+  const rows = document.getElementById('concurrent-list').querySelectorAll('div');
+  const result = [];
+  rows.forEach(row => {
+    const sel = row.querySelector('select');
+    const inp = row.querySelector('input');
+    if (sel && sel.value) result.push({ dept: sel.value, title: inp ? inp.value : '' });
+  });
+  return result;
+}
+
+// 부서의 총 인원수 계산 (하위 포함, 겸직 처리)
+function getDeptTotalCount(deptId, countedUids) {
+  if (!countedUids) countedUids = new Set();
+  const dept = departments.find(d=>d.id===deptId);
+  if (!dept) return 0;
+  let count = 0;
+  // 직속 직원 (겸직 제외 - 본 소속만 카운트)
+  employees.filter(e=>e.dept===dept.name&&e.status!=='퇴직').forEach(e=>{
+    if (!countedUids.has(e.uid)) { countedUids.add(e.uid); count++; }
+  });
+  // 겸직 직원 (본 소속이 이 부서인 직원의 겸직은 상위에서만 카운트)
+  // → 하위 조직 인원수에는 겸직 미반영 (본 소속만)
+  // 하위 부서 재귀
+  departments.filter(d=>d.parent===deptId).forEach(sub=>{
+    count += getDeptTotalCount(sub.id, countedUids);
+  });
+  return count;
+}
+
+// 상위 포함 총 인원수 (겸직자 상위 조직에 반영)
+function getDeptCountWithConcurrent(deptId) {
+  const dept = departments.find(d=>d.id===deptId);
+  if (!dept) return 0;
+  const countedUids = new Set();
+  // 직속 직원
+  employees.filter(e=>e.dept===dept.name&&e.status!=='퇴직').forEach(e=>countedUids.add(e.uid));
+  // 겸직자 중 이 부서를 겸직 부서로 가진 직원 (상위에만 반영)
+  employees.filter(e=>e.status!=='퇴직'&&(e.concurrent||[]).some(c=>c.dept===dept.name)).forEach(e=>{
+    countedUids.add(e.uid);
+  });
+  // 하위 부서 (겸직 포함)
+  function addSub(pid) {
+    departments.filter(d=>d.parent===pid).forEach(sub=>{
+      const subDept = departments.find(d=>d.id===sub.id);
+      if (subDept) employees.filter(e=>e.dept===subDept.name&&e.status!=='퇴직').forEach(e=>countedUids.add(e.uid));
+      addSub(sub.id);
+    });
+  }
+  addSub(deptId);
+  return countedUids.size;
+}
+
 function saveEmployees() {
   localStorage.setItem('wg_employees', JSON.stringify(employees));
   // Firestore 동기화
@@ -1543,6 +1624,7 @@ function openEmployeeModal(uid) {
     document.getElementById('emp-duty').value = e.duty||'';
     document.getElementById('emp-role').value = e.role||'일반';
     document.getElementById('emp-status').value = e.status||'재직';
+    loadConcurrentRows(e.concurrent||[]);
     document.getElementById('emp-joindate').value = e.joindate||'';
     document.getElementById('emp-leavedate').value = e.leavedate||'';
     // 기존 사진 표시
@@ -1569,6 +1651,7 @@ function openEmployeeModal(uid) {
     ['emp-dept','emp-position','emp-title','emp-duty'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('emp-status').value = '재직';
     document.getElementById('emp-role').value = '일반';
+    loadConcurrentRows([]);
     clearPhoto();
   }
   openModal('emp-modal');
@@ -1751,6 +1834,7 @@ function saveEmployee() {
       status: document.getElementById('emp-status').value,
       joindate: document.getElementById('emp-joindate').value,
       leavedate: document.getElementById('emp-leavedate').value,
+      concurrent: getConcurrentRows(),
       photo: photo || prev.photo,
       history: [...(prev.history||[]), {
         date: now,
@@ -1778,6 +1862,7 @@ function saveEmployee() {
       status: document.getElementById('emp-status').value,
       joindate: document.getElementById('emp-joindate').value,
       leavedate: document.getElementById('emp-leavedate').value,
+      concurrent: getConcurrentRows(),
       photo, history: [{date: now, changes: ['최초 등록']}],
     };
     employees.push(empData);
@@ -2171,7 +2256,19 @@ function renderOrgView() {
   const CW=118, CH=44, EW=56, HGAP=20, VGAP=60, LINE='#94a3b8';
   const LC=['#1e293b','#3b82f6','#f59e0b','#7c3aed','#0891b2','#059669'];
   function bg(lv){return LC[Math.min(Math.max(lv,0),LC.length-1)];}
-  function getEmps(d){return sortEmpsByRank(employees.filter(e=>e.dept===d.name&&e.status!=='퇴직'),d.head||'');}
+  function getEmps(d){
+    // 본 소속 직원
+    const mainEmps = employees.filter(e=>e.dept===d.name&&e.status!=='퇴직');
+    // 겸직으로 이 부서에 속한 직원 (본 소속은 제외)
+    const concEmps = employees.filter(e=>e.status!=='퇴직'&&e.dept!==d.name&&(e.concurrent||[]).some(c=>c.dept===d.name));
+    // 겸직 직원에 겸직 표시
+    const concEmpsMarked = concEmps.map(e=>({
+      ...e,
+      isConcurrent: true,
+      concurrentTitle: (e.concurrent||[]).find(c=>c.dept===d.name)?.title||''
+    }));
+    return sortEmpsByRank([...mainEmps, ...concEmpsMarked], d.head||'');
+  }
   function nodeH(id){
     const d=departments.find(x=>x.id===id);if(!d)return CH;
     return CH+(getEmps(d).length>0?Math.ceil(getEmps(d).length/6)*62+8:0);
@@ -2517,11 +2614,11 @@ function renderOrgView() {
       nodes+='<div style="position:absolute;left:'+x+'px;top:'+y+'px;display:flex;gap:'+empGap+'px;z-index:2">';
       empList.forEach(function(e){
         const ini=(e.name||'?').charAt(0);
-        const ec=['#4f46e5','#7c3aed','#0891b2','#059669','#d97706'];
+        const ec=['#3730a3','#6d28d9','#0e7490','#047857','#b45309'];
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
         const isL=isLeader2(e);
         const sz=isL?38:34;
-        const border2=isL?'2px solid '+empColor:'1.5px solid #94a3b8';
+        const border2=e.isConcurrent?'2px dashed #f59e0b':isL?'2px solid '+empColor:'1.5px solid #94a3b8';
         nodes+='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
         nodes+='<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:'+border2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;margin:0 auto">';
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
@@ -2548,7 +2645,9 @@ function renderOrgView() {
     const cardX=p.cx-cardW/2;
     nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+cardX+'px;top:'+y+'px;width:'+cardW+'px;cursor:pointer;z-index:2">';
     nodes+='<div style="background:'+color+';color:#fff;border-radius:8px;padding:7px 9px;text-align:center;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2)">';
-    nodes+=dept.name+'<div style="font-size:9px;font-weight:400;opacity:.8;margin-top:1px">'+es.length+'명'+(headName?' · '+headName:'')+'</div></div>';
+    // 인원수: lv1=전체합산, lv2=lv2+lv3합산, lv3=직속만
+    const dispCount = getDeptCountWithConcurrent(id);
+    nodes+=dept.name+'<div style="font-size:9px;font-weight:400;opacity:.8;margin-top:1px">'+dispCount+'명'+(headName?' · '+headName:'')+'</div></div>';
     // 3구역만 직원 카드 아래 표시
     if(es.length&&!isZ2(dept)&&!isZ2subNode&&p.lv>0){
       // 직책 판별
@@ -2557,10 +2656,10 @@ function renderOrgView() {
       };
       function empBubble(e,isH){
         const ini=(e.name||'?').charAt(0);
-        const ec=['#4f46e5','#7c3aed','#0891b2','#059669','#d97706'];
+        const ec=['#3730a3','#6d28d9','#0e7490','#047857','#b45309'];
         const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
         const isL=isH||isLeaderPos(e);
-        const border=isL?'2px solid '+color:'1.5px solid #94a3b8';
+        const border=e.isConcurrent?'2px dashed #f59e0b':isL?'2px solid '+color:'1.5px solid #94a3b8';
         let h='<div style="display:flex;flex-direction:column;align-items:center;width:'+EW+'px">';
         h+='<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:'+border+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;margin:0 auto">';
         h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
