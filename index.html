@@ -2776,11 +2776,18 @@ function printOrgChart() {
 
     if (!fullW || !fullH) { if(cvs) cvs.style.transform=savedCvs; showToast('❌ 조직도 크기 오류'); return; }
 
-    // inner div 직접 캡처 (scrollHeight 기준)
+    // inner div 직접 캡처 (scrollHeight 기준, 화면 스크롤 오프셋 보정)
+    const innerRect = inner.getBoundingClientRect();
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
     html2canvas(inner, {
       scale: 3, useCORS: true, backgroundColor: '#f8fafc',
       logging: false, allowTaint: true,
       width: fullW, height: fullH,
+      windowWidth: document.documentElement.scrollWidth,
+      windowHeight: document.documentElement.scrollHeight,
+      scrollX: -scrollLeft,
+      scrollY: -scrollTop,
       x: 0, y: 0
     }).then(function(canvas) {
       if (cvs) cvs.style.transform = savedCvs;
