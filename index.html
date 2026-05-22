@@ -2771,7 +2771,7 @@ function printOrgChart() {
     const fullW = inner ? (parseInt(inner.style.width) || chart.scrollWidth) : chart.scrollWidth;
     const fullH = inner ? (parseInt(inner.style.height) || chart.scrollHeight) : chart.scrollHeight;
 
-    // 위쪽 빈공간 minY만 계산 (아래는 fullH 기준)
+    // 위쪽 빈공간 제거
     let minY = fullH;
     if (inner) {
       inner.querySelectorAll('[style*="position:absolute"]').forEach(function(el){
@@ -2780,9 +2780,7 @@ function printOrgChart() {
       });
     }
     minY = Math.max(0, minY - 20);
-
-    // 캡처: 전체 너비, fullH까지 (아래 버블 포함 위해 여유 200px)
-    const captureH = fullH - minY + 200;
+    const captureH = fullH - minY + 200; // 아래 버블 여유
 
     html2canvas(chart, {
       scale: 3, useCORS: true, backgroundColor: '#f8fafc',
@@ -2792,14 +2790,18 @@ function printOrgChart() {
       if (cvs) cvs.style.transform = saved;
       const imgData = canvas.toDataURL('image/png', 1.0);
 
-      // 너비 기준으로 꽉 채우기
-      const ratio = canvas.width / canvas.height;
+      // A4 landscape 가용 영역 (mm)
       const AW = 281, AH = 185;
-      // 너비를 AW로 고정, 높이 비율로
-      let iw = AW, ih = AW / ratio;
-      // 높이 초과 시 높이 기준
-      if (ih > AH) { ih = AH; iw = AH * ratio; }
+      const ratio = canvas.width / canvas.height; // 실제 이미지 비율
+
+      // 가용 영역을 최대한 채우되 잘리지 않게
+      const scaleByW = AW / (canvas.width / 3); // mm per px
+      const scaleByH = AH / (canvas.height / 3);
+      const mmPerPx = Math.min(scaleByW, scaleByH);
+      const iw = (canvas.width / 3) * mmPerPx;
+      const ih = (canvas.height / 3) * mmPerPx;
       const ml = ((AW - iw) / 2).toFixed(1);
+      const mt = ((AH - ih) / 2).toFixed(1);
 
       const win = window.open('', '_blank');
       if (!win) { showToast('❌ 팝업 차단됨'); return; }
@@ -2810,13 +2812,16 @@ function printOrgChart() {
         '.hdr{width:'+AW+'mm;height:9mm;display:flex;justify-content:space-between;align-items:center;padding:0 3mm;border-bottom:0.4mm solid #1a1d2e}' +
         '.t{font-size:4mm;font-weight:700;color:#1a1d2e}.m{font-size:2.5mm;color:#666}' +
         '.r strong{font-size:5mm;font-weight:700;color:#1a1d2e}.r{font-size:3mm;color:#444}' +
+        '.wrap{width:'+AW+'mm;height:'+AH+'mm;display:flex;align-items:center;justify-content:center}' +
         '@media print{@page{size:A4 landscape;margin:8mm}' +
         'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}' +
         '</style></head><body>' +
         '<div class="hdr">' +
         '<div><div class="t">조직도</div><div class="m">기준일자: '+today+'</div></div>' +
         '<div class="r">전체 <strong>'+totalActive+'</strong>명</div></div>' +
-        '<img src="'+imgData+'" style="display:block;width:'+iw.toFixed(1)+'mm;height:'+ih.toFixed(1)+'mm;margin-left:'+ml+'mm;margin-top:1mm">' +
+        '<div class="wrap">' +
+        '<img src="'+imgData+'" style="display:block;width:'+iw.toFixed(1)+'mm;height:'+ih.toFixed(1)+'mm">' +
+        '</div>' +
         '<script>window.onload=function(){setTimeout(function(){window.print();},600);}<\/script>' +
         '</body></html>'
       );
