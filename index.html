@@ -2771,15 +2771,8 @@ function printOrgChart() {
     const fullW = inner ? (parseInt(inner.style.width) || chart.scrollWidth) : chart.scrollWidth;
     const fullH = inner ? (parseInt(inner.style.height) || chart.scrollHeight) : chart.scrollHeight;
 
-    // 위쪽 빈공간 제거
-    let minY = fullH;
-    if (inner) {
-      inner.querySelectorAll('[style*="position:absolute"]').forEach(function(el){
-        const t = parseInt(el.style.top) || 0;
-        if (t > 0 && t < minY) minY = t;
-      });
-    }
-    minY = Math.max(0, minY - 20);
+    // Z1_Y=40 기준으로 위쪽 빈공간 제거 (20px 여유)
+    const minY = 20;
     const captureH = fullH - minY + 200; // 아래 버블 여유
 
     html2canvas(chart, {
