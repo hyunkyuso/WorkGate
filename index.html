@@ -2286,8 +2286,18 @@ function renderOrgView() {
   function subW(id){
     const d=departments.find(x=>x.id===id);
     const es=d?getEmps(d):[];
-    // 직원 너비: 2명씩 줄바꿈 기준 한 줄 너비
-    const empW=es.length>0?Math.min(es.length,2)*(EW+3):0;
+    // 직원 너비: 겸직(72px) vs 일반(EW) 실제 너비로 한 줄 최대 너비 계산
+    function ebw(e){return e.isConcurrent?72:EW;}
+    // head 판별 (렌더링과 동일)
+    const isLPos=function(e){const t=e.title||'';return t==='본부장'||t==='부서장'||t==='팀장';};
+    const hEmp=es.find(e=>e.name===(d&&d.head||'')&&!!(d&&d.head));
+    const lEmp=es.find(e=>isLPos(e));
+    const hd=hEmp||lEmp||null;
+    const oth=hd?es.filter(e=>e!==hd):es;
+    // 한 줄 최대 너비: head줄 vs others 2명줄
+    const headLineW=hd?ebw(hd):0;
+    const othLineW=oth.length>=2?ebw(oth[0])+3+ebw(oth[1]):oth.length===1?ebw(oth[0]):0;
+    const empW=es.length>0?Math.max(headLineW,othLineW):0;
     const selfW=Math.max(CW, empW);
     const bots=gkBot(id);
     if(!bots.length)return selfW;
@@ -2583,6 +2593,7 @@ function renderOrgView() {
       } else {
         rows=Math.ceil(es.length/2);
       }
+      // 행 높이: 겸직 버블은 72px로 넓어도 높이는 동일(62px)
       const empH=rows*62+8;
       maxH=Math.max(maxH,CH+empH);
     });
