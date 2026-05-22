@@ -2763,40 +2763,36 @@ function printOrgChart() {
   showToast('🖨 인쇄 준비 중...');
 
   function doprint() {
+    // orgview-canvas의 transform(scale+translate) 임시 제거
     const cvs = document.getElementById('orgview-canvas');
-    const saved = cvs ? cvs.style.transform : '';
+    const savedCvs = cvs ? cvs.style.transform : '';
     if (cvs) cvs.style.transform = 'none';
 
     const inner = chart.querySelector('div');
-    const fullW = inner ? (parseInt(inner.style.width) || chart.scrollWidth) : chart.scrollWidth;
-    const fullH = inner ? (parseInt(inner.style.height) || chart.scrollHeight) : chart.scrollHeight;
+    if (!inner) { if(cvs) cvs.style.transform=savedCvs; showToast('❌ 조직도 없음'); return; }
 
-    // Z1_Y=40 기준으로 위쪽 빈공간 제거 (20px 여유)
-    const minY = 20;
-    const captureH = fullH - minY + 200; // 아래 버블 여유
+    const fullW = parseInt(inner.style.width) || 0;
+    const fullH = parseInt(inner.style.height) || 0;
 
-    // inner div를 직접 캡처 (chart 컨테이너 오프셋 제거)
-    const captureTarget = inner || chart;
-    html2canvas(captureTarget, {
+    if (!fullW || !fullH) { if(cvs) cvs.style.transform=savedCvs; showToast('❌ 조직도 크기 오류'); return; }
+
+    // inner div 직접 캡처 (chart 컨테이너 무시)
+    html2canvas(inner, {
       scale: 3, useCORS: true, backgroundColor: '#f8fafc',
       logging: false, allowTaint: true,
-      x: 0, y: minY, width: fullW, height: captureH
+      width: fullW, height: fullH + 200,
+      x: 0, y: 0
     }).then(function(canvas) {
-      if (cvs) cvs.style.transform = saved;
+      if (cvs) cvs.style.transform = savedCvs;
       const imgData = canvas.toDataURL('image/png', 1.0);
 
-      // A4 landscape 가용 영역 (mm)
+      const ratio = canvas.width / canvas.height;
       const AW = 281, AH = 185;
-      const ratio = canvas.width / canvas.height; // 실제 이미지 비율
-
-      // 가용 영역을 최대한 채우되 잘리지 않게
-      const scaleByW = AW / (canvas.width / 3); // mm per px
-      const scaleByH = AH / (canvas.height / 3);
-      const mmPerPx = Math.min(scaleByW, scaleByH);
-      const iw = (canvas.width / 3) * mmPerPx;
-      const ih = (canvas.height / 3) * mmPerPx;
+      // 가용영역 최대 채움
+      const scaleW = AW / (fullW * 3 / (canvas.width));
+      let iw = AW, ih = AW / ratio;
+      if (ih > AH) { iw = AH * ratio; ih = AH; }
       const ml = ((AW - iw) / 2).toFixed(1);
-      const mt = ((AH - ih) / 2).toFixed(1);
 
       const win = window.open('', '_blank');
       if (!win) { showToast('❌ 팝업 차단됨'); return; }
@@ -2821,7 +2817,10 @@ function printOrgChart() {
         '</body></html>'
       );
       win.document.close();
-    }).catch(function(e){if(cvs)cvs.style.transform=saved;showToast('❌'+e.message);console.error(e);});
+    }).catch(function(e){
+      if(cvs) cvs.style.transform=savedCvs;
+      showToast('❌'+e.message);console.error(e);
+    });
   }
 
   if(typeof html2canvas!=='undefined'){doprint();}
