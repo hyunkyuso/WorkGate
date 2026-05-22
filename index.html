@@ -2769,13 +2769,9 @@ function printOrgChart() {
 
     const inner = chart.querySelector('div');
     const fullW = inner ? (parseInt(inner.style.width) || chart.scrollWidth) : chart.scrollWidth;
+    const fullH = inner ? (parseInt(inner.style.height) || chart.scrollHeight) : chart.scrollHeight;
 
-    // 실제 렌더된 전체 높이: inner.scrollHeight가 버블 포함 실제 높이
-    const styleH = inner ? parseInt(inner.style.height) : 0;
-    const scrollH = inner ? inner.scrollHeight : chart.scrollHeight;
-    const fullH = Math.max(styleH, scrollH) + 120; // 여유 120px
-
-    // 위쪽 빈공간 minY
+    // 위쪽 빈공간 minY만 계산 (아래는 fullH 기준)
     let minY = fullH;
     if (inner) {
       inner.querySelectorAll('[style*="position:absolute"]').forEach(function(el){
@@ -2783,23 +2779,26 @@ function printOrgChart() {
         if (t > 0 && t < minY) minY = t;
       });
     }
-    const PAD = 20;
-    minY = Math.max(0, minY - PAD);
-    const cropH = fullH - minY;
+    minY = Math.max(0, minY - 20);
+
+    // 캡처: 전체 너비, fullH까지 (아래 버블 포함 위해 여유 200px)
+    const captureH = fullH - minY + 200;
 
     html2canvas(chart, {
       scale: 3, useCORS: true, backgroundColor: '#f8fafc',
       logging: false, allowTaint: true,
-      x: 0, y: minY, width: fullW, height: cropH
+      x: 0, y: minY, width: fullW, height: captureH
     }).then(function(canvas) {
       if (cvs) cvs.style.transform = saved;
       const imgData = canvas.toDataURL('image/png', 1.0);
 
-      // canvas 실제 비율로 mm 계산
+      // 너비 기준으로 꽉 채우기
       const ratio = canvas.width / canvas.height;
       const AW = 281, AH = 185;
-      let ih = AH, iw = AH * ratio;
-      if (iw > AW) { iw = AW; ih = AW / ratio; }
+      // 너비를 AW로 고정, 높이 비율로
+      let iw = AW, ih = AW / ratio;
+      // 높이 초과 시 높이 기준
+      if (ih > AH) { ih = AH; iw = AH * ratio; }
       const ml = ((AW - iw) / 2).toFixed(1);
 
       const win = window.open('', '_blank');
