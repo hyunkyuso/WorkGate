@@ -2772,14 +2772,19 @@ function printOrgChart() {
       const imgData = canvas.toDataURL('image/png', 1.0);
       const imgW = canvas.width, imgH = canvas.height;
 
-      // A4 landscape margin 5mm → 가용: 287×192mm
-      // 인쇄 시 브라우저가 자체 스케일 → 이미지를 mm 단위로 지정
-      const PW = 1085, PH = 726; // 헤더 30px 제외
+      // A4 landscape @96dpi margin 5mm → 가용: 287×200mm = 1085×756px
+      // 헤더 28px 제외 → 조직도 가용: 1085×728px
+      const PW = 1085, PH = 728;
       const ratio = imgW / imgH;
-      let w = PW, h = PW / ratio;
-      if (h > PH) { h = PH; w = PH * ratio; }
-      const x = Math.round((PW - w) / 2);
-      const y = Math.round((PH - h) / 2);
+      // 가용 영역을 완전히 채우도록 (비율 유지, 꽉 채움)
+      let w, h;
+      if (imgW / PW > imgH / PH) {
+        w = PW; h = Math.round(PW / ratio);
+      } else {
+        h = PH; w = Math.round(PH * ratio);
+      }
+      // 양쪽 여백 없이 최대 확대
+      w = PW; h = PH;
 
       const win = window.open('', '_blank');
       if (!win) { showToast('❌ 팝업이 차단됨'); return; }
@@ -2790,11 +2795,11 @@ function printOrgChart() {
         'html,body{width:'+PW+'px;background:#fff;' +
         '-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
         '.hdr{display:flex;justify-content:space-between;align-items:center;' +
-        'padding:3px 10px 3px;border-bottom:1.5px solid #1a1d2e;margin-bottom:4px}' +
-        '.hdr-t{font-size:13px;font-weight:700;color:#1a1d2e}' +
-        '.hdr-m{font-size:8px;color:#666;margin-top:1px}' +
-        '.hdr-s{text-align:right;font-size:9px;color:#444}' +
-        '.wrap{width:'+PW+'px;display:flex;justify-content:center;align-items:center}' +
+        'padding:2px 10px 2px;border-bottom:1.5px solid #1a1d2e;margin-bottom:3px}' +
+        '.hdr-t{font-size:12px;font-weight:700;color:#1a1d2e}' +
+        '.hdr-m{font-size:8px;color:#666}' +
+        '.hdr-s{text-align:right;font-size:8px;color:#444}' +
+        '.wrap{width:'+PW+'px;height:'+PH+'px}' +
         '@media print{' +
         'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
         '@page{size:A4 landscape;margin:10mm}' +
@@ -2805,7 +2810,7 @@ function printOrgChart() {
         '<div class="hdr-s">전체 <strong style="font-size:13px;color:#1a1d2e">'+totalActive+'명</strong><br>'+statsText+'</div>' +
         '</div>' +
         '<div class="wrap">' +
-        '<img src="'+imgData+'" style="width:'+Math.round(w)+'px;height:'+Math.round(h)+'px;display:block">' +
+        '<img src="'+imgData+'" style="width:'+PW+'px;height:'+PH+'px;display:block;object-fit:contain">' +
         '</div>' +
         '<script>window.onload=function(){setTimeout(function(){window.print();},400);}<\/script>' +
         '</body></html>');
