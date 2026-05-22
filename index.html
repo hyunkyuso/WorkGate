@@ -2696,9 +2696,14 @@ function renderOrgView() {
       const leaderEmp=es.find(e=>isLeaderPos(e)); // headName 있어도 직책자 찾기
       const head=headEmp||leaderEmp||null;
       const others=head?es.filter(e=>e!==head):es;
-      // 컨테이너: cardW 기준 중앙에서 CW 너비로 고정 배치
-      const empContLeft=(cardW-CW)/2;
-      nodes+='<div style="margin-top:6px;margin-left:'+empContLeft+'px;width:'+CW+'px">';
+      // 버블 실제 너비: 겸직이면 72, 아니면 EW(56)
+      function bw(e){return (e&&e.isConcurrent)?72:EW;}
+      // others 한 행 너비(2명) vs head 너비 중 큰 값으로 컨테이너 너비 결정
+      const othersRowW=others.length>=2?bw(others[0])+3+bw(others[1]):others.length===1?bw(others[0]):0;
+      const headBW=head?bw(head):0;
+      const contW=Math.max(headBW, othersRowW, EW);
+      const empContLeft=(cardW-contW)/2;
+      nodes+='<div style="margin-top:6px;margin-left:'+empContLeft+'px;width:'+contW+'px">';
       if(head&&es.length===1){
         // 직책있고 1명 → 가운데 정렬
         nodes+='<div style="display:flex;justify-content:center">'+empBubble(head,true)+'</div>';
