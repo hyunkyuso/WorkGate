@@ -195,7 +195,7 @@ select.form-input{cursor:pointer}
 .ov-emp-bubble .ov-emp-name{font-size:11px;font-weight:600;color:#1a1d2e;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}
 .ov-emp-bubble .ov-emp-pos{font-size:9px;color:#5a5f7a;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}
 .ov-emp-bubble .ov-emp-name{display:flex;align-items:center;gap:2px;white-space:nowrap}
-.ov-emp-pos-inline{font-size:8px;font-weight:600;color:#5a5f7a;white-space:nowrap}
+.ov-emp-pos-inline{font-size:8px;font-weight:700;color:#5a5f7a;white-space:nowrap}
 .ov-emp-bubble.is-head .ov-avatar{width:64px;height:64px;border-color:var(--ac);border-width:3px;box-shadow:0 4px 12px rgba(79,110,247,.4)}
 .ov-emp-bubble.is-head .ov-emp-name{font-size:13px;font-weight:700;color:var(--ac)}
 .ov-v-line{width:2px;background:#d1d5db;margin:0 auto;flex-shrink:0}
@@ -2764,10 +2764,33 @@ function printOrgChart() {
     const saved = cvs ? cvs.style.transform : '';
     if (cvs) cvs.style.transform = 'none';
 
+    // 조직도 내부 실제 노드들의 bounding box 계산
+    const allNodes = chart.querySelectorAll('[style*="position:absolute"]');
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    allNodes.forEach(function(el) {
+      const r = el.getBoundingClientRect();
+      const cr = chart.getBoundingClientRect();
+      const x1 = r.left - cr.left;
+      const y1 = r.top - cr.top;
+      const x2 = x1 + r.width;
+      const y2 = y1 + r.height;
+      if (x1 < minX) minX = x1;
+      if (y1 < minY) minY = y1;
+      if (x2 > maxX) maxX = x2;
+      if (y2 > maxY) maxY = y2;
+    });
+    const PAD = 20; // 여백
+    minX = Math.max(0, minX - PAD);
+    minY = Math.max(0, minY - PAD);
+    maxX = Math.min(chart.scrollWidth, maxX + PAD);
+    maxY = Math.min(chart.scrollHeight, maxY + PAD);
+    const cropW = maxX - minX;
+    const cropH = maxY - minY;
+
     html2canvas(chart, {
       scale: 3, useCORS: true, backgroundColor: '#f8fafc',
       logging: false, allowTaint: true,
-      width: chart.scrollWidth, height: chart.scrollHeight, x: 0, y: 0
+      x: minX, y: minY, width: cropW, height: cropH
     }).then(function(canvas) {
       if (cvs) cvs.style.transform = saved;
 
@@ -2775,18 +2798,12 @@ function printOrgChart() {
       const imgW = canvas.width, imgH = canvas.height;
       const ratio = imgW / imgH;
 
-      // A4 landscape margin 8mm → 가용: 281×194mm
-      // 헤더: 9mm → 조직도 가용: 281×185mm
-      const HDR = 9;
-      const AW = 281;
-      const AH = 185;
-
-      // 높이 기준으로 꽉 채움 (아래 빈공간 없애기)
-      let ih = AH;
-      let iw = AH * ratio;
-      // 너비가 넘치면 너비 기준으로
+      // A4 landscape margin 8mm → 가용: 281×194mm, 헤더 9mm → 이미지 가용: 281×185mm
+      const AW = 281, AH = 185;
+      let ih = AH, iw = AH * ratio;
       if (iw > AW) { iw = AW; ih = AW / ratio; }
       const ml = ((AW - iw) / 2).toFixed(1);
+      const mt = ((AH - ih) / 2).toFixed(1);
 
       const win = window.open('', '_blank');
       if (!win) { showToast('❌ 팝업 차단됨'); return; }
@@ -2796,11 +2813,11 @@ function printOrgChart() {
         '<style>' +
         '*{margin:0;padding:0;box-sizing:border-box}' +
         'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
-        '.hdr{width:'+AW+'mm;height:'+HDR+'mm;display:flex;justify-content:space-between;align-items:center;padding:0 3mm;border-bottom:0.4mm solid #1a1d2e;}' +
-        '.hdr-l .t{font-size:4mm;font-weight:700;color:#1a1d2e;line-height:1.1}' +
-        '.hdr-l .m{font-size:2.5mm;color:#666;line-height:1}' +
-        '.hdr-r{font-size:3mm;color:#444}' +
+        '.hdr{width:'+AW+'mm;height:9mm;display:flex;justify-content:space-between;align-items:center;padding:0 3mm;border-bottom:0.4mm solid #1a1d2e;}' +
+        '.hdr-l .t{font-size:4mm;font-weight:700;color:#1a1d2e}' +
+        '.hdr-l .m{font-size:2.5mm;color:#666}' +
         '.hdr-r strong{font-size:5mm;font-weight:700;color:#1a1d2e}' +
+        '.hdr-r{font-size:3mm;color:#444}' +
         '.chart-box{width:'+AW+'mm;height:'+AH+'mm;display:flex;align-items:center;justify-content:center;}' +
         '@media print{' +
         '@page{size:A4 landscape;margin:8mm}' +
