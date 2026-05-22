@@ -2618,9 +2618,10 @@ function renderOrgView() {
         const sz=isL?38:34;
         const avatarBorder2=isL?'2px solid '+empColor:'1.5px solid #94a3b8';
         const boxStyle2=e.isConcurrent
-          ?'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
-          :'display:flex;flex-direction:column;align-items:center;width:'+EW+'px';
-        nodes+='<div style="'+boxStyle2+'">';
+          ?'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06);cursor:pointer'
+          :'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;cursor:pointer';
+        const deptId2=departments.find(d=>d.name===(e.dept||''))||null;
+        nodes+='<div style="'+boxStyle2+'" onclick="'+(deptId2?'showDeptDetail(\''+deptId2.id+'\')':'')+'">';
         nodes+='<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:'+avatarBorder2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;margin:0 auto">';
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         nodes+='</div>';
