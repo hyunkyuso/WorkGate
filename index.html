@@ -2612,7 +2612,7 @@ function renderOrgView() {
       // 본부장/부서장/팀장 여부
       const isLeader2=function(e){ const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장'; };
       const empGap=4;
-      const totalEmpW=empList.length*EW+(empList.length-1)*empGap;
+      const totalEmpW=empList.reduce((s,e)=>s+(e.isConcurrent?72:EW),0)+(empList.length-1)*empGap;
       const x=p.cx-totalEmpW/2, y=p.absY;
       // 기존 가로 나열, 본부장/부서장/팀장만 테두리 강조
       nodes+='<div style="position:absolute;left:'+x+'px;top:'+y+'px;display:flex;gap:'+empGap+'px;z-index:2">';
@@ -2623,14 +2623,15 @@ function renderOrgView() {
         const isL=isLeader2(e);
         const sz=isL?38:34;
         const avatarBorder2=isL?'2px solid '+empColor:'1.5px solid #94a3b8';
+        const CEW=e.isConcurrent?72:EW; // 겸직은 너비 확장
         const boxStyle2=e.isConcurrent
-          ?'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
-          :'display:flex;flex-direction:column;align-items:center;width:'+EW+'px';
+          ?'display:flex;flex-direction:column;align-items:center;width:'+CEW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
+          :'display:flex;flex-direction:column;align-items:center;width:'+CEW+'px';
         nodes+='<div style="'+boxStyle2+'">';
         nodes+='<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:'+avatarBorder2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;margin:0 auto">';
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         nodes+='</div>';
-        nodes+='<div style="display:flex;align-items:center;gap:2px;margin-top:2px;max-width:'+(EW+8)+'px">';
+        nodes+='<div style="display:flex;align-items:center;gap:2px;margin-top:2px;max-width:'+(CEW+8)+'px">';
         if(e.position) nodes+='<span style="font-size:11px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
         nodes+='<span style="font-size:11px;font-weight:700;color:'+(isL?empColor:'#1e293b')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+e.name+'</span>';
         nodes+='</div>';
@@ -2700,7 +2701,9 @@ function renderOrgView() {
       const leaderEmp=es.find(e=>isLeaderPos(e)); // headName 있어도 직책자 찾기
       const head=headEmp||leaderEmp||null;
       const others=head?es.filter(e=>e!==head):es;
-      nodes+='<div style="margin-top:6px;width:'+cardW+'px">';
+      // 직원 컨테이너: 카드 헤더(CW) 중앙 기준으로 정렬
+      const empContLeft=(cardW-CW)/2; // lv1,lv2는 cardW>CW이므로 offset 필요
+      nodes+='<div style="margin-top:6px;margin-left:'+empContLeft+'px;width:'+CW+'px">';
       if(head&&es.length===1){
         // 직책있고 1명 → 가운데 정렬
         nodes+='<div style="display:flex;justify-content:center">'+empBubble(head,true)+'</div>';
@@ -2708,10 +2711,8 @@ function renderOrgView() {
         // 직책있고 여러명 → 첫줄 단독, 나머지 2명씩
         nodes+='<div style="display:flex;justify-content:center;margin-bottom:3px">'+empBubble(head,true)+'</div>';
         for(let ri=0;ri<others.length;ri+=2){
-          // 마지막 줄이 1명이면 가운데 정렬
-          const isLastRow=(ri+2>=others.length);
-          const centerRow=isLastRow&&(others.length%2===1);
-          nodes+='<div style="display:flex;gap:3px;justify-content:center">';
+          const centerRow=(others.length===1);
+          nodes+='<div style="display:flex;gap:3px;'+(centerRow?'justify-content:center':'')+'">';
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
           nodes+='</div>';
@@ -2719,7 +2720,8 @@ function renderOrgView() {
       } else {
         // 직책없으면 2명씩 (1명이면 가운데)
         for(let ri=0;ri<es.length;ri+=2){
-          nodes+='<div style="display:flex;gap:3px;justify-content:center">';
+          const rowStyle=es.length===1?'justify-content:center':'';
+          nodes+='<div style="display:flex;gap:3px;'+rowStyle+'">';
           const isH1=es[ri].name===headName&&!!headName;
           nodes+=empBubble(es[ri],isH1);
           if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
