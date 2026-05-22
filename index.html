@@ -1627,20 +1627,15 @@ function openEmployeeModal(uid) {
     loadConcurrentRows(e.concurrent||[]);
     document.getElementById('emp-joindate').value = e.joindate||'';
     document.getElementById('emp-leavedate').value = e.leavedate||'';
-    // 기존 사진 표시
+    // 기존 사진 표시: 미리보기만 보여주고 크롭 에디터는 비활성
+    // (새 사진 선택 시에만 크롭 에디터 활성화)
     if (e.photo) {
-      clearPhoto(); // 먼저 초기화
-      const srcImg = document.getElementById('crop-source-img');
-      srcImg.src = e.photo;
-      srcImg.onload = () => {
-        // 이미지 로드 완료 후 스케일 계산
-        const ratio = Math.max(150/srcImg.naturalWidth, 150/srcImg.naturalHeight);
-        cropState = { imgSrc: e.photo, scale: ratio, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0, cropR:60 };
-        renderCrop();
-        document.getElementById('crop-controls').style.display = 'flex';
-      };
-      // 이미 캐시된 이미지라면 onload가 안 될 수 있으므로
-      if (srcImg.complete && srcImg.naturalWidth > 0) srcImg.onload();
+      clearPhoto();
+      cropState.existingPhoto = e.photo; // 기존 사진 보존
+      const prev = document.getElementById('emp-photo-preview');
+      prev.innerHTML = '<img src="'+e.photo+'" style="width:100px;height:100px;border-radius:50%;object-fit:cover">';
+      prev.style.cssText = '';
+      document.getElementById('crop-controls').style.display = 'none';
     } else {
       clearPhoto();
     }
@@ -1738,7 +1733,7 @@ function cropZoomOut() {
 }
 
 function clearPhoto() {
-  cropState = { imgSrc:'', scale:1, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0, cropR:60 };
+  cropState = { imgSrc:'', scale:1, x:75, y:75, dragging:false, startX:0, startY:0, startOX:0, startOY:0, cropR:60, existingPhoto:'' };
   const prev = document.getElementById('emp-photo-preview');
   prev.innerHTML = '👤';
   prev.style.cssText = 'font-size:32px;color:#fff';
@@ -1752,7 +1747,9 @@ function clearPhoto() {
 
 function getCroppedPhoto() {
   const srcImg = document.getElementById('crop-source-img');
-  if (!cropState.imgSrc || !srcImg) return '';
+  // 새 사진 선택 안 했으면 기존 사진 그대로 반환
+  if (!cropState.imgSrc) return cropState.existingPhoto||'';
+  if (!srcImg) return cropState.existingPhoto||'';
   const canvas = document.createElement('canvas');
   canvas.width = 200; canvas.height = 200;
   const ctx = canvas.getContext('2d');
