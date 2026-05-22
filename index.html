@@ -2763,18 +2763,18 @@ function printOrgChart() {
     if (cvs) cvs.style.transform = 'none';
 
     html2canvas(chart, {
-      scale: 2, useCORS: true, backgroundColor: '#f8fafc',
+      scale: 4, useCORS: true, backgroundColor: '#f8fafc',
       logging: false, allowTaint: true,
       width: chart.scrollWidth, height: chart.scrollHeight, x: 0, y: 0
     }).then(function(canvas) {
       if (cvs) cvs.style.transform = saved;
 
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png', 1.0);
       const imgW = canvas.width, imgH = canvas.height;
 
-      // A4 landscape 인쇄 가용: 277×187mm (margin 10mm)
-      // 96dpi 기준 px: 1047 × 707
-      const PW = 1047, PH = 707;
+      // A4 landscape margin 5mm → 가용: 287×192mm
+      // 인쇄 시 브라우저가 자체 스케일 → 이미지를 mm 단위로 지정
+      const PW = 1085, PH = 726; // 헤더 30px 제외
       const ratio = imgW / imgH;
       let w = PW, h = PW / ratio;
       if (h > PH) { h = PH; w = PH * ratio; }
@@ -2790,10 +2790,10 @@ function printOrgChart() {
         'html,body{width:'+PW+'px;background:#fff;' +
         '-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
         '.hdr{display:flex;justify-content:space-between;align-items:center;' +
-        'padding:5px 10px 4px;border-bottom:2px solid #1a1d2e;margin-bottom:6px}' +
-        '.hdr-t{font-size:15px;font-weight:700;color:#1a1d2e}' +
-        '.hdr-m{font-size:9px;color:#666;margin-top:1px}' +
-        '.hdr-s{text-align:right;font-size:10px;color:#444}' +
+        'padding:3px 10px 3px;border-bottom:1.5px solid #1a1d2e;margin-bottom:4px}' +
+        '.hdr-t{font-size:13px;font-weight:700;color:#1a1d2e}' +
+        '.hdr-m{font-size:8px;color:#666;margin-top:1px}' +
+        '.hdr-s{text-align:right;font-size:9px;color:#444}' +
         '.wrap{width:'+PW+'px;display:flex;justify-content:center;align-items:center}' +
         '@media print{' +
         'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
