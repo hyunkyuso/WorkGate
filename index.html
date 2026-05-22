@@ -2589,14 +2589,11 @@ function renderOrgView() {
       const others=head?es.filter(e=>e!==head):es;
       // 보수적 rows: head 있으면 1+ceil(나머지/2), 없으면 ceil(전체/2)
       // head 판별 실패 대비: 둘 중 큰 값 사용
-      const rowsWithHead = 1 + Math.ceil((es.length-1)/2);
-      const rowsNoHead = Math.ceil(es.length/2);
+      const others2=head?es.filter(e=>e!==head):es;
       let rows;
       if(head&&es.length===1){ rows=1; }
-      else if(head&&es.length>1){ rows=rowsWithHead; }
-      else { rows=rowsNoHead; }
-      // head 판별이 불확실할 경우를 대비해 최대값 사용
-      rows=Math.max(rows, rowsNoHead);
+      else if(head&&es.length>1){ rows=1+Math.ceil(others2.length/2); }
+      else { rows=Math.ceil(es.length/2)||1; }
       if(rows>maxRows) maxRows=rows;
     });
     const empH=maxRows>0?maxRows*62+8:0;
@@ -2615,7 +2612,8 @@ function renderOrgView() {
     const orgLvKey=(dept&&dept.orgLevel!=null&&dept.orgLevel!=='')?parseInt(dept.orgLevel):lv;
     const y=(z3LvY&&z3LvY[orgLvKey]!==undefined)?z3LvY[orgLvKey]:
             (z3LvY&&z3LvY[lv]!==undefined)?z3LvY[lv]:absY;
-    const lvMaxRows=(z3MaxRows&&z3MaxRows[orgLvKey])||0;
+    // lvMaxRows: 실제 depth(lv) 기준으로 가져와야 calcZ3LvHeights와 일치
+    const lvMaxRows=(z3MaxRows&&z3MaxRows[lv])||0;
     pos[id]={cx, absY:y, lv:orgLvKey, lvMaxRows};
     const bots=gkBot(id);
     if(!bots.length)return;
@@ -2714,7 +2712,15 @@ function renderOrgView() {
       const headBW=head?bw(head):0;
       const contW=Math.max(headBW, othersRowW, EW);
       const empContLeft=(cardW-contW)/2;
-      nodes+='<div style="margin-top:6px;margin-left:'+empContLeft+'px;width:'+contW+'px">';
+      // thisRows 계산: 이 카드의 실제 행 수
+      let thisRows;
+      if(head&&es.length===1){ thisRows=1; }
+      else if(head&&es.length>1){ thisRows=1+Math.ceil(others.length/2); }
+      else { thisRows=Math.ceil(es.length/2)||1; }
+      // lvMaxRows와 차이만큼 위 여백 → 모든 카드 마지막줄(=다음레벨 바로 위) 수평
+      const lvMax=p.lvMaxRows||thisRows;
+      const topPad=6+(lvMax>thisRows?(lvMax-thisRows)*62:0);
+      nodes+='<div style="margin-top:'+topPad+'px;margin-left:'+empContLeft+'px;width:'+contW+'px">';
       if(head&&es.length===1){
         nodes+='<div style="display:flex;justify-content:center">'+empBubble(head,true)+'</div>';
       } else if(head&&es.length>1){
