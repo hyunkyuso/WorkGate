@@ -2711,8 +2711,8 @@ function renderOrgView() {
       const avatarBorder=isL?'2px solid '+color:'1.5px solid #94a3b8';
       const BW=e.isConcurrent?96:EW;
       const boxStyle=e.isConcurrent
-        ?'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
-        :'display:flex;flex-direction:column;align-items:center;width:'+BW+'px';
+        ?'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06);overflow:hidden'
+        :'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;overflow:hidden';
       let h='<div style="'+boxStyle+'">';
       h+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;margin:0 auto">';
       h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
@@ -2741,7 +2741,8 @@ function renderOrgView() {
         const othersOdd=(others.length%2===1);
         const othRowW=EW*2;
         for(let ri=0;ri<others.length;ri+=2){
-          const justify=(others.length===1||!othersOdd)?'justify-content:center':'justify-content:flex-start';
+          const isLastOne=!others[ri+1]; // 이 줄에 1명뿐
+          const justify=isLastOne?'justify-content:center':'justify-content:flex-start';
           nodes+='<div style="display:flex;gap:0px;margin-bottom:4px;width:'+othRowW+'px;'+justify+'">';
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
@@ -2755,7 +2756,7 @@ function renderOrgView() {
           const isLastSingle=esOdd&&!es[ri+1]; // 마지막 1명 홀수
           const isOnlyOne=(es.length===1); // 직책없이 혼자
           // 1명뿐이면 가운데 / 홀수 마지막: 좌측 / 나머지: 가운데
-          const justify=(isOnlyOne||!isLastSingle)?'justify-content:center':'justify-content:flex-start';
+          const justify=(isOnlyOne||isLastSingle)?'justify-content:center':'justify-content:flex-start';
           const w=(isLastSingle&&!isOnlyOne)?rowW+'px':rowW+'px';
           nodes+='<div style="display:flex;gap:0px;margin-bottom:4px;width:'+w+';'+justify+'">';
           const isH1=es[ri].name===headName&&!!headName;
