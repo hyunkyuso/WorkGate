@@ -2748,19 +2748,21 @@ function renderOrgView() {
           nodes+='</div>';
         }
       } else {
-        // 직책없음
+        // 직책없음: 2명 줄 너비 기준으로 컨테이너 고정
         const esOdd=(es.length%2===1);
+        const rowW=(EW+3)*2+3; // 2명 한 줄 너비
+        nodes+='<div style="display:inline-block">';
         for(let ri=0;ri<es.length;ri+=2){
-          const isLastRow=(ri+2>=es.length);
-          const isLastSingle=esOdd&&isLastRow&&!es[ri+1]; // 마지막 1명 홀수
-          // 홀수 마지막 1명: 좌측(위 줄 맞춤) / 나머지: 가운데
+          const isLastSingle=esOdd&&!es[ri+1]; // 마지막 1명
+          // 홀수 마지막 1명: 좌측 / 나머지: 가운데
           const justify=isLastSingle?'':'justify-content:center';
-          nodes+='<div style="display:flex;gap:3px;margin-bottom:10px;'+justify+'">';
+          nodes+='<div style="display:flex;gap:3px;margin-bottom:10px;width:'+rowW+'px;'+justify+'">';
           const isH1=es[ri].name===headName&&!!headName;
           nodes+=empBubble(es[ri],isH1);
           if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
           nodes+='</div>';
         }
+        nodes+='</div>';
       }
       nodes+='</div>';
     }
