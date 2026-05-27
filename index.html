@@ -2735,14 +2735,14 @@ function renderOrgView() {
       nodes+='<div style="margin-top:4px;width:'+cardW+'px;display:flex;flex-direction:column">';
       if(head&&es.length===1){
         // 직책자만 1명 → 가운데
-        nodes+='<div style="display:inline-flex;height:96px;align-items:center;margin:0 auto">'+empBubble(head,true)+'</div>';
+        nodes+='<div style="display:flex;width:fit-content;height:96px;align-items:center;margin:0 auto">'+empBubble(head,true)+'</div>';
       } else if(head&&es.length>1){
         // 직책있고 여러명 → 직책자 가운데
-        nodes+='<div style="display:inline-flex;height:96px;align-items:center;margin:0 auto">'+empBubble(head,true)+'</div>';
+        nodes+='<div style="display:flex;width:fit-content;height:96px;align-items:center;margin:0 auto">'+empBubble(head,true)+'</div>';
         const othersOdd=(others.length%2===1);
         for(let ri=0;ri<others.length;ri+=2){
           const mc=(others.length===1||!othersOdd)?'margin:0 auto':'';
-          nodes+='<div style="display:inline-flex;gap:1px;margin-bottom:4px;'+mc+'">';
+          nodes+='<div style="display:flex;width:fit-content;gap:1px;margin-bottom:4px;'+mc+'">';
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
           nodes+='</div>';
@@ -2755,7 +2755,7 @@ function renderOrgView() {
           const isOnlyOne=(es.length===1);
           const justify=(isOnlyOne||!isLastSingle)?'justify-content:center':'';
           const mc2=(isOnlyOne||!isLastSingle)?'margin:0 auto':'';
-          nodes+='<div style="display:inline-flex;gap:1px;margin-bottom:4px;'+mc2+'">';
+          nodes+='<div style="display:flex;width:fit-content;gap:1px;margin-bottom:4px;'+mc2+'">';
           const isH1=es[ri].name===headName&&!!headName;
           nodes+=empBubble(es[ri],isH1);
           if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
