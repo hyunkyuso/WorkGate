@@ -2755,9 +2755,10 @@ function renderOrgView() {
         // 직책없음
         const esOdd=(es.length%2===1);
         for(let ri=0;ri<es.length;ri+=2){
-          const isFirst=(ri===0);
-          // 홀수: 첫줄(1명)만 가운데, 나머지 좌측 / 짝수: 모두 가운데
-          const justify=esOdd?(isFirst&&!es[ri+1]?'justify-content:center':''):'justify-content:center';
+          const isLastRow=(ri+2>=es.length);
+          const isLastSingle=esOdd&&isLastRow&&!es[ri+1]; // 마지막 1명 홀수
+          // 홀수 마지막 1명: 좌측(위 줄 맞춤) / 나머지: 가운데
+          const justify=isLastSingle?'':'justify-content:center';
           nodes+='<div style="display:flex;gap:3px;margin-bottom:10px;'+justify+'">';
           const isH1=es[ri].name===headName&&!!headName;
           nodes+=empBubble(es[ri],isH1);
