@@ -2300,7 +2300,7 @@ function renderOrgView() {
   }
   function nodeH(id){
     const d=departments.find(x=>x.id===id);if(!d)return CH;
-    return CH+(getEmps(d).length>0?Math.ceil(getEmps(d).length/6)*72+8:0);
+    return CH+(getEmps(d).length>0?Math.ceil(getEmps(d).length/6)*82+8:0);
   }
   function isBot(d){return !d.position||d.position==='bottom';}
   function isZ2(d){return d.position&&d.position.startsWith('zone2-');}
@@ -2616,7 +2616,7 @@ function renderOrgView() {
         rows=Math.ceil(es.length/2);
       }
       // 첫줄(직책자) 72px 고정 + 나머지 줄 72px
-      const empH=rows*72+8;
+      const empH=rows*82+8;
       maxH=Math.max(maxH,CH+empH);
     });
     if(!lvH[lv]||lvH[lv]<maxH) lvH[lv]=maxH;
@@ -2732,10 +2732,10 @@ function renderOrgView() {
       nodes+='<div style="margin-top:6px">';
       if(head&&es.length===1){
         // 직책있고 1명 → 가운데 정렬
-        nodes+='<div style="display:flex;justify-content:center;height:72px;align-items:center">'+empBubble(head,true)+'</div>';
+        nodes+='<div style="display:flex;justify-content:center;height:82px;align-items:center">'+empBubble(head,true)+'</div>';
       } else if(head&&es.length>1){
         // 직책있고 여러명 → 첫줄 단독, 나머지 2명씩
-        nodes+='<div style="display:flex;justify-content:center;height:72px;align-items:center">'+empBubble(head,true)+'</div>';
+        nodes+='<div style="display:flex;justify-content:center;height:82px;align-items:center">'+empBubble(head,true)+'</div>';
         for(let ri=0;ri<others.length;ri+=2){
           // others가 1명(직책1+나머지1)이면 가운데, 그외 왼쪽
           const centerRow=(others.length===1);
