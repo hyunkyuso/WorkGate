@@ -2742,18 +2742,16 @@ function renderOrgView() {
         // 직책있고 여러명 → 첫줄 단독, 나머지 2명씩
         nodes+='<div style="display:flex;justify-content:center;height:96px;align-items:center">'+empBubble(head,true)+'</div>';
         for(let ri=0;ri<others.length;ri+=2){
-          // others가 1명(직책1+나머지1)이면 가운데, 그외 왼쪽
-          const centerRow=(others.length===1);
-          nodes+='<div style="display:flex;gap:3px;margin-bottom:10px;'+(centerRow?'justify-content:center':'')+'">';
+          // 홀수 마지막 줄(1명)이면 좌측 유지, 짝수는 좌측
+          nodes+='<div style="display:flex;gap:3px;margin-bottom:10px">';
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
           nodes+='</div>';
         }
       } else {
-        // 직책없으면 2명씩 (1명이면 가운데)
+        // 직책없으면 2명씩 → 모든 줄 가운데 정렬
         for(let ri=0;ri<es.length;ri+=2){
-          const rowStyle=es.length===1?'justify-content:center':'';
-          nodes+='<div style="display:flex;gap:3px;margin-bottom:10px;'+rowStyle+'">';
+          nodes+='<div style="display:flex;gap:3px;margin-bottom:10px;justify-content:center">';
           const isH1=es[ri].name===headName&&!!headName;
           nodes+=empBubble(es[ri],isH1);
           if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
