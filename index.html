@@ -192,12 +192,12 @@ select.form-input{cursor:pointer}
 .ov-dept-sub{font-size:10px;opacity:.8;margin-top:2px}
 .ov-emp-bubble{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:default}
 .ov-emp-bubble .ov-avatar{width:76px;height:76px;border-radius:50%;border:3px solid #fff;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.ov-emp-bubble .ov-emp-name{font-size:18px;font-weight:600;color:#1a1d2e;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
-.ov-emp-bubble .ov-emp-pos{font-size:18px;color:#5a5f7a;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.ov-emp-bubble .ov-emp-name{font-size:16px;font-weight:600;color:#1a1d2e;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.ov-emp-bubble .ov-emp-pos{font-size:16px;color:#5a5f7a;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
 
-.ov-emp-pos-inline{font-size:18px;font-weight:700;color:#5a5f7a;white-space:nowrap}
+.ov-emp-pos-inline{font-size:16px;font-weight:700;color:#5a5f7a;white-space:nowrap}
 .ov-emp-bubble.is-head .ov-avatar{width:88px;height:88px;border-color:var(--ac);border-width:3px;box-shadow:0 4px 12px rgba(79,110,247,.4)}
-.ov-emp-bubble.is-head .ov-emp-name{font-size:18px;font-weight:700;color:var(--ac)}
+.ov-emp-bubble.is-head .ov-emp-name{font-size:16px;font-weight:700;color:var(--ac)}
 .ov-v-line{width:2px;background:#d1d5db;margin:0 auto;flex-shrink:0}
 .ov-tree-hline-wrap{position:relative;display:inline-flex;gap:12px;align-items:flex-start}
 .ov-h-connector{position:absolute;top:0;left:50%;transform:translateX(-50%);height:2px;background:#d1d5db;width:calc(100% - 140px);min-width:20px}
@@ -2139,7 +2139,7 @@ function empBubbleHTML(e, isHead) {
         ? `<img src="${e.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
         : `<span>${initials}</span>`}
     </div>
-    <div class="ov-emp-name" title="${e.name||''}"><span style="font-size:18px;font-weight:700">${e.name||'-'}</span>${e.position?' <span class="ov-emp-pos-inline">'+e.position+'</span>':''}</div>
+    <div class="ov-emp-name" title="${e.name||''}"><span style="font-size:16px;font-weight:700">${e.name||'-'}</span>${e.position?' <span class="ov-emp-pos-inline">'+e.position+'</span>':''}</div>
   </div>`;
 }
 
@@ -2666,12 +2666,12 @@ function renderOrgView() {
           :'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;cursor:pointer';
         const deptId2=departments.find(d=>d.name===(e.dept||''))||null;
         nodes+='<div style="'+boxStyle2+'" onclick="'+(deptId2?'showDeptDetail(\''+deptId2.id+'\')':'')+'">';
-        nodes+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;margin:0 auto">';
+        nodes+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;margin:0 auto">';
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         nodes+='</div>';
         nodes+='<div style="display:flex;align-items:center;gap:2px;margin-top:2px;max-width:'+(EW+8)+'px">';
         if(e.position) nodes+='<span style="font-size:18px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
-        nodes+='<span style="font-size:18px;font-weight:700;color:'+(isL?empColor:'#1e293b')+';white-space:nowrap">'+e.name+'</span>';
+        nodes+='<span style="font-size:16px;font-weight:700;color:'+(isL?empColor:'#1e293b')+';white-space:nowrap">'+e.name+'</span>';
         nodes+='</div>';
 
         nodes+='</div>';
@@ -2695,10 +2695,10 @@ function renderOrgView() {
     if(p.lv===0) cardW=Math.max(CW, nameW);
     const cardX=p.cx-cardW/2;
     nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+cardX+'px;top:'+y+'px;width:'+cardW+'px;cursor:pointer;z-index:2;overflow:visible">';
-    nodes+='<div style="background:'+color+';color:'+(p.lv===0?'#fff':'#1e293b')+';border-radius:8px;padding:7px 9px;text-align:center;font-size:18px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
+    nodes+='<div style="background:'+color+';color:'+(p.lv===0?'#fff':'#1e293b')+';border-radius:8px;padding:7px 9px;text-align:center;font-size:16px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
     // 인원수: lv1=전체합산, lv2=lv2+lv3합산, lv3=직속만
     const dispCount = getDeptCountWithConcurrent(id);
-    nodes+=dept.name+'<div style="font-size:18px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명</div></div>';
+    nodes+=dept.name+'<div style="font-size:16px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명</div></div>';
     // 3구역만 직원 카드 아래 표시
     const isLeaderPos=function(e){
       const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장';
@@ -2714,12 +2714,12 @@ function renderOrgView() {
         ?'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
         :'display:flex;flex-direction:column;align-items:center;width:'+BW+'px';
       let h='<div style="'+boxStyle+'">';
-      h+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;margin:0 auto">';
+      h+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;margin:0 auto">';
       h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
       h+='</div>';
       h+='<div style="margin-top:4px;text-align:center;white-space:nowrap">';
-      h+='<span style="font-size:18px;font-weight:700;color:#1e293b">'+(e.position?e.position+' ':'')+'</span>';
-      h+='<span style="font-size:18px;font-weight:700;color:'+(isL?color:'#1e293b')+'">'+e.name+'</span>';
+      h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+(e.position?e.position+' ':'')+'</span>';
+      h+='<span style="font-size:16px;font-weight:700;color:'+(isL?color:'#1e293b')+'">'+e.name+'</span>';
       h+='</div>';
       h+='</div>';
       return h;
