@@ -2839,6 +2839,10 @@ function showDeptDetail(deptId) {
 
   const headName = dept.head || '';
   const deptEmps = employees.filter(e=>e.dept===dept.name&&e.status!=='퇴직');
+  // 겸직 직원 (이 부서에 겸직으로 속한 직원)
+  const concEmps = employees.filter(e=>e.status!=='퇴직'&&e.dept!==dept.name&&
+    (e.concurrent||[]).some(c=>c.dept===dept.name));
+  const allDeptEmps = [...deptEmps, ...concEmps];
   const sortedEmps = [
     ...deptEmps.filter(e=>e.name===headName),
     ...deptEmps.filter(e=>e.name!==headName).sort((a,b)=>a.name.localeCompare(b.name,'ko'))
@@ -2849,15 +2853,26 @@ function showDeptDetail(deptId) {
   document.getElementById('dept-detail-meta').textContent =
     `총 ${deptEmps.length}명 재직${headName?' · 부서장: '+headName:''}`;
 
-  // 직책자 판별: dept.head 우선, 없으면 직책이 부서장/팀장/본부장인 사람
+  // 직책자 판별: dept.head 우선, 없으면 본소속+겸직 중 직책자
   const leaderTitlesD = ['대표이사','본부장','부서장','팀장'];
+  // 겸직 직원의 경우 해당 부서에서의 직책(concurrentTitle) 확인
   const headEmp = headName
-    ? employees.find(e=>e.name===headName)
-    : deptEmps.find(e=>leaderTitlesD.includes(e.title||'')) || null;
+    ? allDeptEmps.find(e=>e.name===headName)
+    : allDeptEmps.find(e=>{
+        // 본소속 직원: title 확인
+        if(e.dept===dept.name) return leaderTitlesD.includes(e.title||'');
+        // 겸직 직원: 해당 부서 겸직 직책 확인
+        const cc=(e.concurrent||[]).find(c=>c.dept===dept.name);
+        return cc&&leaderTitlesD.includes(cc.title||'');
+      }) || null;
   const headEl = document.getElementById('dept-detail-head');
   if (headEmp) {
     const initials = (headEmp.name||'?').charAt(0);
-    const titleLabel = headEmp.title || headEmp.position || '직책자';
+    // 겸직 직원이면 해당 부서에서의 겸직 직책 사용
+    const concInfo = headEmp.dept!==dept.name
+      ? (headEmp.concurrent||[]).find(c=>c.dept===dept.name)
+      : null;
+    const titleLabel = (concInfo&&concInfo.title) || headEmp.title || headEmp.position || '직책자';
     headEl.innerHTML = `
       <div style="background:var(--acd);border:1.5px solid var(--ac);border-radius:var(--r2);padding:14px 18px;display:flex;align-items:center;gap:14px">
         <div style="width:64px;height:64px;border-radius:50%;border:2px solid var(--ac);overflow:hidden;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0">
