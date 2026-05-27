@@ -2849,18 +2849,22 @@ function showDeptDetail(deptId) {
   document.getElementById('dept-detail-meta').textContent =
     `총 ${deptEmps.length}명 재직${headName?' · 부서장: '+headName:''}`;
 
-  // 부서장 카드
-  const headEmp = headName ? employees.find(e=>e.name===headName) : null;
+  // 직책자 판별: dept.head 우선, 없으면 직책이 부서장/팀장/본부장인 사람
+  const leaderTitlesD = ['대표이사','본부장','부서장','팀장'];
+  const headEmp = headName
+    ? employees.find(e=>e.name===headName)
+    : deptEmps.find(e=>leaderTitlesD.includes(e.title||'')) || null;
   const headEl = document.getElementById('dept-detail-head');
   if (headEmp) {
     const initials = (headEmp.name||'?').charAt(0);
+    const titleLabel = headEmp.title || headEmp.position || '직책자';
     headEl.innerHTML = `
       <div style="background:var(--acd);border:1.5px solid var(--ac);border-radius:var(--r2);padding:14px 18px;display:flex;align-items:center;gap:14px">
-        <div style="width:56px;height:56px;border-radius:50%;border:2px solid var(--ac);overflow:hidden;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;flex-shrink:0">
+        <div style="width:64px;height:64px;border-radius:50%;border:2px solid var(--ac);overflow:hidden;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0">
           ${headEmp.photo?`<img src="${headEmp.photo}" style="width:100%;height:100%;object-fit:cover">`:initials}
         </div>
         <div>
-          <div style="font-size:10px;background:var(--ac);color:#fff;padding:2px 8px;border-radius:100px;display:inline-block;margin-bottom:4px">부서장</div>
+          <div style="font-size:10px;background:var(--ac);color:#fff;padding:2px 8px;border-radius:100px;display:inline-block;margin-bottom:4px">${titleLabel}</div>
           <div style="font-size:15px;font-weight:700">${headEmp.name}</div>
           <div style="font-size:12px;color:var(--t2)">${[headEmp.position,headEmp.title].filter(Boolean).join(' · ')||''}</div>
         </div>
@@ -2870,8 +2874,8 @@ function showDeptDetail(deptId) {
     headEl.style.display = 'none';
   }
 
-  // 구성원 카드
-  const nonHead = sortedEmps.filter(e=>e.name!==headName);
+  // 구성원 카드 (직책자 제외)
+  const nonHead = sortedEmps.filter(e=>e.name!==(headEmp?.name||headName));
   document.getElementById('dept-detail-members-label').textContent =
     nonHead.length ? `👥 구성원 (${nonHead.length}명)` : '';
   document.getElementById('dept-detail-members').innerHTML = nonHead.map(e=>{
