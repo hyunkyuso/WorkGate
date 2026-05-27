@@ -2736,32 +2736,28 @@ function renderOrgView() {
       const others=head?es.filter(e=>e!==head):es;
       nodes+='<div style="margin-top:6px">';
       if(head&&es.length===1){
-        // 직책있고 1명 → 가운데
+        // 직책1명+직원1명 → 둘다 가운데
         nodes+='<div style="display:flex;justify-content:center;height:96px;align-items:center">'+empBubble(head,true)+'</div>';
+        nodes+='<div style="display:flex;justify-content:center;margin-bottom:10px">'+empBubble(others[0],false)+'</div>';
       } else if(head&&es.length>1){
-        // 직책있고 여러명 → 첫줄 단독 가운데
+        // 직책있고 여러명 → 직책자 가운데
         nodes+='<div style="display:flex;justify-content:center;height:96px;align-items:center">'+empBubble(head,true)+'</div>';
+        const othersOdd=(others.length%2===1);
         for(let ri=0;ri<others.length;ri+=2){
-          const rowCount=others[ri+1]?2:1; // 이 줄 인원수
-          const isLastRow=(ri+2>=others.length); // 마지막 줄 여부
-          const isOdd=(others.length%2===1); // 전체 홀수 여부
-          // 짝수 전체 또는 마지막 줄이 2명 → 가운데, 마지막 줄 1명(홀수) → 좌측
-          const center=!isOdd||(isLastRow&&rowCount===2)||(!isLastRow);
-          nodes+='<div style="display:flex;gap:3px;margin-bottom:10px;'+(center?'justify-content:center':'')+'">';
+          // others 1명(직책+직원 총2명) or 짝수 → 가운데 / 홀수(3명이상) → 좌측
+          const justify=(others.length===1||!othersOdd)?'justify-content:center':'';
+          nodes+='<div style="display:flex;gap:3px;margin-bottom:10px;'+justify+'">';
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
           nodes+='</div>';
         }
       } else {
         // 직책없음
+        const esOdd=(es.length%2===1);
         for(let ri=0;ri<es.length;ri+=2){
           const isFirst=(ri===0);
-          const isLastRow=(ri+2>=es.length);
-          const isOdd=(es.length%2===1);
-          // 홀수: 첫줄(1명) 가운데, 나머지 좌측 / 짝수: 좌측
-          const center=isOdd&&isFirst&&es.length===1||(!isOdd?false:(isFirst&&!es[ri+1]));
-          // 직책없고 홀수: 첫줄 1명이면 가운데, 2명씩 나오면 좌측
-          const justify=(isOdd&&isFirst&&!es[ri+1])?'justify-content:center':'';
+          // 홀수: 첫줄(1명)만 가운데, 나머지 좌측 / 짝수: 모두 가운데
+          const justify=esOdd?(isFirst&&!es[ri+1]?'justify-content:center':''):'justify-content:center';
           nodes+='<div style="display:flex;gap:3px;margin-bottom:10px;'+justify+'">';
           const isH1=es[ri].name===headName&&!!headName;
           nodes+=empBubble(es[ri],isH1);
