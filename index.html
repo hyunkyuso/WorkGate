@@ -191,13 +191,13 @@ select.form-input{cursor:pointer}
 .ov-dept-card.level-4{background:#10b981}
 .ov-dept-sub{font-size:10px;opacity:.8;margin-top:2px}
 .ov-emp-bubble{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:default}
-.ov-emp-bubble .ov-avatar{width:56px;height:56px;border-radius:50%;border:3px solid #fff;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.ov-emp-bubble .ov-emp-name{font-size:11px;font-weight:600;color:#1a1d2e;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}
-.ov-emp-bubble .ov-emp-pos{font-size:9px;color:#5a5f7a;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}
+.ov-emp-bubble .ov-avatar{width:76px;height:76px;border-radius:50%;border:3px solid #fff;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.ov-emp-bubble .ov-emp-name{font-size:15px;font-weight:600;color:#1a1d2e;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+.ov-emp-bubble .ov-emp-pos{font-size:15px;color:#5a5f7a;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
 .ov-emp-bubble .ov-emp-name{display:flex;align-items:center;gap:2px;white-space:nowrap}
-.ov-emp-pos-inline{font-size:11px;font-weight:700;color:#5a5f7a;white-space:nowrap}
-.ov-emp-bubble.is-head .ov-avatar{width:68px;height:68px;border-color:var(--ac);border-width:3px;box-shadow:0 4px 12px rgba(79,110,247,.4)}
-.ov-emp-bubble.is-head .ov-emp-name{font-size:13px;font-weight:700;color:var(--ac)}
+.ov-emp-pos-inline{font-size:15px;font-weight:700;color:#5a5f7a;white-space:nowrap}
+.ov-emp-bubble.is-head .ov-avatar{width:88px;height:88px;border-color:var(--ac);border-width:3px;box-shadow:0 4px 12px rgba(79,110,247,.4)}
+.ov-emp-bubble.is-head .ov-emp-name{font-size:15px;font-weight:700;color:var(--ac)}
 .ov-v-line{width:2px;background:#d1d5db;margin:0 auto;flex-shrink:0}
 .ov-tree-hline-wrap{position:relative;display:inline-flex;gap:12px;align-items:flex-start}
 .ov-h-connector{position:absolute;top:0;left:50%;transform:translateX(-50%);height:2px;background:#d1d5db;width:calc(100% - 140px);min-width:20px}
@@ -2282,7 +2282,7 @@ function renderOrgView() {
   const roots=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   if(!roots.length){chart.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3)">부서를 추가해주세요</div>';return;}
 
-  const CW=118, CH=44, EW=56, HGAP=20, VGAP=60, LINE='#94a3b8';
+  const CW=130, CH=44, EW=80, HGAP=20, VGAP=60, LINE='#94a3b8';
   const LC=['#1e293b','#60a5fa','#f59e0b','#eab308','#0891b2','#059669'];
   function bg(lv){return LC[Math.min(Math.max(lv,0),LC.length-1)];}
   function getEmps(d){
@@ -2300,7 +2300,7 @@ function renderOrgView() {
   }
   function nodeH(id){
     const d=departments.find(x=>x.id===id);if(!d)return CH;
-    return CH+(getEmps(d).length>0?Math.ceil(getEmps(d).length/6)*82+8:0);
+    return CH+(getEmps(d).length>0?Math.ceil(getEmps(d).length/6)*96+8:0);
   }
   function isBot(d){return !d.position||d.position==='bottom';}
   function isZ2(d){return d.position&&d.position.startsWith('zone2-');}
@@ -2616,7 +2616,7 @@ function renderOrgView() {
         rows=Math.ceil(es.length/2);
       }
       // 첫줄(직책자) 72px 고정 + 나머지 줄 72px
-      const empH=rows*82+8;
+      const empH=rows*96+8;
       maxH=Math.max(maxH,CH+empH);
     });
     if(!lvH[lv]||lvH[lv]<maxH) lvH[lv]=maxH;
@@ -2664,11 +2664,11 @@ function renderOrgView() {
           :'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;cursor:pointer';
         const deptId2=departments.find(d=>d.name===(e.dept||''))||null;
         nodes+='<div style="'+boxStyle2+'" onclick="'+(deptId2?'showDeptDetail(\''+deptId2.id+'\')':'')+'">';
-        nodes+='<div style="width:56px;height:56px;border-radius:50%;overflow:hidden;border:'+avatarBorder2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;margin:0 auto">';
+        nodes+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;margin:0 auto">';
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         nodes+='</div>';
         nodes+='<div style="display:flex;align-items:center;gap:2px;margin-top:2px;max-width:'+(EW+8)+'px">';
-        if(e.position) nodes+='<span style="font-size:11px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
+        if(e.position) nodes+='<span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
         nodes+='<span style="font-size:11px;font-weight:700;color:'+(isL?empColor:'#1e293b')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+e.name+'</span>';
         nodes+='</div>';
 
@@ -2691,10 +2691,10 @@ function renderOrgView() {
     if(p.lv===0) cardW=Math.max(CW, dept.name.length*12+28);
     const cardX=p.cx-cardW/2;
     nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+cardX+'px;top:'+y+'px;width:'+cardW+'px;cursor:pointer;z-index:2">';
-    nodes+='<div style="background:'+color+';color:'+(p.lv===0?'#fff':'#1e293b')+';border-radius:8px;padding:7px 9px;text-align:center;font-size:12px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
+    nodes+='<div style="background:'+color+';color:'+(p.lv===0?'#fff':'#1e293b')+';border-radius:8px;padding:7px 9px;text-align:center;font-size:15px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
     // 인원수: lv1=전체합산, lv2=lv2+lv3합산, lv3=직속만
     const dispCount = getDeptCountWithConcurrent(id);
-    nodes+=dept.name+'<div style="font-size:12px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명</div></div>';
+    nodes+=dept.name+'<div style="font-size:15px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명</div></div>';
     // 3구역만 직원 카드 아래 표시
     if(es.length&&!isZ2(dept)&&!isZ2subNode&&p.lv>0){
       // 직책 판별
@@ -2708,17 +2708,17 @@ function renderOrgView() {
         const isL=isH||isLeaderPos(e);
         const avatarBorder=isL?'2px solid '+color:'1.5px solid #94a3b8';
         // 겸직: 전체 박스에 점선 테두리
-        const BW=e.isConcurrent?72:EW;
+        const BW=e.isConcurrent?96:EW;
         const boxStyle=e.isConcurrent
           ?'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
           :'display:flex;flex-direction:column;align-items:center;width:'+BW+'px';
         let h='<div style="'+boxStyle+'">';
-        h+='<div style="width:56px;height:56px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;margin:0 auto">';
+        h+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;margin:0 auto">';
         h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         h+='</div>';
         h+='<div style="display:flex;align-items:center;gap:2px;margin-top:1px;max-width:'+(BW+8)+'px">';
-        if(e.position) h+='<span style="font-size:11px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
-        h+='<span style="font-size:11px;font-weight:700;color:'+(isL?color:'#1e293b')+';white-space:nowrap">'+e.name+'</span>';
+        if(e.position) h+='<span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
+        h+='<span style="font-size:15px;font-weight:700;color:'+(isL?color:'#1e293b')+';white-space:nowrap">'+e.name+'</span>';
         h+='</div>';
 
         h+='</div>';
@@ -2732,10 +2732,10 @@ function renderOrgView() {
       nodes+='<div style="margin-top:6px">';
       if(head&&es.length===1){
         // 직책있고 1명 → 가운데 정렬
-        nodes+='<div style="display:flex;justify-content:center;height:82px;align-items:center">'+empBubble(head,true)+'</div>';
+        nodes+='<div style="display:flex;justify-content:center;height:96px;align-items:center">'+empBubble(head,true)+'</div>';
       } else if(head&&es.length>1){
         // 직책있고 여러명 → 첫줄 단독, 나머지 2명씩
-        nodes+='<div style="display:flex;justify-content:center;height:82px;align-items:center">'+empBubble(head,true)+'</div>';
+        nodes+='<div style="display:flex;justify-content:center;height:96px;align-items:center">'+empBubble(head,true)+'</div>';
         for(let ri=0;ri<others.length;ri+=2){
           // others가 1명(직책1+나머지1)이면 가운데, 그외 왼쪽
           const centerRow=(others.length===1);
