@@ -2717,8 +2717,8 @@ function renderOrgView() {
       h+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;margin:0 auto">';
       h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
       h+='</div>';
-      h+='<div style="display:flex;align-items:center;gap:2px;margin-top:1px;max-width:'+(BW+8)+'px">';
-      if(e.position) h+='<span style="font-size:18px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
+      h+='<div style="display:flex;flex-direction:column;align-items:center;margin-top:4px;width:'+BW+'px">';
+      if(e.position) h+='<span style="font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
       h+='<span style="font-size:18px;font-weight:700;color:'+(isL?color:'#1e293b')+';white-space:nowrap">'+e.name+'</span>';
       h+='</div>';
       h+='</div>';
@@ -2730,9 +2730,8 @@ function renderOrgView() {
       const leaderEmp=es.find(e=>isLeaderPos(e));
       const head=headEmp||leaderEmp||null;
       const others=head?es.filter(e=>e!==head):es;
-      // 직원 컨테이너: 카드 헤더 너비(nameW) 기준 가운데 정렬
-      const empContX=(cardW-nameW)/2;
-      nodes+='<div style="margin-top:6px;margin-left:'+empContX+'px;width:'+nameW+'px;display:flex;flex-direction:column;align-items:center">';
+      // 직원 컨테이너: 카드 중앙 기준, position:absolute로 독립 배치
+      nodes+='<div style="position:absolute;left:0;right:0;top:'+(CH+6)+'px;display:flex;flex-direction:column;align-items:center">';
       if(head&&es.length===1){
         // 직책자만 1명 → 가운데
         nodes+='<div style="display:flex;justify-content:center;height:96px;align-items:center">'+empBubble(head,true)+'</div>';
