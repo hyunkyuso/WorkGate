@@ -2732,7 +2732,7 @@ function renderOrgView() {
       const head=headEmp||leaderEmp||null;
       const others=head?es.filter(e=>e!==head):es;
       // 직원 컨테이너: 카드 중앙 기준, position:absolute로 독립 배치
-      nodes+='<div style="margin-top:4px;display:flex;flex-direction:column">';
+      nodes+='<div style="margin-top:4px;display:flex;flex-direction:column;align-items:center">';
       if(head&&es.length===1){
         // 직책자만 1명 → 가운데
         nodes+='<div style="display:flex;justify-content:center;height:96px;align-items:center">'+empBubble(head,true)+'</div>';
@@ -2754,7 +2754,8 @@ function renderOrgView() {
           const isLastSingle=esOdd&&!es[ri+1];
           const isOnlyOne=(es.length===1);
           const justify=(isOnlyOne||!isLastSingle)?'justify-content:center':'';
-          nodes+='<div style="display:flex;gap:1px;margin-bottom:4px;'+justify+'">';
+          const alignSelf=isLastSingle?'align-self:flex-start;':'';
+          nodes+='<div style="display:flex;gap:1px;margin-bottom:4px;'+alignSelf+justify+'">';
           const isH1=es[ri].name===headName&&!!headName;
           nodes+=empBubble(es[ri],isH1);
           if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
