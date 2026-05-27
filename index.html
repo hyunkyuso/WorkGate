@@ -2646,7 +2646,7 @@ function renderOrgView() {
       const empList=p.empList, empColor=p.color||bg(2);
       // 본부장/부서장/팀장 여부
       const isLeader2=function(e){ const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장'; };
-      const empGap=12;
+      const empGap=1;
       const totalEmpW=empList.length*EW+(empList.length-1)*empGap;
       const x=p.cx-totalEmpW/2;
       // 카드 세로 중앙에 맞춤: absY + CH/2 - 아바타(76px)/2 - 이름영역(20px)/2
@@ -2742,7 +2742,7 @@ function renderOrgView() {
         const othersOdd=(others.length%2===1);
         for(let ri=0;ri<others.length;ri+=2){
           const justify=(others.length===1||!othersOdd)?'justify-content:center':'';
-          nodes+='<div style="display:flex;gap:0.5px;margin-bottom:4px;'+justify+'">';
+          nodes+='<div style="display:flex;gap:1px;margin-bottom:4px;'+justify+'">';
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
           nodes+='</div>';
@@ -2754,7 +2754,7 @@ function renderOrgView() {
           const isLastSingle=esOdd&&!es[ri+1];
           const isOnlyOne=(es.length===1);
           const justify=(isOnlyOne||isLastSingle)?'justify-content:center':'';
-          nodes+='<div style="display:flex;gap:0.5px;margin-bottom:4px;'+justify+'">';
+          nodes+='<div style="display:flex;gap:1px;margin-bottom:4px;'+justify+'">';
           const isH1=es[ri].name===headName&&!!headName;
           nodes+=empBubble(es[ri],isH1);
           if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
