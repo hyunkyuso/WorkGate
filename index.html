@@ -2711,13 +2711,13 @@ function renderOrgView() {
       const avatarBorder=isL?'2px solid '+color:'1.5px solid #94a3b8';
       const BW=e.isConcurrent?96:EW;
       const boxStyle=e.isConcurrent
-        ?'display:flex;flex-direction:column;align-items:center;min-width:'+BW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
-        :'display:flex;flex-direction:column;align-items:center;min-width:'+BW+'px';
+        ?'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
+        :'display:flex;flex-direction:column;align-items:center;width:'+BW+'px';
       let h='<div style="'+boxStyle+'">';
       h+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;margin:0 auto">';
       h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
       h+='</div>';
-      h+='<div style="margin-top:4px;text-align:center;white-space:nowrap">';
+      h+='<div style="margin-top:4px;text-align:center;white-space:nowrap;overflow:hidden;width:'+BW+'px">';
       h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+(e.position?e.position+' ':'')+'</span>';
       h+='<span style="font-size:16px;font-weight:700;color:'+(isL?color:'#1e293b')+'">'+e.name+'</span>';
       h+='</div>';
@@ -2731,7 +2731,7 @@ function renderOrgView() {
       const head=headEmp||leaderEmp||null;
       const others=head?es.filter(e=>e!==head):es;
       // 직원 컨테이너: 카드 중앙 기준, position:absolute로 독립 배치
-      nodes+='<div style="margin-top:4px;display:flex;flex-direction:column">';
+      nodes+='<div style="margin-top:4px;display:inline-flex;flex-direction:column">';
       if(head&&es.length===1){
         // 직책자만 1명 → 가운데
         nodes+='<div style="display:flex;justify-content:center;height:96px;align-items:center">'+empBubble(head,true)+'</div>';
@@ -2742,7 +2742,7 @@ function renderOrgView() {
         for(let ri=0;ri<others.length;ri+=2){
           const isLastOne=!others[ri+1];
           const justify=isLastOne?'justify-content:center':'';
-          nodes+='<div style="display:flex;gap:4px;margin-bottom:4px;'+justify+'">';
+          nodes+='<div style="display:flex;gap:0;margin-bottom:4px;'+justify+"'>";
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
           nodes+='</div>';
@@ -2754,7 +2754,7 @@ function renderOrgView() {
           const isLastSingle=esOdd&&!es[ri+1];
           const isOnlyOne=(es.length===1);
           const justify=(isOnlyOne||isLastSingle)?'justify-content:center':'';
-          nodes+='<div style="display:flex;gap:4px;margin-bottom:4px;'+justify+'">';
+          nodes+='<div style="display:flex;gap:0;margin-bottom:4px;'+justify+"'>";
           const isH1=es[ri].name===headName&&!!headName;
           nodes+=empBubble(es[ri],isH1);
           if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
