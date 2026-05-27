@@ -194,7 +194,7 @@ select.form-input{cursor:pointer}
 .ov-emp-bubble .ov-avatar{width:76px;height:76px;border-radius:50%;border:3px solid #fff;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .ov-emp-bubble .ov-emp-name{font-size:18px;font-weight:600;color:#1a1d2e;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
 .ov-emp-bubble .ov-emp-pos{font-size:18px;color:#5a5f7a;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
-.ov-emp-bubble .ov-emp-name{display:flex;align-items:center;gap:2px;white-space:nowrap}
+
 .ov-emp-pos-inline{font-size:18px;font-weight:700;color:#5a5f7a;white-space:nowrap}
 .ov-emp-bubble.is-head .ov-avatar{width:88px;height:88px;border-color:var(--ac);border-width:3px;box-shadow:0 4px 12px rgba(79,110,247,.4)}
 .ov-emp-bubble.is-head .ov-emp-name{font-size:18px;font-weight:700;color:var(--ac)}
@@ -2282,7 +2282,7 @@ function renderOrgView() {
   const roots=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   if(!roots.length){chart.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3)">부서를 추가해주세요</div>';return;}
 
-  const CW=130, CH=44, EW=80, HGAP=20, VGAP=60, LINE='#94a3b8';
+  const CW=140, CH=48, EW=80, HGAP=20, VGAP=60, LINE='#94a3b8';
   const LC=['#1e293b','#60a5fa','#f59e0b','#eab308','#0891b2','#059669'];
   function bg(lv){return LC[Math.min(Math.max(lv,0),LC.length-1)];}
   function getEmps(d){
@@ -2311,9 +2311,12 @@ function renderOrgView() {
   function subW(id){
     const d=departments.find(x=>x.id===id);
     const es=d?getEmps(d):[];
+    // 조직명 길이 기반 카드 너비 (cardW와 동일 로직)
+    const nameW=d?(d.name.length*13+28):CW;
+    const cardMinW=Math.max(CW, nameW);
     // 직원 너비: 2명씩 줄바꿈 기준 한 줄 너비
     const empW=es.length>0?Math.min(es.length,2)*(EW+3):0;
-    const selfW=Math.max(CW, empW);
+    const selfW=Math.max(cardMinW, empW);
     const bots=gkBot(id);
     if(!bots.length)return selfW;
     const childW=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
@@ -2687,8 +2690,10 @@ function renderOrgView() {
     const isZ2subNode = pos['emp_'+id] !== undefined || pos['emp1_'+id] !== undefined;
     // 3구역 lv1,lv2는 하위 범위 너비로 카드 표시
     // lv0(대표이사)는 이름 길이에 맞게 너비 동적 조정
-    let cardW=((!isZ2(dept)&&!isZ2subNode&&(p.lv===1||p.lv===2)))?Math.max(CW,subW(id)):CW;
-    if(p.lv===0) cardW=Math.max(CW, dept.name.length*12+28);
+    // 글자크기 18px 기준 조직명 너비 동적 계산 (한글 약 13px, padding 18px)
+    const nameW = dept.name.length * 13 + 28;
+    let cardW=((!isZ2(dept)&&!isZ2subNode&&(p.lv===1||p.lv===2)))?Math.max(CW,nameW,subW(id)):Math.max(CW,nameW);
+    if(p.lv===0) cardW=Math.max(CW, nameW);
     const cardX=p.cx-cardW/2;
     nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+cardX+'px;top:'+y+'px;width:'+cardW+'px;cursor:pointer;z-index:2">';
     nodes+='<div style="background:'+color+';color:'+(p.lv===0?'#fff':'#1e293b')+';border-radius:8px;padding:7px 9px;text-align:center;font-size:18px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
