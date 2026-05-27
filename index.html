@@ -2739,11 +2739,10 @@ function renderOrgView() {
         // 직책있고 여러명 → 직책자 가운데
         nodes+='<div style="display:flex;justify-content:center;height:96px;align-items:center">'+empBubble(head,true)+'</div>';
         const othersOdd=(others.length%2===1);
-        const othRowW=EW*2;
         for(let ri=0;ri<others.length;ri+=2){
-          const isLastOne=!others[ri+1]; // 이 줄에 1명뿐
-          const justify=isLastOne?'justify-content:center':'justify-content:flex-start';
-          nodes+='<div style="display:flex;gap:0px;margin-bottom:4px;width:'+othRowW+'px;'+justify+'">';
+          const isLastOne=!others[ri+1];
+          const justify=isLastOne?'justify-content:center':'';
+          nodes+='<div style="display:flex;gap:4px;margin-bottom:4px;'+justify+'">';
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
           nodes+='</div>';
@@ -2751,14 +2750,11 @@ function renderOrgView() {
       } else {
         // 직책없음
         const esOdd=(es.length%2===1);
-        const rowW=EW*2; // 2명 한 줄 너비 기준
         for(let ri=0;ri<es.length;ri+=2){
-          const isLastSingle=esOdd&&!es[ri+1]; // 마지막 1명 홀수
-          const isOnlyOne=(es.length===1); // 직책없이 혼자
-          // 1명뿐이면 가운데 / 홀수 마지막: 좌측 / 나머지: 가운데
-          const justify=(isOnlyOne||isLastSingle)?'justify-content:center':'justify-content:flex-start';
-          const w=(isLastSingle&&!isOnlyOne)?rowW+'px':rowW+'px';
-          nodes+='<div style="display:flex;gap:0px;margin-bottom:4px;width:'+w+';'+justify+'">';
+          const isLastSingle=esOdd&&!es[ri+1];
+          const isOnlyOne=(es.length===1);
+          const justify=(isOnlyOne||isLastSingle)?'justify-content:center':'';
+          nodes+='<div style="display:flex;gap:4px;margin-bottom:4px;'+justify+'">';
           const isH1=es[ri].name===headName&&!!headName;
           nodes+=empBubble(es[ri],isH1);
           if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
