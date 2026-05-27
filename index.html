@@ -2338,9 +2338,14 @@ function renderOrgView() {
     return w;
   }
 
-  // 2구역 한 행의 높이 = 가장 큰 노드 높이
+  // 2구역 한 행의 높이
   function z2RowHeight(nodeId){
+    const d=departments.find(x=>x.id===nodeId);
     const bots=gkBot(nodeId);
+    // 우측: lv2들을 세로로 배치하므로 높이 = lv2 개수 * (CH+VGAP)
+    if(d&&d.position&&d.position.includes('right')&&bots.length>0){
+      return CH + bots.length*(CH+VGAP);
+    }
     let h=CH;
     bots.forEach(function(b){h=Math.max(h,CH);});
     return h+10;
@@ -2508,29 +2513,34 @@ function renderOrgView() {
           bx+=lv1REmpW+HGAP;
         }
 
-        // lv2 그룹: lv1직원 다음
-        bots.forEach(function(b){
+        // lv2 그룹: 세로로 배치 (첫번째는 lv1과 같은 Y, 이후 아래로)
+        let botY=curY;
+        let maxBx=bx; // lv2 오른쪽 끝 최대값 추적
+        bots.forEach(function(b,bi){
           const bd=departments.find(x=>x.id===b.id);
           const bemps=bd?getEmps(bd):[];
           const empRowW=bemps.length*(EW+3);
-          pos[b.id]={cx:bx+CW/2, absY:curY, lv:2};
-          bx+=CW+HGAP;
+          let rowBx=bx; // 각 행의 x는 동일 시작점
+          pos[b.id]={cx:rowBx+CW/2, absY:botY, lv:2};
+          rowBx+=CW+HGAP;
           if(bemps.length){
-            pos['emp_'+b.id]={cx:bx+empRowW/2, absY:curY, empList:bemps, deptId:b.id, color:bg(2)};
-            bx+=empRowW+HGAP;
+            pos['emp_'+b.id]={cx:rowBx+empRowW/2, absY:botY, empList:bemps, deptId:b.id, color:bg(2)};
+            rowBx+=empRowW+HGAP;
           }
           const subBots=gkBot(b.id);
           subBots.forEach(function(sb){
             const sbd=departments.find(x=>x.id===sb.id);
             const semps=sbd?getEmps(sbd):[];
             const sempRowW=semps.length*(EW+3);
-            pos[sb.id]={cx:bx+CW/2, absY:curY, lv:3};
-            bx+=CW+HGAP;
+            pos[sb.id]={cx:rowBx+CW/2, absY:botY, lv:3};
+            rowBx+=CW+HGAP;
             if(semps.length){
-              pos['emp_'+sb.id]={cx:bx+sempRowW/2, absY:curY, empList:semps, deptId:sb.id, color:bg(3)};
-              bx+=sempRowW+HGAP;
+              pos['emp_'+sb.id]={cx:rowBx+sempRowW/2, absY:botY, empList:semps, deptId:sb.id, color:bg(3)};
+              rowBx+=sempRowW+HGAP;
             }
           });
+          maxBx=Math.max(maxBx,rowBx);
+          botY+=CH+VGAP; // 다음 lv2는 아래로
         });
 
         // SVG: spine → lv1 카드 가로선
