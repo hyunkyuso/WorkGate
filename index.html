@@ -3271,15 +3271,18 @@ function renderWelfareTable() {
     return d ? (d.sortOrder||99) : 99;
   }
 
-  // 재직 직원 (본소속만, 겸직은 본소속 기준)
+  // 직위 순서
+  const POS_ORDER = {'부장':0,'차장':1,'과장':2,'대리':3,'사원':4};
+  const TITLE_ORDER = {'본부장':0,'부서장':1,'팀장':2,'대표이사':0};
+
+  function empSortKey(e) {
+    const titleRank = TITLE_ORDER[e.title||''] ?? 99;
+    const posRank = POS_ORDER[e.position||''] ?? 50;
+    return [titleRank, posRank, (e.name||'')];
+  }
+
   const activeEmps = employees.filter(e => e.status !== '퇴직');
-
-  // 겸직자: 본소속의 최상위 본부에만 포함
-  // → 겸직 처리 없이 본소속 dept 기준으로만
   const empsWithH = activeEmps.map(e => ({ ...e, hier: getDeptHierarchy(e.dept||'') }));
-
-  const RANK_W = {'본부장':0,'부서장':1,'팀장':2,'대표이사':0};
-  function titleRank(e) { return RANK_W[e.title||''] ?? 99; }
 
   const sorted = empsWithH.sort((a,b) => {
     const bo = getDeptOrder(a.hier.bonbu) - getDeptOrder(b.hier.bonbu);
@@ -3288,7 +3291,11 @@ function renderWelfareTable() {
     if (buo !== 0) return buo;
     const to = getDeptOrder(a.hier.team) - getDeptOrder(b.hier.team);
     if (to !== 0) return to;
-    return titleRank(a) - titleRank(b);
+    // 같은 조직 내: 직책 → 직위 순
+    const ka = empSortKey(a), kb = empSortKey(b);
+    if (ka[0] !== kb[0]) return ka[0] - kb[0];
+    if (ka[1] !== kb[1]) return ka[1] - kb[1];
+    return ka[2].localeCompare(kb[2], 'ko');
   });
 
   let rows = '';
@@ -3315,7 +3322,6 @@ function renderWelfareTable() {
       buseoGroups[k].push(e);
     });
 
-    // 본부 rowspan = 전체 직원수 + 본부합계행 1
     const bonbuRowspan = bonbuEmps.length;
     let bonbuFirst=true;
 
@@ -3332,6 +3338,8 @@ function renderWelfareTable() {
       let buseoFirst=true;
 
       Object.entries(teamGroups).forEach(([team, teamEmps]) => {
+        const teamRowspan = teamEmps.length;
+
         teamEmps.forEach((e,ti) => {
           const wd=welfareData[e.uid]||{};
           const years=calcYears(e.joindate,today);
@@ -3360,17 +3368,37 @@ function renderWelfareTable() {
             ltCells+='<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;'+bg+';cursor:pointer" data-uid="'+e.uid+'" data-year="'+y+'" ondblclick="editLongtermCell(this)">'+cv+'</td>';
           });
 
-          const bonbuCell=bonbuFirst&&ti===0&&buseoFirst
-            ?'<td rowspan="'+bonbuRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:700;vertical-align:middle">'+bonbu+'</td>':'';
-          const buseoCell=buseoFirst&&ti===0
-            ?'<td rowspan="'+buseoRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:600;vertical-align:middle">'+buseo+'</td>':'';
-          const teamCell=ti===0
-            ?'<td rowspan="'+teamEmps.length+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">'+team+'</td>':'';
+          // 본부 셀
+          const bonbuCell = (bonbuFirst&&buseoFirst&&ti===0)
+            ? '<td rowspan="'+bonbuRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:700;vertical-align:middle">'+bonbu+'</td>' : '';
 
-          if(bonbuFirst&&ti===0&&buseoFirst) bonbuFirst=false;
+          // 부서 셀: 없으면 colspan으로 총괄
+          let buseoCell='', teamCell='';
+          if (buseoFirst&&ti===0) {
+            if (!buseo && !team) {
+              // 부서/팀 모두 없음 → colspan=2로 총괄
+              buseoCell = '<td rowspan="'+buseoRowspan+'" colspan="2" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">총괄</td>';
+              teamCell = '';
+            } else if (!buseo) {
+              buseoCell = '<td rowspan="'+buseoRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">총괄</td>';
+            } else {
+              buseoCell = '<td rowspan="'+buseoRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:600;vertical-align:middle">'+buseo+'</td>';
+            }
+          }
+
+          // 팀 셀: 부서는 있고 팀 없음 → 총괄
+          if (ti===0 && buseo) {
+            if (!team) {
+              teamCell = '<td rowspan="'+teamRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">총괄</td>';
+            } else {
+              teamCell = '<td rowspan="'+teamRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">'+team+'</td>';
+            }
+          }
+
+          if(bonbuFirst&&buseoFirst&&ti===0) bonbuFirst=false;
           if(buseoFirst&&ti===0) buseoFirst=false;
 
-                    const uid_ = e.uid;
+          const uid_ = e.uid;
           rows+='<tr>'+bonbuCell+buseoCell+teamCell
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+(e.position||'')+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;font-weight:600;text-align:center">'+(e.name||'')+'</td>'
@@ -3387,7 +3415,7 @@ function renderWelfareTable() {
       });
     });
 
-    // 본부 합계행만
+    // 본부 합계행
     let ltBC=longtermYears.map(y=>'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#dbeafe;font-weight:700">'+(ltBT[y]||'')+'</td>').join('');
     rows+='<tr style="background:#eff6ff;font-weight:700">'
       +'<td colspan="5" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:right">'+bonbu+' 합계</td>'
