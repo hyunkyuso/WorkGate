@@ -3225,8 +3225,8 @@ function calcTenure(joindate, today) {
   const j = new Date(joindate), t = today || new Date();
   let y = t.getFullYear() - j.getFullYear();
   let m = t.getMonth() - j.getMonth();
-  let d = t.getDate() - j.getDate();
-  if (d < 0) { m--; d += 30; }
+  let d = t.getDate() - j.getDate() + 1; // +1일
+  if (d <= 0) { m--; d += 30; }
   if (m < 0) { y--; m += 12; }
   return y + '년 ' + m + '개월 ' + d + '일';
 }
@@ -3458,7 +3458,7 @@ function renderWelfareTable() {
     // 본부 합계행
     let ltBC=longtermYears.map(y=>'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#dbeafe;font-weight:700">'+(ltBT[y]||'')+'</td>').join('');
     rows+='<tr style="background:#eff6ff;font-weight:700">'
-      +'<td colspan="8" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:right">'+bonbu+' 합계</td>'
+      +'<td colspan="8" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center">'+bonbu+' 합계</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+bonbuSub.birthday+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+bonbuSub.parent+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+bonbuSub.health+'</td>'
