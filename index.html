@@ -3509,10 +3509,12 @@ function editWelfare(uid, field) {
     const reason = prompt('수정 사유를 입력하세요 (삭제하려면 빈칸으로 저장 후 날짜도 비우세요):\n삭제: 날짜를 비우고 확인', wd.startDateReason || '');
     if (reason === null) return;
     if (!val.trim()) {
-      // 날짜 비우면 기산일 삭제 (입사일로 원복)
+      // 날짜 비우면 기산일 삭제 → 입사일로 원복
+      const emp = employees.find(e=>e.uid===uid);
       delete welfareData[uid].startDate;
       delete welfareData[uid].startDateReason;
       delete welfareData[uid].startDateOriginal;
+      if (emp && emp.joindate) welfareData[uid].startDate = emp.joindate;
     } else {
       welfareData[uid][field] = val.trim();
       welfareData[uid].startDateReason = reason.trim();
