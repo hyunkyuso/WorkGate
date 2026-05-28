@@ -3343,7 +3343,14 @@ function renderWelfareTable() {
       const buseoRowspan = buseoEmps.length;
       let buseoFirst=true;
 
-      Object.entries(teamGroups).forEach(([team, teamEmps_]) => {
+      // 팀없음 그룹 먼저, 나머지 sortOrder
+      const teamEntries = Object.entries(teamGroups).sort((a,b)=>{
+        const aTop = !a[0] ? 0 : 1;
+        const bTop = !b[0] ? 0 : 1;
+        if(aTop!==bTop) return aTop-bTop;
+        return getDeptOrder(a[0]) - getDeptOrder(b[0]);
+      });
+      teamEntries.forEach(([team, teamEmps_]) => {
         // 팀 내에서 직책자 먼저 정렬
         const teamEmps = [...teamEmps_].sort((a,b)=>{
           const ka=empSortKey(a), kb=empSortKey(b);
@@ -3414,7 +3421,9 @@ function renderWelfareTable() {
             if (!noTeam2 && team) {
               teamCell = '<td rowspan="'+teamRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">'+team+'</td>';
             } else if (!noTeam2 && !team) {
-              teamCell = '<td rowspan="'+teamRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle"></td>';
+              // 팀없음 + 부서장 있으면 총괄
+              const hasLeaderInTeam = teamEmps.some(e2=>e2.title==='부서장'||e2.title==='본부장');
+              teamCell = '<td rowspan="'+teamRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">'+(hasLeaderInTeam?'총괄':'')+'</td>';
             }
           }
 
