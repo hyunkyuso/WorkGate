@@ -585,7 +585,7 @@ select.form-input{cursor:pointer}
             <button class="btn btn-ghost" onclick="exportWelfareExcel()">📊 Excel</button>
           </div>
         </div>
-        <div style="overflow-x:auto">
+        <div style="overflow-x:auto;max-height:calc(100vh - 180px)">
           <table id="welfare-table" style="width:100%;border-collapse:collapse;font-size:13px;min-width:1400px">
             <thead>
               <tr style="background:#f1f5f9">
@@ -596,7 +596,7 @@ select.form-input{cursor:pointer}
                 <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:60px">성명</th>
                 <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:90px">기산일</th>
                 <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:90px">현재일</th>
-                <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:80px">근속년수</th>
+                <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:80px;position:sticky;left:0;z-index:3;background:#f1f5f9">근속년수</th>
                 <th colspan="4" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef9c3">발생금액</th>
                 <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:70px;background:#fef9c3">개별합계</th>
                 <th colspan="10" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7">장기근속 건강검진(건강검진 미사용 시 자동 소진)</th>
@@ -616,7 +616,22 @@ select.form-input{cursor:pointer}
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7;min-width:60px">19년 만근</th>
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#eef2ff;min-width:60px">21년 만근</th>
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#eef2ff;min-width:60px">23년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#eef2ff;min-width:60px">25년 만근</th>
+                <th rowspan="2" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#d1fae5;min-width:70px">임원<br>건강검진<br><span style="font-size:10px;font-weight:400">2년에1번</span></th>
+                <th colspan="5" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fce7f3">장기근속 해외연수<br><span style="font-size:10px;font-weight:400">(발생일기준 2년내 사용원칙/미사용 사유발생시 결재)</span></th>
+                <th colspan="2" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#e0e7ff">리프레쉬</th>
+                <th colspan="2" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef3c7">안식년</th>
               </tr>
+              <tr style="background:#f1f5f9">
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fce7f3;min-width:60px">3년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fce7f3;min-width:60px">6년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fce7f3;min-width:60px">10년만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fce7f3;min-width:60px">15년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fce7f3;min-width:60px">20년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#e0e7ff;min-width:60px">6년만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#e0e7ff;min-width:60px">15년만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef3c7;min-width:60px">10년만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef3c7;min-width:60px">20년만근</th>
             </thead>
             <tbody id="welfare-tbody"></tbody>
             <tfoot id="welfare-tfoot"></tfoot>
@@ -3243,7 +3258,7 @@ function calcYears(joindate, today) {
 function renderWelfareTable() {
   const today = new Date();
   const todayStr = today.toISOString().slice(0,10);
-  const longtermYears = [5,7,9,11,13,15,17,19,21,23];
+  const longtermYears = [5,7,9,11,13,15,17,19,21,23,25];
 
   function getDeptHierarchy(deptName) {
     if (!deptName) return { bonbu:'', buseo:'', team:'' };
@@ -3444,13 +3459,13 @@ function renderWelfareTable() {
               return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;cursor:pointer;position:relative"'+tooltip+' data-uid="'+uid_+'" data-field="startDate" ondblclick="editWelfareCell(this)">'+sd+indicator+'</td>';
             })()
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+todayStr+'</td>'
-            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+tenure+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;position:sticky;left:0;background:#fff;z-index:1">'+tenure+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="birthday" ondblclick="editWelfareCell(this)">'+(birthday===0?'-':birthday)+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="parentBirthday" ondblclick="editWelfareCell(this)">'+(wd.parentFather===undefined&&wd.parentMother===undefined?(parent===10?parent:'-'):(parent===0?'-':parent))+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="healthCheck" ondblclick="editWelfareCell(this)">'+health+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas" ondblclick="editWelfareCell(this)">'+(overseas||'-')+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:700;background:#fef3c7">'+(subtotal||'-')+'</td>'
-            +ltCells+'</tr>';
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#d1fae5;cursor:pointer" data-uid="'+uid_+'" data-field="execHealth" ondblclick="editWelfareCell(this)">'+(wd.execHealth||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas3" ondblclick="editWelfareCell(this)">'+(wd.overseas3||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas6" ondblclick="editWelfareCell(this)">'+(wd.overseas6||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas10" ondblclick="editWelfareCell(this)">'+(wd.overseas10||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas15" ondblclick="editWelfareCell(this)">'+(wd.overseas15||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas20" ondblclick="editWelfareCell(this)">'+(wd.overseas20||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#e0e7ff;cursor:pointer" data-uid="'+uid_+'" data-field="refresh6" ondblclick="editWelfareCell(this)">'+(wd.refresh6||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#e0e7ff;cursor:pointer" data-uid="'+uid_+'" data-field="refresh15" ondblclick="editWelfareCell(this)">'+(wd.refresh15||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef3c7;cursor:pointer" data-uid="'+uid_+'" data-field="sabbatical10" ondblclick="editWelfareCell(this)">'+(wd.sabbatical10||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef3c7;cursor:pointer" data-uid="'+uid_+'" data-field="sabbatical20" ondblclick="editWelfareCell(this)">'+(wd.sabbatical20||'')+'</td>'+'</tr>';
         });
       });
     });
@@ -3464,7 +3479,7 @@ function renderWelfareTable() {
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+bonbuSub.health+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+(bonbuSub.overseas||'-')+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef3c7">'+bonbuSub.sum+'</td>'
-      +ltBC+'</tr>';
+      +ltBC+'<td colspan="10" style="border:1px solid #e2e8f0"></td></tr>';
   });
 
   document.getElementById('welfare-tbody').innerHTML = rows;
@@ -3476,7 +3491,7 @@ function renderWelfareTable() {
     +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalHealth+'</td>'
     +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+(totalOverseas||'-')+'</td>'
     +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalSum+'</td>'
-    +ltTC2+'</tr>';
+    +ltTC2+'<td colspan="10" style="border:1px solid #cbd5e1"></td></tr>';
 }
 
 function editWelfareCell(td) {
