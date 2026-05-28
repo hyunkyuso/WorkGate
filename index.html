@@ -3251,28 +3251,28 @@ function renderWelfareTable() {
     const d = departments.find(x => x.name === deptName);
     if (!d) return { bonbu:'', buseo:'', team:'' };
 
-    // 조상 체인: [자신, 부모, 조부모, ...]
-    function getChain(dept) {
-      const chain = [dept];
-      let cur = dept;
-      for (let i=0; i<10; i++) {
-        if (!cur || !cur.parent) break;
-        const p = departments.find(x => x.id === cur.parent);
-        if (!p) break;
-        chain.push(p);
-        cur = p;
-      }
-      return chain;
+    // 체인: [자신, 부모, 조부모, ...]
+    const chain = [];
+    let cur = d;
+    for (let i=0; i<10; i++) {
+      if (!cur) break;
+      chain.push(cur);
+      if (!cur.parent || cur.parent === '') break;
+      cur = departments.find(x => x.id === cur.parent) || null;
     }
+    // chain[0]=자신, chain[last]=최상위(lv0)
+    // lv0(parent없음) 제거
+    const filtered = chain.filter(x => x && x.parent && x.parent !== '');
+    // filtered: [자신, 부모, 조부모] (모두 parent있음)
+    // filtered[0]=자신(팀), filtered[1]=부서, filtered[2]=본부
 
-    const chain = getChain(d).filter(Boolean);
-    // 최상위(parent 없는 것) 제외
-    const filtered = chain.filter(x => x.parent && x.parent !== '');
+    const n = filtered.length;
+    const get = (i) => (filtered[i] && filtered[i].name) ? filtered[i].name : '';
 
-    if (filtered.length === 0) return { bonbu: d.name, buseo:'', team:'' };
-    if (filtered.length === 1) return { bonbu: filtered[0].name, buseo:'', team:'' };
-    if (filtered.length === 2) return { bonbu: filtered[1].name, buseo: filtered[0].name, team:'' };
-    return { bonbu: filtered[2].name, buseo: filtered[1].name, team: filtered[0].name };
+    if (n === 0) return { bonbu: d.name, buseo:'', team:'' };
+    if (n === 1) return { bonbu: get(0), buseo:'', team:'' };
+    if (n === 2) return { bonbu: get(1), buseo: get(0), team:'' };
+    return { bonbu: get(2), buseo: get(1), team: get(0) };
   }
 
   const empsWithH = activeEmps.map(e => ({ ...e, hier: getDeptHierarchy(e.dept||'') }));
