@@ -3247,40 +3247,32 @@ function renderWelfareTable() {
   const longtermYears = [5,7,9,11,13,15,17,19,21,23];
 
   function getDeptHierarchy(deptName) {
+    if (!deptName) return { bonbu:'', buseo:'', team:'' };
     const d = departments.find(x => x.name === deptName);
     if (!d) return { bonbu:'', buseo:'', team:'' };
 
-    // 조상 체인 수집 (부모 → 조부모 → ...)
+    // 조상 체인: [자신, 부모, 조부모, ...]
     function getChain(dept) {
       const chain = [dept];
       let cur = dept;
-      let safety = 0;
-      while (cur && cur.parent && safety++ < 10) {
+      for (let i=0; i<10; i++) {
+        if (!cur || !cur.parent) break;
         const p = departments.find(x => x.id === cur.parent);
         if (!p) break;
         chain.push(p);
         cur = p;
       }
-      return chain; // [자신, 부모, 조부모, ...]
+      return chain;
     }
 
-    const chain = getChain(d);
-    // chain[0]=자신, chain[1]=부모, chain[2]=조부모
-    // lv0(최상위, parent='')는 제외
-    const lv0 = chain[chain.length-1]; // 정도유아이티 등 최상위
-    const filtered = chain.filter(x => x.id !== lv0.id); // lv0 제외
-    // filtered[0]=자신, filtered[1]=부모(lv1본부or lv2부서)
+    const chain = getChain(d).filter(Boolean);
+    // 최상위(parent 없는 것) 제외
+    const filtered = chain.filter(x => x.parent && x.parent !== '');
 
-    if (filtered.length === 1) {
-      // 직속 lv1: 본부명만
-      return { bonbu: filtered[0].name, buseo:'', team:'' };
-    } else if (filtered.length === 2) {
-      // lv2: 부모=본부, 자신=부서
-      return { bonbu: filtered[1].name, buseo: filtered[0].name, team:'' };
-    } else {
-      // lv3 이상: 조부모=본부, 부모=부서, 자신=팀
-      return { bonbu: filtered[2].name, buseo: filtered[1].name, team: filtered[0].name };
-    }
+    if (filtered.length === 0) return { bonbu: d.name, buseo:'', team:'' };
+    if (filtered.length === 1) return { bonbu: filtered[0].name, buseo:'', team:'' };
+    if (filtered.length === 2) return { bonbu: filtered[1].name, buseo: filtered[0].name, team:'' };
+    return { bonbu: filtered[2].name, buseo: filtered[1].name, team: filtered[0].name };
   }
 
   const empsWithH = activeEmps.map(e => ({ ...e, hier: getDeptHierarchy(e.dept||'') }));
