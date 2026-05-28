@@ -599,7 +599,12 @@ select.form-input{cursor:pointer}
                 <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:80px;position:sticky;left:0;z-index:3;background:#f1f5f9">근속년수</th>
                 <th colspan="4" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef9c3">발생금액</th>
                 <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:70px;background:#fef9c3">개별합계</th>
-                <th colspan="10" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7">장기근속 건강검진(건강검진 미사용 시 자동 소진)</th>
+                <th colspan="11" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7">장기근속 건강검진(건강검진 미사용 시 자동 소진)</th>
+                <th rowspan="2" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#d1fae5;min-width:70px">임원건강검진</th>
+                <th colspan="5" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fce7f3">장기근속 해외연수<br><span style="font-size:10px;font-weight:400">(발생일기준 2년내 사용원칙/미사용 사유발생시 결재)</span></th>
+                <th colspan="2" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#e0e7ff">리프레쉬</th>
+                <th colspan="2" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef3c7">안식년</th>
+                <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:80px">비고</th>
               </tr>
               <tr style="background:#f1f5f9">
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef9c3;min-width:50px">생일</th>
@@ -617,12 +622,7 @@ select.form-input{cursor:pointer}
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#eef2ff;min-width:60px">21년 만근</th>
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#eef2ff;min-width:60px">23년 만근</th>
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#eef2ff;min-width:60px">25년 만근</th>
-                <th rowspan="2" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#d1fae5;min-width:70px">임원<br>건강검진<br><span style="font-size:10px;font-weight:400">2년에1번</span></th>
-                <th colspan="5" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fce7f3">장기근속 해외연수<br><span style="font-size:10px;font-weight:400">(발생일기준 2년내 사용원칙/미사용 사유발생시 결재)</span></th>
-                <th colspan="2" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#e0e7ff">리프레쉬</th>
-                <th colspan="2" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef3c7">안식년</th>
-              </tr>
-              <tr style="background:#f1f5f9">
+                <th rowspan="2" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#d1fae5;min-width:70px">2년에1번</th>
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fce7f3;min-width:60px">3년 만근</th>
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fce7f3;min-width:60px">6년 만근</th>
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fce7f3;min-width:60px">10년만근</th>
@@ -632,6 +632,7 @@ select.form-input{cursor:pointer}
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#e0e7ff;min-width:60px">15년만근</th>
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef3c7;min-width:60px">10년만근</th>
                 <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef3c7;min-width:60px">20년만근</th>
+              </tr>
             </thead>
             <tbody id="welfare-tbody"></tbody>
             <tfoot id="welfare-tfoot"></tfoot>
@@ -3479,7 +3480,7 @@ function renderWelfareTable() {
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+bonbuSub.health+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+(bonbuSub.overseas||'-')+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef3c7">'+bonbuSub.sum+'</td>'
-      +ltBC+'<td colspan="10" style="border:1px solid #e2e8f0"></td></tr>';
+      +ltBC+'<td colspan="10" style="border:1px solid #e2e8f0"></td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px" data-uid="'+uid_+'" data-field="note" ondblclick="editWelfareCell(this)">'+(wd.note||'')+'</td></tr>';
   });
 
   document.getElementById('welfare-tbody').innerHTML = rows;
@@ -3511,6 +3512,16 @@ function editWelfareCell(td) {
     const curMother = wd.parentMother || false;
     // 모달 표시
     showParentBirthdayModal(uid, curFather, curMother);
+    return;
+  }
+  if (field === 'note') {
+    const wd2 = welfareData[uid] || {};
+    const val = prompt('비고 입력:', wd2.note || '');
+    if (val === null) return;
+    if (!welfareData[uid]) welfareData[uid] = {};
+    welfareData[uid].note = val;
+    saveWelfare();
+    renderWelfareTable();
     return;
   }
   editWelfare(uid, field);
