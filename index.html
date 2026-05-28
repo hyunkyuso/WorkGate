@@ -3243,15 +3243,12 @@ function calcYears(joindate, today) {
 function renderWelfareTable() {
   const today = new Date();
   const todayStr = today.toISOString().slice(0,10);
-  const activeEmps = employees.filter(e => e.status !== '퇴직');
   const longtermYears = [5,7,9,11,13,15,17,19,21,23];
 
   function getDeptHierarchy(deptName) {
     if (!deptName) return { bonbu:'', buseo:'', team:'' };
     const d = departments.find(x => x.name === deptName);
     if (!d) return { bonbu:'', buseo:'', team:'' };
-
-    // 체인: [자신, 부모, 조부모, ...]
     const chain = [];
     let cur = d;
     for (let i=0; i<10; i++) {
@@ -3260,28 +3257,30 @@ function renderWelfareTable() {
       if (!cur.parent || cur.parent === '') break;
       cur = departments.find(x => x.id === cur.parent) || null;
     }
-    // chain[0]=자신, chain[last]=최상위(lv0)
-    // lv0(parent없음) 제거
     const filtered = chain.filter(x => x && x.parent && x.parent !== '');
-    // filtered: [자신, 부모, 조부모] (모두 parent있음)
-    // filtered[0]=자신(팀), filtered[1]=부서, filtered[2]=본부
-
     const n = filtered.length;
     const get = (i) => (filtered[i] && filtered[i].name) ? filtered[i].name : '';
-
     if (n === 0) return { bonbu: d.name, buseo:'', team:'' };
     if (n === 1) return { bonbu: get(0), buseo:'', team:'' };
     if (n === 2) return { bonbu: get(1), buseo: get(0), team:'' };
     return { bonbu: get(2), buseo: get(1), team: get(0) };
   }
 
-  const empsWithH = activeEmps.map(e => ({ ...e, hier: getDeptHierarchy(e.dept||'') }));
   function getDeptOrder(name) {
     const d = departments.find(x=>x.name===name);
     return d ? (d.sortOrder||99) : 99;
   }
+
+  // 재직 직원 (본소속만, 겸직은 본소속 기준)
+  const activeEmps = employees.filter(e => e.status !== '퇴직');
+
+  // 겸직자: 본소속의 최상위 본부에만 포함
+  // → 겸직 처리 없이 본소속 dept 기준으로만
+  const empsWithH = activeEmps.map(e => ({ ...e, hier: getDeptHierarchy(e.dept||'') }));
+
   const RANK_W = {'본부장':0,'부서장':1,'팀장':2,'대표이사':0};
   function titleRank(e) { return RANK_W[e.title||''] ?? 99; }
+
   const sorted = empsWithH.sort((a,b) => {
     const bo = getDeptOrder(a.hier.bonbu) - getDeptOrder(b.hier.bonbu);
     if (bo !== 0) return bo;
@@ -3289,7 +3288,6 @@ function renderWelfareTable() {
     if (buo !== 0) return buo;
     const to = getDeptOrder(a.hier.team) - getDeptOrder(b.hier.team);
     if (to !== 0) return to;
-    // 같은 조직 내에서 본부장/부서장/팀장 먼저
     return titleRank(a) - titleRank(b);
   });
 
@@ -3317,21 +3315,11 @@ function renderWelfareTable() {
       buseoGroups[k].push(e);
     });
 
-    // 본부 rowspan = 직원수 + 팀소계행수 + 부서소계행수
-    let bonbuRowspan = bonbuEmps.length;
-    Object.entries(buseoGroups).forEach(([buseo, be])=>{
-      if(buseo) bonbuRowspan++; // 부서 소계행
-      const tg={};
-      be.forEach(e=>{const k=e.hier.team||'';if(!tg[k])tg[k]=[];tg[k].push(e);});
-      Object.keys(tg).forEach(t=>{ if(t) bonbuRowspan++; }); // 팀 소계행
-    });
-
+    // 본부 rowspan = 전체 직원수 + 본부합계행 1
+    const bonbuRowspan = bonbuEmps.length;
     let bonbuFirst=true;
 
     Object.entries(buseoGroups).forEach(([buseo, buseoEmps]) => {
-      let buseoSub={birthday:0,parent:0,health:0,overseas:0,sum:0};
-      const ltBuseT={}; longtermYears.forEach(y=>ltBuseT[y]=0);
-
       // 팀 그룹핑
       const teamGroups={};
       buseoEmps.forEach(e=>{
@@ -3340,13 +3328,10 @@ function renderWelfareTable() {
         teamGroups[k].push(e);
       });
 
-      const buseoRowspan = buseoEmps.length + Object.keys(teamGroups).filter(t=>t).length; // 팀소계 포함
+      const buseoRowspan = buseoEmps.length;
       let buseoFirst=true;
 
       Object.entries(teamGroups).forEach(([team, teamEmps]) => {
-        let teamSub={birthday:0,parent:0,health:0,overseas:0,sum:0};
-        const ltTeamT={}; longtermYears.forEach(y=>ltTeamT[y]=0);
-
         teamEmps.forEach((e,ti) => {
           const wd=welfareData[e.uid]||{};
           const years=calcYears(e.joindate,today);
@@ -3357,8 +3342,10 @@ function renderWelfareTable() {
           const overseas=wd.overseas??0;
           const subtotal=birthday+parent+health+overseas;
 
-          [teamSub,buseoSub,bonbuSub].forEach(s=>{s.birthday+=birthday;s.parent+=parent;s.health+=health;s.overseas+=overseas;s.sum+=subtotal;});
-          totalBirthday+=birthday;totalParent+=parent;totalHealth+=health;totalOverseas+=overseas;totalSum+=subtotal;
+          bonbuSub.birthday+=birthday; bonbuSub.parent+=parent;
+          bonbuSub.health+=health; bonbuSub.overseas+=overseas; bonbuSub.sum+=subtotal;
+          totalBirthday+=birthday; totalParent+=parent;
+          totalHealth+=health; totalOverseas+=overseas; totalSum+=subtotal;
 
           let ltCells='';
           longtermYears.forEach(y=>{
@@ -3366,89 +3353,75 @@ function renderWelfareTable() {
             const used=wd.longterm?.[y]??(reached?0:null);
             const bg=(reached&&(years-y)<2)?'background:#fef9c3':'';
             let cv='';
-            if(reached){cv=used===0?'<span style="color:#94a3b8;font-size:11px">사용완료</span>':(used??100);ltTeamT[y]+=(used||0);ltBuseT[y]+=(used||0);ltBT[y]+=(used||0);ltTotals[y]+=(used||0);}
-            ltCells+='<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;'+bg+'" ondblclick="editLongterm(\''+e.uid+'\','+y+')">'+cv+'</td>';
+            if(reached){
+              cv=used===0?'<span style="color:#94a3b8;font-size:11px">사용완료</span>':(used??100);
+              ltBT[y]+=(used||0); ltTotals[y]+=(used||0);
+            }
+            ltCells+='<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;'+bg+';cursor:pointer" data-uid="'+e.uid+'" data-year="'+y+'" ondblclick="editLongtermCell(this)">'+cv+'</td>';
           });
 
-          const bonbuCell=bonbuFirst&&ti===0&&buseoFirst?`<td rowspan="${bonbuRowspan}" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:700;vertical-align:middle">${bonbu}</td>`:'';
-          const buseoCell=buseoFirst&&ti===0?`<td rowspan="${buseoRowspan}" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:600;vertical-align:middle">${buseo}</td>`:'';
-          const teamCell=ti===0?`<td rowspan="${teamEmps.length}" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">${team}</td>`:'';
+          const bonbuCell=bonbuFirst&&ti===0&&buseoFirst
+            ?'<td rowspan="'+bonbuRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:700;vertical-align:middle">'+bonbu+'</td>':'';
+          const buseoCell=buseoFirst&&ti===0
+            ?'<td rowspan="'+buseoRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:600;vertical-align:middle">'+buseo+'</td>':'';
+          const teamCell=ti===0
+            ?'<td rowspan="'+teamEmps.length+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">'+team+'</td>':'';
 
           if(bonbuFirst&&ti===0&&buseoFirst) bonbuFirst=false;
           if(buseoFirst&&ti===0) buseoFirst=false;
 
-          rows+=`<tr>
-            ${bonbuCell}${buseoCell}${teamCell}
-            <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${e.position||''}</td>
-            <td style="border:1px solid #e2e8f0;padding:4px 6px;font-weight:600;text-align:center">${e.name||''}</td>
-            <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${e.joindate||''}</td>
-            <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${todayStr}</td>
-            <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${tenure}</td>
-            <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3" ondblclick="editWelfare('${e.uid}','birthday')">${birthday}</td>
-            <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3" ondblclick="editWelfare('${e.uid}','parentBirthday')">${parent}</td>
-            <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3" ondblclick="editWelfare('${e.uid}','healthCheck')">${health}</td>
-            <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3" ondblclick="editWelfare('${e.uid}','overseas')">${overseas||'-'}</td>
-            <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:700;background:#fef3c7">${subtotal||'-'}</td>
-            ${ltCells}
-          </tr>`;
+                    const uid_ = e.uid;
+          rows+='<tr>'+bonbuCell+buseoCell+teamCell
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+(e.position||'')+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;font-weight:600;text-align:center">'+(e.name||'')+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+(e.joindate||'')+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+todayStr+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+tenure+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="birthday" ondblclick="editWelfareCell(this)">'+birthday+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="parentBirthday" ondblclick="editWelfareCell(this)">'+parent+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="healthCheck" ondblclick="editWelfareCell(this)">'+health+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas" ondblclick="editWelfareCell(this)">'+(overseas||'-')+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:700;background:#fef3c7">'+(subtotal||'-')+'</td>'
+            +ltCells+'</tr>';
         });
-
-        if(team){
-          let ltTC=longtermYears.map(y=>`<td style="border:1px solid #e2e8f0;padding:3px;text-align:center;background:#f0fdf4">${ltTeamT[y]||''}</td>`).join('');
-          rows+=`<tr style="background:#f8fafc;font-size:12px;color:#64748b">
-            <td colspan="3" style="border:1px solid #e2e8f0;padding:3px 8px;text-align:right">소계</td>
-            <td style="border:1px solid #e2e8f0"></td><td style="border:1px solid #e2e8f0"></td>
-            <td style="border:1px solid #e2e8f0;padding:3px;text-align:center;background:#fef9c3">${teamSub.birthday}</td>
-            <td style="border:1px solid #e2e8f0;padding:3px;text-align:center;background:#fef9c3">${teamSub.parent}</td>
-            <td style="border:1px solid #e2e8f0;padding:3px;text-align:center;background:#fef9c3">${teamSub.health}</td>
-            <td style="border:1px solid #e2e8f0;padding:3px;text-align:center;background:#fef9c3">${teamSub.overseas||'-'}</td>
-            <td style="border:1px solid #e2e8f0;padding:3px;text-align:center;background:#fef3c7;font-weight:700">${teamSub.sum}</td>
-            ${ltTC}
-          </tr>`;
-        }
       });
-
-      if(buseo){
-        let ltBuC=longtermYears.map(y=>`<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#e0f2fe;font-weight:600">${ltBuseT[y]||''}</td>`).join('');
-        rows+=`<tr style="background:#f0f9ff;font-weight:600">
-          <td colspan="4" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:right">${buseo} 소계</td>
-          <td style="border:1px solid #e2e8f0"></td><td style="border:1px solid #e2e8f0"></td>
-          <td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">${buseoSub.birthday}</td>
-          <td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">${buseoSub.parent}</td>
-          <td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">${buseoSub.health}</td>
-          <td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">${buseoSub.overseas||'-'}</td>
-          <td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef3c7">${buseoSub.sum}</td>
-          ${ltBuC}
-        </tr>`;
-      }
     });
 
-    let ltBC=longtermYears.map(y=>`<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#dbeafe;font-weight:700">${ltBT[y]||''}</td>`).join('');
-    rows+=`<tr style="background:#eff6ff;font-weight:700">
-      <td colspan="5" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:right">${bonbu} 합계</td>
-      <td style="border:1px solid #e2e8f0"></td><td style="border:1px solid #e2e8f0"></td>
-      <td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">${bonbuSub.birthday}</td>
-      <td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">${bonbuSub.parent}</td>
-      <td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">${bonbuSub.health}</td>
-      <td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">${bonbuSub.overseas||'-'}</td>
-      <td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef3c7">${bonbuSub.sum}</td>
-      ${ltBC}
-    </tr>`;
+    // 본부 합계행만
+    let ltBC=longtermYears.map(y=>'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#dbeafe;font-weight:700">'+(ltBT[y]||'')+'</td>').join('');
+    rows+='<tr style="background:#eff6ff;font-weight:700">'
+      +'<td colspan="5" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:right">'+bonbu+' 합계</td>'
+      +'<td style="border:1px solid #e2e8f0"></td><td style="border:1px solid #e2e8f0"></td>'
+      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+bonbuSub.birthday+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+bonbuSub.parent+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+bonbuSub.health+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+(bonbuSub.overseas||'-')+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef3c7">'+bonbuSub.sum+'</td>'
+      +ltBC+'</tr>';
   });
 
   document.getElementById('welfare-tbody').innerHTML = rows;
-  let ltTC2=longtermYears.map(y=>`<td style="border:1px solid #cbd5e1;padding:6px;text-align:center;font-weight:700">${ltTotals[y]||''}</td>`).join('');
-  document.getElementById('welfare-tfoot').innerHTML=`<tr style="background:#e2e8f0;font-weight:700">
-    <td colspan="9" style="border:1px solid #cbd5e1;padding:6px 8px;text-align:center">전체 합계</td>
-    <td style="border:1px solid #cbd5e1;padding:6px;text-align:center">${totalBirthday}</td>
-    <td style="border:1px solid #cbd5e1;padding:6px;text-align:center">${totalParent}</td>
-    <td style="border:1px solid #cbd5e1;padding:6px;text-align:center">${totalHealth}</td>
-    <td style="border:1px solid #cbd5e1;padding:6px;text-align:center">${totalOverseas||'-'}</td>
-    <td style="border:1px solid #cbd5e1;padding:6px;text-align:center">${totalSum}</td>
-    ${ltTC2}
-  </tr>`;
+  let ltTC2=longtermYears.map(y=>'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center;font-weight:700">'+(ltTotals[y]||'')+'</td>').join('');
+  document.getElementById('welfare-tfoot').innerHTML='<tr style="background:#e2e8f0;font-weight:700">'
+    +'<td colspan="9" style="border:1px solid #cbd5e1;padding:6px 8px;text-align:center">전체 합계</td>'
+    +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalBirthday+'</td>'
+    +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalParent+'</td>'
+    +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalHealth+'</td>'
+    +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+(totalOverseas||'-')+'</td>'
+    +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalSum+'</td>'
+    +ltTC2+'</tr>';
 }
 
+function editWelfareCell(td) {
+  const uid = td.dataset.uid;
+  const field = td.dataset.field;
+  editWelfare(uid, field);
+}
+function editLongtermCell(td) {
+  const uid = td.dataset.uid;
+  const year = parseInt(td.dataset.year);
+  editLongterm(uid, year);
+}
 function editWelfare(uid, field) {
   const wd = welfareData[uid] || {};
   const cur = wd[field] ?? '';
