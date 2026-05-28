@@ -3320,10 +3320,10 @@ function renderWelfareTable() {
       if(!buseoGroups[k]) buseoGroups[k]=[];
       buseoGroups[k].push(e);
     });
-    // 본부직속(부서없음, 본부장/부서장 포함) → 맨 앞, 나머지는 sortOrder
+    // 본부직속(부서없음) → 맨 앞, 나머지는 sortOrder
     const buseoEntries = Object.entries(buseoGroups).sort((a,b)=>{
-      const aTop = (!a[0] || a[1].some(e=>e.title==='본부장'||e.title==='부서장')) ? 0 : 1;
-      const bTop = (!b[0] || b[1].some(e=>e.title==='본부장'||e.title==='부서장')) ? 0 : 1;
+      const aTop = !a[0] ? 0 : 1;
+      const bTop = !b[0] ? 0 : 1;
       if(aTop!==bTop) return aTop-bTop;
       return getDeptOrder(a[0]) - getDeptOrder(b[0]);
     });
@@ -3343,7 +3343,14 @@ function renderWelfareTable() {
       const buseoRowspan = buseoEmps.length;
       let buseoFirst=true;
 
-      Object.entries(teamGroups).forEach(([team, teamEmps]) => {
+      Object.entries(teamGroups).forEach(([team, teamEmps_]) => {
+        // 팀 내에서 직책자 먼저 정렬
+        const teamEmps = [...teamEmps_].sort((a,b)=>{
+          const ka=empSortKey(a), kb=empSortKey(b);
+          if(ka[0]!==kb[0]) return ka[0]-kb[0];
+          if(ka[1]!==kb[1]) return ka[1]-kb[1];
+          return ka[2].localeCompare(kb[2],'ko');
+        });
         const teamRowspan = teamEmps.length;
 
         teamEmps.forEach((e,ti) => {
