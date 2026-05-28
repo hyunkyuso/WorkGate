@@ -3445,7 +3445,7 @@ function renderWelfareTable() {
             })()
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+todayStr+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+tenure+'</td>'
-            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="birthday" ondblclick="editWelfareCell(this)">'+birthday+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="birthday" ondblclick="editWelfareCell(this)">'+(birthday===0?'-':birthday)+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="parentBirthday" ondblclick="editWelfareCell(this)">'+parent+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="healthCheck" ondblclick="editWelfareCell(this)">'+health+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas" ondblclick="editWelfareCell(this)">'+(overseas||'-')+'</td>'
@@ -3458,8 +3458,7 @@ function renderWelfareTable() {
     // 본부 합계행
     let ltBC=longtermYears.map(y=>'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#dbeafe;font-weight:700">'+(ltBT[y]||'')+'</td>').join('');
     rows+='<tr style="background:#eff6ff;font-weight:700">'
-      +'<td colspan="5" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:right">'+bonbu+' 합계</td>'
-      +'<td style="border:1px solid #e2e8f0"></td><td style="border:1px solid #e2e8f0"></td>'
+      +'<td colspan="8" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:right">'+bonbu+' 합계</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+bonbuSub.birthday+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+bonbuSub.parent+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#fef9c3">'+bonbuSub.health+'</td>'
@@ -3471,7 +3470,7 @@ function renderWelfareTable() {
   document.getElementById('welfare-tbody').innerHTML = rows;
   let ltTC2=longtermYears.map(y=>'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center;font-weight:700">'+(ltTotals[y]||'')+'</td>').join('');
   document.getElementById('welfare-tfoot').innerHTML='<tr style="background:#e2e8f0;font-weight:700">'
-    +'<td colspan="9" style="border:1px solid #cbd5e1;padding:6px 8px;text-align:center">전체 합계</td>'
+    +'<td colspan="8" style="border:1px solid #cbd5e1;padding:6px 8px;text-align:center">전체 합계</td>'
     +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalBirthday+'</td>'
     +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalParent+'</td>'
     +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalHealth+'</td>'
@@ -3483,6 +3482,15 @@ function renderWelfareTable() {
 function editWelfareCell(td) {
   const uid = td.dataset.uid;
   const field = td.dataset.field;
+  if (field === 'birthday') {
+    // O/X 선택
+    const choice = confirm('생일 지급 여부를 선택하세요.\n확인(O): 10 지급\n취소(X): - 미지급');
+    if (!welfareData[uid]) welfareData[uid] = {};
+    welfareData[uid].birthday = choice ? 10 : 0;
+    saveWelfare();
+    renderWelfareTable();
+    return;
+  }
   editWelfare(uid, field);
 }
 function editLongtermCell(td) {
@@ -3498,11 +3506,18 @@ function editWelfare(uid, field) {
   if (val === null) return;
   if (!welfareData[uid]) welfareData[uid] = {};
   if (isDate) {
-    const reason = prompt('수정 사유를 입력하세요:', wd.startDateReason || '');
+    const reason = prompt('수정 사유를 입력하세요 (삭제하려면 빈칸으로 저장 후 날짜도 비우세요):\n삭제: 날짜를 비우고 확인', wd.startDateReason || '');
     if (reason === null) return;
-    welfareData[uid][field] = val.trim();
-    welfareData[uid].startDateReason = reason.trim();
-    welfareData[uid].startDateOriginal = welfareData[uid].startDateOriginal || cur; // 최초 원래 날짜 보존
+    if (!val.trim()) {
+      // 날짜 비우면 기산일 삭제 (입사일로 원복)
+      delete welfareData[uid].startDate;
+      delete welfareData[uid].startDateReason;
+      delete welfareData[uid].startDateOriginal;
+    } else {
+      welfareData[uid][field] = val.trim();
+      welfareData[uid].startDateReason = reason.trim();
+      welfareData[uid].startDateOriginal = welfareData[uid].startDateOriginal || cur;
+    }
   } else {
     welfareData[uid][field] = parseFloat(val) || 0;
   }
