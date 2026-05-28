@@ -284,6 +284,7 @@ select.form-input{cursor:pointer}
         <div class="nav-item admin-only" onclick="showPage('employees',this)"><span class="nav-icon">👤</span> 직원 관리</div>
         <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
         <div class="nav-item admin-only" onclick="showPage('codemanage',this)"><span class="nav-icon">🗂️</span> 코드 관리</div>
+        <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
         <div class="nav-item admin-only" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> 설정</div>
       </div>
     </div>
@@ -577,6 +578,51 @@ select.form-input{cursor:pointer}
       </div>
 
       <!-- 설정 -->
+      <div id="page-welfare" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🎁 복리후생 지원 현황</div><div class="page-sub">직원 복리후생 지원금 현황을 관리합니다</div></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="exportWelfareExcel()">📊 Excel</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="welfare-table" style="width:100%;border-collapse:collapse;font-size:13px;min-width:1400px">
+            <thead>
+              <tr style="background:#f1f5f9">
+                <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:80px">부서명</th>
+                <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:80px">팀명</th>
+                <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:50px">직위</th>
+                <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:60px">성명</th>
+                <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:90px">입사일</th>
+                <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:90px">현재일</th>
+                <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:80px">근속년수</th>
+                <th colspan="4" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef9c3">발생금액</th>
+                <th rowspan="3" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;min-width:70px;background:#fef9c3">개별합계</th>
+                <th colspan="10" style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7">장기근속 건강검진(건강검진 미사용 시 자동 소진)</th>
+              </tr>
+              <tr style="background:#f1f5f9">
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef9c3;min-width:50px">생일</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef9c3;min-width:70px">부모님생신</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef9c3;min-width:70px">건강검진</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#fef9c3;min-width:70px">해외연수</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7;min-width:60px">5년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7;min-width:60px">7년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7;min-width:60px">9년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7;min-width:60px">11년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7;min-width:60px">13년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7;min-width:60px">15년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7;min-width:60px">17년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#dcfce7;min-width:60px">19년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#eef2ff;min-width:60px">21년 만근</th>
+                <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;background:#eef2ff;min-width:60px">23년 만근</th>
+              </tr>
+            </thead>
+            <tbody id="welfare-tbody"></tbody>
+            <tfoot id="welfare-tfoot"></tfoot>
+          </table>
+        </div>
+      </div>
+
       <div id="page-settings" class="page">
         <div class="page-title" style="margin-bottom:20px">⚙️ 설정</div>
         <div style="display:flex;flex-direction:column;gap:12px;max-width:480px">
@@ -3164,6 +3210,183 @@ function renderMembers() {} // 하위호환 유지
 // ══════════════════════════════════════════════════
 // UI HELPERS
 // ══════════════════════════════════════════════════
+
+// ── 복리후생 지원 현황 ──
+let welfareData = JSON.parse(localStorage.getItem('wg_welfare') || '{}');
+// welfareData[uid] = { birthday:10, parentBirthday:10, healthCheck:100, overseas:0, longterm:{5:100,7:100,...} }
+
+function saveWelfare() {
+  localStorage.setItem('wg_welfare', JSON.stringify(welfareData));
+}
+
+function calcTenure(joindate, today) {
+  if (!joindate) return '';
+  const j = new Date(joindate), t = today || new Date();
+  let y = t.getFullYear() - j.getFullYear();
+  let m = t.getMonth() - j.getMonth();
+  let d = t.getDate() - j.getDate();
+  if (d < 0) { m--; d += 30; }
+  if (m < 0) { y--; m += 12; }
+  return y + '년 ' + m + '개월 ' + d + '일';
+}
+
+function calcYears(joindate, today) {
+  if (!joindate) return 0;
+  const j = new Date(joindate), t = today || new Date();
+  let y = t.getFullYear() - j.getFullYear();
+  let m = t.getMonth() - j.getMonth();
+  if (m < 0 || (m === 0 && t.getDate() < j.getDate())) y--;
+  return y;
+}
+
+function renderWelfareTable() {
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+  const activeEmps = employees.filter(e => e.status !== '퇴직');
+  
+  // 부서/팀 기준 정렬
+  const sorted = [...activeEmps].sort((a,b) => {
+    const da = (a.dept||''), db = (b.dept||'');
+    return da.localeCompare(db,'ko') || (a.position||'').localeCompare(b.position||'','ko');
+  });
+
+  const longtermYears = [5,7,9,11,13,15,17,19,21,23];
+  const LONGTERM_AMT = 100; // 장기근속 금액
+
+  let rows = '';
+  let totalBirthday=0, totalParent=0, totalHealth=0, totalOverseas=0, totalSum=0;
+  const ltTotals = {};
+  longtermYears.forEach(y => ltTotals[y]=0);
+
+  // 부서별 그룹
+  const deptGroups = {};
+  sorted.forEach(e => {
+    const dept = e.dept || '미배정';
+    if (!deptGroups[dept]) deptGroups[dept] = [];
+    deptGroups[dept].push(e);
+  });
+
+  Object.entries(deptGroups).forEach(([dept, emps]) => {
+    let deptSubtotal = { birthday:0, parent:0, health:0, overseas:0, sum:0 };
+    const ltDeptTotals = {};
+    longtermYears.forEach(y => ltDeptTotals[y]=0);
+
+    emps.forEach((e, i) => {
+      const wd = welfareData[e.uid] || {};
+      const years = calcYears(e.joindate, today);
+      const tenure = calcTenure(e.joindate, today);
+      
+      const birthday = wd.birthday ?? 10;
+      const parent = wd.parentBirthday ?? 10;
+      const health = wd.healthCheck ?? 100;
+      const overseas = wd.overseas ?? 0;
+      const subtotal = birthday + parent + health + overseas;
+
+      deptSubtotal.birthday += birthday;
+      deptSubtotal.parent += parent;
+      deptSubtotal.health += health;
+      deptSubtotal.overseas += overseas;
+      deptSubtotal.sum += subtotal;
+
+      totalBirthday += birthday;
+      totalParent += parent;
+      totalHealth += health;
+      totalOverseas += overseas;
+      totalSum += subtotal;
+
+      // 장기근속 칸
+      let ltCells = '';
+      longtermYears.forEach(y => {
+        const reached = years >= y;
+        const used = wd.longterm?.[y] ?? (reached ? 0 : null);
+        const isTarget = reached && (years - y) < 2; // 해당 주기
+        const bg = isTarget ? 'background:#fef9c3' : '';
+        let cellVal = '';
+        if (reached) {
+          cellVal = used === 0 ? `<span style="color:#94a3b8;font-size:11px">사용완료</span>` : (used ?? LONGTERM_AMT);
+          ltDeptTotals[y] += (used || 0);
+          ltTotals[y] += (used || 0);
+        }
+        ltCells += `<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;${bg}" 
+          ondblclick="editLongterm('${e.uid}',${y})" title="더블클릭으로 수정">${cellVal}</td>`;
+      });
+
+      const deptCell = i === 0 ? `<td rowspan="${emps.length}" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:600;vertical-align:middle">${dept}</td>` : '';
+
+      rows += `<tr style="border-bottom:1px solid #f1f5f9">
+        ${deptCell}
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${e.duty||''}</td>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${e.position||''}</td>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;font-weight:600">${e.name||''}</td>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${e.joindate||''}</td>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${todayStr}</td>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${tenure}</td>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3" ondblclick="editWelfare('${e.uid}','birthday')">${birthday}</td>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3" ondblclick="editWelfare('${e.uid}','parentBirthday')">${parent}</td>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3" ondblclick="editWelfare('${e.uid}','healthCheck')">${health}</td>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3" ondblclick="editWelfare('${e.uid}','overseas')">${overseas||'-'}</td>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:700;background:#fef3c7">${subtotal||'-'}</td>
+        ${ltCells}
+      </tr>`;
+    });
+
+    // 부서 소계
+    let ltDeptCells = longtermYears.map(y => `<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:600;background:#f0fdf4">${ltDeptTotals[y]||''}</td>`).join('');
+    rows += `<tr style="background:#f8fafc;font-weight:700">
+      <td colspan="2" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center">합계</td>
+      <td style="border:1px solid #e2e8f0"></td><td style="border:1px solid #e2e8f0"></td>
+      <td style="border:1px solid #e2e8f0"></td><td style="border:1px solid #e2e8f0"></td>
+      <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3">${deptSubtotal.birthday}</td>
+      <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3">${deptSubtotal.parent}</td>
+      <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3">${deptSubtotal.health}</td>
+      <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3">${deptSubtotal.overseas||'-'}</td>
+      <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef3c7">${deptSubtotal.sum}</td>
+      ${ltDeptCells}
+    </tr>`;
+  });
+
+  document.getElementById('welfare-tbody').innerHTML = rows;
+
+  // 전체 합계
+  let ltTotalCells = longtermYears.map(y => `<td style="border:1px solid #e2e8f0;padding:6px;text-align:center;font-weight:700">${ltTotals[y]||''}</td>`).join('');
+  document.getElementById('welfare-tfoot').innerHTML = `<tr style="background:#e2e8f0;font-weight:700">
+    <td colspan="7" style="border:1px solid #cbd5e1;padding:6px 8px;text-align:center">전체 합계</td>
+    <td style="border:1px solid #cbd5e1;padding:6px;text-align:center">${totalBirthday}</td>
+    <td style="border:1px solid #cbd5e1;padding:6px;text-align:center">${totalParent}</td>
+    <td style="border:1px solid #cbd5e1;padding:6px;text-align:center">${totalHealth}</td>
+    <td style="border:1px solid #cbd5e1;padding:6px;text-align:center">${totalOverseas||'-'}</td>
+    <td style="border:1px solid #cbd5e1;padding:6px;text-align:center">${totalSum}</td>
+    ${ltTotalCells}
+  </tr>`;
+}
+
+function editWelfare(uid, field) {
+  const wd = welfareData[uid] || {};
+  const cur = wd[field] ?? '';
+  const val = prompt('금액 입력 (숫자):', cur);
+  if (val === null) return;
+  if (!welfareData[uid]) welfareData[uid] = {};
+  welfareData[uid][field] = parseFloat(val) || 0;
+  saveWelfare();
+  renderWelfareTable();
+}
+
+function editLongterm(uid, year) {
+  const wd = welfareData[uid] || {};
+  const cur = wd.longterm?.[year] ?? '';
+  const val = prompt(year+'년 만근 금액 입력 (0=사용완료, 빈칸=해당없음):', cur);
+  if (val === null) return;
+  if (!welfareData[uid]) welfareData[uid] = {};
+  if (!welfareData[uid].longterm) welfareData[uid].longterm = {};
+  welfareData[uid].longterm[year] = val === '' ? null : (parseFloat(val) || 0);
+  saveWelfare();
+  renderWelfareTable();
+}
+
+function exportWelfareExcel() {
+  showToast('Excel 내보내기는 준비 중입니다.');
+}
+
 function showPage(id, el) {
   const target = document.getElementById('page-'+id);
   if (!target) { console.warn('페이지 없음:', id); return; }
@@ -3182,6 +3405,7 @@ function showPage(id, el) {
   }
   if(id === 'employees') { populateEmpFilterDept(); renderEmployeeTable(); }
   if(id === 'orgview') initOrgView();
+  if(id === 'welfare') renderWelfareTable();
   if(id === 'organization') renderDeptTable();
 }
 
