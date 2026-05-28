@@ -3391,14 +3391,32 @@ function renderWelfareTable() {
           totalHealth+=health; totalOverseas+=overseas; totalSum+=subtotal;
 
           let ltCells='';
+          const baseAmt = (wd.spouseCheck) ? 100 : 50;
           longtermYears.forEach(y=>{
             const reached=years>=y;
-            const used=wd.longterm?.[y]??(reached?0:null);
-            const bg=(reached&&(years-y)<2)?'background:#fef9c3':'';
+            // 수기 수정값 우선, 없으면 자동 계산
+            let used;
+            if(wd.longterm && wd.longterm[y] !== undefined && wd.longterm[y] !== null) {
+              used = wd.longterm[y]; // 수기 수정값
+            } else if(reached) {
+              // 다음 구간 도달 여부로 자동소멸 판단
+              const nextY = longtermYears[longtermYears.indexOf(y)+1];
+              const expired = nextY && years >= nextY;
+              used = expired ? -1 : baseAmt; // -1=자동소멸
+            } else {
+              used = null;
+            }
+            const bg=(reached&&(years-y)<2&&used!==-1)?'background:#fef9c3':'';
             let cv='';
             if(reached){
-              cv=used===0?'<span style="color:#94a3b8;font-size:11px">사용완료</span>':(used??100);
-              ltBT[y]+=(used||0); ltTotals[y]+=(used||0);
+              if(used===-1) {
+                cv='<span style="color:#94a3b8;font-size:11px">자동소멸</span>';
+              } else if(used===0) {
+                cv='<span style="color:#94a3b8;font-size:11px">사용완료</span>';
+              } else {
+                cv=used??baseAmt;
+                ltBT[y]+=(used||0); ltTotals[y]+=(used||0);
+              }
             }
             ltCells+='<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;'+bg+';cursor:pointer" data-uid="'+e.uid+'" data-year="'+y+'" ondblclick="editLongtermCell(this)">'+cv+'</td>';
           });
@@ -3506,6 +3524,11 @@ function editWelfareCell(td) {
     renderWelfareTable();
     return;
   }
+  if (field === 'healthCheck') {
+    const wd2 = welfareData[uid] || {};
+    showHealthCheckModal(uid, wd2.spouseCheck || false);
+    return;
+  }
   if (field === 'parentBirthday') {
     const wd = welfareData[uid] || {};
     const curFather = wd.parentFather || false;
@@ -3525,6 +3548,40 @@ function editWelfareCell(td) {
     return;
   }
   editWelfare(uid, field);
+}
+
+function showHealthCheckModal(uid, spouse) {
+  const existing = document.getElementById('health-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'health-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:24px;width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px">건강검진</div>
+      <div style="margin-bottom:20px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="hc-spouse" ${spouse?'checked':''} style="width:18px;height:18px;accent-color:var(--ac)">
+          배우자 포함 (100만원) / 미포함 (50만원)
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('health-modal').remove()" style="padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+        <button onclick="saveHealthCheck('${uid}')" style="padding:8px 16px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+}
+
+function saveHealthCheck(uid) {
+  const spouse = document.getElementById('hc-spouse').checked;
+  if (!welfareData[uid]) welfareData[uid] = {};
+  welfareData[uid].spouseCheck = spouse;
+  welfareData[uid].healthCheck = spouse ? 100 : 50;
+  saveWelfare();
+  document.getElementById('health-modal').remove();
+  renderWelfareTable();
 }
 
 function showParentBirthdayModal(uid, father, mother) {
