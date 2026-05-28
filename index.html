@@ -3314,18 +3314,24 @@ function renderWelfareTable() {
     let bonbuSub={birthday:0,parent:0,health:0,overseas:0,sum:0};
     const ltBT={}; longtermYears.forEach(y=>ltBT[y]=0);
 
-    // 부서 그룹핑
+    // 4. 본부/부서장이 있는 부서 그룹을 먼저 배치
     const buseoGroups={};
     bonbuEmps.forEach(e=>{
       const k=e.hier.buseo||'';
       if(!buseoGroups[k]) buseoGroups[k]=[];
       buseoGroups[k].push(e);
     });
+    // 본부장/부서장 포함 그룹 우선 정렬
+    const buseoEntries = Object.entries(buseoGroups).sort((a,b)=>{
+      const aHas = a[1].some(e=>e.title==='본부장'||e.title==='부서장') ? 0 : 1;
+      const bHas = b[1].some(e=>e.title==='본부장'||e.title==='부서장') ? 0 : 1;
+      return aHas - bHas;
+    });
 
     const bonbuRowspan = bonbuEmps.length;
     let bonbuFirst=true;
 
-    Object.entries(buseoGroups).forEach(([buseo, buseoEmps]) => {
+    buseoEntries.forEach(([buseo, buseoEmps]) => {
       // 팀 그룹핑
       const teamGroups={};
       buseoEmps.forEach(e=>{
@@ -3374,29 +3380,26 @@ function renderWelfareTable() {
 
           // 부서/팀 셀 처리
           let buseoCell='', teamCell='';
-          // 이 부서 그룹의 직책자 여부 (본부장/부서장 포함 여부)
-          const hasLeaderTitle = buseoEmps.some(e2 => e2.title==='본부장'||e2.title==='부서장');
+          const hasBonbuBuseoTitle = buseoEmps.some(e2=>e2.title==='본부장'||e2.title==='부서장');
 
           if (buseoFirst&&ti===0) {
             if (!buseo) {
-              // 부서명 없음 → 직책자(본부장/부서장)이면 colspan=2 총괄, 아니면 빈칸 병합
-              if (hasLeaderTitle) {
-                buseoCell = '<td rowspan="'+buseoRowspan+'" colspan="2" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">총괄</td>';
-              } else {
-                buseoCell = '<td rowspan="'+buseoRowspan+'" colspan="2" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle"></td>';
-              }
-              teamCell = ''; // colspan=2이므로 팀 셀 불필요
+              // 1. 부서명/팀명 모두 없음 → colspan=2 총괄
+              buseoCell = '<td rowspan="'+buseoRowspan+'" colspan="2" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">총괄</td>';
+              teamCell = '';
             } else {
+              // 부서명 있음
               buseoCell = '<td rowspan="'+buseoRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:600;vertical-align:middle">'+buseo+'</td>';
             }
           }
 
-          // 팀 셀: 부서 있을 때만
+          // 팀 셀: 부서 있을 때
           if (ti===0 && buseo) {
-            const hasTeamLeader = teamEmps.some(e2 => e2.title==='팀장');
             if (!team) {
-              // 팀명 없음 → 팀장이면 총괄, 아니면 빈칸
-              teamCell = '<td rowspan="'+teamRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">'+(hasTeamLeader?'총괄':'')+'</td>';
+              // 2. 부서명 있고 팀명 없음
+              // 3. 직책이 본부장/부서장이면 총괄, 아니면 빈칸
+              const label = hasBonbuBuseoTitle ? '총괄' : '';
+              teamCell = '<td rowspan="'+teamRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">'+label+'</td>';
             } else {
               teamCell = '<td rowspan="'+teamRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">'+team+'</td>';
             }
