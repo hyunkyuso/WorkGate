@@ -3435,7 +3435,14 @@ function renderWelfareTable() {
           rows+='<tr>'+bonbuCell+buseoCell+teamCell
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+(e.position||'')+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;font-weight:600;text-align:center">'+(e.name||'')+'</td>'
-            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;cursor:pointer" data-uid="'+uid_+'" data-field="startDate" ondblclick="editWelfareCell(this)">'+(wd.startDate||e.joindate||'')+'</td>'
+            +(function(){
+              const sd = wd.startDate||e.joindate||'';
+              const reason = wd.startDateReason||'';
+              const isModified = !!wd.startDate && wd.startDate !== e.joindate;
+              const tooltip = isModified && reason ? ' title="수정사유: '+reason.replace(/"/g,"'")+'"' : '';
+              const indicator = isModified ? '<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>' : '';
+              return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;cursor:pointer;position:relative"'+tooltip+' data-uid="'+uid_+'" data-field="startDate" ondblclick="editWelfareCell(this)">'+sd+indicator+'</td>';
+            })()
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+todayStr+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+tenure+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="birthday" ondblclick="editWelfareCell(this)">'+birthday+'</td>'
@@ -3490,7 +3497,15 @@ function editWelfare(uid, field) {
   const val = prompt(isDate ? '기산일 입력 (YYYY-MM-DD):' : '금액 입력 (숫자):', cur);
   if (val === null) return;
   if (!welfareData[uid]) welfareData[uid] = {};
-  welfareData[uid][field] = isDate ? val.trim() : (parseFloat(val) || 0);
+  if (isDate) {
+    const reason = prompt('수정 사유를 입력하세요:', wd.startDateReason || '');
+    if (reason === null) return;
+    welfareData[uid][field] = val.trim();
+    welfareData[uid].startDateReason = reason.trim();
+    welfareData[uid].startDateOriginal = welfareData[uid].startDateOriginal || cur; // 최초 원래 날짜 보존
+  } else {
+    welfareData[uid][field] = parseFloat(val) || 0;
+  }
   saveWelfare();
   renderWelfareTable();
 }
