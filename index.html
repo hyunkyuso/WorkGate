@@ -3314,18 +3314,18 @@ function renderWelfareTable() {
     let bonbuSub={birthday:0,parent:0,health:0,overseas:0,sum:0};
     const ltBT={}; longtermYears.forEach(y=>ltBT[y]=0);
 
-    // 4. 본부/부서장이 있는 부서 그룹을 먼저 배치
     const buseoGroups={};
     bonbuEmps.forEach(e=>{
       const k=e.hier.buseo||'';
       if(!buseoGroups[k]) buseoGroups[k]=[];
       buseoGroups[k].push(e);
     });
-    // 본부장/부서장 포함 그룹 우선 정렬
+    // 본부직속(부서없음, 본부장/부서장 포함) → 맨 앞, 나머지는 sortOrder
     const buseoEntries = Object.entries(buseoGroups).sort((a,b)=>{
-      const aHas = a[1].some(e=>e.title==='본부장'||e.title==='부서장') ? 0 : 1;
-      const bHas = b[1].some(e=>e.title==='본부장'||e.title==='부서장') ? 0 : 1;
-      return aHas - bHas;
+      const aTop = (!a[0] || a[1].some(e=>e.title==='본부장'||e.title==='부서장')) ? 0 : 1;
+      const bTop = (!b[0] || b[1].some(e=>e.title==='본부장'||e.title==='부서장')) ? 0 : 1;
+      if(aTop!==bTop) return aTop-bTop;
+      return getDeptOrder(a[0]) - getDeptOrder(b[0]);
     });
 
     const bonbuRowspan = bonbuEmps.length;
@@ -3384,22 +3384,30 @@ function renderWelfareTable() {
 
           if (buseoFirst&&ti===0) {
             if (!buseo) {
-              // 1. 부서명/팀명 모두 없음 → colspan=2 총괄
+              // 부서/팀 모두 없음 → colspan=2 총괄
               buseoCell = '<td rowspan="'+buseoRowspan+'" colspan="2" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">총괄</td>';
               teamCell = '';
             } else {
-              // 부서명 있음
-              buseoCell = '<td rowspan="'+buseoRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:600;vertical-align:middle">'+buseo+'</td>';
+              // 팀 그룹이 하나이고 팀명이 없으면 → 부서+팀 colspan=2 합치기
+              const teamKeys = Object.keys(teamGroups);
+              const noTeam = teamKeys.length===1 && !teamKeys[0];
+              if (noTeam) {
+                buseoCell = '<td rowspan="'+buseoRowspan+'" colspan="2" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:600;vertical-align:middle">'+buseo+'</td>';
+                teamCell = '';
+              } else {
+                buseoCell = '<td rowspan="'+buseoRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;font-weight:600;vertical-align:middle">'+buseo+'</td>';
+              }
             }
           }
 
-          // 팀 셀: 부서 있을 때
+          // 팀 셀: 부서 있고 팀도 있을 때만
           if (ti===0 && buseo) {
-            if (!team) {
-              // 부서명 있고 팀명 없음 → 셀 합치기만 (빈칸)
-              teamCell = '<td rowspan="'+teamRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle"></td>';
-            } else {
+            const teamKeys2 = Object.keys(teamGroups);
+            const noTeam2 = teamKeys2.length===1 && !teamKeys2[0];
+            if (!noTeam2 && team) {
               teamCell = '<td rowspan="'+teamRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle">'+team+'</td>';
+            } else if (!noTeam2 && !team) {
+              teamCell = '<td rowspan="'+teamRowspan+'" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center;vertical-align:middle"></td>';
             }
           }
 
