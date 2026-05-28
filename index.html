@@ -3325,13 +3325,14 @@ function renderWelfareTable() {
       buseoGroups[k].push(e);
     });
 
-    // 본부 rowspan = 전체 직원수 + 팀소계수 + 부서소계수
-    const bonbuRowspan = bonbuEmps.length +
-      Object.values(buseoGroups).reduce((s,be)=>{
-        const tg={};
-        be.forEach(e=>{const k=e.hier.team||'';if(!tg[k])tg[k]=[];tg[k].push(e);});
-        return s + Object.keys(tg).filter(t=>t).length;
-      },0) + Object.keys(buseoGroups).filter(b=>b).length;
+    // 본부 rowspan = 직원수 + 팀소계행수 + 부서소계행수
+    let bonbuRowspan = bonbuEmps.length;
+    Object.entries(buseoGroups).forEach(([buseo, be])=>{
+      if(buseo) bonbuRowspan++; // 부서 소계행
+      const tg={};
+      be.forEach(e=>{const k=e.hier.team||'';if(!tg[k])tg[k]=[];tg[k].push(e);});
+      Object.keys(tg).forEach(t=>{ if(t) bonbuRowspan++; }); // 팀 소계행
+    });
 
     let bonbuFirst=true;
 
@@ -3347,7 +3348,7 @@ function renderWelfareTable() {
         teamGroups[k].push(e);
       });
 
-      const buseoRowspan = buseoEmps.length + Object.keys(teamGroups).filter(t=>t).length;
+      const buseoRowspan = buseoEmps.length + Object.keys(teamGroups).filter(t=>t).length; // 팀소계 포함
       let buseoFirst=true;
 
       Object.entries(teamGroups).forEach(([team, teamEmps]) => {
