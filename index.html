@@ -2741,8 +2741,10 @@ function renderOrgView() {
         nodes+='<div style="display:flex;width:fit-content;height:96px;align-items:center;position:relative;left:50%;transform:translateX(-50%)">'+empBubble(head,true)+'</div>';
         const othersOdd=(others.length%2===1);
         for(let ri=0;ri<others.length;ri+=2){
-          const center=(others.length===1||!othersOdd);
-          const pos3=center?'position:relative;left:50%;transform:translateX(-50%);':'';
+          const isLastOne=othersOdd&&!others[ri+1]; // 마지막 1명
+          const center=(others.length===1||!isLastOne);
+          const leftPx2=(cardW/2 - (76*2+1)/2);
+          const pos3=center?'position:relative;left:50%;transform:translateX(-50%);':'position:relative;left:'+leftPx2+'px;';
           nodes+='<div style="display:flex;width:fit-content;gap:1px;margin-bottom:4px;'+pos3+'">';
           nodes+=empBubble(others[ri],false);
           if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
