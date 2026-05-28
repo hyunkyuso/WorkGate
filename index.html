@@ -3446,7 +3446,7 @@ function renderWelfareTable() {
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+todayStr+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+tenure+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="birthday" ondblclick="editWelfareCell(this)">'+(birthday===0?'-':birthday)+'</td>'
-            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="parentBirthday" ondblclick="editWelfareCell(this)">'+parent+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="parentBirthday" ondblclick="editWelfareCell(this)">'+(wd.parentFather===undefined&&wd.parentMother===undefined?(parent===10?parent:'-'):(parent===0?'-':parent))+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="healthCheck" ondblclick="editWelfareCell(this)">'+health+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas" ondblclick="editWelfareCell(this)">'+(overseas||'-')+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:700;background:#fef3c7">'+(subtotal||'-')+'</td>'
@@ -3483,7 +3483,6 @@ function editWelfareCell(td) {
   const uid = td.dataset.uid;
   const field = td.dataset.field;
   if (field === 'birthday') {
-    // O/X 선택
     const choice = confirm('생일 지급 여부를 선택하세요.\n확인(O): 10 지급\n취소(X): - 미지급');
     if (!welfareData[uid]) welfareData[uid] = {};
     welfareData[uid].birthday = choice ? 10 : 0;
@@ -3491,7 +3490,55 @@ function editWelfareCell(td) {
     renderWelfareTable();
     return;
   }
+  if (field === 'parentBirthday') {
+    const wd = welfareData[uid] || {};
+    const curFather = wd.parentFather || false;
+    const curMother = wd.parentMother || false;
+    // 모달 표시
+    showParentBirthdayModal(uid, curFather, curMother);
+    return;
+  }
   editWelfare(uid, field);
+}
+
+function showParentBirthdayModal(uid, father, mother) {
+  // 기존 모달 제거
+  const existing = document.getElementById('parent-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'parent-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:24px;width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px">부모님 생신 지급</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="pb-father" ${father?'checked':''} style="width:18px;height:18px;accent-color:var(--ac)"> 부 (2만원)
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="pb-mother" ${mother?'checked':''} style="width:18px;height:18px;accent-color:var(--ac)"> 모 (2만원)
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('parent-modal').remove()" style="padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+        <button onclick="saveParentBirthday('${uid}')" style="padding:8px 16px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+}
+
+function saveParentBirthday(uid) {
+  const father = document.getElementById('pb-father').checked;
+  const mother = document.getElementById('pb-mother').checked;
+  if (!welfareData[uid]) welfareData[uid] = {};
+  welfareData[uid].parentFather = father;
+  welfareData[uid].parentMother = mother;
+  welfareData[uid].parentBirthday = (father ? 2 : 0) + (mother ? 2 : 0);
+  saveWelfare();
+  document.getElementById('parent-modal').remove();
+  renderWelfareTable();
 }
 function editLongtermCell(td) {
   const uid = td.dataset.uid;
