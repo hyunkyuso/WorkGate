@@ -3249,33 +3249,56 @@ function renderWelfareTable() {
   function getDeptHierarchy(deptName) {
     const d = departments.find(x => x.name === deptName);
     if (!d) return { bonbu:'', buseo:'', team:'' };
-    // 조상 배열: [최상위, ..., 바로위부모] 순서
-    function getAncestors(dept, visited=[]) {
-      if (!dept || !dept.parent || visited.includes(dept.id)) return [];
-      const p = departments.find(x => x.id === dept.parent);
-      if (!p) return [];
-      return [p, ...getAncestors(p, [...visited, dept.id])].reverse();
-      // reverse 후: [최상위, ..., 바로위]
+
+    // 조상 체인 수집 (부모 → 조부모 → ...)
+    function getChain(dept) {
+      const chain = [dept];
+      let cur = dept;
+      let safety = 0;
+      while (cur && cur.parent && safety++ < 10) {
+        const p = departments.find(x => x.id === cur.parent);
+        if (!p) break;
+        chain.push(p);
+        cur = p;
+      }
+      return chain; // [자신, 부모, 조부모, ...]
     }
-    const ancestors = getAncestors(d).filter(Boolean);
-    // ancestors[0]=최상위(본부), ancestors[1]=부서, d=팀
-    if (ancestors.length === 0) return { bonbu: d.name, buseo:'', team:'' };
-    if (ancestors.length === 1) return { bonbu: ancestors[0].name, buseo: d.name, team:'' };
-    return { bonbu: ancestors[0].name, buseo: ancestors[1].name, team: d.name };
+
+    const chain = getChain(d);
+    // chain[0]=자신, chain[1]=부모, chain[2]=조부모
+    // lv0(최상위, parent='')는 제외
+    const lv0 = chain[chain.length-1]; // 정도유아이티 등 최상위
+    const filtered = chain.filter(x => x.id !== lv0.id); // lv0 제외
+    // filtered[0]=자신, filtered[1]=부모(lv1본부or lv2부서)
+
+    if (filtered.length === 1) {
+      // 직속 lv1: 본부명만
+      return { bonbu: filtered[0].name, buseo:'', team:'' };
+    } else if (filtered.length === 2) {
+      // lv2: 부모=본부, 자신=부서
+      return { bonbu: filtered[1].name, buseo: filtered[0].name, team:'' };
+    } else {
+      // lv3 이상: 조부모=본부, 부모=부서, 자신=팀
+      return { bonbu: filtered[2].name, buseo: filtered[1].name, team: filtered[0].name };
+    }
   }
 
   const empsWithH = activeEmps.map(e => ({ ...e, hier: getDeptHierarchy(e.dept||'') }));
-  // departments sortOrder 기준으로 정렬
   function getDeptOrder(name) {
     const d = departments.find(x=>x.name===name);
     return d ? (d.sortOrder||99) : 99;
   }
+  const RANK_W = {'본부장':0,'부서장':1,'팀장':2,'대표이사':0};
+  function titleRank(e) { return RANK_W[e.title||''] ?? 99; }
   const sorted = empsWithH.sort((a,b) => {
     const bo = getDeptOrder(a.hier.bonbu) - getDeptOrder(b.hier.bonbu);
     if (bo !== 0) return bo;
     const buo = getDeptOrder(a.hier.buseo) - getDeptOrder(b.hier.buseo);
     if (buo !== 0) return buo;
-    return getDeptOrder(a.hier.team) - getDeptOrder(b.hier.team);
+    const to = getDeptOrder(a.hier.team) - getDeptOrder(b.hier.team);
+    if (to !== 0) return to;
+    // 같은 조직 내에서 본부장/부서장/팀장 먼저
+    return titleRank(a) - titleRank(b);
   });
 
   let rows = '';
