@@ -3249,23 +3249,34 @@ function renderWelfareTable() {
   function getDeptHierarchy(deptName) {
     const d = departments.find(x => x.name === deptName);
     if (!d) return { bonbu:'', buseo:'', team:'' };
+    // 조상 배열: [최상위, ..., 바로위부모] 순서
     function getAncestors(dept, visited=[]) {
       if (!dept || !dept.parent || visited.includes(dept.id)) return [];
       const p = departments.find(x => x.id === dept.parent);
-      return [...getAncestors(p, [...visited, dept.id]), p];
+      if (!p) return [];
+      return [p, ...getAncestors(p, [...visited, dept.id])].reverse();
+      // reverse 후: [최상위, ..., 바로위]
     }
     const ancestors = getAncestors(d).filter(Boolean);
+    // ancestors[0]=최상위(본부), ancestors[1]=부서, d=팀
     if (ancestors.length === 0) return { bonbu: d.name, buseo:'', team:'' };
     if (ancestors.length === 1) return { bonbu: ancestors[0].name, buseo: d.name, team:'' };
-    return { bonbu: ancestors[0].name, buseo: ancestors[ancestors.length-1].name, team: d.name };
+    return { bonbu: ancestors[0].name, buseo: ancestors[1].name, team: d.name };
   }
 
   const empsWithH = activeEmps.map(e => ({ ...e, hier: getDeptHierarchy(e.dept||'') }));
-  const sorted = empsWithH.sort((a,b) =>
-    (a.hier.bonbu||'').localeCompare(b.hier.bonbu||'','ko') ||
-    (a.hier.buseo||'').localeCompare(b.hier.buseo||'','ko') ||
-    (a.hier.team||'').localeCompare(b.hier.team||'','ko')
-  );
+  // departments sortOrder 기준으로 정렬
+  function getDeptOrder(name) {
+    const d = departments.find(x=>x.name===name);
+    return d ? (d.sortOrder||99) : 99;
+  }
+  const sorted = empsWithH.sort((a,b) => {
+    const bo = getDeptOrder(a.hier.bonbu) - getDeptOrder(b.hier.bonbu);
+    if (bo !== 0) return bo;
+    const buo = getDeptOrder(a.hier.buseo) - getDeptOrder(b.hier.buseo);
+    if (buo !== 0) return buo;
+    return getDeptOrder(a.hier.team) - getDeptOrder(b.hier.team);
+  });
 
   let rows = '';
   let totalBirthday=0,totalParent=0,totalHealth=0,totalOverseas=0,totalSum=0;
@@ -3353,7 +3364,7 @@ function renderWelfareTable() {
           rows+=`<tr>
             ${bonbuCell}${buseoCell}${teamCell}
             <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${e.position||''}</td>
-            <td style="border:1px solid #e2e8f0;padding:4px 6px;font-weight:600">${e.name||''}</td>
+            <td style="border:1px solid #e2e8f0;padding:4px 6px;font-weight:600;text-align:center">${e.name||''}</td>
             <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${e.joindate||''}</td>
             <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${todayStr}</td>
             <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${tenure}</td>
