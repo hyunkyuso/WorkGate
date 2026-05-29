@@ -1012,93 +1012,56 @@ async function autoRegisterEmployee(email, name, picture) {
   } catch(e) { console.error('직원 자동 등록 오류:', e); }
 }
 
-// ── Firestore 실시간 리스너 핸들 (중복 방지용) ──
-let _unsubEmployees = null;
-let _unsubDepartments = null;
-let _unsubCodes = null;
-
 async function loadFirestoreData() {
-  // 기존 리스너 해제 (재호출 방지)
-  if (_unsubEmployees) { _unsubEmployees(); _unsubEmployees = null; }
-  if (_unsubDepartments) { _unsubDepartments(); _unsubDepartments = null; }
-  if (_unsubCodes) { _unsubCodes(); _unsubCodes = null; }
-
-  // 코드 데이터 초기값 보장 (Firestore에 없으면 기본값 저장)
   try {
-    const codeSnap = await db.collection('codes').doc('all').get();
-    if (!codeSnap.exists) {
-      await db.collection('codes').doc('all').set(codeData);
-    }
-  } catch(e) { console.error('코드 초기화 오류:', e); }
-
-  // ── 직원 실시간 리스너 ──
-  _unsubEmployees = db.collection('employees').onSnapshot(snap => {
-    employees = snap.docs.map(d => d.data());
+    // 직원 데이터 로드
+    const empSnap = await db.collection('employees').get();
+    employees = empSnap.docs.map(d => d.data());
     localStorage.setItem('wg_employees', JSON.stringify(employees));
-    // 내 권한 재확인
-    if (state.myEmail) {
-      const myEmp = employees.find(e => e.id === state.myEmail);
-      const newRole = myEmp ? (myEmp.role || '일반') : '일반';
-      if (newRole !== state.myRole) {
-        state.myRole = newRole;
-        applyRoleUI();
-        console.log('권한 변경 감지:', state.myEmail, '->', newRole);
-      }
-    }
-    // UI 갱신 (앱이 초기화된 후에만)
-    if (document.getElementById('app').style.display !== 'none') {
-      renderEmployeeTable();
-      renderOrgView();
-      populateEmpFilterDept();
-      renderDashboard();
-    }
-  }, err => console.error('직원 리스너 오류:', err));
 
-  // ── 부서 실시간 리스너 ──
-  _unsubDepartments = db.collection('departments').onSnapshot(snap => {
-    if (!snap.empty) {
-      departments = snap.docs.map(d => {
+    // 부서 데이터 로드
+    const deptSnap = await db.collection('departments').get();
+    if (!deptSnap.empty) {
+      departments = deptSnap.docs.map(d => {
         const data = d.data();
+        // position 기본값 보장
         if (!data.position) data.position = 'bottom';
         return data;
       });
       localStorage.setItem('wg_departments', JSON.stringify(departments));
-      if (document.getElementById('app').style.display !== 'none') {
-        renderOrgTree();
-        renderOrgView();
-      }
     }
-  }, err => console.error('부서 리스너 오류:', err));
 
-  // ── 복리후생 실시간 리스너 ──
-  startWelfareListener();
-
-  // ── 코드 실시간 리스너 ──
-  _unsubCodes = db.collection('codes').doc('all').onSnapshot(snap => {
-    if (snap.exists) {
-      const firestoreData = snap.data();
+    // 코드 데이터 로드 (Firestore 우선, 없으면 기본값 유지)
+    const codeSnap = await db.collection('codes').doc('all').get();
+    if (codeSnap.exists) {
+      const firestoreData = codeSnap.data();
+      // Firestore 데이터로 완전 덮어쓰기
       Object.keys(firestoreData).forEach(key => {
         codeData[key] = firestoreData[key];
       });
       localStorage.setItem('wg_codes', JSON.stringify(codeData));
-      if (document.getElementById('app').style.display !== 'none') {
-        renderCodeTable();
+    } else {
+      // Firestore에 없으면 기본값 저장
+      await db.collection('codes').doc('all').set(codeData);
+      localStorage.setItem('wg_codes', JSON.stringify(codeData));
+    }
+    // welfare 초기 로드
+    try {
+      const welfareSnap = await db.collection('welfare').doc('data').get();
+      if (welfareSnap.exists) {
+        welfareData = welfareSnap.data();
+        localStorage.setItem('wg_welfare', JSON.stringify(welfareData));
       }
-    }
-  }, err => console.error('코드 리스너 오류:', err));
-
-  // 초기 권한 확인 (첫 onSnapshot 콜백 전 임시 처리)
-  try {
-    const empSnap = await db.collection('employees').get();
-    employees = empSnap.docs.map(d => d.data());
-    if (state.myEmail) {
-      const myEmp = employees.find(e => e.id === state.myEmail);
-      const newRole = myEmp ? (myEmp.role || '일반') : '일반';
-      state.myRole = newRole;
-      console.log('초기 권한 확인:', state.myEmail, '->', newRole, '/ 직원수:', employees.length);
-      applyRoleUI();
-    }
-  } catch(e) { console.error('초기 데이터 로드 오류:', e); }
+    } catch(we) {}
+  } catch(e) { console.error('Firestore 로드 오류:', e); }
+  // 로드 완료 후 현재 사용자 권한 재확인
+  if (state.myEmail) {
+    const myEmp = employees.find(e => e.id === state.myEmail);
+    const newRole = myEmp ? (myEmp.role || '일반') : '일반';
+    state.myRole = newRole;
+    console.log('권한 확인:', state.myEmail, '->', newRole, '/ 직원수:', employees.length);
+    applyRoleUI();
+  }
 }
 
 function isAdmin() {
@@ -1129,11 +1092,6 @@ function applyRoleUI() {
 }
 
 function signOut() {
-  // 실시간 리스너 해제
-  if (_unsubEmployees) { _unsubEmployees(); _unsubEmployees = null; }
-  if (_unsubDepartments) { _unsubDepartments(); _unsubDepartments = null; }
-  if (_unsubCodes) { _unsubCodes(); _unsubCodes = null; }
-  if (_unsubWelfare) { _unsubWelfare(); _unsubWelfare = null; }
   auth.signOut();
   state.accessToken = null; state.user = null; state.myRole = null;
 }
@@ -1142,6 +1100,7 @@ function signOut() {
 // INIT
 // ══════════════════════════════════════════════════
 function initApp() {
+  startWelfareListener();
   renderKanban();
   renderKpi();
   renderDashboard();
@@ -3239,26 +3198,25 @@ function renderMembers() {} // 하위호환 유지
 
 // ── 복리후생 지원 현황 ──
 let welfareData = JSON.parse(localStorage.getItem('wg_welfare') || '{}');
-// welfareData[uid] = { birthday:10, parentBirthday:10, healthCheck:100, overseas:0, longterm:{5:100,7:100,...} }
-let _unsubWelfare = null;
 
 function saveWelfare() {
   localStorage.setItem('wg_welfare', JSON.stringify(welfareData));
-  // Firestore 동기화
-  db.collection('welfare').doc('all').set(welfareData).catch(err => console.error('복리후생 저장 오류:', err));
+  try {
+    db.collection('welfare').doc('data').set(welfareData).catch(e => console.error('welfare save:', e));
+  } catch(e) {}
 }
 
 function startWelfareListener() {
-  if (_unsubWelfare) { _unsubWelfare(); _unsubWelfare = null; }
-  _unsubWelfare = db.collection('welfare').doc('all').onSnapshot(snap => {
+  db.collection('welfare').doc('data').onSnapshot(snap => {
     if (snap.exists) {
       welfareData = snap.data();
       localStorage.setItem('wg_welfare', JSON.stringify(welfareData));
-      if (document.getElementById('app').style.display !== 'none') {
+      const page = document.getElementById('page-welfare');
+      if (page && page.classList.contains('active')) {
         renderWelfareTable();
       }
     }
-  }, err => console.error('복리후생 리스너 오류:', err));
+  }, e => console.error('welfare listener:', e));
 }
 
 function calcTenure(joindate, today) {
@@ -3575,6 +3533,14 @@ function renderWelfareTable() {
               const osYears = [[3,100,'overseas3'],[6,200,'overseas6'],[10,300,'overseas10'],[15,0,'overseas15'],[20,0,'overseas20']];
               const cutoffDate = new Date('2026-01-01'); // 이 날짜 이전 발생분
               const expiryDate = new Date('2027-12-31');    // 2027-12-31까지 사용
+              // 발생금액 해외연수 미사용이면 전체 빈칸
+              if (wd.overseasBaseUnused) {
+                return osYears.map(([yr,base,fld])=>{
+                  const tip = (wd.overseasTooltip&&wd.overseasTooltip[fld])||'';
+                  const tipAttr = tip?' title="'+tip.replace(/"/g,"'")+'"':'';
+                  return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer;position:relative"'+tipAttr+' data-uid="'+uid_+'" data-field="'+fld+'" ondblclick="editWelfareCell(this)"></td>';
+                }).join('');
+              }
               return osYears.map(([yr,base,fld])=>{
                 const reached = years >= yr;
                 let val = '';
@@ -3748,26 +3714,14 @@ function showOverseasModal(uid, field) {
   modal.innerHTML = `
     <div style="background:#fff;border-radius:12px;padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
       <div style="font-size:15px;font-weight:700;margin-bottom:4px">장기근속 해외연수 (${yr}년 만근)</div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:16px">기본: ${base}만원 | 자녀 1명당 50% 추가</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:16px">기본: ${base}만원 | 자녀 1명당 50% 추가 | 자동계산: ${autoAmt}만원</div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
-          <input type="checkbox" id="os-used" ${cur!==null&&cur!==0&&cur!==-1?'checked':''} style="width:18px;height:18px;accent-color:var(--ac)">
-          사용
-        </label>
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
-          <input type="checkbox" id="os-unused" ${cur===0?'checked':''} style="width:18px;height:18px;accent-color:#ef4444">
-          미사용
-        </label>
-        <div style="display:flex;align-items:center;gap:8px;font-size:14px">
-          <span>자녀 수:</span>
-          <input type="number" id="os-children" value="${children}" min="0" max="10" style="width:60px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
-          <span style="color:#64748b;font-size:12px">명 (자동: ${autoAmt}만원)</span>
-        </div>
         <div style="display:flex;align-items:center;gap:8px;font-size:14px">
           <span>수동 입력:</span>
           <input type="number" id="os-amount" value="${cur>0?cur:''}" placeholder="자동계산" style="width:90px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
           <span style="color:#64748b;font-size:12px">만원</span>
         </div>
+        <button onclick="clearOverseasOverride('${uid}','${field}')" style="padding:6px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:12px;color:#64748b">자동계산으로 복원</button>
         <div style="font-size:14px">
           <div style="margin-bottom:4px;color:#374151">툴팁 메모:</div>
           <input type="text" id="os-tooltip" value="${curTooltip}" placeholder="마우스 오버 시 표시" style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box">
@@ -3778,27 +3732,26 @@ function showOverseasModal(uid, field) {
         <button onclick="saveOverseasModal('${uid}','${field}',${yr})" style="padding:8px 16px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
       </div>
     </div>`;
-  document.body.appendChild(modal);
+    document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
 }
 
+function clearOverseasOverride(uid, field) {
+  if (welfareData[uid]) delete welfareData[uid][field];
+  saveWelfare();
+  document.getElementById('overseas-modal').remove();
+  renderWelfareTable();
+}
+
 function saveOverseasModal(uid, field, yr) {
-  const used = document.getElementById('os-used').checked;
-  const unused = document.getElementById('os-unused').checked;
-  const children = parseInt(document.getElementById('os-children').value) || 0;
   const manualAmt = document.getElementById('os-amount').value;
   const tooltip = document.getElementById('os-tooltip').value.trim();
-  const base = yr===3?100:yr===6?200:yr===10?300:0; // 15년/20년은 수동
-  const autoAmt = base + base * 0.5 * children;
 
   if (!welfareData[uid]) welfareData[uid] = {};
   if (!welfareData[uid].overseasTooltip) welfareData[uid].overseasTooltip = {};
 
-  welfareData[uid].overseasChildren = children;
-  if (unused) {
-    welfareData[uid][field] = 0;
-  } else if (used) {
-    welfareData[uid][field] = manualAmt ? parseFloat(manualAmt) : autoAmt;
+  if (manualAmt) {
+    welfareData[uid][field] = parseFloat(manualAmt);
   } else {
     delete welfareData[uid][field];
   }
