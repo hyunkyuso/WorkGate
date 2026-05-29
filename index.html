@@ -4312,12 +4312,28 @@ function renderMyPage() {
     return {label: y+'년 만근', status, statusColor};
   });
 
+  // 건강검진 사용기간 계산
+  const ltExpiryMap = {};
+  ltYears.forEach(y => {
+    const sd = new Date(startDate);
+    const issueDate = new Date(sd.getFullYear()+y, sd.getMonth(), sd.getDate());
+    const cutoffLt = new Date('2026-01-01');
+    const isOldLt = issueDate < cutoffLt;
+    ltExpiryMap[y] = isOldLt ? '~2027-12-31' : '~'+new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate()).toISOString().slice(0,10);
+  });
+
+  const rowStyle = 'display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px';
+
   if (ltItems.length) {
     html += '<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">🏥 장기근속 건강검진</div>';
-    ltItems.forEach(({label,status,statusColor}) => {
-      html += '<div style="display:flex;align-items:center;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px">'
-        +'<div style="flex:1;font-weight:600">'+label+'</div>'
-        +'<div style="color:'+statusColor+';font-weight:600">'+status+'</div>'
+    ltItems.forEach(({label,status,statusColor}, i) => {
+      const yr = ltYears.filter(y => years >= y)[i];
+      const dotColor = statusColor;
+      html += '<div style="'+rowStyle+'">'
+        +'<div style="font-weight:600">'+label+'</div>'
+        +'<div style="font-size:12px;color:#64748b">사용기간: '+ltExpiryMap[yr]+'</div>'
+        +'<div style="width:7px;height:7px;border-radius:50%;background:'+dotColor+';flex-shrink:0"></div>'
+        +'<div style="color:'+statusColor+';font-weight:600;white-space:nowrap">'+status+'</div>'
         +'</div>';
     });
     html += '</div>';
@@ -4339,8 +4355,10 @@ function renderMyPage() {
       : '사용기간: ~'+expiry2yr.toISOString().slice(0,10);
     const amt = base + base*0.5*osCh;
     const v = wd[fld];
-    const status = v==='사용완료' ? '✅ 사용완료' : expired ? '⏰ 소멸' : '🟢 사용가능 '+amt+'만원';
-    return '<div style="display:flex;align-items:center;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="flex:1"><span style="font-weight:600">해외연수 '+yr+'년만근</span><span style="font-size:12px;color:#64748b;margin-left:8px">'+usePeriod+'</span></div><div style="color:#22c55e;font-weight:600">'+status+'</div></div>';
+    const dotC = v==='사용완료'?'#94a3b8':expired?'#f59e0b':'#22c55e';
+    const txtC = dotC;
+    const statusTxt = v==='사용완료'?'사용완료':expired?'소멸':'사용가능 '+amt+'만원';
+    return '<div style="'+rowStyle+'"><div style="font-weight:600">해외연수 '+yr+'년만근</div><div style="font-size:12px;color:#64748b">'+usePeriod+'</div><div style="width:7px;height:7px;border-radius:50%;background:'+dotC+';flex-shrink:0"></div><div style="color:'+txtC+';font-weight:600;white-space:nowrap">'+statusTxt+'</div></div>';
   });
 
   // 한시 지원 해외연수 15/20년
@@ -4356,8 +4374,9 @@ function renderMyPage() {
       const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
       const expired = today > expiry2yr;
       const v = wd[osFld];
-      const status = v==='사용완료'?'✅ 사용완료':expired?'⏰ 소멸':'🟢 사용가능 '+osAmt+'만원';
-      osItems.push('<div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div><span style="font-weight:700">해외연수 '+osTargetYr+'년만근 ★한시</span><span style="font-size:12px;color:#64748b;margin-left:8px">사용기간: ~'+expiry2yr.toISOString().slice(0,10)+'</span></div><div>'+status+'</div></div>');
+      const osStatusTxt = v==='사용완료'?'사용완료':expired?'소멸':'사용가능 '+osAmt+'만원';
+      const osDotC = osStatusTxt==='사용완료'?'#94a3b8':expired?'#f59e0b':'#22c55e';
+      osItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">해외연수 '+osTargetYr+'년만근 ★한시</div><div style="font-size:12px;color:#64748b">사용기간: ~'+expiry2yr.toISOString().slice(0,10)+'</div><div style="width:7px;height:7px;border-radius:50%;background:'+osDotC+';flex-shrink:0"></div><div style="color:'+osDotC+';font-weight:600;white-space:nowrap">'+osStatusTxt+'</div></div>');
     }
   }
 
@@ -4380,18 +4399,22 @@ function renderMyPage() {
     }
   }
 
+  const rfCutoff = new Date('2026-01-01');
+  const rfExpiry2027 = new Date('2027-12-31');
   const rfItems = rfMap.filter(({yr}) => years >= yr).map(({f,label,yr}) => {
     const sd = new Date(startDate);
     const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
+    const isOldRf = issueDate < rfCutoff;
     const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
-    const expired = today > expiry2yr;
+    const rfExpiry = isOldRf ? rfExpiry2027 : expiry2yr;
+    const expired = today > rfExpiry;
     const v = wd[f];
     const isHandsOn = f === rfTargetF;
-    const status = v==='사용완료'?'✅ 사용완료':v&&v!=='미사용'?'🔵 '+v:expired?'⏰ 소멸':'🟢 사용가능';
     const bg = isHandsOn ? 'background:#f0fdf4;border:1.5px solid #6366f1;' : 'background:#f8fafc;';
     const lbl = label + (isHandsOn ? ' ★한시' : '');
-    const statusColor2 = status.startsWith('🟢')?'#22c55e':status.startsWith('✅')?'#94a3b8':'#f59e0b';
-    return '<div style="display:flex;align-items:center;padding:8px 12px;'+bg+'border-radius:8px;margin-bottom:6px"><div style="flex:1"><span style="font-weight:'+(isHandsOn?'700':'600')+'">'+lbl+'</span><span style="font-size:12px;color:#64748b;margin-left:8px">사용기간: ~'+expiry2yr.toISOString().slice(0,10)+'</span></div><div style="color:'+statusColor2+';font-weight:600">'+status+'</div></div>';
+    const statusTxt2 = v==='사용완료'?'사용완료':v&&v!=='미사용'?v:expired?'자동소멸':'사용가능';
+    const dotC2 = statusTxt2==='사용완료'?'#94a3b8':statusTxt2==='자동소멸'?'#f59e0b':'#22c55e';
+    return '<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;'+bg+'border-radius:8px;margin-bottom:6px"><div style="font-weight:'+(isHandsOn?'700':'600')+'">'+lbl+'</div><div style="font-size:12px;color:#64748b">사용기간: ~'+rfExpiry.toISOString().slice(0,10)+'</div><div style="width:7px;height:7px;border-radius:50%;background:'+dotC2+';flex-shrink:0"></div><div style="color:'+dotC2+';font-weight:600;white-space:nowrap">'+statusTxt2+'</div></div>';
   });
 
   // 한시 지원 대상인데 아직 발생 안 된 경우
