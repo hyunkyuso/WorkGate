@@ -3722,8 +3722,9 @@ function renderWelfareTable() {
                 const reached = rfCheckReached(targetYr);
                 const expired2 = rfCheckExpired(targetYr);
                 const isUsed = val === '사용완료';
-                // 사용가능(발생 + 미사용 + 미소멸 + 값없음): 테두리 강조
-                const isAvailable = reached && !expired2 && !isUsed && val !== '미사용' && !val;
+                // 사용가능(발생 + 사용기간 내 + 사용완료/소멸/사용안함 아님): 테두리 강조
+                const isNoBorder = isUsed || expired2 || val === '사용안함';
+                const isAvailable = reached && !isNoBorder;
                 const borderStyle = isAvailable
                   ? 'border:2px solid #6366f1;'
                   : 'border:1px solid #e2e8f0;';
@@ -4007,6 +4008,11 @@ function showRefreshModal(uid, field) {
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
           <input type="radio" name="rf-week" value="미사용" ${cur==='미사용'||!cur?'checked':''} style="width:16px;height:16px;accent-color:#ef4444"> 미사용
         </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;padding:8px 10px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca">
+          <input type="checkbox" id="rf-nouse" ${cur==='사용안함'?'checked':''} style="width:16px;height:16px;accent-color:#ef4444">
+          <span style="color:#dc2626;font-weight:600">사용안함</span> <span style="color:#64748b;font-size:12px">(체크 시 테두리 제거)</span>
+        </label>
+        <div style="border-top:1px solid #f1f5f9;margin:4px 0"></div>
         ${weekOptions}
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
           <input type="radio" name="rf-week" value="사용완료" ${cur==='사용완료'?'checked':''} style="width:16px;height:16px;accent-color:var(--ac)"> 사용완료
@@ -4026,8 +4032,9 @@ function showRefreshModal(uid, field) {
 }
 
 function saveRefreshModal(uid, field) {
+  const noUse = document.getElementById('rf-nouse').checked;
   const selected = document.querySelector('input[name="rf-week"]:checked');
-  const val = selected ? selected.value : '';
+  const val = noUse ? '사용안함' : (selected ? selected.value : '');
   const tooltip = document.getElementById('rf-tooltip').value.trim();
   if (!welfareData[uid]) welfareData[uid] = {};
   if (!welfareData[uid].extraTooltip) welfareData[uid].extraTooltip = {};
