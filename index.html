@@ -3655,27 +3655,29 @@ function renderWelfareTable() {
 
               return osYears.map(([yr,base,fld])=>{
                 const v = osResult[fld];
-                let val = '';
-                if (v === null || v === undefined) {
-                  // 발생 시점 도래 + 소멸 안됨 → 금액 표기
-                  if (fld === osTarget && osTargetReached && !osExpired && !wd.overseasBaseUnused) {
-                    val = osTargetAmt || '';
-                  }
-                }
-                else if (v === '사용완료') val = '<span style="color:#94a3b8;font-size:11px">사용완료</span>';
-                else if (v === 'expired') val = '<span style="color:#94a3b8;font-size:11px">자동소멸</span>';
-                else val = v;
-                // 진하게: 발생 시점 도래했을 때만
-                const isOsTarget = fld === osTarget && osTargetReached && !osExpired;
-                // 사용가능 여부: 발생+사용기간내+미완료/미소멸
+                // 사용기간 계산
                 const osIssueD = new Date((new Date(startDate)).getFullYear()+yr, (new Date(startDate)).getMonth(), (new Date(startDate)).getDate());
                 const osCutoff = new Date('2026-01-01');
                 const osExpiryD = osIssueD < osCutoff ? new Date('2027-12-31') : new Date(osIssueD.getFullYear()+2, osIssueD.getMonth(), osIssueD.getDate());
                 const osReached3 = years >= yr;
                 const osExpired3 = today > osExpiryD;
                 const osValRaw = welfareData[uid_] && welfareData[uid_][fld];
-                const osAvailable = osReached3 && !osExpired3 && osValRaw && osValRaw !== '사용완료' && osValRaw !== 'expired';
-                const osBg = (isOsTarget && osAvailable) ? '#fed7aa' : osAvailable ? '#fed7aa' : '#fce7f3';
+                // 금액 계산 (배우자/자녀 포함)
+                const osCh_ = wd.overseasChildren || 0;
+                const osAutoAmt = base > 0 ? base + base * 0.5 * osCh_ : 0;
+                let val = '';
+                if (v === null || v === undefined) {
+                  // 발생+사용기간내: 금액 자동 표기
+                  if (osReached3 && !osExpired3 && base > 0) val = osAutoAmt || '';
+                  else if (fld === osTarget && osTargetReached && !osExpired && !wd.overseasBaseUnused) val = osTargetAmt || '';
+                }
+                else if (v === '사용완료') val = '<span style="color:#94a3b8;font-size:11px">사용완료</span>';
+                else if (v === 'expired') val = '<span style="color:#94a3b8;font-size:11px">자동소멸</span>';
+                else val = v;
+                // 사용가능 여부: 발생+사용기간내+미완료/미소멸
+                const isOsTarget = fld === osTarget && osTargetReached && !osExpired;
+                const osAvailable = osReached3 && !osExpired3 && osValRaw !== '사용완료' && osValRaw !== 'expired';
+                const osBg = osAvailable ? '#fed7aa' : '#fce7f3';
                 const osFontW = osAvailable ? 'font-weight:700;' : '';
                 const tip = (wd.overseasTooltip&&wd.overseasTooltip[fld])||'';
                 const tipAttr = tip?' title="'+tip.replace(/"/g,"'")+'"':'';
@@ -3734,9 +3736,9 @@ function renderWelfareTable() {
                 const reached = rfCheckReached(targetYr);
                 const expired2 = rfCheckExpired(targetYr);
                 const isUsed = val === '사용완료';
-                // 사용가능(발생 + 사용기간 내 + 사용완료/소멸/사용안함 아님): 배경색 강조
-                const isNoBorder = isUsed || expired2 || val === '사용안함' || !val;
-                const isAvailable = reached && !isNoBorder;
+                // 사용완료·자동소멸·사용안함 아니면 강조색 (미사용·부분사용 모두 포함)
+                const isNoHighlight = isUsed || expired2 || val === '사용안함';
+                const isAvailable = reached && !isNoHighlight;
                 // 리프레쉬: #e0e7ff → 강조 #bfdbfe / 안식년: #fef3c7 → 강조 #bbf7d0
                 const highlightBg = f.startsWith('refresh') ? '#bfdbfe' : '#bbf7d0';
                 const cellBg = isAvailable ? highlightBg : bg;
