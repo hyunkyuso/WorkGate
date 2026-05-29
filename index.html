@@ -260,7 +260,7 @@ select.form-input{cursor:pointer}
       <div id="user-avatar" class="avatar-placeholder">U</div>
       <span class="topbar-name" id="user-name">사용자</span>
       <span id="role-badge" style="display:none;background:var(--acd);color:var(--ac);font-size:10px;padding:3px 8px;border-radius:100px;font-weight:600"></span>
-      <button class="btn-logout" onclick="openMyPage()" style="background:#f1f5f9;color:#374151;margin-right:4px">👤 마이페이지</button>
+      <button class="btn-logout" onclick="showPage('mypage',this)">👤 마이페이지</button>
       <button class="btn-logout" onclick="signOut()">로그아웃</button>
     </div>
   </div>
@@ -286,6 +286,7 @@ select.form-input{cursor:pointer}
         <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
         <div class="nav-item admin-only" onclick="showPage('codemanage',this)"><span class="nav-icon">🗂️</span> 코드 관리</div>
         <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
+        <div class="nav-item" onclick="showPage('mypage',this)"><span class="nav-icon">👤</span> 마이페이지</div>
         <div class="nav-item admin-only" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> 설정</div>
       </div>
     </div>
@@ -578,6 +579,13 @@ select.form-input{cursor:pointer}
       </div>
 
       <!-- 설정 -->
+      <div id="page-mypage" class="page">
+        <div class="page-header">
+          <div><div class="page-title">👤 마이페이지</div></div>
+        </div>
+        <div id="mypage-content" style="max-width:700px"></div>
+      </div>
+
       <div id="page-welfare" class="page">
         <div class="page-header">
           <div><div class="page-title">🎁 복리후생 지원 현황</div><div class="page-sub">직원 복리후생 지원금 현황을 관리합니다</div></div>
@@ -4252,38 +4260,31 @@ function exportWelfareExcel() {
 }
 
 
-function openMyPage() {
-  const modal = document.getElementById('mypage-modal');
-  modal.style.display = 'flex';
-  renderMyPage();
-}
-function closeMyPage() {
-  document.getElementById('mypage-modal').style.display = 'none';
-}
+function openMyPage() { showPage('mypage'); }
+function closeMyPage() {}
 
 function renderMyPage() {
   const email = state.myEmail || state.user?.email;
-  const emp = employees.find(e => e.id === email || e.uid === email);
+  // id가 이메일인 직원 찾기
+  const emp = employees.find(e => e.id === email) || employees.find(e => (e.email||'').toLowerCase() === (email||'').toLowerCase());
+  const container = document.getElementById('mypage-content');
+  if (!container) return;
   if (!emp) {
-    document.getElementById('my-welfare-content').innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px">직원 정보를 찾을 수 없습니다.<br><small>'+email+'</small></p>';
+    container.innerHTML = '<p style="color:#94a3b8;padding:20px">직원 정보를 찾을 수 없습니다. ('+email+')</p>';
     return;
   }
 
-  // 기본 정보
-  if (emp.photo) {
-    document.getElementById('my-avatar').innerHTML = '<img src="'+emp.photo+'" style="width:100%;height:100%;object-fit:cover">';
-  } else {
-    document.getElementById('my-avatar').textContent = (emp.name||'?')[0];
-  }
-  document.getElementById('my-name').textContent = (emp.position||'') + ' ' + (emp.name||'');
-  document.getElementById('my-info').textContent = (emp.dept||'') + (emp.duty ? ' · '+emp.duty : '');
+  // 기본 정보 렌더링
+  const avatarHtml = emp.photo
+    ? '<img src="'+emp.photo+'" style="width:100%;height:100%;object-fit:cover">'
+    : '<span style="font-size:24px">'+(emp.name||'?')[0]+'</span>';
 
   const wd = welfareData[emp.uid] || {};
   const today = new Date();
   const startDate = wd.startDate || emp.joindate;
   const years = calcYears(startDate, today);
   const tenure = calcTenure(startDate, today);
-  document.getElementById('my-tenure').textContent = '근속 ' + tenure;
+  // 기본정보 + 복리후생 HTML 생성
 
   // 복리후생 현황
   const yrsAt2026 = calcYears(startDate, new Date('2026-01-01'));
@@ -4376,7 +4377,17 @@ function renderMyPage() {
   }
 
   if (!html) html = '<p style="color:#94a3b8;font-size:13px">아직 발생한 복리후생 항목이 없습니다.</p>';
-  document.getElementById('my-welfare-content').innerHTML = html;
+
+  container.innerHTML =
+    '<div style="display:flex;align-items:center;gap:16px;padding:20px;background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:20px">'
+    +'<div style="width:64px;height:64px;border-radius:50%;background:#e2e8f0;overflow:hidden;display:flex;align-items:center;justify-content:center">'+avatarHtml+'</div>'
+    +'<div>'
+    +'<div style="font-size:18px;font-weight:700">'+(emp.position||'')+' '+(emp.name||'')+'</div>'
+    +'<div style="font-size:13px;color:#64748b;margin-top:4px">'+(emp.dept||'')+(emp.duty?' · '+emp.duty:'')+'</div>'
+    +'<div style="font-size:13px;color:#3b82f6;margin-top:2px;font-weight:600">근속 '+tenure+'</div>'
+    +'</div></div>'
+    +'<div style="font-size:15px;font-weight:700;margin-bottom:12px">🎁 복리후생 현황</div>'
+    + html;
 }
 
 function showPage(id, el) {
@@ -4398,6 +4409,7 @@ function showPage(id, el) {
   if(id === 'employees') { populateEmpFilterDept(); renderEmployeeTable(); }
   if(id === 'orgview') initOrgView();
   if(id === 'welfare') renderWelfareTable();
+  if(id === 'mypage') renderMyPage();
   if(id === 'organization') renderDeptTable();
 }
 
