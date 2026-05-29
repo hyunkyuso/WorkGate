@@ -3478,7 +3478,15 @@ function renderWelfareTable() {
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="birthday" ondblclick="editWelfareCell(this)">'+(birthday===0?'-':birthday)+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="parentBirthday" ondblclick="editWelfareCell(this)">'+(parent===0?'-':parent)+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="healthCheck" ondblclick="editWelfareCell(this)">'+(health===0?'-':health)+'</td>'
-            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas" ondblclick="editWelfareCell(this)">'+(overseas||'-')+'</td>'
+            +(function(){
+              const osTip = wd.overseasBaseTip||'';
+              const osTipAttr = osTip?' title="'+osTip.replace(/"/g,"'")+'"':'';
+              const osTipDot = osTip?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':'';
+              let osVal = '-';
+              if (wd.overseasBaseUnused) osVal = '-';
+              else if (wd.overseasBaseUsed) osVal = overseas||'-';
+              return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer;position:relative"'+osTipAttr+' data-uid="'+uid_+'" data-field="overseas" ondblclick="editWelfareCell(this)">'+osVal+osTipDot+'</td>';
+            })()
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:700;background:#fef3c7">'+(subtotal===0?'-':subtotal)+'</td>'
             +ltCells+(function(){
               // 임원건강검진: 2년마다 자동 갱신, 배우자포함=100, 미포함=50
@@ -3505,7 +3513,13 @@ function renderWelfareTable() {
                 if (wd[fld] !== undefined) {
                   val = wd[fld] === 0 ? '' : (wd[fld] || '');
                 } else if (reached) {
-                  val = base + base * 0.5 * osCh;
+                  // 발생 후 2년 지나면 자동소멸
+                  const expired = years >= yr + 2;
+                  if (expired) {
+                    val = '<span style="color:#94a3b8;font-size:11px">자동소멸</span>';
+                  } else if (base > 0) {
+                    val = base + base * 0.5 * osCh;
+                  }
                 }
                 const tip = (wd.overseasTooltip&&wd.overseasTooltip[fld])||'';
                 const tipAttr = tip?' title="'+tip.replace(/"/g,"'")+'"':'';
@@ -3600,6 +3614,10 @@ function editWelfareCell(td) {
     welfareData[uid].note = val;
     saveWelfare();
     renderWelfareTable();
+    return;
+  }
+  if (field === 'overseas') {
+    showOverseasBaseModal(uid);
     return;
   }
   editWelfare(uid, field);
@@ -3708,6 +3726,60 @@ function saveOverseasModal(uid, field, yr) {
 
   saveWelfare();
   document.getElementById('overseas-modal').remove();
+  renderWelfareTable();
+}
+
+function showOverseasBaseModal(uid) {
+  const wd2 = welfareData[uid] || {};
+  const tip = wd2.overseasBaseTip || '';
+  const existing = document.getElementById('overseas-base-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'overseas-base-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:24px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px">해외연수</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="osb-used" ${wd2.overseasBaseUsed?'checked':''} style="width:18px;height:18px;accent-color:var(--ac)">
+          사용
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="osb-unused" ${wd2.overseasBaseUnused?'checked':''} style="width:18px;height:18px;accent-color:#ef4444">
+          미사용
+        </label>
+        <div style="display:flex;align-items:center;gap:8px;font-size:14px">
+          <span>자녀 수:</span>
+          <input type="number" id="osb-children" value="${wd2.overseasChildren||0}" min="0" max="10" style="width:60px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+          <span style="color:#64748b;font-size:12px">명</span>
+        </div>
+        <div style="font-size:14px">
+          <div style="margin-bottom:4px;color:#374151">툴팁 메모:</div>
+          <input type="text" id="osb-tooltip" value="${tip}" placeholder="마우스 오버 시 표시" style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('overseas-base-modal').remove()" style="padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+        <button onclick="saveOverseasBase('${uid}')" style="padding:8px 16px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+}
+
+function saveOverseasBase(uid) {
+  const used = document.getElementById('osb-used').checked;
+  const unused = document.getElementById('osb-unused').checked;
+  const children = parseInt(document.getElementById('osb-children').value)||0;
+  const tooltip = document.getElementById('osb-tooltip').value.trim();
+  if (!welfareData[uid]) welfareData[uid] = {};
+  welfareData[uid].overseasBaseUsed = used;
+  welfareData[uid].overseasBaseUnused = unused;
+  welfareData[uid].overseasChildren = children;
+  welfareData[uid].overseasBaseTip = tooltip;
+  saveWelfare();
+  document.getElementById('overseas-base-modal').remove();
   renderWelfareTable();
 }
 
