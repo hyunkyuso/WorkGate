@@ -3676,7 +3676,8 @@ function renderWelfareTable() {
                 else val = v;
                 // 사용가능 여부: 발생+사용기간내+미완료/미소멸
                 const isOsTarget = fld === osTarget && osTargetReached && !osExpired;
-                const osAvailable = osReached3 && !osExpired3 && osValRaw !== '사용완료' && osValRaw !== 'expired';
+                const osIsExpired = osExpired3 || osValRaw === 'expired';
+                const osAvailable = osReached3 && !osIsExpired && osValRaw !== '사용완료' && osValRaw !== '사용안함';
                 const osBg = osAvailable ? '#fed7aa' : '#fce7f3';
                 const osFontW = osAvailable ? 'font-weight:700;' : '';
                 const tip = (wd.overseasTooltip&&wd.overseasTooltip[fld])||'';
@@ -3881,6 +3882,10 @@ function showOverseasModal(uid, field) {
           <input type="checkbox" id="os-done" ${cur==='사용완료'?'checked':''} style="width:18px;height:18px;accent-color:var(--ac)">
           사용완료
         </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;padding:8px 10px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca">
+          <input type="checkbox" id="os-nouse" ${cur==='사용안함'?'checked':''} style="width:16px;height:16px;accent-color:#ef4444">
+          <span style="color:#dc2626;font-weight:600">사용안함</span> <span style="color:#64748b;font-size:12px">(체크 시 색상 제거)</span>
+        </label>
         <div style="display:flex;align-items:center;gap:8px;font-size:14px">
           <span>수동 입력:</span>
           <input type="number" id="os-amount" value="${cur>0?cur:''}" placeholder="자동계산" style="width:90px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
@@ -3916,8 +3921,11 @@ function saveOverseasModal(uid, field, yr) {
   if (!welfareData[uid]) welfareData[uid] = {};
   if (!welfareData[uid].overseasTooltip) welfareData[uid].overseasTooltip = {};
 
+  const nouse = document.getElementById('os-nouse').checked;
   if (done) {
     welfareData[uid][field] = '사용완료';
+  } else if (nouse) {
+    welfareData[uid][field] = '사용안함';
   } else if (manualAmt) {
     welfareData[uid][field] = parseFloat(manualAmt);
   } else {
