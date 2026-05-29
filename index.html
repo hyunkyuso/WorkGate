@@ -3481,8 +3481,9 @@ function renderWelfareTable() {
               const execTimes = Math.floor(years / 2); // 발생 횟수
               let ev = '';
               if (execTimes > 0) {
-                if (!wd.execUnused) {
-                  ev = (wd.execUsed && wd.execHealth) ? wd.execHealth : execBase;
+                // 기본 미사용 상태 (execUnused가 명시적으로 false일 때만 표기)
+                if (wd.execUnused === false && wd.execUsed) {
+                  ev = wd.execHealth || execBase;
                 }
               }
               return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#d1fae5;cursor:pointer" data-uid="'+uid_+'" data-field="execHealth" ondblclick="editWelfareCell(this)">'+ev+'</td>';
@@ -3602,7 +3603,7 @@ function showExecHealthModal(uid) {
           사용 <span style="color:#64748b;font-size:12px">(체크 시 금액 표기)</span>
         </label>
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
-          <input type="checkbox" id="exec-unused" ${wd2.execUnused?'checked':''} style="width:18px;height:18px;accent-color:#ef4444">
+          <input type="checkbox" id="exec-unused" ${wd2.execUnused!==false?'checked':''} style="width:18px;height:18px;accent-color:#ef4444">
           미사용
         </label>
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
