@@ -3483,14 +3483,15 @@ function renderWelfareTable() {
               }
               if (used > 0) ltSum += used;
             });
-            // 임원건강검진: 2년마다 자동 갱신, 기본 미사용
-            const execBase2 = wd.execSpouse ? 100 : 50;
-            const execTimes2 = Math.floor(calcYears(wd.startDate||e.joindate, today) / 2);
-            if (execTimes2 > 0 && wd.execUnused === false && wd.execUsed) {
-              ltSum += parseFloat(wd.execHealth) || execBase2;
-            }
           }
-          const health = ltHealthUnused ? 0 : ltSum;
+          // 임원건강검진: 건강검진 미사용 여부와 무관하게 별도 합산
+          const execBase2 = wd.execSpouse ? 100 : 50;
+          const execTimes2 = Math.floor(calcYears(wd.startDate||e.joindate, today) / 2);
+          let execHealthAmt = 0;
+          if (execTimes2 > 0 && wd.execUnused === false && wd.execUsed) {
+            execHealthAmt = parseFloat(wd.execHealth) || execBase2;
+          }
+          const health = ltSum + execHealthAmt;
           const subtotal=birthday+parent+health+overseas;
 
           bonbuSub.birthday+=birthday; bonbuSub.parent+=parent;
