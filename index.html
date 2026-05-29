@@ -3722,13 +3722,11 @@ function renderWelfareTable() {
                 const reached = rfCheckReached(targetYr);
                 const expired2 = rfCheckExpired(targetYr);
                 const isUsed = val === '사용완료';
-                // 사용가능(발생 + 미사용 + 미소멸): 테두리 강조
-                const isAvailable = reached && !expired2 && !isUsed && val !== '미사용';
+                // 사용가능(발생 + 미사용 + 미소멸 + 값없음): 테두리 강조
+                const isAvailable = reached && !expired2 && !isUsed && val !== '미사용' && !val;
                 const borderStyle = isAvailable
                   ? 'border:2px solid #6366f1;'
-                  : isUsed
-                    ? 'border:1px solid #e2e8f0;opacity:0.5;'
-                    : 'border:1px solid #e2e8f0;';
+                  : 'border:1px solid #e2e8f0;';
                 const fontW = isAvailable ? 'font-weight:700;' : '';
                 return '<td style="'+borderStyle+'padding:4px 6px;text-align:center;background:'+bg+';cursor:pointer;position:relative;'+fontW+'"'+tipAttr+' data-uid="'+uid_+'" data-field="'+f+'" ondblclick="editWelfareCell(this)">'+cv+tipDot+'</td>';
               }).join('');
