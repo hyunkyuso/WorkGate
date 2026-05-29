@@ -3373,24 +3373,31 @@ function renderWelfareTable() {
           // 발생금액 해외연수 = 장기근속 해외연수 합계
           const osFields = [['overseas3',3,100],['overseas6',6,200],['overseas10',10,300],['overseas15',15,0],['overseas20',20,0]];
           const osCh2 = wd.overseasChildren || 0;
+          const cutoff2 = new Date('2026-01-01');
+          const expiry2 = new Date('2027-12-31');
           let osTotal = 0;
           if (!wd.overseasBaseUnused) {
             osFields.forEach(([fld,yr,base]) => {
-              const reached2 = calcYears(wd.startDate||e.joindate, today) >= yr;
+              const yrs2 = calcYears(wd.startDate||e.joindate, today);
+              const reached2 = yrs2 >= yr;
               if (!reached2) return;
-              if (wd[fld] === '사용완료' || wd[fld] === 0) return;
-              if (wd[fld] !== undefined) {
-                osTotal += parseFloat(wd[fld])||0;
+              const v = wd[fld];
+              if (v === '사용완료' || v === 0) return; // 사용완료/0은 제외
+              if (v !== undefined && v !== null) {
+                // 수기 입력값
+                osTotal += parseFloat(v)||0;
               } else if (base > 0) {
-                const expired2 = calcYears(wd.startDate||e.joindate, today) >= yr + 2;
-                const cutoff = new Date('2026-01-01');
+                // 자동계산: 자동소멸 여부 확인
                 const sd2 = new Date(wd.startDate||e.joindate);
                 const issueD = new Date(sd2.getFullYear()+yr, sd2.getMonth(), sd2.getDate());
-                const isOld = issueD < cutoff;
-                const expiry = new Date('2027-12-31');
-                const expiredOld = isOld && today > expiry;
-                if (!expired2 && !expiredOld) osTotal += base + base * 0.5 * osCh2;
+                const isOld = issueD < cutoff2;
+                const expiredOld = isOld && today > expiry2;
+                const expired2 = yrs2 >= yr + 2;
+                if (!expiredOld && !expired2) {
+                  osTotal += base + base * 0.5 * osCh2;
+                }
               }
+              // 15년/20년은 base=0이므로 수기 입력값만 반영
             });
           }
           const overseas = osTotal;
