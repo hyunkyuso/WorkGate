@@ -3492,7 +3492,10 @@ function renderWelfareTable() {
                   execTotal += parseFloat(ev)||0;
                 }
               }
-              return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#d1fae5;cursor:pointer" data-uid="'+uid_+'" data-field="execHealth" ondblclick="editWelfareCell(this)">'+ev+'</td>';
+              const execTip = wd.execTooltip||'';
+              const execTipAttr = execTip ? ' title="'+execTip.replace(/"/g,"'")+'"' : '';
+              const execTipDot = execTip ? '<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>' : '';
+              return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#d1fae5;cursor:pointer;position:relative"'+execTipAttr+' data-uid="'+uid_+'" data-field="execHealth" ondblclick="editWelfareCell(this)">'+ev+execTipDot+'</td>';
             })()+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas3" ondblclick="editWelfareCell(this)">'+(wd.overseas3||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas6" ondblclick="editWelfareCell(this)">'+(wd.overseas6||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas10" ondblclick="editWelfareCell(this)">'+(wd.overseas10||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas15" ondblclick="editWelfareCell(this)">'+(wd.overseas15||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas20" ondblclick="editWelfareCell(this)">'+(wd.overseas20||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#e0e7ff;cursor:pointer" data-uid="'+uid_+'" data-field="refresh6" ondblclick="editWelfareCell(this)">'+(wd.refresh6||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#e0e7ff;cursor:pointer" data-uid="'+uid_+'" data-field="refresh15" ondblclick="editWelfareCell(this)">'+(wd.refresh15||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef3c7;cursor:pointer" data-uid="'+uid_+'" data-field="sabbatical10" ondblclick="editWelfareCell(this)">'+(wd.sabbatical10||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef3c7;cursor:pointer" data-uid="'+uid_+'" data-field="sabbatical20" ondblclick="editWelfareCell(this)">'+(wd.sabbatical20||'')+'</td>'+'</tr>';
         });
       });
@@ -3617,6 +3620,10 @@ function showExecHealthModal(uid) {
           배우자 포함
         </label>
       </div>
+      <div style="margin-bottom:12px;font-size:14px">
+        <div style="margin-bottom:4px;color:#374151">툴팁 메모:</div>
+        <input type="text" id="exec-tooltip" value="${wd2.execTooltip||''}" placeholder="마우스 오버 시 표시" style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box">
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button onclick="document.getElementById('exec-modal').remove()" style="padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
         <button onclick="saveExecHealth('${uid}')" style="padding:8px 16px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
@@ -3630,12 +3637,14 @@ function saveExecHealth(uid) {
   const used = document.getElementById('exec-used').checked;
   const unused = document.getElementById('exec-unused').checked;
   const spouse = document.getElementById('exec-spouse').checked;
+  const tooltip = document.getElementById('exec-tooltip').value.trim();
   if (!welfareData[uid]) welfareData[uid] = {};
   welfareData[uid].execUsed = used;
   welfareData[uid].execUnused = unused;
   welfareData[uid].execSpouse = spouse;
-  // 금액: 사용=100(배우자포함시200?), 미사용=-
   welfareData[uid].execHealth = unused ? 0 : (used ? (spouse ? 100 : 50) : 0);
+  if (tooltip) welfareData[uid].execTooltip = tooltip;
+  else delete welfareData[uid].execTooltip;
   saveWelfare();
   document.getElementById('exec-modal').remove();
   renderWelfareTable();
