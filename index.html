@@ -3239,6 +3239,49 @@ function calcYears(joindate, today) {
   return y;
 }
 
+function calcOverseasAmt(wd, joindate, today) {
+  // 장기근속 해외연수 각 년수별 금액 계산
+  const osFields = [['overseas3',3,100],['overseas6',6,200],['overseas10',10,300],['overseas15',15,0],['overseas20',20,0]];
+  const osCh = wd.overseasChildren || 0;
+  const cutoff = new Date('2026-01-01');
+  const expiry = new Date('2027-12-31');
+  const result = {};
+  let total = 0;
+
+  if (wd.overseasBaseUnused) {
+    osFields.forEach(([fld])=>{ result[fld]=null; });
+    return { result, total };
+  }
+
+  const sd = new Date(wd.startDate || joindate);
+  const yrs = calcYears(wd.startDate || joindate, today);
+
+  osFields.forEach(([fld, yr, base]) => {
+    const reached = yrs >= yr;
+    if (!reached) { result[fld] = null; return; }
+    const v = wd[fld];
+    if (v === '사용완료') { result[fld] = '사용완료'; return; }
+    if (v !== undefined && v !== null) {
+      result[fld] = parseFloat(v)||0;
+      total += result[fld];
+      return;
+    }
+    if (base <= 0) { result[fld] = null; return; }
+    // 자동계산: 자동소멸 확인
+    const issueD = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
+    const isOld = issueD < cutoff;
+    const expiredOld = isOld && today > expiry;
+    const expired = yrs >= yr + 2;
+    if (expiredOld || expired) {
+      result[fld] = 'expired';
+    } else {
+      result[fld] = base + base * 0.5 * osCh;
+      total += result[fld];
+    }
+  });
+  return { result, total };
+}
+
 function renderWelfareTable() {
   if(!employees||employees.length===0){document.getElementById('welfare-tbody').innerHTML='<tr><td colspan="35" style="padding:20px;text-align:center">직원 데이터 로딩 중...</td></tr>';return;}
   const today = new Date();
@@ -3370,36 +3413,10 @@ function renderWelfareTable() {
           const tenure=calcTenure(startDate,today);
           const birthday=wd.birthday??10;
           const parent=wd.parentBirthday??10;
-          // 발생금액 해외연수 = 장기근속 해외연수 합계
+          // 발생금액 해외연수 = 장기근속 해외연수 합계 (공통 함수)
           const osFields = [['overseas3',3,100],['overseas6',6,200],['overseas10',10,300],['overseas15',15,0],['overseas20',20,0]];
           const osCh2 = wd.overseasChildren || 0;
-          const cutoff2 = new Date('2026-01-01');
-          const expiry2 = new Date('2027-12-31');
-          let osTotal = 0;
-          if (!wd.overseasBaseUnused) {
-            osFields.forEach(([fld,yr,base]) => {
-              const yrs2 = calcYears(wd.startDate||e.joindate, today);
-              const reached2 = yrs2 >= yr;
-              if (!reached2) return;
-              const v = wd[fld];
-              if (v === '사용완료' || v === 0) return; // 사용완료/0은 제외
-              if (v !== undefined && v !== null) {
-                // 수기 입력값
-                osTotal += parseFloat(v)||0;
-              } else if (base > 0) {
-                // 자동계산: 자동소멸 여부 확인
-                const sd2 = new Date(wd.startDate||e.joindate);
-                const issueD = new Date(sd2.getFullYear()+yr, sd2.getMonth(), sd2.getDate());
-                const isOld = issueD < cutoff2;
-                const expiredOld = isOld && today > expiry2;
-                const expired2 = yrs2 >= yr + 2;
-                if (!expiredOld && !expired2) {
-                  osTotal += base + base * 0.5 * osCh2;
-                }
-              }
-              // 15년/20년은 base=0이므로 수기 입력값만 반영
-            });
-          }
+          const {result: osResult, total: osTotal} = calcOverseasAmt(wd, e.joindate, today);
           const overseas = osTotal;
           // 건강검진 = 5년~25년 만근 합계 + 임원건강검진
           const ltBase = (wd.spouseCheck) ? 100 : 50;
@@ -3433,26 +3450,10 @@ function renderWelfareTable() {
           bonbuSub.birthday+=birthday; bonbuSub.parent+=parent;
           bonbuSub.health+=health; bonbuSub.overseas+=overseas; bonbuSub.sum+=subtotal;
           // 장기근속 해외연수 합계
-          // 장기근속 해외연수 합계: 자동계산값 포함
-          osFields.forEach(([fld,yr,base]) => {
-            const v = wd[fld];
-            if (v === '사용완료' || v === 0) return;
-            if (v !== undefined && v !== null) {
-              osBT[fld] += parseFloat(v)||0;
-            } else if (base > 0) {
-              const yrs3 = calcYears(wd.startDate||e.joindate, today);
-              if (yrs3 < yr) return;
-              const sd3 = new Date(wd.startDate||e.joindate);
-              const issueD3 = new Date(sd3.getFullYear()+yr, sd3.getMonth(), sd3.getDate());
-              const cutoff3 = new Date('2026-01-01');
-              const expiry3 = new Date('2027-12-31');
-              const isOld3 = issueD3 < cutoff3;
-              const expiredOld3 = isOld3 && today > expiry3;
-              const expired3 = yrs3 >= yr + 2;
-              if (!expiredOld3 && !expired3) {
-                osBT[fld] += base + base * 0.5 * osCh2;
-              }
-            }
+          // 장기근속 해외연수 합계 (공통 함수 결과 재사용)
+          osFields.forEach(([fld])=>{
+            const v = osResult[fld];
+            if (v && v !== '사용완료' && v !== 'expired') osBT[fld] += parseFloat(v)||0;
           });
           totalBirthday+=birthday; totalParent+=parent;
           totalHealth+=health; totalOverseas+=overseas; totalSum+=subtotal;
@@ -3586,42 +3587,13 @@ function renderWelfareTable() {
               const osYears = [[3,100,'overseas3'],[6,200,'overseas6'],[10,300,'overseas10'],[15,0,'overseas15'],[20,0,'overseas20']];
               const cutoffDate = new Date('2026-01-01'); // 이 날짜 이전 발생분
               const expiryDate = new Date('2027-12-31');    // 2027-12-31까지 사용
-              // 발생금액 해외연수 미사용이면 전체 빈칸
-              if (wd.overseasBaseUnused) {
-                return osYears.map(([yr,base,fld])=>{
-                  const tip = (wd.overseasTooltip&&wd.overseasTooltip[fld])||'';
-                  const tipAttr = tip?' title="'+tip.replace(/"/g,"'")+'"':'';
-                  return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer;position:relative"'+tipAttr+' data-uid="'+uid_+'" data-field="'+fld+'" ondblclick="editWelfareCell(this)"></td>';
-                }).join('');
-              }
               return osYears.map(([yr,base,fld])=>{
-                const reached = years >= yr;
+                const v = osResult[fld];
                 let val = '';
-                if (wd[fld] !== undefined) {
-                  if (wd[fld] === '사용완료') val = '<span style="color:#94a3b8;font-size:11px">사용완료</span>';
-                  else val = wd[fld] === 0 ? '' : (wd[fld] || '');
-                } else if (reached) {
-                  // 발생일 계산 (기산일 기준)
-                  const sd = new Date(startDate);
-                  const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
-                  const isOldIssue = issueDate < cutoffDate; // 2026-01-01 이전 발생
-                  const now = today;
-
-                  let expired = false;
-                  if (isOldIssue) {
-                    // 이전 발생분: 2027-12-31까지 미사용시 자동소멸
-                    expired = now > expiryDate;
-                  } else {
-                    // 신규 발생분: 발생 후 2년 지나면 자동소멸
-                    expired = years >= yr + 2;
-                  }
-
-                  if (expired) {
-                    val = '<span style="color:#94a3b8;font-size:11px">자동소멸</span>';
-                  } else if (base > 0) {
-                    val = base + base * 0.5 * osCh;
-                  }
-                }
+                if (v === null || v === undefined) val = '';
+                else if (v === '사용완료') val = '<span style="color:#94a3b8;font-size:11px">사용완료</span>';
+                else if (v === 'expired') val = '<span style="color:#94a3b8;font-size:11px">자동소멸</span>';
+                else val = v;
                 const tip = (wd.overseasTooltip&&wd.overseasTooltip[fld])||'';
                 const tipAttr = tip?' title="'+tip.replace(/"/g,"'")+'"':'';
                 const tipDot = tip?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':'';
