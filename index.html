@@ -3670,7 +3670,7 @@ function renderWelfareTable() {
                 const osReached3 = years >= yr;
                 const osExpired3 = today > osExpiryD;
                 const osValRaw = welfareData[uid_] && welfareData[uid_][fld];
-                const osAvailable = osReached3 && !osExpired3 && osValRaw !== '사용완료' && osValRaw !== 'expired';
+                const osAvailable = osReached3 && !osExpired3 && osValRaw && osValRaw !== '사용완료' && osValRaw !== 'expired';
                 const osBg = (isOsTarget && osAvailable) ? '#fed7aa' : osAvailable ? '#fed7aa' : '#fce7f3';
                 const osFontW = osAvailable ? 'font-weight:700;' : '';
                 const tip = (wd.overseasTooltip&&wd.overseasTooltip[fld])||'';
@@ -3731,7 +3731,7 @@ function renderWelfareTable() {
                 const expired2 = rfCheckExpired(targetYr);
                 const isUsed = val === '사용완료';
                 // 사용가능(발생 + 사용기간 내 + 사용완료/소멸/사용안함 아님): 배경색 강조
-                const isNoBorder = isUsed || expired2 || val === '사용안함';
+                const isNoBorder = isUsed || expired2 || val === '사용안함' || !val;
                 const isAvailable = reached && !isNoBorder;
                 // 리프레쉬: #e0e7ff → 강조 #bfdbfe / 안식년: #fef3c7 → 강조 #bbf7d0
                 const highlightBg = f.startsWith('refresh') ? '#bfdbfe' : '#bbf7d0';
