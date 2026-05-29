@@ -3277,6 +3277,7 @@ function renderWelfareTable() {
   let rows = '';
   let totalBirthday=0,totalParent=0,totalHealth=0,totalOverseas=0,totalSum=0;
   const ltTotals = {}; longtermYears.forEach(y=>ltTotals[y]=0);
+  let execTotal=0; // 전체 임원건강검진 합계
 
   // 본부 그룹핑
   const bonbuGroups = {};
@@ -3289,6 +3290,7 @@ function renderWelfareTable() {
   Object.entries(bonbuGroups).forEach(([bonbu, bonbuEmps]) => {
     let bonbuSub={birthday:0,parent:0,health:0,overseas:0,sum:0};
     const ltBT={}; longtermYears.forEach(y=>ltBT[y]=0);
+    let execBT=0; // 본부 임원건강검진 합계
 
     const buseoGroups={};
     bonbuEmps.forEach(e=>{
@@ -3363,11 +3365,11 @@ function renderWelfareTable() {
               }
               if (used > 0) ltSum += used;
             });
-            // 임원건강검진: 2년마다 자동 갱신
+            // 임원건강검진: 2년마다 자동 갱신, 기본 미사용
             const execBase2 = wd.execSpouse ? 100 : 50;
             const execTimes2 = Math.floor(calcYears(wd.startDate||e.joindate, today) / 2);
-            if (execTimes2 > 0 && !wd.execUnused) {
-              ltSum += (wd.execUsed && wd.execHealth) ? (parseFloat(wd.execHealth)||0) : execBase2;
+            if (execTimes2 > 0 && wd.execUnused === false && wd.execUsed) {
+              ltSum += parseFloat(wd.execHealth) || execBase2;
             }
           }
           const health = ltHealthUnused ? 0 : ltSum;
@@ -3481,9 +3483,10 @@ function renderWelfareTable() {
               const execTimes = Math.floor(years / 2); // 발생 횟수
               let ev = '';
               if (execTimes > 0) {
-                // 기본 미사용 상태 (execUnused가 명시적으로 false일 때만 표기)
                 if (wd.execUnused === false && wd.execUsed) {
                   ev = wd.execHealth || execBase;
+                  execBT += parseFloat(ev)||0;
+                  execTotal += parseFloat(ev)||0;
                 }
               }
               return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#d1fae5;cursor:pointer" data-uid="'+uid_+'" data-field="execHealth" ondblclick="editWelfareCell(this)">'+ev+'</td>';
@@ -3502,7 +3505,7 @@ function renderWelfareTable() {
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+bonbuSub.health+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.overseas||'-')+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+bonbuSub.sum+'</td>'
-      +ltBCplain+'<td colspan="10" style="border:1px solid #e2e8f0"></td></tr>';
+      +ltBCplain+'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#d1fae5;font-weight:700">'+(execBT||'')+'</td><td colspan="9" style="border:1px solid #e2e8f0"></td></tr>';
   });
 
   document.getElementById('welfare-tbody').innerHTML = rows;
@@ -3514,7 +3517,7 @@ function renderWelfareTable() {
     +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalHealth+'</td>'
     +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+(totalOverseas||'-')+'</td>'
     +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalSum+'</td>'
-    +ltTC2+'<td colspan="10" style="border:1px solid #cbd5e1"></td></tr>';
+    +ltTC2+'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center;background:#d1fae5;font-weight:700">'+(execTotal||'')+'</td><td colspan="9" style="border:1px solid #cbd5e1"></td></tr>';
 
 }
 
