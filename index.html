@@ -580,7 +580,10 @@ select.form-input{cursor:pointer}
       <div id="page-welfare" class="page">
         <div class="page-header">
           <div><div class="page-title">🎁 복리후생 지원 현황</div><div class="page-sub">직원 복리후생 지원금 현황을 관리합니다</div></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:13px;color:#64748b">현재일:</span>
+            <input type="date" id="welfare-today" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px" onchange="renderWelfareTable()">
+            <button class="btn btn-ghost" onclick="resetWelfareToday()" style="font-size:12px">오늘로</button>
             <button class="btn btn-ghost" onclick="exportWelfareExcel()">📊 Excel</button>
           </div>
         </div>
@@ -3282,9 +3285,36 @@ function calcOverseasAmt(wd, joindate, today) {
   return { result, total };
 }
 
+function editIndividualToday(td) {
+  const uid = td.dataset.uid;
+  const wd2 = welfareData[uid] || {};
+  const cur = wd2.customToday || new Date().toISOString().slice(0,10);
+  const val = prompt('현재일 입력 (YYYY-MM-DD) - 비우면 전체 현재일로 복원', cur);
+  if (val === null) return;
+  if (!welfareData[uid]) welfareData[uid] = {};
+  if (!val.trim()) {
+    delete welfareData[uid].customToday;
+  } else {
+    welfareData[uid].customToday = val.trim();
+  }
+  saveWelfare();
+  renderWelfareTable();
+}
+
+function resetWelfareToday() {
+  const input = document.getElementById('welfare-today');
+  if (input) {
+    input.value = new Date().toISOString().slice(0,10);
+    renderWelfareTable();
+  }
+}
+
 function renderWelfareTable() {
   if(!employees||employees.length===0){document.getElementById('welfare-tbody').innerHTML='<tr><td colspan="35" style="padding:20px;text-align:center">직원 데이터 로딩 중...</td></tr>';return;}
-  const today = new Date();
+  // 현재일: 입력값 또는 오늘
+  const todayInput = document.getElementById('welfare-today');
+  const today = todayInput && todayInput.value ? new Date(todayInput.value) : new Date();
+  if (todayInput && !todayInput.value) todayInput.value = today.toISOString().slice(0,10);
   const todayStr = today.toISOString().slice(0,10);
   const longtermYears = [5,7,9,11,13,15,17,19,21,23,25];
 
@@ -3409,8 +3439,9 @@ function renderWelfareTable() {
         teamEmps.forEach((e,ti) => {
           const wd=welfareData[e.uid]||{};
           const startDate = wd.startDate || e.joindate;
-          const years=calcYears(startDate,today);
-          const tenure=calcTenure(startDate,today);
+          const empToday = wd.customToday ? new Date(wd.customToday) : today;
+          const years=calcYears(startDate,empToday);
+          const tenure=calcTenure(startDate,empToday);
           const birthday=wd.birthday??10;
           const parent=wd.parentBirthday??10;
           // 발생금액 해외연수 = 장기근속 해외연수 합계 (공통 함수)
@@ -3551,7 +3582,7 @@ function renderWelfareTable() {
               const indicator = isModified ? '<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>' : '';
               return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;cursor:pointer;position:relative"'+tooltip+' data-uid="'+uid_+'" data-field="startDate" ondblclick="editWelfareCell(this)">'+sd+indicator+'</td>';
             })()
-            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+todayStr+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;cursor:pointer" data-uid="'+uid_+'" ondblclick="editIndividualToday(this)" title="더블클릭으로 개별 현재일 변경">'+(wd.customToday||todayStr)+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;">'+tenure+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="birthday" ondblclick="editWelfareCell(this)">'+(birthday===0?'-':birthday)+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="parentBirthday" ondblclick="editWelfareCell(this)">'+(parent===0?'-':parent)+'</td>'
