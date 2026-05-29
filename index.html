@@ -3586,30 +3586,74 @@ function renderWelfareTable() {
               const osYears = [[3,100,'overseas3'],[6,200,'overseas6'],[10,300,'overseas10'],[15,0,'overseas15'],[20,0,'overseas20']];
               const cutoffDate = new Date('2026-01-01'); // 이 날짜 이전 발생분
               const expiryDate = new Date('2027-12-31');    // 2027-12-31까지 사용
+              // 2026-01-01 기준 11년 이상이면 15년/20년 한시 지원
+              const yrsAt2026os = calcYears(startDate, new Date('2026-01-01'));
+              const osEligible15 = yrsAt2026os >= 11;
+              const osTarget = osEligible15 ? (yrsAt2026os < 15 ? 'overseas15' : 'overseas20') : null;
+              // 한시 지원 금액 (자녀수 반영)
+              const osCh_ = wd.overseasChildren || 0;
+              const osTargetBase = osTarget==='overseas15' ? 600 : osTarget==='overseas20' ? 1000 : 0;
+              const osTargetAmt = osTargetBase + osTargetBase * 0.5 * osCh_;
+              // 한시 지원 소멸: 2026-01-01 발생 기준 2년 후 (2028-01-01)
+              const osTargetExpired = today > new Date('2028-01-01');
+
               return osYears.map(([yr,base,fld])=>{
                 const v = osResult[fld];
                 let val = '';
-                if (v === null || v === undefined) val = '';
+                if (v === null || v === undefined) {
+                  // 한시 지원 대상이면 금액 표기
+                  if (fld === osTarget && !osTargetExpired && !wd.overseasBaseUnused) {
+                    val = osTargetAmt || '';
+                  }
+                }
                 else if (v === '사용완료') val = '<span style="color:#94a3b8;font-size:11px">사용완료</span>';
                 else if (v === 'expired') val = '<span style="color:#94a3b8;font-size:11px">자동소멸</span>';
                 else val = v;
+                const isOsTarget = (fld === osTarget && !osTargetExpired);
+                const osBorderStyle = isOsTarget ? 'border:2px solid #6366f1;' : 'border:1px solid #e2e8f0;';
+                const osFontW = isOsTarget ? 'font-weight:700;' : '';
                 const tip = (wd.overseasTooltip&&wd.overseasTooltip[fld])||'';
                 const tipAttr = tip?' title="'+tip.replace(/"/g,"'")+'"':'';
                 const tipDot = tip?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':'';
-                return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer;position:relative"'+tipAttr+' data-uid="'+uid_+'" data-field="'+fld+'" ondblclick="editWelfareCell(this)">'+val+tipDot+'</td>';
+                return '<td style="'+osBorderStyle+'padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer;position:relative;'+osFontW+'"'+tipAttr+' data-uid="'+uid_+'" data-field="'+fld+'" ondblclick="editWelfareCell(this)">'+val+tipDot+'</td>';
               }).join('');
             })()+(function(){
+              // 2026-01-01 기준 근속년수
+              const baseDate = new Date('2026-01-01');
+              const yrsAt2026 = calcYears(startDate, baseDate);
+              const expiry2yr = (issueYr) => {
+                const sd_ = new Date(startDate);
+                // 발생일 = 기산일 + issueYr년
+                const issueD_ = new Date(sd_.getFullYear()+issueYr, sd_.getMonth(), sd_.getDate());
+                const exp_ = new Date(issueD_.getFullYear()+2, issueD_.getMonth(), issueD_.getDate());
+                return today > exp_; // 2년 경과시 소멸
+              };
+
+              // 리프레쉬: 근속 1년 이상이면 가장 인접한 1회 한시 지원 (6년, 15년)
+              // 안식년: 근속 1년 이상이면 가장 인접한 1회 한시 지원 (10년, 20년)
+              // 해당 셀: 2026-01-01 기준 가장 인접한 년수
+              const rfEligible = yrsAt2026 >= 1;
+              // 리프레쉬: 6년 미만이면 6년, 6년 이상이면 15년
+              const rfTarget = rfEligible ? (yrsAt2026 < 6 ? 'refresh6' : 'refresh15') : null;
+              // 안식년: 10년 미만이면 10년, 10년 이상이면 20년
+              const sbTarget = rfEligible ? (yrsAt2026 < 10 ? 'sabbatical10' : 'sabbatical20') : null;
+
               const rfFields = [
-                {f:'refresh6',bg:'#e0e7ff'},{f:'refresh15',bg:'#e0e7ff'},
-                {f:'sabbatical10',bg:'#fef3c7'},{f:'sabbatical20',bg:'#fef3c7'}
+                {f:'refresh6',bg:'#e0e7ff',yr:6},{f:'refresh15',bg:'#e0e7ff',yr:15},
+                {f:'sabbatical10',bg:'#fef3c7',yr:10},{f:'sabbatical20',bg:'#fef3c7',yr:20}
               ];
-              return rfFields.map(({f,bg})=>{
+              return rfFields.map(({f,bg,yr})=>{
                 const val = wd[f]||'';
                 const tip = (wd.extraTooltip&&wd.extraTooltip[f])||'';
                 const tipAttr = tip?' title="'+tip.replace(/"/g,"'")+'"':'';
                 const tipDot = tip?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':'';
                 const cv = val==='사용완료'?'<span style="color:#94a3b8;font-size:11px">사용완료</span>':val==='미사용'?'':val;
-                return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:'+bg+';cursor:pointer;position:relative"'+tipAttr+' data-uid="'+uid_+'" data-field="'+f+'" ondblclick="editWelfareCell(this)">'+cv+tipDot+'</td>';
+                // 발생 시점: 한시 지원 대상 셀 진하게
+                const isTarget = (f===rfTarget || f===sbTarget);
+                const expired2 = isTarget && expiry2yr(0); // 2026-01-01 기준 발생 후 2년
+                const fontW = isTarget && !expired2 && !val ? 'font-weight:700;' : '';
+                const borderStyle = isTarget && !expired2 && !val ? 'border:2px solid #6366f1;' : 'border:1px solid #e2e8f0;';
+                return '<td style="'+borderStyle+'padding:4px 6px;text-align:center;background:'+bg+';cursor:pointer;position:relative;'+fontW+'"'+tipAttr+' data-uid="'+uid_+'" data-field="'+f+'" ondblclick="editWelfareCell(this)">'+cv+tipDot+'</td>';
               }).join('');
             })()+'</tr>';
         });
