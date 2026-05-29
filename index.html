@@ -3507,14 +3507,29 @@ function renderWelfareTable() {
             })()+(function(){
               const osCh = wd.overseasChildren || 0;
               const osYears = [[3,100,'overseas3'],[6,200,'overseas6'],[10,300,'overseas10'],[15,0,'overseas15'],[20,0,'overseas20']];
+              const cutoffDate = new Date('2026-01-01'); // 이 날짜 이전 발생분
+              const expiryDate = new Date('2027-12-31');    // 2027-12-31까지 사용
               return osYears.map(([yr,base,fld])=>{
                 const reached = years >= yr;
                 let val = '';
                 if (wd[fld] !== undefined) {
                   val = wd[fld] === 0 ? '' : (wd[fld] || '');
                 } else if (reached) {
-                  // 발생 후 2년 지나면 자동소멸
-                  const expired = years >= yr + 2;
+                  // 발생일 계산 (기산일 기준)
+                  const sd = new Date(startDate);
+                  const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
+                  const isOldIssue = issueDate < cutoffDate; // 2026-01-01 이전 발생
+                  const now = today;
+
+                  let expired = false;
+                  if (isOldIssue) {
+                    // 이전 발생분: 2027-12-31까지 미사용시 자동소멸
+                    expired = now > expiryDate;
+                  } else {
+                    // 신규 발생분: 발생 후 2년 지나면 자동소멸
+                    expired = years >= yr + 2;
+                  }
+
                   if (expired) {
                     val = '<span style="color:#94a3b8;font-size:11px">자동소멸</span>';
                   } else if (base > 0) {
