@@ -1047,7 +1047,7 @@ async function loadFirestoreData() {
     }
     // welfare 초기 로드
     try {
-      const welfareSnap = await db.collection('welfare').doc('data').get();
+      const welfareSnap = await db.collection('welfare').doc('all').get();
       if (welfareSnap.exists) {
         welfareData = welfareSnap.data();
         localStorage.setItem('wg_welfare', JSON.stringify(welfareData));
@@ -3202,12 +3202,12 @@ let welfareData = JSON.parse(localStorage.getItem('wg_welfare') || '{}');
 function saveWelfare() {
   localStorage.setItem('wg_welfare', JSON.stringify(welfareData));
   try {
-    db.collection('welfare').doc('data').set(welfareData).catch(e => console.error('welfare save:', e));
+    db.collection('welfare').doc('all').set(welfareData).catch(e => console.error('welfare save:', e));
   } catch(e) {}
 }
 
 function startWelfareListener() {
-  db.collection('welfare').doc('data').onSnapshot(snap => {
+  db.collection('welfare').doc('all').onSnapshot(snap => {
     if (snap.exists) {
       welfareData = snap.data();
       localStorage.setItem('wg_welfare', JSON.stringify(welfareData));
