@@ -3855,31 +3855,46 @@ function saveOverseasBase(uid) {
 
 function showRefreshModal(uid, field) {
   const wd2 = welfareData[uid] || {};
+  const isRefresh = field.startsWith('refresh');
   const labels = {refresh6:'리프레쉬 6년만근',refresh15:'리프레쉬 15년만근',sabbatical10:'안식년 10년만근',sabbatical20:'안식년 20년만근'};
   const tip = (wd2.extraTooltip&&wd2.extraTooltip[field])||'';
-  const cur = wd2[field];
+  const cur = wd2[field]||'';
   const existing = document.getElementById('refresh-modal');
   if (existing) existing.remove();
   const modal = document.createElement('div');
   modal.id = 'refresh-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center';
+
+  const weekOptions = isRefresh
+    ? `<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+        <input type="radio" name="rf-week" id="rf-w1" value="1주사용" ${cur==='1주사용'?'checked':''} style="width:16px;height:16px;accent-color:var(--ac)">
+        1주 사용
+      </label>`
+    : `<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+        <input type="radio" name="rf-week" id="rf-w1" value="1주사용" ${cur==='1주사용'?'checked':''} style="width:16px;height:16px;accent-color:var(--ac)">1주 사용
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+        <input type="radio" name="rf-week" id="rf-w2" value="2주사용" ${cur==='2주사용'?'checked':''} style="width:16px;height:16px;accent-color:var(--ac)">2주 사용
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+        <input type="radio" name="rf-week" id="rf-w3" value="3주사용" ${cur==='3주사용'?'checked':''} style="width:16px;height:16px;accent-color:var(--ac)">3주 사용
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+        <input type="radio" name="rf-week" id="rf-w4" value="4주사용" ${cur==='4주사용'?'checked':''} style="width:16px;height:16px;accent-color:var(--ac)">4주 사용
+      </label>`;
+
   modal.innerHTML = `
     <div style="background:#fff;border-radius:12px;padding:24px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
       <div style="font-size:15px;font-weight:700;margin-bottom:16px">${labels[field]||field}</div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
-          <input type="checkbox" id="rf-used" ${cur==='사용완료'?'checked':''} style="width:18px;height:18px;accent-color:var(--ac)">
-          사용 (사용완료 표기)
+          <input type="radio" name="rf-week" value="미사용" ${cur==='미사용'||!cur?'checked':''} style="width:16px;height:16px;accent-color:#ef4444"> 미사용
         </label>
+        ${weekOptions}
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
-          <input type="checkbox" id="rf-unused" ${cur==='미사용'?'checked':''} style="width:18px;height:18px;accent-color:#ef4444">
-          미사용
+          <input type="radio" name="rf-week" value="사용완료" ${cur==='사용완료'?'checked':''} style="width:16px;height:16px;accent-color:var(--ac)"> 사용완료
         </label>
-        <div style="display:flex;align-items:center;gap:8px;font-size:14px">
-          <span>수동 입력:</span>
-          <input type="text" id="rf-amount" value="${cur&&cur!=='사용완료'&&cur!=='미사용'?cur:''}" placeholder="직접 입력" style="width:100px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
-        </div>
-        <div style="font-size:14px">
+        <div style="font-size:14px;margin-top:4px">
           <div style="margin-bottom:4px;color:#374151">툴팁 메모:</div>
           <input type="text" id="rf-tooltip" value="${tip}" placeholder="마우스 오버 시 표시" style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box">
         </div>
@@ -3894,15 +3909,12 @@ function showRefreshModal(uid, field) {
 }
 
 function saveRefreshModal(uid, field) {
-  const used = document.getElementById('rf-used').checked;
-  const unused = document.getElementById('rf-unused').checked;
-  const amount = document.getElementById('rf-amount').value.trim();
+  const selected = document.querySelector('input[name="rf-week"]:checked');
+  const val = selected ? selected.value : '';
   const tooltip = document.getElementById('rf-tooltip').value.trim();
   if (!welfareData[uid]) welfareData[uid] = {};
   if (!welfareData[uid].extraTooltip) welfareData[uid].extraTooltip = {};
-  if (used) welfareData[uid][field] = '사용완료';
-  else if (unused) welfareData[uid][field] = '미사용';
-  else if (amount) welfareData[uid][field] = amount;
+  if (val && val !== '미사용') welfareData[uid][field] = val;
   else delete welfareData[uid][field];
   if (tooltip) welfareData[uid].extraTooltip[field] = tooltip;
   else delete welfareData[uid].extraTooltip[field];
