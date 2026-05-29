@@ -3392,17 +3392,22 @@ function renderWelfareTable() {
 
           let ltCells='';
           const baseAmt = (wd.spouseCheck) ? 100 : 50;
+          const healthUnused = wd.healthUnused || false; // 건강검진 미사용 여부
           longtermYears.forEach(y=>{
             const reached=years>=y;
+            // 건강검진 미사용이면 전체 - 표기
+            if(healthUnused) {
+              ltCells+='<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;cursor:pointer" data-uid="'+e.uid+'" data-year="'+y+'" ondblclick="editLongtermCell(this)">-</td>';
+              return;
+            }
             // 수기 수정값 우선, 없으면 자동 계산
             let used;
             if(wd.longterm && wd.longterm[y] !== undefined && wd.longterm[y] !== null) {
-              used = wd.longterm[y]; // 수기 수정값
+              used = wd.longterm[y];
             } else if(reached) {
-              // 다음 구간 도달 여부로 자동소멸 판단
               const nextY = longtermYears[longtermYears.indexOf(y)+1];
               const expired = nextY && years >= nextY;
-              used = expired ? -1 : baseAmt; // -1=자동소멸
+              used = expired ? -1 : baseAmt;
             } else {
               used = null;
             }
@@ -3479,7 +3484,7 @@ function renderWelfareTable() {
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;">'+tenure+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="birthday" ondblclick="editWelfareCell(this)">'+(birthday===0?'-':birthday)+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="parentBirthday" ondblclick="editWelfareCell(this)">'+(wd.parentFather===undefined&&wd.parentMother===undefined?(parent===10?parent:'-'):(parent===0?'-':parent))+'</td>'
-            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="healthCheck" ondblclick="editWelfareCell(this)">'+(wd.healthUnused?'-':health)+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="healthCheck" ondblclick="editWelfareCell(this)">'+health+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas" ondblclick="editWelfareCell(this)">'+(overseas||'-')+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:700;background:#fef3c7">'+(subtotal||'-')+'</td>'
             +ltCells+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#d1fae5;cursor:pointer" data-uid="'+uid_+'" data-field="execHealth" ondblclick="editWelfareCell(this)">'+(wd.execHealth||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas3" ondblclick="editWelfareCell(this)">'+(wd.overseas3||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas6" ondblclick="editWelfareCell(this)">'+(wd.overseas6||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas10" ondblclick="editWelfareCell(this)">'+(wd.overseas10||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas15" ondblclick="editWelfareCell(this)">'+(wd.overseas15||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas20" ondblclick="editWelfareCell(this)">'+(wd.overseas20||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#e0e7ff;cursor:pointer" data-uid="'+uid_+'" data-field="refresh6" ondblclick="editWelfareCell(this)">'+(wd.refresh6||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#e0e7ff;cursor:pointer" data-uid="'+uid_+'" data-field="refresh15" ondblclick="editWelfareCell(this)">'+(wd.refresh15||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef3c7;cursor:pointer" data-uid="'+uid_+'" data-field="sabbatical10" ondblclick="editWelfareCell(this)">'+(wd.sabbatical10||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef3c7;cursor:pointer" data-uid="'+uid_+'" data-field="sabbatical20" ondblclick="editWelfareCell(this)">'+(wd.sabbatical20||'')+'</td>'+'</tr>';
