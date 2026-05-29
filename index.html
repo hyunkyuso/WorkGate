@@ -3545,7 +3545,8 @@ function renderWelfareTable() {
                 const reached = years >= yr;
                 let val = '';
                 if (wd[fld] !== undefined) {
-                  val = wd[fld] === 0 ? '' : (wd[fld] || '');
+                  if (wd[fld] === '사용완료') val = '<span style="color:#94a3b8;font-size:11px">사용완료</span>';
+                  else val = wd[fld] === 0 ? '' : (wd[fld] || '');
                 } else if (reached) {
                   // 발생일 계산 (기산일 기준)
                   const sd = new Date(startDate);
@@ -3716,6 +3717,10 @@ function showOverseasModal(uid, field) {
       <div style="font-size:15px;font-weight:700;margin-bottom:4px">장기근속 해외연수 (${yr}년 만근)</div>
       <div style="font-size:12px;color:#64748b;margin-bottom:16px">기본: ${base}만원 | 자녀 1명당 50% 추가 | 자동계산: ${autoAmt}만원</div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="os-done" ${cur==='사용완료'?'checked':''} style="width:18px;height:18px;accent-color:var(--ac)">
+          사용완료
+        </label>
         <div style="display:flex;align-items:center;gap:8px;font-size:14px">
           <span>수동 입력:</span>
           <input type="number" id="os-amount" value="${cur>0?cur:''}" placeholder="자동계산" style="width:90px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
@@ -3744,13 +3749,16 @@ function clearOverseasOverride(uid, field) {
 }
 
 function saveOverseasModal(uid, field, yr) {
+  const done = document.getElementById('os-done').checked;
   const manualAmt = document.getElementById('os-amount').value;
   const tooltip = document.getElementById('os-tooltip').value.trim();
 
   if (!welfareData[uid]) welfareData[uid] = {};
   if (!welfareData[uid].overseasTooltip) welfareData[uid].overseasTooltip = {};
 
-  if (manualAmt) {
+  if (done) {
+    welfareData[uid][field] = '사용완료';
+  } else if (manualAmt) {
     welfareData[uid][field] = parseFloat(manualAmt);
   } else {
     delete welfareData[uid][field];
