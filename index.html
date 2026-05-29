@@ -3313,6 +3313,13 @@ function resetWelfareToday() {
   const input = document.getElementById('welfare-today');
   if (input) {
     input.value = new Date().toISOString().slice(0,10);
+    // 개별 customToday 전체 초기화
+    Object.keys(welfareData).forEach(uid => {
+      if (welfareData[uid] && welfareData[uid].customToday) {
+        delete welfareData[uid].customToday;
+      }
+    });
+    saveWelfare();
     renderWelfareTable();
   }
 }
@@ -3686,11 +3693,16 @@ function renderWelfareTable() {
                 else                     sbTarget = 'sabbatical20';
               }
               // 발생 시점 도래 여부 확인 함수 (기산일 + 해당년수 도달 + 2년 이내)
+              // 2026-01-01 이전 발생분은 2027-12-31까지 사용 가능
+              const rfCutoffDate = new Date('2026-01-01');
+              const rfExpiry2027 = new Date('2027-12-31');
               const rfCheckReached = (yr) => years >= yr;
               const rfCheckExpired = (yr) => {
                 const sd_ = new Date(startDate);
                 const issueD_ = new Date(sd_.getFullYear()+yr, sd_.getMonth(), sd_.getDate());
-                return today > new Date(issueD_.getFullYear()+2, issueD_.getMonth(), issueD_.getDate());
+                const isOldRf_ = issueD_ < rfCutoffDate;
+                const expiryD_ = isOldRf_ ? rfExpiry2027 : new Date(issueD_.getFullYear()+2, issueD_.getMonth(), issueD_.getDate());
+                return today > expiryD_;
               };
 
               const rfFields = [
