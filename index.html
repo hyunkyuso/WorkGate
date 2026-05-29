@@ -3663,12 +3663,20 @@ function renderWelfareTable() {
                 else val = v;
                 // 진하게: 발생 시점 도래했을 때만
                 const isOsTarget = fld === osTarget && osTargetReached && !osExpired;
-                const osBorderStyle = isOsTarget ? 'border:2px solid #6366f1;' : 'border:1px solid #e2e8f0;';
-                const osFontW = isOsTarget ? 'font-weight:700;' : '';
+                // 사용가능 여부: 발생+사용기간내+미완료/미소멸
+                const osIssueD = new Date((new Date(startDate)).getFullYear()+yr, (new Date(startDate)).getMonth(), (new Date(startDate)).getDate());
+                const osCutoff = new Date('2026-01-01');
+                const osExpiryD = osIssueD < osCutoff ? new Date('2027-12-31') : new Date(osIssueD.getFullYear()+2, osIssueD.getMonth(), osIssueD.getDate());
+                const osReached3 = years >= yr;
+                const osExpired3 = today > osExpiryD;
+                const osValRaw = welfareData[uid_] && welfareData[uid_][fld];
+                const osAvailable = osReached3 && !osExpired3 && osValRaw !== '사용완료' && osValRaw !== 'expired';
+                const osBg = (isOsTarget && osAvailable) ? '#fed7aa' : osAvailable ? '#fed7aa' : '#fce7f3';
+                const osFontW = osAvailable ? 'font-weight:700;' : '';
                 const tip = (wd.overseasTooltip&&wd.overseasTooltip[fld])||'';
                 const tipAttr = tip?' title="'+tip.replace(/"/g,"'")+'"':'';
                 const tipDot = tip?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':'';
-                return '<td style="'+osBorderStyle+'padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer;position:relative;'+osFontW+'"'+tipAttr+' data-uid="'+uid_+'" data-field="'+fld+'" ondblclick="editWelfareCell(this)">'+val+tipDot+'</td>';
+                return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:'+osBg+';cursor:pointer;position:relative;'+osFontW+'"'+tipAttr+' data-uid="'+uid_+'" data-field="'+fld+'" ondblclick="editWelfareCell(this)">'+val+tipDot+'</td>';
               }).join('');
             })()+(function(){
               // 2026-01-01 기준 근속년수
@@ -3722,14 +3730,14 @@ function renderWelfareTable() {
                 const reached = rfCheckReached(targetYr);
                 const expired2 = rfCheckExpired(targetYr);
                 const isUsed = val === '사용완료';
-                // 사용가능(발생 + 사용기간 내 + 사용완료/소멸/사용안함 아님): 테두리 강조
+                // 사용가능(발생 + 사용기간 내 + 사용완료/소멸/사용안함 아님): 배경색 강조
                 const isNoBorder = isUsed || expired2 || val === '사용안함';
                 const isAvailable = reached && !isNoBorder;
-                const borderStyle = isAvailable
-                  ? 'border:2px solid #6366f1;'
-                  : 'border:1px solid #e2e8f0;';
+                // 리프레쉬: #e0e7ff → 강조 #bfdbfe / 안식년: #fef3c7 → 강조 #bbf7d0
+                const highlightBg = f.startsWith('refresh') ? '#bfdbfe' : '#bbf7d0';
+                const cellBg = isAvailable ? highlightBg : bg;
                 const fontW = isAvailable ? 'font-weight:700;' : '';
-                return '<td style="'+borderStyle+'padding:4px 6px;text-align:center;background:'+bg+';cursor:pointer;position:relative;'+fontW+'"'+tipAttr+' data-uid="'+uid_+'" data-field="'+f+'" ondblclick="editWelfareCell(this)">'+cv+tipDot+'</td>';
+                return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:'+cellBg+';cursor:pointer;position:relative;'+fontW+'"'+tipAttr+' data-uid="'+uid_+'" data-field="'+f+'" ondblclick="editWelfareCell(this)">'+cv+tipDot+'</td>';
               }).join('');
             })()+'</tr>';
         });
