@@ -3560,9 +3560,8 @@ function renderWelfareTable() {
               const osTip = wd.overseasBaseTip||'';
               const osTipAttr = osTip?' title="'+osTip.replace(/"/g,"'")+'"':'';
               const osTipDot = osTip?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':'';
-              let osVal = '-';
-              if (wd.overseasBaseUnused) osVal = '-';
-              else if (wd.overseasBaseUsed) osVal = overseas||'-';
+              // 발생금액 해외연수 = 장기근속 해외연수 합계 자동 표시
+              const osVal = wd.overseasBaseUnused ? '-' : (osTotal > 0 ? osTotal : '-');
               return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer;position:relative"'+osTipAttr+' data-uid="'+uid_+'" data-field="overseas" ondblclick="editWelfareCell(this)">'+osVal+osTipDot+'</td>';
             })()
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:700;background:#fef3c7">'+(subtotal===0?'-':subtotal)+'</td>'
