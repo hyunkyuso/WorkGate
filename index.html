@@ -4292,6 +4292,37 @@ function renderMyPage() {
 
   let html = '';
 
+  // 장기근속 건강검진
+  const ltYears = [5,7,9,11,13,15,17,19,21,23,25];
+  const ltBase = wd.spouseCheck ? 100 : 50;
+  const ltUnused = wd.healthUnused || false;
+  const ltItems = ltYears.filter(y => years >= y).map(y => {
+    const fld = 'longterm_'+y; // longtermYears key
+    const ltVal = wd.longterm ? wd.longterm[y] : undefined;
+    let status, statusColor;
+    if (ltUnused) { status='미사용'; statusColor='#94a3b8'; }
+    else if (ltVal === 0) { status='사용완료'; statusColor='#94a3b8'; }
+    else if (ltVal === -1) { status='자동소멸'; statusColor='#f59e0b'; }
+    else {
+      const nextY = ltYears[ltYears.indexOf(y)+1];
+      const expired = nextY && years >= nextY;
+      if (expired) { status='자동소멸'; statusColor='#f59e0b'; }
+      else { status='사용가능 '+(ltVal||ltBase)+'만원'; statusColor='#22c55e'; }
+    }
+    return {label: y+'년 만근', status, statusColor};
+  });
+
+  if (ltItems.length) {
+    html += '<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">🏥 장기근속 건강검진</div>';
+    ltItems.forEach(({label,status,statusColor}) => {
+      html += '<div style="display:flex;align-items:center;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px">'
+        +'<div style="flex:1;font-weight:600">'+label+'</div>'
+        +'<div style="color:'+statusColor+';font-weight:600">'+status+'</div>'
+        +'</div>';
+    });
+    html += '</div>';
+  }
+
   // 장기근속 해외연수 (3/6/10년)
   const osFields = [{yr:3,base:100},{yr:6,base:200},{yr:10,base:300}];
   const cutoff = new Date('2026-01-01');
@@ -4309,7 +4340,7 @@ function renderMyPage() {
     const amt = base + base*0.5*osCh;
     const v = wd[fld];
     const status = v==='사용완료' ? '✅ 사용완료' : expired ? '⏰ 소멸' : '🟢 사용가능 '+amt+'만원';
-    return '<div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div><span style="font-weight:600">해외연수 '+yr+'년만근</span><span style="font-size:12px;color:#64748b;margin-left:8px">'+usePeriod+'</span></div><div>'+status+'</div></div>';
+    return '<div style="display:flex;align-items:center;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="flex:1"><span style="font-weight:600">해외연수 '+yr+'년만근</span><span style="font-size:12px;color:#64748b;margin-left:8px">'+usePeriod+'</span></div><div style="color:#22c55e;font-weight:600">'+status+'</div></div>';
   });
 
   // 한시 지원 해외연수 15/20년
@@ -4331,7 +4362,7 @@ function renderMyPage() {
   }
 
   if (osItems.length) {
-    html += '<div style="margin-bottom:16px"><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">✈️ 장기근속 해외연수</div>'+osItems.join('')+'</div>';
+    html += '<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">✈️ 장기근속 해외연수</div>'+osItems.join('')+'</div>';
   }
 
   // 리프레쉬/안식년
@@ -4359,7 +4390,8 @@ function renderMyPage() {
     const status = v==='사용완료'?'✅ 사용완료':v&&v!=='미사용'?'🔵 '+v:expired?'⏰ 소멸':'🟢 사용가능';
     const bg = isHandsOn ? 'background:#f0fdf4;border:1.5px solid #6366f1;' : 'background:#f8fafc;';
     const lbl = label + (isHandsOn ? ' ★한시' : '');
-    return '<div style="display:flex;justify-content:space-between;padding:8px 12px;'+bg+'border-radius:8px;margin-bottom:6px"><div><span style="font-weight:'+(isHandsOn?'700':'600')+'">'+lbl+'</span><span style="font-size:12px;color:#64748b;margin-left:8px">사용기간: ~'+expiry2yr.toISOString().slice(0,10)+'</span></div><div>'+status+'</div></div>';
+    const statusColor2 = status.startsWith('🟢')?'#22c55e':status.startsWith('✅')?'#94a3b8':'#f59e0b';
+    return '<div style="display:flex;align-items:center;padding:8px 12px;'+bg+'border-radius:8px;margin-bottom:6px"><div style="flex:1"><span style="font-weight:'+(isHandsOn?'700':'600')+'">'+lbl+'</span><span style="font-size:12px;color:#64748b;margin-left:8px">사용기간: ~'+expiry2yr.toISOString().slice(0,10)+'</span></div><div style="color:'+statusColor2+';font-weight:600">'+status+'</div></div>';
   });
 
   // 한시 지원 대상인데 아직 발생 안 된 경우
