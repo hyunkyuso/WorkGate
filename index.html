@@ -3383,9 +3383,9 @@ function renderWelfareTable() {
           const healthUnused = wd.healthUnused || false; // 건강검진 미사용 여부
           longtermYears.forEach(y=>{
             const reached=years>=y;
-            // 건강검진 미사용이면 전체 - 표기
+            // 건강검진 미사용이면 빈칸
             if(healthUnused) {
-              ltCells+='<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;cursor:pointer" data-uid="'+e.uid+'" data-year="'+y+'" ondblclick="editLongtermCell(this)">-</td>';
+              ltCells+='<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;cursor:pointer" data-uid="'+e.uid+'" data-year="'+y+'" ondblclick="editLongtermCell(this)"></td>';
               return;
             }
             // 수기 수정값 우선, 없으면 자동 계산
@@ -3471,20 +3471,17 @@ function renderWelfareTable() {
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">'+todayStr+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;">'+tenure+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="birthday" ondblclick="editWelfareCell(this)">'+(birthday===0?'-':birthday)+'</td>'
-            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="parentBirthday" ondblclick="editWelfareCell(this)">'+(wd.parentFather===undefined&&wd.parentMother===undefined?(parent===10?parent:'-'):(parent===0?'-':parent))+'</td>'
-            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="healthCheck" ondblclick="editWelfareCell(this)">'+health+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="parentBirthday" ondblclick="editWelfareCell(this)">'+(parent===0?'-':parent)+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="healthCheck" ondblclick="editWelfareCell(this)">'+(health===0?'-':health)+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas" ondblclick="editWelfareCell(this)">'+(overseas||'-')+'</td>'
-            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:700;background:#fef3c7">'+(subtotal||'-')+'</td>'
+            +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:700;background:#fef3c7">'+(subtotal===0?'-':subtotal)+'</td>'
             +ltCells+(function(){
               // 임원건강검진: 2년마다 자동 갱신, 배우자포함=100, 미포함=50
               const execBase = wd.execSpouse ? 100 : 50;
               const execTimes = Math.floor(years / 2); // 발생 횟수
               let ev = '';
               if (execTimes > 0) {
-                if (wd.execUnused) {
-                  ev = '<span style="color:#94a3b8;font-size:11px">미사용</span>';
-                } else {
-                  // 수기값 있으면 우선, 없으면 자동
+                if (!wd.execUnused) {
                   ev = (wd.execUsed && wd.execHealth) ? wd.execHealth : execBase;
                 }
               }
