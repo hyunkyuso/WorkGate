@@ -1012,48 +1012,90 @@ async function autoRegisterEmployee(email, name, picture) {
   } catch(e) { console.error('직원 자동 등록 오류:', e); }
 }
 
-async function loadFirestoreData() {
-  try {
-    // 직원 데이터 로드
-    const empSnap = await db.collection('employees').get();
-    employees = empSnap.docs.map(d => d.data());
-    localStorage.setItem('wg_employees', JSON.stringify(employees));
+// ── Firestore 실시간 리스너 핸들 (중복 방지용) ──
+let _unsubEmployees = null;
+let _unsubDepartments = null;
+let _unsubCodes = null;
 
-    // 부서 데이터 로드
-    const deptSnap = await db.collection('departments').get();
-    if (!deptSnap.empty) {
-      departments = deptSnap.docs.map(d => {
+async function loadFirestoreData() {
+  // 기존 리스너 해제 (재호출 방지)
+  if (_unsubEmployees) { _unsubEmployees(); _unsubEmployees = null; }
+  if (_unsubDepartments) { _unsubDepartments(); _unsubDepartments = null; }
+  if (_unsubCodes) { _unsubCodes(); _unsubCodes = null; }
+
+  // 코드 데이터 초기값 보장 (Firestore에 없으면 기본값 저장)
+  try {
+    const codeSnap = await db.collection('codes').doc('all').get();
+    if (!codeSnap.exists) {
+      await db.collection('codes').doc('all').set(codeData);
+    }
+  } catch(e) { console.error('코드 초기화 오류:', e); }
+
+  // ── 직원 실시간 리스너 ──
+  _unsubEmployees = db.collection('employees').onSnapshot(snap => {
+    employees = snap.docs.map(d => d.data());
+    localStorage.setItem('wg_employees', JSON.stringify(employees));
+    // 내 권한 재확인
+    if (state.myEmail) {
+      const myEmp = employees.find(e => e.id === state.myEmail);
+      const newRole = myEmp ? (myEmp.role || '일반') : '일반';
+      if (newRole !== state.myRole) {
+        state.myRole = newRole;
+        applyRoleUI();
+        console.log('권한 변경 감지:', state.myEmail, '->', newRole);
+      }
+    }
+    // UI 갱신 (앱이 초기화된 후에만)
+    if (document.getElementById('app').style.display !== 'none') {
+      renderEmployeeTable();
+      renderOrgView();
+      populateEmpFilterDept();
+      renderDashboard();
+    }
+  }, err => console.error('직원 리스너 오류:', err));
+
+  // ── 부서 실시간 리스너 ──
+  _unsubDepartments = db.collection('departments').onSnapshot(snap => {
+    if (!snap.empty) {
+      departments = snap.docs.map(d => {
         const data = d.data();
-        // position 기본값 보장
         if (!data.position) data.position = 'bottom';
         return data;
       });
       localStorage.setItem('wg_departments', JSON.stringify(departments));
+      if (document.getElementById('app').style.display !== 'none') {
+        renderOrgTree();
+        renderOrgView();
+      }
     }
+  }, err => console.error('부서 리스너 오류:', err));
 
-    // 코드 데이터 로드 (Firestore 우선, 없으면 기본값 유지)
-    const codeSnap = await db.collection('codes').doc('all').get();
-    if (codeSnap.exists) {
-      const firestoreData = codeSnap.data();
-      // Firestore 데이터로 완전 덮어쓰기
+  // ── 코드 실시간 리스너 ──
+  _unsubCodes = db.collection('codes').doc('all').onSnapshot(snap => {
+    if (snap.exists) {
+      const firestoreData = snap.data();
       Object.keys(firestoreData).forEach(key => {
         codeData[key] = firestoreData[key];
       });
       localStorage.setItem('wg_codes', JSON.stringify(codeData));
-    } else {
-      // Firestore에 없으면 기본값 저장
-      await db.collection('codes').doc('all').set(codeData);
-      localStorage.setItem('wg_codes', JSON.stringify(codeData));
+      if (document.getElementById('app').style.display !== 'none') {
+        renderCodeTable();
+      }
     }
-  } catch(e) { console.error('Firestore 로드 오류:', e); }
-  // 로드 완료 후 현재 사용자 권한 재확인
-  if (state.myEmail) {
-    const myEmp = employees.find(e => e.id === state.myEmail);
-    const newRole = myEmp ? (myEmp.role || '일반') : '일반';
-    state.myRole = newRole;
-    console.log('권한 확인:', state.myEmail, '->', newRole, '/ 직원수:', employees.length);
-    applyRoleUI();
-  }
+  }, err => console.error('코드 리스너 오류:', err));
+
+  // 초기 권한 확인 (첫 onSnapshot 콜백 전 임시 처리)
+  try {
+    const empSnap = await db.collection('employees').get();
+    employees = empSnap.docs.map(d => d.data());
+    if (state.myEmail) {
+      const myEmp = employees.find(e => e.id === state.myEmail);
+      const newRole = myEmp ? (myEmp.role || '일반') : '일반';
+      state.myRole = newRole;
+      console.log('초기 권한 확인:', state.myEmail, '->', newRole, '/ 직원수:', employees.length);
+      applyRoleUI();
+    }
+  } catch(e) { console.error('초기 데이터 로드 오류:', e); }
 }
 
 function isAdmin() {
@@ -1084,6 +1126,10 @@ function applyRoleUI() {
 }
 
 function signOut() {
+  // 실시간 리스너 해제
+  if (_unsubEmployees) { _unsubEmployees(); _unsubEmployees = null; }
+  if (_unsubDepartments) { _unsubDepartments(); _unsubDepartments = null; }
+  if (_unsubCodes) { _unsubCodes(); _unsubCodes = null; }
   auth.signOut();
   state.accessToken = null; state.user = null; state.myRole = null;
 }
