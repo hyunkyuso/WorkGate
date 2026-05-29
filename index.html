@@ -2371,7 +2371,7 @@ function renderOrgView() {
   function subW(id){
     const d=departments.find(x=>x.id===id);
     // 조직명 길이 기반 카드 너비 (cardW와 동일 로직)
-    const nameW=d?(d.name.length*13+28):CW;
+    const nameW=d?(d.name.length*14+32):CW;
     const selfW=Math.max(CW, nameW);
     const bots=gkBot(id);
     if(!bots.length)return selfW;
@@ -2750,15 +2750,15 @@ function renderOrgView() {
     // 3구역 lv1,lv2는 하위 범위 너비로 카드 표시
     // lv0(대표이사)는 이름 길이에 맞게 너비 동적 조정
     // 글자크기 18px 기준 조직명 너비 동적 계산 (한글 약 13px, padding 18px)
-    const nameW = dept.name.length * 13 + 28;
+    const nameW = dept.name.length * 14 + 32;
     let cardW=((!isZ2(dept)&&!isZ2subNode&&(p.lv===1||p.lv===2)))?Math.max(CW,nameW,subW(id)):Math.max(CW,nameW);
     if(p.lv===0) cardW=Math.max(CW, nameW);
     const cardX=p.cx-cardW/2;
     nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+cardX+'px;top:'+y+'px;width:'+cardW+'px;cursor:pointer;z-index:2;overflow:visible">';
-    nodes+='<div style="background:'+color+';color:'+(p.lv===0?'#fff':'#1e293b')+';border-radius:8px;padding:7px 9px;text-align:center;font-size:18px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
+    nodes+='<div style="background:'+color+';color:'+(p.lv===0?'#fff':'#1e293b')+';border-radius:8px;padding:7px 9px;text-align:center;font-size:20px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
     // 인원수: lv1=전체합산, lv2=lv2+lv3합산, lv3=직속만
     const dispCount = getDeptCountWithConcurrent(id);
-    nodes+=dept.name+'<div style="font-size:18px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명</div></div>';
+    nodes+=dept.name+'<div style="font-size:20px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명</div></div>';
     // 3구역만 직원 카드 아래 표시
     const isLeaderPos=function(e){
       const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장';
