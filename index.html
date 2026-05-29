@@ -3313,8 +3313,9 @@ function renderWelfareTable() {
 
   Object.entries(bonbuGroups).forEach(([bonbu, bonbuEmps]) => {
     let bonbuSub={birthday:0,parent:0,health:0,overseas:0,sum:0};
+    let execBT=0;
+    const osBT={'overseas3':0,'overseas6':0,'overseas10':0,'overseas15':0,'overseas20':0};
     const ltBT={}; longtermYears.forEach(y=>ltBT[y]=0);
-    let execBT=0; // 본부 임원건강검진 합계
 
     const buseoGroups={};
     bonbuEmps.forEach(e=>{
@@ -3369,7 +3370,30 @@ function renderWelfareTable() {
           const tenure=calcTenure(startDate,today);
           const birthday=wd.birthday??10;
           const parent=wd.parentBirthday??10;
-          const overseas=wd.overseas??0;
+          // 발생금액 해외연수 = 장기근속 해외연수 합계
+          const osFields = [['overseas3',3,100],['overseas6',6,200],['overseas10',10,300],['overseas15',15,0],['overseas20',20,0]];
+          const osCh2 = wd.overseasChildren || 0;
+          let osTotal = 0;
+          if (!wd.overseasBaseUnused) {
+            osFields.forEach(([fld,yr,base]) => {
+              const reached2 = calcYears(wd.startDate||e.joindate, today) >= yr;
+              if (!reached2) return;
+              if (wd[fld] === '사용완료' || wd[fld] === 0) return;
+              if (wd[fld] !== undefined) {
+                osTotal += parseFloat(wd[fld])||0;
+              } else if (base > 0) {
+                const expired2 = calcYears(wd.startDate||e.joindate, today) >= yr + 2;
+                const cutoff = new Date('2026-01-01');
+                const sd2 = new Date(wd.startDate||e.joindate);
+                const issueD = new Date(sd2.getFullYear()+yr, sd2.getMonth(), sd2.getDate());
+                const isOld = issueD < cutoff;
+                const expiry = new Date('2027-12-31');
+                const expiredOld = isOld && today > expiry;
+                if (!expired2 && !expiredOld) osTotal += base + base * 0.5 * osCh2;
+              }
+            });
+          }
+          const overseas = osTotal;
           // 건강검진 = 5년~25년 만근 합계 + 임원건강검진
           const ltBase = (wd.spouseCheck) ? 100 : 50;
           const ltHealthUnused = wd.healthUnused || false;
@@ -3401,6 +3425,8 @@ function renderWelfareTable() {
 
           bonbuSub.birthday+=birthday; bonbuSub.parent+=parent;
           bonbuSub.health+=health; bonbuSub.overseas+=overseas; bonbuSub.sum+=subtotal;
+          // 장기근속 해외연수 합계
+          osFields.forEach(([fld])=>{ osBT[fld]+=(wd[fld]&&wd[fld]!=='사용완료'?parseFloat(wd[fld])||0:0); });
           totalBirthday+=birthday; totalParent+=parent;
           totalHealth+=health; totalOverseas+=overseas; totalSum+=subtotal;
 
@@ -3602,7 +3628,9 @@ function renderWelfareTable() {
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.health||'-')+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.overseas||'-')+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.sum||'-')+'</td>'
-      +ltBCplain+'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;font-weight:700">'+(execBT||'')+'</td><td colspan="9" style="border:1px solid #e2e8f0"></td></tr>';
+      +ltBCplain+'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;font-weight:700">'+(execBT||'')+'</td>'
+      +['overseas3','overseas6','overseas10','overseas15','overseas20'].map(f=>'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;font-weight:700">'+(osBT[f]||'')+'</td>').join('')
+      +'<td colspan="4" style="border:1px solid #e2e8f0"></td></tr>';
   });
 
   document.getElementById('welfare-tbody').innerHTML = rows;
