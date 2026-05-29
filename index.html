@@ -3433,7 +3433,27 @@ function renderWelfareTable() {
           bonbuSub.birthday+=birthday; bonbuSub.parent+=parent;
           bonbuSub.health+=health; bonbuSub.overseas+=overseas; bonbuSub.sum+=subtotal;
           // 장기근속 해외연수 합계
-          osFields.forEach(([fld])=>{ osBT[fld]+=(wd[fld]&&wd[fld]!=='사용완료'?parseFloat(wd[fld])||0:0); });
+          // 장기근속 해외연수 합계: 자동계산값 포함
+          osFields.forEach(([fld,yr,base]) => {
+            const v = wd[fld];
+            if (v === '사용완료' || v === 0) return;
+            if (v !== undefined && v !== null) {
+              osBT[fld] += parseFloat(v)||0;
+            } else if (base > 0) {
+              const yrs3 = calcYears(wd.startDate||e.joindate, today);
+              if (yrs3 < yr) return;
+              const sd3 = new Date(wd.startDate||e.joindate);
+              const issueD3 = new Date(sd3.getFullYear()+yr, sd3.getMonth(), sd3.getDate());
+              const cutoff3 = new Date('2026-01-01');
+              const expiry3 = new Date('2027-12-31');
+              const isOld3 = issueD3 < cutoff3;
+              const expiredOld3 = isOld3 && today > expiry3;
+              const expired3 = yrs3 >= yr + 2;
+              if (!expiredOld3 && !expired3) {
+                osBT[fld] += base + base * 0.5 * osCh2;
+              }
+            }
+          });
           totalBirthday+=birthday; totalParent+=parent;
           totalHealth+=health; totalOverseas+=overseas; totalSum+=subtotal;
 
