@@ -3663,7 +3663,15 @@ function renderWelfareTable() {
               // 가장 인접한 1개만 지원 (리프레쉬/안식년 중 하나)
               // 1~5년 → 리프레쉬6년, 6~9년 → 안식년10년, 10~14년 → 리프레쉬15년, 15년↑ → 안식년20년
               let rfTarget = null, sbTarget = null;
-              if (rfEligible && yrsAt2026 < 20) {
+              // 정규 발생 시점에 해당하는 직원은 한시 지원 제외
+              // 리프레쉬: 6년, 15년 / 안식년: 10년, 20년 정규 발생 시점
+              const rfRegular = [6, 15]; // 리프레쉬 정규
+              const sbRegular = [10, 20]; // 안식년 정규
+              const alreadyHasRegular = rfRegular.includes(yrsAt2026) || sbRegular.includes(yrsAt2026) ||
+                rfRegular.some(y => yrsAt2026 >= y && yrsAt2026 < y+1) ||
+                sbRegular.some(y => yrsAt2026 >= y && yrsAt2026 < y+1);
+
+              if (rfEligible && yrsAt2026 < 20 && !alreadyHasRegular) {
                 if (yrsAt2026 < 6)       rfTarget = 'refresh6';
                 else if (yrsAt2026 < 10) sbTarget = 'sabbatical10';
                 else if (yrsAt2026 < 15) rfTarget = 'refresh15';
