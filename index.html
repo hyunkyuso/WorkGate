@@ -3586,30 +3586,36 @@ function renderWelfareTable() {
               const osYears = [[3,100,'overseas3'],[6,200,'overseas6'],[10,300,'overseas10'],[15,0,'overseas15'],[20,0,'overseas20']];
               const cutoffDate = new Date('2026-01-01'); // 이 날짜 이전 발생분
               const expiryDate = new Date('2027-12-31');    // 2027-12-31까지 사용
-              // 2026-01-01 기준 11년 이상이면 15년/20년 한시 지원
+              // 2026-01-01 기준 11년 이상인 직원 → 한시 지원 대상
               const yrsAt2026os = calcYears(startDate, new Date('2026-01-01'));
               const osEligible15 = yrsAt2026os >= 11;
+              // 인접한 시점: 11~14년→15년만근, 15년 이상→20년만근
               const osTarget = osEligible15 ? (yrsAt2026os < 15 ? 'overseas15' : 'overseas20') : null;
-              // 한시 지원 금액 (자녀수 반영)
+              const osTargetYr = osTarget==='overseas15' ? 15 : osTarget==='overseas20' ? 20 : 0;
+              // 발생 시점 도래 여부: 실제 현재 근속년수가 해당 년수에 도달했는지
+              const osTargetReached = osTargetYr > 0 && years >= osTargetYr;
               const osCh_ = wd.overseasChildren || 0;
               const osTargetBase = osTarget==='overseas15' ? 600 : osTarget==='overseas20' ? 1000 : 0;
               const osTargetAmt = osTargetBase + osTargetBase * 0.5 * osCh_;
-              // 한시 지원 소멸: 2026-01-01 발생 기준 2년 후 (2028-01-01)
-              const osTargetExpired = today > new Date('2028-01-01');
+              // 발생일: 기산일 + 15년(또는 20년) → 2년 후 소멸
+              const sd_os = new Date(startDate);
+              const osIssueDate = osTargetYr > 0 ? new Date(sd_os.getFullYear()+osTargetYr, sd_os.getMonth(), sd_os.getDate()) : null;
+              const osExpired = osIssueDate ? today > new Date(osIssueDate.getFullYear()+2, osIssueDate.getMonth(), osIssueDate.getDate()) : false;
 
               return osYears.map(([yr,base,fld])=>{
                 const v = osResult[fld];
                 let val = '';
                 if (v === null || v === undefined) {
-                  // 한시 지원 대상이면 금액 표기
-                  if (fld === osTarget && !osTargetExpired && !wd.overseasBaseUnused) {
+                  // 발생 시점 도래 + 소멸 안됨 → 금액 표기
+                  if (fld === osTarget && osTargetReached && !osExpired && !wd.overseasBaseUnused) {
                     val = osTargetAmt || '';
                   }
                 }
                 else if (v === '사용완료') val = '<span style="color:#94a3b8;font-size:11px">사용완료</span>';
                 else if (v === 'expired') val = '<span style="color:#94a3b8;font-size:11px">자동소멸</span>';
                 else val = v;
-                const isOsTarget = (fld === osTarget && !osTargetExpired);
+                // 진하게: 발생 시점 도래했을 때만
+                const isOsTarget = fld === osTarget && osTargetReached && !osExpired;
                 const osBorderStyle = isOsTarget ? 'border:2px solid #6366f1;' : 'border:1px solid #e2e8f0;';
                 const osFontW = isOsTarget ? 'font-weight:700;' : '';
                 const tip = (wd.overseasTooltip&&wd.overseasTooltip[fld])||'';
