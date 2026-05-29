@@ -3363,8 +3363,12 @@ function renderWelfareTable() {
               }
               if (used > 0) ltSum += used;
             });
-            // 임원건강검진
-            if (wd.execHealth) ltSum += parseFloat(wd.execHealth)||0;
+            // 임원건강검진: 2년마다 자동 갱신
+            const execBase2 = wd.execSpouse ? 100 : 50;
+            const execTimes2 = Math.floor(calcYears(wd.startDate||e.joindate, today) / 2);
+            if (execTimes2 > 0 && !wd.execUnused) {
+              ltSum += (wd.execUsed && wd.execHealth) ? (parseFloat(wd.execHealth)||0) : execBase2;
+            }
           }
           const health = ltHealthUnused ? 0 : ltSum;
           const subtotal=birthday+parent+health+overseas;
@@ -3472,7 +3476,18 @@ function renderWelfareTable() {
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef9c3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas" ondblclick="editWelfareCell(this)">'+(overseas||'-')+'</td>'
             +'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-weight:700;background:#fef3c7">'+(subtotal||'-')+'</td>'
             +ltCells+(function(){
-              const ev = wd.execUnused ? '<span style="color:#94a3b8;font-size:11px">미사용</span>' : (wd.execUsed ? (wd.execHealth||'') : '');
+              // 임원건강검진: 2년마다 자동 갱신, 배우자포함=100, 미포함=50
+              const execBase = wd.execSpouse ? 100 : 50;
+              const execTimes = Math.floor(years / 2); // 발생 횟수
+              let ev = '';
+              if (execTimes > 0) {
+                if (wd.execUnused) {
+                  ev = '<span style="color:#94a3b8;font-size:11px">미사용</span>';
+                } else {
+                  // 수기값 있으면 우선, 없으면 자동
+                  ev = (wd.execUsed && wd.execHealth) ? wd.execHealth : execBase;
+                }
+              }
               return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#d1fae5;cursor:pointer" data-uid="'+uid_+'" data-field="execHealth" ondblclick="editWelfareCell(this)">'+ev+'</td>';
             })()+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas3" ondblclick="editWelfareCell(this)">'+(wd.overseas3||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas6" ondblclick="editWelfareCell(this)">'+(wd.overseas6||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas10" ondblclick="editWelfareCell(this)">'+(wd.overseas10||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas15" ondblclick="editWelfareCell(this)">'+(wd.overseas15||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fce7f3;cursor:pointer" data-uid="'+uid_+'" data-field="overseas20" ondblclick="editWelfareCell(this)">'+(wd.overseas20||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#e0e7ff;cursor:pointer" data-uid="'+uid_+'" data-field="refresh6" ondblclick="editWelfareCell(this)">'+(wd.refresh6||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#e0e7ff;cursor:pointer" data-uid="'+uid_+'" data-field="refresh15" ondblclick="editWelfareCell(this)">'+(wd.refresh15||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef3c7;cursor:pointer" data-uid="'+uid_+'" data-field="sabbatical10" ondblclick="editWelfareCell(this)">'+(wd.sabbatical10||'')+'</td>'+'<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#fef3c7;cursor:pointer" data-uid="'+uid_+'" data-field="sabbatical20" ondblclick="editWelfareCell(this)">'+(wd.sabbatical20||'')+'</td>'+'</tr>';
         });
