@@ -4339,26 +4339,32 @@ function renderMyPage() {
     html += '</div>';
   }
 
-  // 장기근속 해외연수 (3/6/10년)
+  // 장기근속 해외연수 (3/6/10년) — 미발생 포함 항상 전체 표시
   const osFields = [{yr:3,base:100},{yr:6,base:200},{yr:10,base:300}];
   const cutoff = new Date('2026-01-01');
   const expiry2027 = new Date('2027-12-31');
-  const osItems = osFields.filter(({yr}) => years >= yr).map(({yr,base}) => {
+  const osItems = osFields.map(({yr,base}) => {
     const fld = 'overseas'+yr;
     const sd = new Date(startDate);
     const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
+    const notYet = today < issueDate;
     const isOld = issueDate < cutoff;
     const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
-    const expired = isOld ? today > expiry2027 : today > expiry2yr;
-    const usePeriod = isOld
-      ? '사용기간: ~2027-12-31'
-      : '사용기간: ~'+expiry2yr.toISOString().slice(0,10);
+    const rfExpiry = isOld ? expiry2027 : expiry2yr;
+    const expired = !notYet && today > rfExpiry;
     const amt = base + base*0.5*osCh;
     const v = wd[fld];
-    const dotC = v==='사용완료'?'#94a3b8':expired?'#f59e0b':'#22c55e';
-    const txtC = dotC;
-    const statusTxt = v==='사용완료'?'사용완료':expired?'소멸':'사용가능 '+amt+'만원';
-    return '<div style="'+rowStyle+'"><div style="font-weight:600">해외연수 '+yr+'년만근</div><div style="font-size:12px;color:#64748b">'+usePeriod+'</div><div style="width:7px;height:7px;border-radius:50%;background:'+dotC+';flex-shrink:0"></div><div style="color:'+txtC+';font-weight:600;white-space:nowrap">'+statusTxt+'</div></div>';
+    let usePeriod, statusTxt, dotC;
+    if (notYet) {
+      usePeriod = '발생예정: '+issueDate.toISOString().slice(0,10);
+      statusTxt = '미발생';
+      dotC = '#cbd5e1';
+    } else {
+      usePeriod = '사용기간: ~'+rfExpiry.toISOString().slice(0,10);
+      statusTxt = v==='사용완료'?'사용완료':expired?'자동소멸':'사용가능 '+amt+'만원';
+      dotC = statusTxt==='사용완료'?'#94a3b8':statusTxt==='자동소멸'?'#f59e0b':'#22c55e';
+    }
+    return '<div style="'+rowStyle+'"><div style="font-weight:600">해외연수 '+yr+'년만근</div><div style="font-size:12px;color:#64748b">'+usePeriod+'</div><div style="width:7px;height:7px;border-radius:50%;background:'+dotC+';flex-shrink:0"></div><div style="color:'+dotC+';font-weight:600;white-space:nowrap">'+statusTxt+'</div></div>';
   });
 
   // 한시 지원 해외연수 15/20년
