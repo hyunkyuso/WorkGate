@@ -260,6 +260,7 @@ select.form-input{cursor:pointer}
       <div id="user-avatar" class="avatar-placeholder">U</div>
       <span class="topbar-name" id="user-name">사용자</span>
       <span id="role-badge" style="display:none;background:var(--acd);color:var(--ac);font-size:10px;padding:3px 8px;border-radius:100px;font-weight:600"></span>
+      <button class="btn-logout" onclick="openMyPage()" style="background:#f1f5f9;color:#374151;margin-right:4px">👤 마이페이지</button>
       <button class="btn-logout" onclick="signOut()">로그아웃</button>
     </div>
   </div>
@@ -3037,8 +3038,7 @@ function printOrgChart() {
     '<div class="chart-box"><div class="chart-scale">' +
     inner.innerHTML +
     '</div></div>' +
-    '<script>setTimeout(function(){window.print();},800);<\/script>' +
-    '</body></html>'
+    '<script>setTimeout(function(){window.print();},800);<\/script>'
   );
   win.document.close();
   showToast('🖨 인쇄 창이 열렸습니다!');
@@ -4251,6 +4251,134 @@ function exportWelfareExcel() {
   showToast('Excel 내보내기는 준비 중입니다.');
 }
 
+
+function openMyPage() {
+  const modal = document.getElementById('mypage-modal');
+  modal.style.display = 'flex';
+  renderMyPage();
+}
+function closeMyPage() {
+  document.getElementById('mypage-modal').style.display = 'none';
+}
+
+function renderMyPage() {
+  const email = state.myEmail || state.user?.email;
+  const emp = employees.find(e => e.email === email || e.id === email);
+  if (!emp) {
+    document.getElementById('my-welfare-content').innerHTML = '<p style="color:#94a3b8">직원 정보를 찾을 수 없습니다.</p>';
+    return;
+  }
+
+  // 기본 정보
+  if (emp.photo) {
+    document.getElementById('my-avatar').innerHTML = '<img src="'+emp.photo+'" style="width:100%;height:100%;object-fit:cover">';
+  } else {
+    document.getElementById('my-avatar').textContent = (emp.name||'?')[0];
+  }
+  document.getElementById('my-name').textContent = (emp.position||'') + ' ' + (emp.name||'');
+  document.getElementById('my-info').textContent = (emp.dept||'') + (emp.duty ? ' · '+emp.duty : '');
+
+  const wd = welfareData[emp.uid] || {};
+  const today = new Date();
+  const startDate = wd.startDate || emp.joindate;
+  const years = calcYears(startDate, today);
+  const tenure = calcTenure(startDate, today);
+  document.getElementById('my-tenure').textContent = '근속 ' + tenure;
+
+  // 복리후생 현황
+  const yrsAt2026 = calcYears(startDate, new Date('2026-01-01'));
+  const osCh = wd.overseasChildren || 0;
+
+  let html = '';
+
+  // 장기근속 해외연수 (3/6/10년)
+  const osFields = [{yr:3,base:100},{yr:6,base:200},{yr:10,base:300}];
+  const cutoff = new Date('2026-01-01');
+  const expiry2027 = new Date('2027-12-31');
+  const osItems = osFields.filter(({yr}) => years >= yr).map(({yr,base}) => {
+    const fld = 'overseas'+yr;
+    const sd = new Date(startDate);
+    const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
+    const isOld = issueDate < cutoff;
+    const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
+    const expired = isOld ? today > expiry2027 : today > expiry2yr;
+    const usePeriod = isOld
+      ? '사용기간: ~2027-12-31'
+      : '사용기간: ~'+expiry2yr.toISOString().slice(0,10);
+    const amt = base + base*0.5*osCh;
+    const v = wd[fld];
+    const status = v==='사용완료' ? '✅ 사용완료' : expired ? '⏰ 소멸' : '🟢 사용가능 '+amt+'만원';
+    return '<div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div><span style="font-weight:600">해외연수 '+yr+'년만근</span><span style="font-size:12px;color:#64748b;margin-left:8px">'+usePeriod+'</span></div><div>'+status+'</div></div>';
+  });
+
+  // 한시 지원 해외연수 15/20년
+  const osEligible15 = yrsAt2026 >= 11 && yrsAt2026 < 20;
+  if (osEligible15) {
+    const osTargetYr = yrsAt2026 < 15 ? 15 : 20;
+    const osFld = 'overseas'+osTargetYr;
+    const osBase = osTargetYr===15 ? 600 : 1000;
+    const osAmt = osBase + osBase*0.5*osCh;
+    if (years >= osTargetYr) {
+      const sd = new Date(startDate);
+      const issueDate = new Date(sd.getFullYear()+osTargetYr, sd.getMonth(), sd.getDate());
+      const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
+      const expired = today > expiry2yr;
+      const v = wd[osFld];
+      const status = v==='사용완료'?'✅ 사용완료':expired?'⏰ 소멸':'🟢 사용가능 '+osAmt+'만원';
+      osItems.push('<div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div><span style="font-weight:700">해외연수 '+osTargetYr+'년만근 ★한시</span><span style="font-size:12px;color:#64748b;margin-left:8px">사용기간: ~'+expiry2yr.toISOString().slice(0,10)+'</span></div><div>'+status+'</div></div>');
+    }
+  }
+
+  if (osItems.length) {
+    html += '<div style="margin-bottom:16px"><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">✈️ 장기근속 해외연수</div>'+osItems.join('')+'</div>';
+  }
+
+  // 리프레쉬/안식년
+  const rfMap = [{f:'refresh6',label:'리프레쉬 6년만근',yr:6},{f:'refresh15',label:'리프레쉬 15년만근',yr:15},{f:'sabbatical10',label:'안식년 10년만근',yr:10},{f:'sabbatical20',label:'안식년 20년만근',yr:20}];
+
+  // 한시 지원 대상
+  let rfTargetF = null;
+  if (yrsAt2026 >= 1 && yrsAt2026 < 20) {
+    const already = [6,15,10,20].some(y => yrsAt2026 >= y && yrsAt2026 < y+1);
+    if (!already) {
+      if (yrsAt2026 < 6) rfTargetF = 'refresh6';
+      else if (yrsAt2026 < 10) rfTargetF = 'sabbatical10';
+      else if (yrsAt2026 < 15) rfTargetF = 'refresh15';
+      else rfTargetF = 'sabbatical20';
+    }
+  }
+
+  const rfItems = rfMap.filter(({yr}) => years >= yr).map(({f,label,yr}) => {
+    const sd = new Date(startDate);
+    const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
+    const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
+    const expired = today > expiry2yr;
+    const v = wd[f];
+    const isHandsOn = f === rfTargetF;
+    const status = v==='사용완료'?'✅ 사용완료':v&&v!=='미사용'?'🔵 '+v:expired?'⏰ 소멸':'🟢 사용가능';
+    const bg = isHandsOn ? 'background:#f0fdf4;border:1.5px solid #6366f1;' : 'background:#f8fafc;';
+    const lbl = label + (isHandsOn ? ' ★한시' : '');
+    return '<div style="display:flex;justify-content:space-between;padding:8px 12px;'+bg+'border-radius:8px;margin-bottom:6px"><div><span style="font-weight:'+(isHandsOn?'700':'600')+'">'+lbl+'</span><span style="font-size:12px;color:#64748b;margin-left:8px">사용기간: ~'+expiry2yr.toISOString().slice(0,10)+'</span></div><div>'+status+'</div></div>';
+  });
+
+  // 한시 지원 대상인데 아직 발생 안 된 경우
+  if (rfTargetF && rfItems.length === 0) {
+    const rfYrMap2 = {refresh6:6,refresh15:15,sabbatical10:10,sabbatical20:20};
+    const rfLabelMap = {refresh6:'리프레쉬 6년만근',refresh15:'리프레쉬 15년만근',sabbatical10:'안식년 10년만근',sabbatical20:'안식년 20년만근'};
+    const targetYr2 = rfYrMap2[rfTargetF];
+    const sd2 = new Date(startDate);
+    const issueDate2 = new Date(sd2.getFullYear()+targetYr2, sd2.getMonth(), sd2.getDate());
+    rfItems.push('<div style="padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><span style="font-weight:700">'+rfLabelMap[rfTargetF]+' ★한시</span><span style="font-size:12px;color:#64748b;margin-left:8px">발생예정: '+issueDate2.toISOString().slice(0,10)+'</span></div>');
+  }
+
+  if (rfItems.length) {
+    html += '<div><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">🌿 리프레쉬 / 안식년</div>'+rfItems.join('')+'</div>';
+  }
+
+  if (!html) html = '<p style="color:#94a3b8;font-size:13px">아직 발생한 복리후생 항목이 없습니다.</p>';
+  document.getElementById('my-welfare-content').innerHTML = html;
+}
+
 function showPage(id, el) {
   const target = document.getElementById('page-'+id);
   if (!target) { console.warn('페이지 없음:', id); return; }
@@ -4501,5 +4629,78 @@ if (!state.kpis.length) {
   setupAuthListener();
 })();
 </script>
+
+        <div style="overflow-y:auto;flex:1">
+        <!-- 기본 정보 -->
+        <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div id="my-avatar" style="width:60px;height:60px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden"></div>
+            <div>
+              <div id="my-name" style="font-size:18px;font-weight:700"></div>
+              <div id="my-info" style="font-size:13px;color:#64748b;margin-top:4px"></div>
+              <div id="my-tenure" style="font-size:13px;color:#3b82f6;margin-top:2px;font-weight:600"></div>
+            </div>
+          </div>
+        </div>
+        <!-- 복리후생 -->
+        <div style="padding:20px 24px">
+          <div style="font-size:15px;font-weight:700;margin-bottom:16px">🎁 복리후생 현황</div>
+          <div id="my-welfare-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 마이페이지 모달 -->
+  <div id="mypage-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:16px;width:680px;max-width:95vw;max-height:90vh;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);display:flex;flex-direction:column">
+      <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:17px;font-weight:700">👤 마이페이지</div>
+        <button onclick="closeMyPage()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#94a3b8">×</button>
+      </div>
+      <div style="overflow-y:auto;flex:1">
+        <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div id="my-avatar" style="width:60px;height:60px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden"></div>
+            <div>
+              <div id="my-name" style="font-size:18px;font-weight:700"></div>
+              <div id="my-info" style="font-size:13px;color:#64748b;margin-top:4px"></div>
+              <div id="my-tenure" style="font-size:13px;color:#3b82f6;margin-top:2px;font-weight:600"></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:20px 24px">
+          <div style="font-size:15px;font-weight:700;margin-bottom:16px">🎁 복리후생 현황</div>
+          <div id="my-welfare-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 마이페이지 모달 -->
+  <div id="mypage-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:16px;width:680px;max-width:95vw;max-height:90vh;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);display:flex;flex-direction:column">
+      <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:17px;font-weight:700">&#128100; 마이페이지</div>
+        <button onclick="closeMyPage()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#94a3b8">&#215;</button>
+      </div>
+      <div style="overflow-y:auto;flex:1">
+        <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div id="my-avatar" style="width:60px;height:60px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden"></div>
+            <div>
+              <div id="my-name" style="font-size:18px;font-weight:700"></div>
+              <div id="my-info" style="font-size:13px;color:#64748b;margin-top:4px"></div>
+              <div id="my-tenure" style="font-size:13px;color:#3b82f6;margin-top:2px;font-weight:600"></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:20px 24px">
+          <div style="font-size:15px;font-weight:700;margin-bottom:16px">&#127873; 복리후생 현황</div>
+          <div id="my-welfare-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
