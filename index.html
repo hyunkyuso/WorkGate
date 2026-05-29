@@ -1070,6 +1070,9 @@ async function loadFirestoreData() {
     }
   }, err => console.error('부서 리스너 오류:', err));
 
+  // ── 복리후생 실시간 리스너 ──
+  startWelfareListener();
+
   // ── 코드 실시간 리스너 ──
   _unsubCodes = db.collection('codes').doc('all').onSnapshot(snap => {
     if (snap.exists) {
@@ -1130,6 +1133,7 @@ function signOut() {
   if (_unsubEmployees) { _unsubEmployees(); _unsubEmployees = null; }
   if (_unsubDepartments) { _unsubDepartments(); _unsubDepartments = null; }
   if (_unsubCodes) { _unsubCodes(); _unsubCodes = null; }
+  if (_unsubWelfare) { _unsubWelfare(); _unsubWelfare = null; }
   auth.signOut();
   state.accessToken = null; state.user = null; state.myRole = null;
 }
@@ -3236,9 +3240,25 @@ function renderMembers() {} // 하위호환 유지
 // ── 복리후생 지원 현황 ──
 let welfareData = JSON.parse(localStorage.getItem('wg_welfare') || '{}');
 // welfareData[uid] = { birthday:10, parentBirthday:10, healthCheck:100, overseas:0, longterm:{5:100,7:100,...} }
+let _unsubWelfare = null;
 
 function saveWelfare() {
   localStorage.setItem('wg_welfare', JSON.stringify(welfareData));
+  // Firestore 동기화
+  db.collection('welfare').doc('all').set(welfareData).catch(err => console.error('복리후생 저장 오류:', err));
+}
+
+function startWelfareListener() {
+  if (_unsubWelfare) { _unsubWelfare(); _unsubWelfare = null; }
+  _unsubWelfare = db.collection('welfare').doc('all').onSnapshot(snap => {
+    if (snap.exists) {
+      welfareData = snap.data();
+      localStorage.setItem('wg_welfare', JSON.stringify(welfareData));
+      if (document.getElementById('app').style.display !== 'none') {
+        renderWelfareTable();
+      }
+    }
+  }, err => console.error('복리후생 리스너 오류:', err));
 }
 
 function calcTenure(joindate, today) {
