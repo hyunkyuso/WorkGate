@@ -3413,7 +3413,10 @@ function renderWelfareTable() {
                 ltBT[y]+=(used||0); ltTotals[y]+=(used||0);
               }
             }
-            ltCells+='<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;'+bg+';cursor:pointer" data-uid="'+e.uid+'" data-year="'+y+'" ondblclick="editLongtermCell(this)">'+cv+'</td>';
+            const ltTip = (wd.longtermTooltip&&wd.longtermTooltip[y])||'';
+            const ltTipAttr = ltTip ? ' title="'+ltTip.replace(/"/g,"'")+'"' : '';
+            const ltTipDot = ltTip ? '<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>' : '';
+            ltCells+='<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;'+bg+';cursor:pointer;position:relative"'+ltTipAttr+' data-uid="'+e.uid+'" data-year="'+y+'" ondblclick="editLongtermCell(this)">'+cv+ltTipDot+'</td>';
           });
 
           // 본부 셀
@@ -3500,11 +3503,11 @@ function renderWelfareTable() {
     const ltBCplain=longtermYears.map(y=>'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;font-weight:700">'+(ltBT[y]||'')+'</td>').join('');
     rows+='<tr style="background:#eff6ff;font-weight:700">'
       +'<td colspan="8" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center">'+bonbu+' 합계</td>'
-      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+bonbuSub.birthday+'</td>'
-      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+bonbuSub.parent+'</td>'
-      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+bonbuSub.health+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.birthday||'-')+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.parent||'-')+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.health||'-')+'</td>'
       +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.overseas||'-')+'</td>'
-      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+bonbuSub.sum+'</td>'
+      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.sum||'-')+'</td>'
       +ltBCplain+'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;font-weight:700">'+(execBT||'')+'</td><td colspan="9" style="border:1px solid #e2e8f0"></td></tr>';
   });
 
@@ -3722,6 +3725,10 @@ function showLongtermModal(uid, year, cur) {
         </div>
         <button onclick="clearLongtermOverride('${uid}',${year})" style="padding:6px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:12px;color:#64748b">자동계산으로 복원</button>
       </div>
+      <div style="margin-bottom:12px;font-size:14px">
+        <div style="margin-bottom:4px;color:#374151">툴팁 메모:</div>
+        <input type="text" id="lt-tooltip" value="${(wd2.longtermTooltip&&wd2.longtermTooltip[year])||''}" placeholder="마우스 오버 시 표시" style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box">
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button onclick="document.getElementById('longterm-modal').remove()" style="padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
         <button onclick="saveLongtermModal('${uid}',${year})" style="padding:8px 16px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
@@ -3735,8 +3742,10 @@ function saveLongtermModal(uid, year) {
   const used = document.getElementById('lt-used').checked;
   const expired = document.getElementById('lt-expired').checked;
   const amount = document.getElementById('lt-amount').value;
+  const tooltip = document.getElementById('lt-tooltip').value.trim();
   if (!welfareData[uid]) welfareData[uid] = {};
   if (!welfareData[uid].longterm) welfareData[uid].longterm = {};
+  if (!welfareData[uid].longtermTooltip) welfareData[uid].longtermTooltip = {};
   if (expired) {
     welfareData[uid].longterm[year] = -1;
   } else if (used) {
@@ -3745,6 +3754,11 @@ function saveLongtermModal(uid, year) {
     welfareData[uid].longterm[year] = parseFloat(amount);
   } else {
     delete welfareData[uid].longterm[year];
+  }
+  if (tooltip) {
+    welfareData[uid].longtermTooltip[year] = tooltip;
+  } else {
+    delete welfareData[uid].longtermTooltip[year];
   }
   saveWelfare();
   document.getElementById('longterm-modal').remove();
