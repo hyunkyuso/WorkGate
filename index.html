@@ -3697,10 +3697,12 @@ function editLongtermCell(td) {
   const year = parseInt(td.dataset.year);
   const wd2 = welfareData[uid] || {};
   const cur = (wd2.longterm && wd2.longterm[year] !== undefined) ? wd2.longterm[year] : '';
-  showLongtermModal(uid, year, cur);
+  const tip = (wd2.longtermTooltip && wd2.longtermTooltip[year]) || '';
+  showLongtermModal(uid, year, cur, tip);
 }
 
-function showLongtermModal(uid, year, cur) {
+function showLongtermModal(uid, year, cur, tooltip) {
+  tooltip = tooltip || '';
   const existing = document.getElementById('longterm-modal');
   if (existing) existing.remove();
   const modal = document.createElement('div');
@@ -3727,7 +3729,7 @@ function showLongtermModal(uid, year, cur) {
       </div>
       <div style="margin-bottom:12px;font-size:14px">
         <div style="margin-bottom:4px;color:#374151">툴팁 메모:</div>
-        <input type="text" id="lt-tooltip" value="${(wd2.longtermTooltip&&wd2.longtermTooltip[year])||''}" placeholder="마우스 오버 시 표시" style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box">
+        <input type="text" id="lt-tooltip" value="${tooltip}" placeholder="마우스 오버 시 표시" style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box">
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button onclick="document.getElementById('longterm-modal').remove()" style="padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
