@@ -3381,8 +3381,30 @@ function renderWelfareTable() {
           const tenure=calcTenure(startDate,today);
           const birthday=wd.birthday??10;
           const parent=wd.parentBirthday??10;
-          const health=wd.healthCheck??100;
           const overseas=wd.overseas??0;
+          // 건강검진 = 5년~25년 만근 합계 + 임원건강검진
+          const ltBase = (wd.spouseCheck) ? 100 : 50;
+          const ltHealthUnused = wd.healthUnused || false;
+          let ltSum = 0;
+          if (!ltHealthUnused) {
+            const tempYears = calcYears(wd.startDate||e.joindate, today);
+            longtermYears.forEach(y => {
+              const reached = tempYears >= y;
+              if (!reached) return;
+              let used;
+              if (wd.longterm && wd.longterm[y] !== undefined && wd.longterm[y] !== null) {
+                used = wd.longterm[y];
+              } else {
+                const nextY = longtermYears[longtermYears.indexOf(y)+1];
+                const expired = nextY && tempYears >= nextY;
+                used = expired ? 0 : ltBase;
+              }
+              if (used > 0) ltSum += used;
+            });
+            // 임원건강검진
+            if (wd.execHealth) ltSum += parseFloat(wd.execHealth)||0;
+          }
+          const health = ltHealthUnused ? 0 : ltSum;
           const subtotal=birthday+parent+health+overseas;
 
           bonbuSub.birthday+=birthday; bonbuSub.parent+=parent;
