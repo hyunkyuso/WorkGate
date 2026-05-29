@@ -3666,7 +3666,9 @@ function renderWelfareTable() {
                 const osCh_ = wd.overseasChildren || 0;
                 const osAutoAmt = base > 0 ? base + base * 0.5 * osCh_ : 0;
                 let val = '';
-                if (v === null || v === undefined) {
+                if (osValRaw === '사용안함') {
+                  val = ''; // 사용안함: 빈칸
+                } else if (v === null || v === undefined) {
                   // 발생+사용기간내: 금액 자동 표기
                   if (osReached3 && !osExpired3 && base > 0) val = osAutoAmt || '';
                   else if (fld === osTarget && osTargetReached && !osExpired && !wd.overseasBaseUnused) val = osTargetAmt || '';
@@ -3674,9 +3676,9 @@ function renderWelfareTable() {
                 else if (v === '사용완료') val = '<span style="color:#94a3b8;font-size:11px">사용완료</span>';
                 else if (v === 'expired') val = '<span style="color:#94a3b8;font-size:11px">자동소멸</span>';
                 else val = v;
-                // 사용가능 여부: 발생+사용기간내+미완료/미소멸
+                // 사용가능 여부: 발생+사용기간내+미완료/미소멸/사용안함
                 const isOsTarget = fld === osTarget && osTargetReached && !osExpired;
-                const osIsExpired = osExpired3 || osValRaw === 'expired';
+                const osIsExpired = osExpired3 || v === 'expired' || osValRaw === 'expired';
                 const osAvailable = osReached3 && !osIsExpired && osValRaw !== '사용완료' && osValRaw !== '사용안함';
                 const osBg = osAvailable ? '#fed7aa' : '#fce7f3';
                 const osFontW = osAvailable ? 'font-weight:700;' : '';
