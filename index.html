@@ -3658,38 +3658,44 @@ function renderWelfareTable() {
               // 2026-01-01 기준 근속년수
               const baseDate = new Date('2026-01-01');
               const yrsAt2026 = calcYears(startDate, baseDate);
-              const expiry2yr = (issueYr) => {
-                const sd_ = new Date(startDate);
-                // 발생일 = 기산일 + issueYr년
-                const issueD_ = new Date(sd_.getFullYear()+issueYr, sd_.getMonth(), sd_.getDate());
-                const exp_ = new Date(issueD_.getFullYear()+2, issueD_.getMonth(), issueD_.getDate());
-                return today > exp_; // 2년 경과시 소멸
-              };
-
-              // 리프레쉬: 근속 1년 이상이면 가장 인접한 1회 한시 지원 (6년, 15년)
-              // 안식년: 근속 1년 이상이면 가장 인접한 1회 한시 지원 (10년, 20년)
-              // 해당 셀: 2026-01-01 기준 가장 인접한 년수
               const rfEligible = yrsAt2026 >= 1;
-              // 리프레쉬: 6년 미만이면 6년, 6년 이상이면 15년
-              const rfTarget = rfEligible ? (yrsAt2026 < 6 ? 'refresh6' : 'refresh15') : null;
-              // 안식년: 10년 미만이면 10년, 10년 이상이면 20년
-              const sbTarget = rfEligible ? (yrsAt2026 < 10 ? 'sabbatical10' : 'sabbatical20') : null;
+
+              // 가장 인접한 1개만 지원 (리프레쉬/안식년 중 하나)
+              // 1~5년 → 리프레쉬6년, 6~9년 → 안식년10년, 10~14년 → 리프레쉬15년, 15년↑ → 안식년20년
+              let rfTarget = null, sbTarget = null;
+              if (rfEligible && yrsAt2026 < 20) {
+                if (yrsAt2026 < 6)       rfTarget = 'refresh6';
+                else if (yrsAt2026 < 10) sbTarget = 'sabbatical10';
+                else if (yrsAt2026 < 15) rfTarget = 'refresh15';
+                else                     sbTarget = 'sabbatical20';
+              }
+              // 발생 시점 도래 여부 확인 함수 (기산일 + 해당년수 도달 + 2년 이내)
+              const rfCheckReached = (yr) => years >= yr;
+              const rfCheckExpired = (yr) => {
+                const sd_ = new Date(startDate);
+                const issueD_ = new Date(sd_.getFullYear()+yr, sd_.getMonth(), sd_.getDate());
+                return today > new Date(issueD_.getFullYear()+2, issueD_.getMonth(), issueD_.getDate());
+              };
 
               const rfFields = [
                 {f:'refresh6',bg:'#e0e7ff',yr:6},{f:'refresh15',bg:'#e0e7ff',yr:15},
                 {f:'sabbatical10',bg:'#fef3c7',yr:10},{f:'sabbatical20',bg:'#fef3c7',yr:20}
               ];
+              const rfYrMap = {refresh6:6, refresh15:15, sabbatical10:10, sabbatical20:20};
               return rfFields.map(({f,bg,yr})=>{
                 const val = wd[f]||'';
                 const tip = (wd.extraTooltip&&wd.extraTooltip[f])||'';
                 const tipAttr = tip?' title="'+tip.replace(/"/g,"'")+'"':'';
                 const tipDot = tip?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':'';
                 const cv = val==='사용완료'?'<span style="color:#94a3b8;font-size:11px">사용완료</span>':val==='미사용'?'':val;
-                // 발생 시점: 한시 지원 대상 셀 진하게
                 const isTarget = (f===rfTarget || f===sbTarget);
-                const expired2 = isTarget && expiry2yr(0); // 2026-01-01 기준 발생 후 2년
-                const fontW = isTarget && !expired2 && !val ? 'font-weight:700;' : '';
-                const borderStyle = isTarget && !expired2 && !val ? 'border:2px solid #6366f1;' : 'border:1px solid #e2e8f0;';
+                const targetYr = rfYrMap[f];
+                const reached = rfCheckReached(targetYr);
+                const expired2 = rfCheckExpired(targetYr);
+                // 발생 시점 도래 + 2년 이내 + 미사용 시 진하게
+                const highlight = isTarget && reached && !expired2 && !val;
+                const fontW = highlight ? 'font-weight:700;' : '';
+                const borderStyle = highlight ? 'border:2px solid #6366f1;' : 'border:1px solid #e2e8f0;';
                 return '<td style="'+borderStyle+'padding:4px 6px;text-align:center;background:'+bg+';cursor:pointer;position:relative;'+fontW+'"'+tipAttr+' data-uid="'+uid_+'" data-field="'+f+'" ondblclick="editWelfareCell(this)">'+cv+tipDot+'</td>';
               }).join('');
             })()+'</tr>';
