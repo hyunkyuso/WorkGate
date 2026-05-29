@@ -2573,6 +2573,12 @@ function renderOrgView() {
         }
 
         // lv2 그룹: 세로로 배치 (첫번째는 lv1과 같은 Y, 이후 아래로)
+        // 우1 lv2 박스 너비: 가장 긴 nameW로 통일
+        const maxLv2W = bots.reduce(function(mx,b){
+          const bd=departments.find(x=>x.id===b.id);
+          const nw=bd?(bd.name.length*14+32):CW;
+          return Math.max(mx, nw, CW);
+        }, CW);
         let botY=curY;
         let maxBx=bx; // lv2 오른쪽 끝 최대값 추적
         bots.forEach(function(b,bi){
@@ -2580,8 +2586,8 @@ function renderOrgView() {
           const bemps=bd?getEmps(bd):[];
           const empRowW=bemps.length*(EW+3);
           let rowBx=bx; // 각 행의 x는 동일 시작점
-          pos[b.id]={cx:rowBx+CW/2, absY:botY, lv:2};
-          rowBx+=CW+HGAP;
+          pos[b.id]={cx:rowBx+maxLv2W/2, absY:botY, lv:2, cardW:maxLv2W};
+          rowBx+=maxLv2W+HGAP;
           if(bemps.length){
             pos['emp_'+b.id]={cx:rowBx+empRowW/2, absY:botY, empList:bemps, deptId:b.id, color:bg(2)};
             rowBx+=empRowW+HGAP;
@@ -2751,7 +2757,7 @@ function renderOrgView() {
     // lv0(대표이사)는 이름 길이에 맞게 너비 동적 조정
     // 글자크기 18px 기준 조직명 너비 동적 계산 (한글 약 13px, padding 18px)
     const nameW = dept.name.length * 14 + 32;
-    let cardW=((!isZ2(dept)&&!isZ2subNode&&(p.lv===1||p.lv===2)))?Math.max(CW,nameW,subW(id)):Math.max(CW,nameW);
+    let cardW = p.cardW || ((!isZ2(dept)&&!isZ2subNode&&(p.lv===1||p.lv===2))?Math.max(CW,nameW,subW(id)):Math.max(CW,nameW));
     if(p.lv===0) cardW=Math.max(CW, nameW);
     const cardX=p.cx-cardW/2;
     nodes+='<div onclick="showDeptDetail(\'' + id + '\')" style="position:absolute;left:'+cardX+'px;top:'+y+'px;width:'+cardW+'px;cursor:pointer;z-index:2;overflow:visible">';
