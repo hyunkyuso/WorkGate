@@ -3815,20 +3815,19 @@ function renderWelfareTable() {
               }).join('');
             })()+(function(){
               // 2026-01-01 기준 근속년수
-              const baseDate = new Date('2026-01-01');
+              const baseDate = parseLocalDate('2026-01-01');
               const yrsAt2026 = calcYears(startDate, baseDate);
               const rfEligible = yrsAt2026 >= 1;
 
               // 가장 인접한 1개만 지원 (리프레쉬/안식년 중 하나)
-              // 1~5년 → 리프레쉬6년, 6~9년 → 안식년10년, 10~14년 → 리프레쉬15년, 15년↑ → 안식년20년
               let rfTarget = null, sbTarget = null;
-              // 정규 발생 시점에 해당하는 직원은 한시 지원 제외
-              // 리프레쉬: 6년, 15년 / 안식년: 10년, 20년 정규 발생 시점
-              const rfRegular = [6, 15]; // 리프레쉬 정규
-              const sbRegular = [10, 20]; // 안식년 정규
-              const alreadyHasRegular = rfRegular.includes(yrsAt2026) || sbRegular.includes(yrsAt2026) ||
-                rfRegular.some(y => yrsAt2026 >= y && yrsAt2026 < y+1) ||
-                sbRegular.some(y => yrsAt2026 >= y && yrsAt2026 < y+1);
+              // 정규 발생 시점 도달했거나, 2025년에 발생한 경우 한시 지원 제외 (단서조항)
+              const rfSdW = parseLocalDate(startDate);
+              const alreadyHasRegular = [6,10,15,20].some(y => {
+                if (yrsAt2026 >= y) return true;
+                const issueD = new Date(rfSdW.getFullYear()+y, rfSdW.getMonth(), rfSdW.getDate());
+                return issueD.getFullYear() === 2025;
+              });
 
               if (rfEligible && yrsAt2026 < 20 && !alreadyHasRegular) {
                 if (yrsAt2026 < 6)       rfTarget = 'refresh6';
@@ -4762,7 +4761,7 @@ function renderMyPageEmp(emp, email) {
   // 기본정보 + 복리후생 HTML 생성
 
   // 복리후생 현황
-  const yrsAt2026 = calcYears(startDate, new Date('2026-01-01'));
+  const yrsAt2026 = calcYears(startDate, parseLocalDate('2026-01-01'));
   const osCh = wd.overseasChildren || 0;
 
   let html = '';
@@ -4897,7 +4896,14 @@ function renderMyPageEmp(emp, email) {
   // 한시 지원 대상
   let rfTargetF = null;
   if (yrsAt2026 >= 1 && yrsAt2026 < 20) {
-    const already = [6,15,10,20].some(y => yrsAt2026 >= y && yrsAt2026 < y+1);
+    // 정규 발생 시점 도달했거나(yrsAt2026>=y), 또는 2025년에 발생(발생일이 2025년 내)한 경우 제외
+    const rfSd2026 = parseLocalDate(startDate);
+    const already = [6,10,15,20].some(y => {
+      if (yrsAt2026 >= y) return true; // 이미 발생 시점 도달
+      // 2025년 중에 발생하는 경우: 발생일이 2025-01-01 ~ 2025-12-31
+      const issueD = new Date(rfSd2026.getFullYear()+y, rfSd2026.getMonth(), rfSd2026.getDate());
+      return issueD.getFullYear() === 2025;
+    });
     if (!already) {
       if (yrsAt2026 < 6) rfTargetF = 'refresh6';
       else if (yrsAt2026 < 10) rfTargetF = 'sabbatical10';
