@@ -4482,7 +4482,129 @@ function editLongterm(uid, year) {
 }
 
 function exportWelfareExcel() {
-  showToast('Excel 내보내기는 준비 중입니다.');
+  // SheetJS CDN 동적 로드
+  if (typeof XLSX === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    script.onload = () => _doExportWelfareExcel();
+    document.head.appendChild(script);
+  } else {
+    _doExportWelfareExcel();
+  }
+}
+
+function _doExportWelfareExcel() {
+  const todayInput = document.getElementById('welfare-today');
+  const todayVal = todayInput && todayInput.value ? todayInput.value : fmtLocalDate(new Date());
+
+  const wb = XLSX.utils.book_new();
+  const wsData = [];
+
+  // ── 헤더 2행 ──
+  const h1 = ['본부명','부서명','팀명','직위','성명','기산일','현재일','근속년수',
+    '발생금액','','','','개별합계',
+    '장기근속 건강검진(건강검진 미사용 시 자동 소진)','','','','','','','','','','','',
+    '임원건강검진','',
+    '장기근속 해외연수(발생일기준 2년내 사용원칙)','','','','',
+    '리프레쉬','','안식년',''];
+  const h2 = ['','','','','','','','',
+    '생일','부모님생신','건강검진','해외연수','',
+    '5년만근','7년만근','9년만근','11년만근','13년만근','15년만근','17년만근','19년만근','21년만근','23년만근','25년만근',
+    '해당자','2년에1번',
+    '3년만근','6년만근','10년만근','15년만근','20년만근',
+    '6년만근','15년만근','10년만근','20년만근'];
+  wsData.push(h1);
+  wsData.push(h2);
+
+  // ── 데이터 행 ──
+  const tbody = document.getElementById('welfare-tbody');
+  if (!tbody) { showToast('❌ 테이블을 먼저 열어주세요'); return; }
+
+  const trs = tbody.querySelectorAll('tr');
+  trs.forEach(tr => {
+    const row = [];
+    tr.querySelectorAll('td').forEach(td => {
+      // HTML 태그 제거, 텍스트만 추출
+      let txt = td.innerText.trim();
+      // 숫자 변환
+      const num = parseFloat(txt);
+      row.push(isNaN(num) || txt === '' ? txt : num);
+    });
+    if (row.length > 0) wsData.push(row);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // ── 열 너비 설정 ──
+  ws['!cols'] = [
+    {wch:10},{wch:12},{wch:10},{wch:8},{wch:8},{wch:12},{wch:12},{wch:14},
+    {wch:7},{wch:7},{wch:7},{wch:7},{wch:8},
+    {wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},
+    {wch:8},{wch:8},
+    {wch:7},{wch:7},{wch:7},{wch:7},{wch:7},
+    {wch:7},{wch:7},{wch:7},{wch:7}
+  ];
+
+  // ── 셀 스타일 (헤더 배경색) ──
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    for (let R = 0; R <= 1; R++) {
+      const addr = XLSX.utils.encode_cell({r:R, c:C});
+      if (!ws[addr]) continue;
+      ws[addr].s = {
+        font: { bold: true, sz: 10 },
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+        fill: { fgColor: { rgb: R === 0 ? 'F1F5F9' : 'F8FAFC' } },
+        border: {
+          top: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          left: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          right: { style: 'thin', color: { rgb: 'E2E8F0' } }
+        }
+      };
+    }
+    // 데이터 행 스타일
+    for (let R = 2; R <= range.e.r; R++) {
+      const addr = XLSX.utils.encode_cell({r:R, c:C});
+      if (!ws[addr]) continue;
+      ws[addr].s = {
+        font: { sz: 10 },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          left: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          right: { style: 'thin', color: { rgb: 'E2E8F0' } }
+        }
+      };
+    }
+  }
+
+  // ── 헤더 병합 ──
+  ws['!merges'] = [
+    // 발생금액
+    {s:{r:0,c:8},e:{r:0,c:11}},
+    // 개별합계
+    {s:{r:0,c:12},e:{r:1,c:12}},
+    // 장기근속 건강검진
+    {s:{r:0,c:13},e:{r:0,c:23}},
+    // 임원건강검진
+    {s:{r:0,c:24},e:{r:0,c:25}},
+    // 장기근속 해외연수
+    {s:{r:0,c:26},e:{r:0,c:30}},
+    // 리프레쉬
+    {s:{r:0,c:31},e:{r:0,c:32}},
+    // 안식년
+    {s:{r:0,c:33},e:{r:0,c:34}},
+    // 기본 열들 (본부~근속년수) 2행 병합
+    ...[0,1,2,3,4,5,6,7].map(c=>({s:{r:0,c},e:{r:1,c}}))
+  ];
+
+  ws['!rows'] = [{hpt:30},{hpt:30}];
+
+  XLSX.utils.book_append_sheet(wb, ws, '복리후생 지원현황');
+  XLSX.writeFile(wb, `복리후생_지원현황_${todayVal}.xlsx`);
+  showToast('📊 Excel 다운로드 완료!');
 }
 
 
