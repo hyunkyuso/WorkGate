@@ -4297,14 +4297,20 @@ function showExecHealthModal(uid) {
         </label>
         <!-- 사용완료 날짜 입력 -->
         <div id="exec-used-date-row" style="display:${wd2.execUsed?'flex':'none'};flex-direction:column;gap:8px;padding:10px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0">
-          <div style="font-size:12px;font-weight:600;color:#15803d">사용완료 정보</div>
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
-            <input type="checkbox" id="exec-done" ${wd2.execDone?'checked':''} style="width:16px;height:16px;accent-color:var(--ac)">
-            <span style="font-weight:600">사용완료</span>
-          </label>
+          <div style="font-size:12px;font-weight:600;color:#15803d">사용완료 추가</div>
           <div style="display:flex;align-items:center;gap:8px;font-size:13px">
             <span style="width:50px;flex-shrink:0;color:#374151">사용일</span>
-            <input type="date" id="exec-used-date" value="${wd2.execUsedDate||''}" style="flex:1;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+            <input type="date" id="exec-used-date" style="flex:1;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+            <span style="width:50px;flex-shrink:0;color:#374151">금액</span>
+            <span id="exec-done-amt" style="font-size:13px;color:#374151">${wd2.execSpouse?100:50}만원 (배우자 ${wd2.execSpouse?'포함':'미포함'})</span>
+          </div>
+          <button onclick="addExecHealthHistory('${uid}')" style="padding:6px 12px;border-radius:6px;border:none;background:#22c55e;color:#fff;cursor:pointer;font-size:12px;font-weight:600">+ 이력 추가</button>
+          <!-- 기존 이력 -->
+          <div style="font-size:12px;font-weight:600;color:#374151;margin-top:4px">사용 이력</div>
+          <div id="exec-history-list" style="display:flex;flex-direction:column;gap:4px">
+            ${(wd2.execHistory||[]).map((h,i)=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:#fff;border-radius:6px;font-size:12px"><span>'+h.date+' · '+h.amt+'만원</span><button onclick="removeExecHistory(\''+uid+'\','+i+')" style="padding:2px 6px;border-radius:4px;border:none;background:#fee2e2;color:#ef4444;cursor:pointer;font-size:11px">삭제</button></div>').join('')}
           </div>
         </div>
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
@@ -4334,6 +4340,35 @@ function toggleExecUsedDate(cb) {
   if (row) row.style.display = cb.checked ? 'flex' : 'none';
 }
 
+function addExecHealthHistory(uid) {
+  const dateEl = document.getElementById('exec-used-date');
+  if (!dateEl || !dateEl.value) { showToast('사용일을 입력해주세요'); return; }
+  const wd2 = welfareData[uid] || {};
+  const amt = wd2.execSpouse ? 100 : 50;
+  if (!welfareData[uid]) welfareData[uid] = {};
+  if (!welfareData[uid].execHistory) welfareData[uid].execHistory = [];
+  welfareData[uid].execHistory.push({ date: dateEl.value, amt });
+  dateEl.value = '';
+  // 이력 목록 갱신
+  const listEl = document.getElementById('exec-history-list');
+  if (listEl) {
+    listEl.innerHTML = welfareData[uid].execHistory.map((h,i) =>
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:#fff;border-radius:6px;font-size:12px"><span>'+h.date+' · '+h.amt+'만원</span><button onclick="removeExecHistory(\''+uid+'\','+i+')" style="padding:2px 6px;border-radius:4px;border:none;background:#fee2e2;color:#ef4444;cursor:pointer;font-size:11px">삭제</button></div>'
+    ).join('');
+  }
+  saveWelfare();
+  showToast('이력이 추가되었습니다');
+}
+
+function removeExecHistory(uid, idx) {
+  if (!welfareData[uid] || !welfareData[uid].execHistory) return;
+  welfareData[uid].execHistory.splice(idx, 1);
+  saveWelfare();
+  // 모달 새로고침
+  document.getElementById('exec-modal').remove();
+  showExecHealthModal(uid);
+}
+
 function saveExecHealth(uid) {
   const used = document.getElementById('exec-used').checked;
   const done = document.getElementById('exec-done') ? document.getElementById('exec-done').checked : false;
@@ -4343,8 +4378,6 @@ function saveExecHealth(uid) {
   const tooltip = document.getElementById('exec-tooltip').value.trim();
   if (!welfareData[uid]) welfareData[uid] = {};
   welfareData[uid].execUsed = used;
-  welfareData[uid].execDone = done;
-  welfareData[uid].execUsedDate = usedDate;
   welfareData[uid].execUnused = unused;
   welfareData[uid].execSpouse = spouse;
   welfareData[uid].execHealth = unused ? 0 : (used ? (spouse ? 100 : 50) : 0);
@@ -4842,16 +4875,59 @@ function renderMyPageEmp(emp, email) {
 
   // 임원건강검진 (사용자만 표시 — 건강검진 미사용 여부 무관)
   const execTimes = Math.floor(calcYears(startDate, today) / 2);
-  if (execTimes > 0 && wd.execUnused === false && wd.execUsed) {
+  if (execTimes > 0 && wd.execUnused === false) {
     const execBase = wd.execSpouse ? 100 : 50;
-    const execAmt = parseFloat(wd.execHealth) || execBase;
-    html += '<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">🏥 임원건강검진</div>'
-      +'<div style="'+rowStyle+'">'
-      +'<div style="font-weight:600">2년에 1번</div>'
-      +'<div></div>'
-      +'<div style="width:7px;height:7px;border-radius:50%;background:#94a3b8;flex-shrink:0"></div>'
-      +'<div style="color:#94a3b8;font-weight:600;white-space:nowrap">사용완료 '+execAmt+'만원</div>'
-      +'</div></div>';
+    const execHistory = wd.execHistory || [];
+    let execHtml = '<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">🏥 임원건강검진</div>';
+
+    // 사용 이력 표시
+    if (execHistory.length > 0) {
+      execHistory.forEach(h => {
+        execHtml += '<div style="'+rowStyle+'">'
+          +'<div style="font-weight:600">사용완료</div>'
+          +'<div style="font-size:12px;color:#64748b">사용일: '+h.date+'</div>'
+          +'<div style="width:7px;height:7px;border-radius:50%;background:#94a3b8;flex-shrink:0"></div>'
+          +'<div style="color:#94a3b8;font-weight:600;white-space:nowrap">'+h.amt+'만원</div>'
+          +'</div>';
+      });
+    }
+
+    // 현재 사용 가능 여부 (2년 주기 기준)
+    if (wd.execUsed) {
+      // 마지막 이력 기준 다음 갱신일 계산
+      const lastHistory = execHistory.length > 0 ? execHistory[execHistory.length-1] : null;
+      if (lastHistory) {
+        const lastDate = parseLocalDate(lastHistory.date);
+        const nextAvail = new Date(lastDate.getFullYear()+2, lastDate.getMonth(), lastDate.getDate());
+        const isAvail = today >= nextAvail;
+        if (isAvail) {
+          execHtml += '<div style="'+rowStyle+'">'
+            +'<div style="font-weight:600">현재 갱신분</div>'
+            +'<div style="font-size:12px;color:#64748b">사용가능기간: ~'+fmtLocalDate(new Date(nextAvail.getFullYear()+2, nextAvail.getMonth(), nextAvail.getDate()-1))+'</div>'
+            +'<div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>'
+            +'<div style="color:#22c55e;font-weight:600;white-space:nowrap">사용가능 '+execBase+'만원</div>'
+            +'</div>';
+        } else {
+          execHtml += '<div style="'+rowStyle+'">'
+            +'<div style="font-weight:600">다음 갱신</div>'
+            +'<div style="font-size:12px;color:#64748b">갱신예정: '+fmtLocalDate(nextAvail)+'</div>'
+            +'<div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div>'
+            +'<div style="color:#94a3b8;font-weight:600;white-space:nowrap">갱신예정</div>'
+            +'</div>';
+        }
+      } else {
+        // 이력 없이 사용 체크만 된 경우
+        execHtml += '<div style="'+rowStyle+'">'
+          +'<div style="font-weight:600">2년에 1번</div>'
+          +'<div></div>'
+          +'<div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>'
+          +'<div style="color:#22c55e;font-weight:600;white-space:nowrap">사용가능 '+execBase+'만원</div>'
+          +'</div>';
+      }
+    }
+
+    execHtml += '</div>';
+    html += execHtml;
   }
 
   // 건강검진 미사용 체크 시 장기근속 건강검진 섹션만 숨김
