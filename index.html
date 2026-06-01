@@ -4900,26 +4900,28 @@ function renderMyPageEmp(emp, email) {
     }
 
     // 현재 사용 가능 여부 (2년 주기 기준)
-    // 발생횟수 vs 이력수로 현재 상태 판단
-    const execAvail = execTimes > execHistory.length;
+    // 기산일 기준 발생횟수 vs 이력수 비교
+    const execTotalIssues = Math.floor(calcYears(startDate, today) / 2);
+    const execAvail = execTotalIssues > execHistory.length;
+    const sdExec = parseLocalDate(startDate);
+
     if (execAvail) {
-      // 현재 사용가능 — 다음 갱신일 계산
-      const sdExec = parseLocalDate(startDate);
-      const nextExecIssue = new Date(sdExec.getFullYear() + (execHistory.length+1)*2, sdExec.getMonth(), sdExec.getDate());
-      const execAvailEnd = fmtLocalDate(expiryDateDisplay(nextExecIssue));
+      // 현재 사용가능 — 현재 회차 발생일 + 2년이 사용기간
+      const curIssueNum = execHistory.length + 1; // 현재 미사용 회차
+      const curIssueDate = new Date(sdExec.getFullYear() + curIssueNum*2, sdExec.getMonth(), sdExec.getDate());
+      const execAvailEnd = fmtLocalDate(expiryDateDisplay(curIssueDate));
       execHtml += '<div style="'+rowStyle+'">'
         +'<div style="font-weight:600">현재 사용가능</div>'
         +'<div style="font-size:12px;color:#64748b">사용가능기간: ~'+execAvailEnd+'</div>'
         +'<div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>'
         +'<div style="color:#22c55e;font-weight:600;white-space:nowrap">사용가능 '+execBase+'만원</div>'
         +'</div>';
-    } else if (execHistory.length > 0) {
-      // 모두 사용완료 — 다음 갱신 예정일
-      const lastDate = parseLocalDate(execHistory[execHistory.length-1].date);
-      const nextAvail = new Date(lastDate.getFullYear()+2, lastDate.getMonth(), lastDate.getDate());
+    } else {
+      // 모두 사용완료 — 다음 갱신일 = 기산일 + (이력수+1)*2년
+      const nextIssueDate = new Date(sdExec.getFullYear() + (execHistory.length+1)*2, sdExec.getMonth(), sdExec.getDate());
       execHtml += '<div style="'+rowStyle+'">'
         +'<div style="font-weight:600">다음 갱신</div>'
-        +'<div style="font-size:12px;color:#64748b">갱신예정: '+fmtLocalDate(nextAvail)+'</div>'
+        +'<div style="font-size:12px;color:#64748b">갱신예정: '+fmtLocalDate(nextIssueDate)+'</div>'
         +'<div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div>'
         +'<div style="color:#94a3b8;font-weight:600;white-space:nowrap">갱신예정</div>'
         +'</div>';
