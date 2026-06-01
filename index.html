@@ -4894,16 +4894,16 @@ function renderMyPageEmp(emp, email) {
 
   const rowStyle = 'display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px';
 
-  // 임원건강검진 (사용자만 표시 — 건강검진 미사용 여부 무관)
+  // 임원건강검진 (이력 있거나 사용 체크된 경우 표시)
   const execTimes = Math.floor(calcYears(startDate, today) / 2);
-  if (execTimes > 0 && wd.execUnused !== true) {
+  const execHistory = wd.execHistory || [];
+  if ((execTimes > 0 && wd.execUnused !== true) || execHistory.length > 0) {
     const execBase = wd.execSpouse ? 100 : 50;
-    const execHistory = wd.execHistory || [];
     let execHtml = '<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">🏥 임원건강검진</div>';
 
-    // 사용 이력 표시
+    // 사용 이력 표시 (역순 — 최근 이력 먼저)
     if (execHistory.length > 0) {
-      execHistory.forEach(h => {
+      [...execHistory].reverse().forEach(h => {
         execHtml += '<div style="'+rowStyle+'">'
           +'<div style="font-weight:600">사용완료</div>'
           +'<div style="font-size:12px;color:#64748b">사용일: '+h.date+'</div>'
