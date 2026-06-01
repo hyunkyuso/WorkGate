@@ -3263,11 +3263,14 @@ function fmtLocalDate(d) {
   const day = String(d.getDate()).padStart(2,'0');
   return y+'-'+m+'-'+day;
 }
-// 발생예정일 표시용: +1일 근속 계산 기준으로 -1일 (기산일+yr년 -1일)
+// 발생예정일 표시용: 기산일+yr년 당일
 function issueDateDisplay(startDate, yr) {
   const sd = parseLocalDate(startDate);
-  const d = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate() - 1);
-  return d;
+  return new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
+}
+// 사용기간 만료일: 발생일+2년-1일
+function expiryDateDisplay(issueDate) {
+  return new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate() - 1);
 }
 
 function calcTenure(joindate, today) {
@@ -4804,8 +4807,8 @@ function renderMyPageEmp(emp, email) {
   // 건강검진 사용기간 계산 (발생일 기준 +2년)
   const ltExpiryMap = {};
   ltYears.forEach(y => {
-    const issueDate = new Date(ltSd.getFullYear()+y, ltSd.getMonth(), ltSd.getDate() - 1); // +1일 근속 기준 -1일
-    ltExpiryMap[y] = '~'+fmtLocalDate(new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate()));
+    const issueDate = new Date(ltSd.getFullYear()+y, ltSd.getMonth(), ltSd.getDate());
+    ltExpiryMap[y] = '~'+fmtLocalDate(expiryDateDisplay(issueDate));
   });
 
   const rowStyle = 'display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px';
@@ -4840,10 +4843,10 @@ function renderMyPageEmp(emp, email) {
   const osItems = osFields.map(({yr,base}) => {
     const fld = 'overseas'+yr;
     const sd = parseLocalDate(startDate);
-    const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate() - 1); // +1일 근속 기준 -1일
+    const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
     const notYet = today < issueDate;
     const isOld = issueDate < parseLocalDate('2026-01-01');
-    const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
+    const expiry2yr = expiryDateDisplay(issueDate);
     const rfExpiry = isOld ? expiry2027 : expiry2yr;
     const expired = !notYet && today > rfExpiry;
     const amt = base + base*0.5*osCh;
@@ -4875,10 +4878,10 @@ function renderMyPageEmp(emp, email) {
     const osBase = osTargetYr===15 ? 600 : 1000;
     const osAmt = osBase + osBase*0.5*osCh;
     const sd = parseLocalDate(startDate);
-    const issueDate = new Date(sd.getFullYear()+osTargetYr, sd.getMonth(), sd.getDate() - 1);
+    const issueDate = new Date(sd.getFullYear()+osTargetYr, sd.getMonth(), sd.getDate());
     const notYetOs = today < issueDate;
-    const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
-    const osCutoff = new Date('2026-01-01');
+    const expiry2yr = expiryDateDisplay(issueDate);
+    const osCutoff = parseLocalDate('2026-01-01');
     const osExpiryD = issueDate < osCutoff ? new Date('2027-12-31') : expiry2yr;
     const expired = !notYetOs && today > osExpiryD;
     const v = wd[osFld];
@@ -4929,9 +4932,9 @@ function renderMyPageEmp(emp, email) {
   const rfExpiry2027 = new Date('2027-12-31');
   const rfItems = rfMap.filter(({yr}) => years >= yr).map(({f,label,yr}) => {
     const sd = new Date(startDate);
-    const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate() - 1); // +1일 근속 기준 -1일
+    const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
     const isOldRf = issueDate < rfCutoff;
-    const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
+    const expiry2yr = expiryDateDisplay(issueDate);
     const rfExpiry = isOldRf ? rfExpiry2027 : expiry2yr;
     const expired = today > rfExpiry;
     const v = wd[f];
