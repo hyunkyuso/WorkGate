@@ -3483,6 +3483,7 @@ function renderWelfareTable() {
 
   let rows = '';
   let totalBirthday=0,totalParent=0,totalHealth=0,totalOverseas=0,totalSum=0;
+  const totalOsBT={'overseas3':0,'overseas6':0,'overseas10':0,'overseas15':0,'overseas20':0};
   const ltTotals = {}; longtermYears.forEach(y=>ltTotals[y]=0);
   let execTotal=0; // 전체 임원건강검진 합계
 
@@ -3603,6 +3604,10 @@ function renderWelfareTable() {
           });
           totalBirthday+=birthday; totalParent+=parent;
           totalHealth+=health; totalOverseas+=overseas; totalSum+=subtotal;
+          // 해외연수 항목별 전체 합계
+          ['overseas3','overseas6','overseas10','overseas15','overseas20'].forEach(f=>{
+            if(osResult[f]&&!isNaN(parseFloat(osResult[f]))) totalOsBT[f]+=(parseFloat(osResult[f])||0);
+          });
 
           let ltCells='';
           const baseAmt = (wd.spouseCheck) ? 100 : 50;
@@ -3877,28 +3882,33 @@ function renderWelfareTable() {
     // 본부 합계행
     let ltBC=longtermYears.map(y=>'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;background:#dcfce7;font-weight:700">'+(ltBT[y]||'')+'</td>').join('');
     const ltBCplain=longtermYears.map(y=>'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;font-weight:700">'+(ltBT[y]||'')+'</td>').join('');
+    const bsBg = 'border:1px solid #e2e8f0;padding:4px;text-align:center;background:#eff6ff;font-weight:700';
     rows+='<tr style="background:#eff6ff;font-weight:700">'
-      +'<td colspan="8" style="border:1px solid #e2e8f0;padding:4px 8px;text-align:center">'+bonbu+' 합계</td>'
-      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.birthday||'-')+'</td>'
-      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.parent||'-')+'</td>'
-      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.health||'-')+'</td>'
-      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.overseas||'-')+'</td>'
-      +'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center">'+(bonbuSub.sum||'-')+'</td>'
-      +ltBCplain+'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;font-weight:700">'+(execBT||'')+'</td>'
-      +['overseas3','overseas6','overseas10','overseas15','overseas20'].map(f=>'<td style="border:1px solid #e2e8f0;padding:4px;text-align:center;font-weight:700">'+(osBT[f]||'')+'</td>').join('')
-      +'<td colspan="4" style="border:1px solid #e2e8f0"></td></tr>';
+      +'<td colspan="8" style="'+bsBg+'">'+bonbu+' 합계</td>'
+      +'<td style="'+bsBg+'">'+(bonbuSub.birthday||'-')+'</td>'
+      +'<td style="'+bsBg+'">'+(bonbuSub.parent||'-')+'</td>'
+      +'<td style="'+bsBg+'">'+(bonbuSub.health||'-')+'</td>'
+      +'<td style="'+bsBg+'">'+(bonbuSub.overseas||'-')+'</td>'
+      +'<td style="'+bsBg+'">'+(bonbuSub.sum||'-')+'</td>'
+      +longtermYears.map(y=>'<td style="'+bsBg+'">'+(ltBT[y]||'')+'</td>').join('')
+      +'<td style="'+bsBg+'">'+(execBT||'')+'</td>'
+      +['overseas3','overseas6','overseas10','overseas15','overseas20'].map(f=>'<td style="'+bsBg+'">'+(osBT[f]||'')+'</td>').join('')
+      +'<td colspan="4" style="'+bsBg+'"></td></tr>';
   });
 
   document.getElementById('welfare-tbody').innerHTML = rows;
-  let ltTC2=longtermYears.map(y=>'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center;font-weight:700">'+(ltTotals[y]||'')+'</td>').join('');
+  let ltTC2=longtermYears.map(y=>'<td style="'+tfStyle+'">'+(ltTotals[y]||'')+'</td>').join('');
+  const tfStyle = 'border:1px solid #cbd5e1;padding:6px;text-align:center;background:#e2e8f0;font-weight:700';
   document.getElementById('welfare-tfoot').innerHTML='<tr style="background:#e2e8f0;font-weight:700">'
-    +'<td colspan="8" style="border:1px solid #cbd5e1;padding:6px 8px;text-align:center">전체 합계</td>'
-    +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalBirthday+'</td>'
-    +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalParent+'</td>'
-    +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalHealth+'</td>'
-    +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+(totalOverseas||'-')+'</td>'
-    +'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center">'+totalSum+'</td>'
-    +ltTC2+'<td style="border:1px solid #cbd5e1;padding:6px;text-align:center;font-weight:700">'+(execTotal||'')+'</td><td colspan="9" style="border:1px solid #cbd5e1"></td></tr>';
+    +'<td colspan="8" style="'+tfStyle+'">전체 합계</td>'
+    +'<td style="'+tfStyle+'">'+totalBirthday+'</td>'
+    +'<td style="'+tfStyle+'">'+totalParent+'</td>'
+    +'<td style="'+tfStyle+'">'+totalHealth+'</td>'
+    +'<td style="'+tfStyle+'">'+(totalOverseas||'-')+'</td>'
+    +'<td style="'+tfStyle+'">'+totalSum+'</td>'
+    +ltTC2+'<td style="'+tfStyle+'">'+(execTotal||'')+'</td>'
+    +['overseas3','overseas6','overseas10','overseas15','overseas20'].map(f=>'<td style="'+tfStyle+'">'+(totalOsBT&&totalOsBT[f]||'')+'</td>').join('')
+    +'<td colspan="4" style="'+tfStyle+'"></td></tr>';
 
 }
 
@@ -4504,72 +4514,98 @@ function _doExportWelfareExcel() {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('복리후생 지원현황', { views: [{ state:'frozen', ySplit:2 }] });
 
-  const colWidths = [10,12,10,8,8,12,12,16,7,7,7,7,9,7,7,7,7,7,7,7,7,7,7,7,9,9,7,7,7,7,7,7,7,7,7];
-  ws.columns = colWidths.map(w => ({ width: w }));
+  // 컬럼 너비 (35개)
+  ws.columns = [
+    10,12,10,8,8,13,13,16,  // A~H: 본부명~근속년수
+    7,7,7,7,9,               // I~M: 발생금액+개별합계
+    7,7,7,7,7,7,7,7,7,7,7,  // N~X: 건강검진11개
+    9,9,                     // Y~Z: 임원건강검진+2년에1번
+    7,7,7,7,7,               // AA~AE: 해외연수5개
+    7,7,7,7                  // AF~AI: 리프2+안식2
+  ].map(w => ({ width: w }));
 
   // 색상
-  const C = { header:'F1F5F9', yellow:'FEF9C3', green:'DCFCE7', green2:'D1FAE5',
-    pink:'FCE7F3', purple:'E0E7FF', amber:'FEF3C7', white:'FFFFFF' };
-
-  const bdr = () => ({ top:{style:'thin',color:{argb:'FFE2E8F0'}}, bottom:{style:'thin',color:{argb:'FFE2E8F0'}},
-    left:{style:'thin',color:{argb:'FFE2E8F0'}}, right:{style:'thin',color:{argb:'FFE2E8F0'}} });
-
-  const applyStyle = (cell, bg='FFFFFF', bold=false, fontColor='374141') => {
-    cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF'+bg } };
-    cell.font = { bold, size:9, name:'맑은 고딕', color:{ argb:'FF'+fontColor } };
-    cell.alignment = { horizontal:'center', vertical:'middle', wrapText:false };
-    cell.border = bdr();
+  const C = {
+    hdr:'F1F5F9', yel:'FEF9C3', grn:'DCFCE7', grn2:'D1FAE5',
+    pnk:'FCE7F3', pur:'E0E7FF', amb:'FEF3C7',
   };
 
-  // ── 헤더 1행 ──
-  const h1Colors = [
-    ...Array(8).fill(C.header),           // 본부명~근속년수
-    ...Array(4).fill(C.yellow), C.yellow, // 발생금액+개별합계
-    ...Array(11).fill(C.green),            // 건강검진
-    C.green2,                              // 임원건강검진 (1칸)
-    ...Array(5).fill(C.pink),             // 해외연수
-    C.purple, C.purple,                    // 리프레쉬
-    C.amber, C.amber,                      // 안식년
-  ];
-  const r1 = ws.addRow(['본부명','부서명','팀명','직위','성명','기산일','현재일','근속년수',
-    '발생금액','','','','개별합계',
-    '장기근속 건강검진(건강검진 미사용 시 자동 소진)','','','','','','','','','','','',
-    '임원건강검진','장기근속 해외연수','','','','','리프레쉬','','안식년','']);
-  r1.height = 28;
-  r1.eachCell((c,i) => applyStyle(c, h1Colors[i-1]||C.header, true));
+  const bdr = { top:{style:'thin',color:{argb:'FFE2E8F0'}}, bottom:{style:'thin',color:{argb:'FFE2E8F0'}},
+    left:{style:'thin',color:{argb:'FFE2E8F0'}}, right:{style:'thin',color:{argb:'FFE2E8F0'}} };
 
-  const r2 = ws.addRow(['','','','','','','','',
+  const applyStyle = (cell, bg, bold, fontColor) => {
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF'+(bg||'FFFFFF') } };
+    cell.font = { bold:!!bold, size:9, name:'맑은 고딕', color:{ argb:'FF'+(fontColor||'374151') } };
+    cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+    cell.border = bdr;
+  };
+
+  // 35컬럼 색상 배열
+  const bgMap = [
+    C.hdr,C.hdr,C.hdr,C.hdr,C.hdr,C.hdr,C.hdr,C.hdr,  // A~H
+    C.yel,C.yel,C.yel,C.yel,C.yel,                       // I~M
+    C.grn,C.grn,C.grn,C.grn,C.grn,C.grn,C.grn,C.grn,C.grn,C.grn,C.grn, // N~X
+    C.grn2,C.grn2,                                         // Y~Z
+    C.pnk,C.pnk,C.pnk,C.pnk,C.pnk,                       // AA~AE
+    C.pur,C.pur,                                           // AF~AG
+    C.amb,C.amb,                                           // AH~AI
+  ];
+
+  // ── 1행 헤더 ──
+  const r1vals = [
+    '본부명','부서명','팀명','직위','성명','기산일','현재일','근속년수',
+    '발생금액','','','','개별합계',
+    '장기근속 건강검진','','','','','','','','','','','',
+    '임원건강검진','',
+    '장기근속 해외연수','','','','',
+    '리프레쉬','',
+    '안식년',''
+  ];
+  const r1 = ws.addRow(r1vals);
+  r1.height = 30;
+  for (let i = 1; i <= 35; i++) {
+    const cell = r1.getCell(i);
+    cell.value = r1vals[i-1] !== undefined ? r1vals[i-1] : '';
+    applyStyle(cell, bgMap[i-1], true);
+  }
+
+  // ── 2행 헤더 ──
+  const r2vals = [
+    '','','','','','','','',
     '생일','부모님생신','건강검진','해외연수','',
     '5년만근','7년만근','9년만근','11년만근','13년만근','15년만근','17년만근','19년만근','21년만근','23년만근','25년만근',
-    '2년에 1번',
+    '해당자','2년에1번',
     '3년만근','6년만근','10년만근','15년만근','20년만근',
-    '6년만근','15년만근','10년만근','20년만근']);
-  r2.height = 28;
-  r2.eachCell((c,i) => applyStyle(c, h1Colors[i-1]||C.header, true));
+    '6년만근','15년만근',
+    '10년만근','20년만근'
+  ];
+  const r2 = ws.addRow(r2vals);
+  r2.height = 22;
+  for (let i = 1; i <= 35; i++) {
+    const cell = r2.getCell(i);
+    cell.value = r2vals[i-1] !== undefined ? r2vals[i-1] : '';
+    applyStyle(cell, bgMap[i-1], true);
+  }
 
-  // 헤더 병합 (정확한 컬럼 구조 반영)
-  // rowspan=2: 본부명~근속년수(1~8), 개별합계(13), 임원건강검진(25)
-  // colspan: 발생금액(9~12), 건강검진(14~24), 해외연수(27~31), 리프레쉬(32~33), 안식년(34~35)
-  // Z열(26)=2년에1번은 2행 단독 — 병합 없음
-  // Y열(25) 임원건강검진은 rowspan 없이 독립 — 2행에 '2년에 1번' 표시
-  [[1,1,2,1],[1,2,2,2],[1,3,2,3],[1,4,2,4],[1,5,2,5],[1,6,2,6],[1,7,2,7],[1,8,2,8],
-   [1,9,1,12],[1,13,2,13],[1,14,1,24],
-   [1,26,1,30],[1,31,1,32],[1,33,1,34]]
-  .forEach(([r1,c1,r2,c2]) => ws.mergeCells(r1,c1,r2,c2));
+  // ── 병합 ──
+  // rowspan=2: A~H(1~8), M(13)
+  [[1,1,2,1],[1,2,2,2],[1,3,2,3],[1,4,2,4],[1,5,2,5],[1,6,2,6],[1,7,2,7],[1,8,2,8],[1,13,2,13]]
+    .forEach(([r1,c1,r2,c2]) => ws.mergeCells(r1,c1,r2,c2));
+  // colspan: 발생금액(I~L=9~12), 건강검진(N~X=14~24), 해외연수(AA~AE=27~31), 리프레쉬(AF~AG=32~33), 안식년(AH~AI=34~35)
+  [[1,9,1,12],[1,14,1,24],[1,27,1,31],[1,32,1,33],[1,34,1,35]]
+    .forEach(([r1,c1,r2,c2]) => ws.mergeCells(r1,c1,r2,c2));
+  // Y(25) 임원건강검진: 1행만, Z(26) 2년에1번: 2행만 — 병합 없음
 
-  // ── HTML td 배경색 → hex 변환 ──
+  // ── 색상 유틸 ──
   function getBgHex(td) {
     const bg = (td.style.background || td.style.backgroundColor || '').toLowerCase();
     if (!bg || bg === 'transparent') return null;
-    // rgb(r,g,b) 파싱
     const rgb = bg.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-    if (rgb) {
-      return [parseInt(rgb[1]),parseInt(rgb[2]),parseInt(rgb[3])]
-        .map(v => v.toString(16).padStart(2,'0')).join('').toUpperCase();
-    }
-    // hex #rrggbb
-    const hex = bg.match(/#([0-9a-f]{6})/);
-    if (hex) return hex[1].toUpperCase();
+    if (rgb) return [parseInt(rgb[1]),parseInt(rgb[2]),parseInt(rgb[3])].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
+    const hex6 = bg.match(/#([0-9a-f]{6})/i);
+    if (hex6) return hex6[1].toUpperCase();
+    const hex3 = bg.match(/#([0-9a-f]{3})(?:\s|$)/i);
+    if (hex3) return hex3[1].split('').map(c=>c+c).join('').toUpperCase();
     return null;
   }
   function getFontHex(td) {
@@ -4577,97 +4613,70 @@ function _doExportWelfareExcel() {
     if (!c) return '374151';
     const rgb = c.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
     if (rgb) return [parseInt(rgb[1]),parseInt(rgb[2]),parseInt(rgb[3])].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
-    const hex = c.match(/#([0-9a-f]{6})/);
-    if (hex) return hex[1].toUpperCase();
+    const hex6 = c.match(/#([0-9a-f]{6})/i);
+    if (hex6) return hex6[1].toUpperCase();
     return '374151';
   }
 
-  // ── HTML rowspan → Excel 병합 추적 ──
-  // grid[row][col] = { value, bg, fontColor, bold, rowspan, colspan }
-  // tbody + tfoot 합쳐서 처리
+  // ── rowspan/colspan 그리드 파싱 ──
   const trs = [
     ...Array.from(tbody.querySelectorAll('tr')),
     ...(tfoot ? Array.from(tfoot.querySelectorAll('tr')) : [])
   ];
-  const totalCols = 35;
-  // sparse grid: grid[r][c] = cell info
+  const TOTAL_COLS = 35;
   const grid = [];
-  const occupied = {}; // "r,c" → true
+  const occupied = {};
 
   trs.forEach((tr, ri) => {
     if (!grid[ri]) grid[ri] = {};
     let ci = 0;
     Array.from(tr.querySelectorAll('td')).forEach(td => {
-      // 빈 칸 skip
       while (occupied[`${ri},${ci}`]) ci++;
       const rowspan = parseInt(td.getAttribute('rowspan')||'1');
       const colspan = parseInt(td.getAttribute('colspan')||'1');
-      const txt = td.innerText.trim().replace(/\s+/g,' ');
-      // 근속년수(ci=7), 리프레쉬(ci=31~32), 안식년(ci=33~34) → 텍스트 유지
-      // 주단위 값(1주,2주 등) → 텍스트 유지
+      let txt = td.innerText.trim().replace(/\s+/g,' ');
+      // 텍스트 컬럼: 근속년수(ci=7), 리프/안식(ci>=31), 한글 포함값
       const isTextCol = ci === 7 || ci >= 31;
       const hasKorean = /[년월일주]/.test(txt);
       const num = parseFloat(txt);
       const value = (!isNaN(num) && txt !== '' && txt !== '-' && !isTextCol && !hasKorean) ? num : txt;
-      const bg = getBgHex(td) || 'FFFFFF';
+      const bg = getBgHex(td) || null;
       const fontColor = getFontHex(td);
       const bold = td.style.fontWeight === '700' || td.style.fontWeight === 'bold';
       grid[ri][ci] = { value, bg, fontColor, bold, rowspan, colspan };
-      // 점유 표시
-      for (let dr = 0; dr < rowspan; dr++) {
-        for (let dc = 0; dc < colspan; dc++) {
+      for (let dr = 0; dr < rowspan; dr++)
+        for (let dc = 0; dc < colspan; dc++)
           occupied[`${ri+dr},${ci+dc}`] = true;
-        }
-      }
       ci += colspan;
     });
   });
 
   // ── 그리드 → 워크시트 ──
-  const dataStartRow = 3;
+  const DSR = 3; // data start row
   trs.forEach((tr, ri) => {
-    const wsRow = ws.getRow(dataStartRow + ri);
-    // 합계행 높이
-    const isSumRow = tr.style.background || tr.querySelector('td[colspan]');
-    wsRow.height = isSumRow ? 20 : 16;
-
-    for (let ci = 0; ci < totalCols; ci++) {
+    const wsRow = ws.getRow(DSR + ri);
+    wsRow.height = 16;
+    for (let ci = 0; ci < TOTAL_COLS; ci++) {
       const cell = wsRow.getCell(ci + 1);
-      if (grid[ri] && grid[ri][ci]) {
+      if (grid[ri] && grid[ri][ci] !== undefined) {
         const info = grid[ri][ci];
-        cell.value = info.value;
-        applyStyle(cell, info.bg, info.bold, info.fontColor);
-        // rowspan/colspan 병합
+        // 기산일(ci=5), 현재일(ci=6) — 문자열 강제
+        if ((ci === 5 || ci === 6) && typeof info.value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(info.value)) {
+          cell.value = info.value;
+          cell.numFmt = '@'; // 텍스트 서식
+        } else {
+          cell.value = info.value;
+        }
+        applyStyle(cell, info.bg || 'FFFFFF', info.bold, info.fontColor);
         if (info.rowspan > 1 || info.colspan > 1) {
-          const er = dataStartRow + ri + info.rowspan - 1;
+          const er = DSR + ri + info.rowspan - 1;
           const ec = ci + info.colspan;
-          try { ws.mergeCells(dataStartRow + ri, ci + 1, er, ec); } catch(e){}
+          try { ws.mergeCells(DSR + ri, ci + 1, er, ec); } catch(e){}
         }
       } else if (!occupied[`${ri},${ci}`]) {
-        // 완전히 비어있는 셀도 스타일 적용
-        applyStyle(cell, 'FFFFFF', false);
-      } else {
-        // 병합된 셀 영역 — 스타일만
         applyStyle(cell, 'FFFFFF', false);
       }
     }
-  });
-
-  // ── 날짜 서식 적용 (기산일=F, 현재일=G) ──
-  ws.getColumn(6).numFmt = 'yyyy-mm-dd';
-  ws.getColumn(7).numFmt = 'yyyy-mm-dd';
-  // 날짜 문자열을 실제 Date로 변환
-  const dateColNums = [6, 7];
-  ws.eachRow((row, rowNum) => {
-    if (rowNum <= 2) return;
-    dateColNums.forEach(colNum => {
-      const cell = row.getCell(colNum);
-      if (cell.value && typeof cell.value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(cell.value)) {
-        const [y,m,d] = cell.value.split('-').map(Number);
-        cell.value = new Date(y, m-1, d);
-        cell.numFmt = 'yyyy-mm-dd';
-      }
-    });
   });
 
   // ── 다운로드 ──
