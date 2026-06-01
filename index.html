@@ -4931,25 +4931,48 @@ function renderMyPageEmp(emp, email) {
     return '<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;'+bg+'border-radius:8px;margin-bottom:6px"><div style="font-weight:'+(isHandsOn?'700':'600')+'">'+lbl+'</div><div style="font-size:12px;color:#64748b">'+rfPeriod+'</div><div style="width:7px;height:7px;border-radius:50%;background:'+dotC2+';flex-shrink:0"></div><div style="color:'+dotC2+';font-weight:600;white-space:nowrap">'+statusTxt2+'</div></div>';
   });
 
-  // 한시 지원 대상인데 아직 발생 안 된 경우
-  if (rfTargetF && rfItems.length === 0) {
-    const rfYrMap2 = {refresh6:6,refresh15:15,sabbatical10:10,sabbatical20:20};
-    const rfLabelMap2 = {refresh6:'리프레쉬 6년만근',refresh15:'리프레쉬 15년만근',sabbatical10:'안식년 10년만근',sabbatical20:'안식년 20년만근'};
-    const targetYr2 = rfYrMap2[rfTargetF];
-    const sd2 = parseLocalDate(startDate);
-    const issueDate2 = new Date(sd2.getFullYear()+targetYr2, sd2.getMonth(), sd2.getDate());
-    rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap2[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDate2)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
-  }
-
-  // 6→10→15→20년 순서 중 미발생 인접 1개만 표시 (리프레쉬/안식년 통합 풀)
+  // 6→10→15→20년 순서 중 다음 인접 1개만 표시 (한시★ 포함 통합 풀)
   const rfSd = parseLocalDate(startDate);
   const rfLabelMap3 = {refresh6:'리프레쉬 6년만근', sabbatical10:'안식년 10년만근', refresh15:'리프레쉬 15년만근', sabbatical20:'안식년 20년만근'};
-  const nextRfAll = [['refresh6',6],['sabbatical10',10],['refresh15',15],['sabbatical20',20]]
-    .find(([f,yr]) => years < yr && f !== rfTargetF);
-  if (nextRfAll) {
-    const [f, yr] = nextRfAll;
-    const issueD = new Date(rfSd.getFullYear()+yr, rfSd.getMonth(), rfSd.getDate());
-    rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="font-weight:600">'+rfLabelMap3[f]+'</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueD)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
+
+  // 발생한 항목이 없으면 → 한시★ 또는 다음 정규 중 가장 인접한 1개만
+  if (rfItems.length === 0) {
+    // 한시 대상이 있으면 우선
+    if (rfTargetF) {
+      const rfYrMap2 = {refresh6:6,refresh15:15,sabbatical10:10,sabbatical20:20};
+      const targetYr2 = rfYrMap2[rfTargetF];
+      const issueDate2 = new Date(rfSd.getFullYear()+targetYr2, rfSd.getMonth(), rfSd.getDate());
+      rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDate2)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
+    } else {
+      // 한시 대상 아니면 정규 중 인접 1개
+      const nextRf = [['refresh6',6],['sabbatical10',10],['refresh15',15],['sabbatical20',20]]
+        .find(([f,yr]) => years < yr);
+      if (nextRf) {
+        const [f, yr] = nextRf;
+        const issueD = new Date(rfSd.getFullYear()+yr, rfSd.getMonth(), rfSd.getDate());
+        rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="font-weight:600">'+rfLabelMap3[f]+'</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueD)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
+      }
+    }
+  } else {
+    // 발생한 항목이 있으면 → 다음 인접 1개 추가 (한시★ 우선)
+    const shownYrs = rfMap.filter(({yr}) => years >= yr).map(({yr}) => yr);
+    const lastShownYr = Math.max(...shownYrs, 0);
+    if (rfTargetF && !rfItems.some(i => i.includes('★한시'))) {
+      const rfYrMap2 = {refresh6:6,refresh15:15,sabbatical10:10,sabbatical20:20};
+      const targetYr2 = rfYrMap2[rfTargetF];
+      if (years < targetYr2) {
+        const issueDate2 = new Date(rfSd.getFullYear()+targetYr2, rfSd.getMonth(), rfSd.getDate());
+        rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDate2)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
+      }
+    } else if (!rfTargetF) {
+      const nextRf = [['refresh6',6],['sabbatical10',10],['refresh15',15],['sabbatical20',20]]
+        .find(([f,yr]) => years < yr);
+      if (nextRf) {
+        const [f, yr] = nextRf;
+        const issueD = new Date(rfSd.getFullYear()+yr, rfSd.getMonth(), rfSd.getDate());
+        rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="font-weight:600">'+rfLabelMap3[f]+'</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueD)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
+      }
+    }
   }
 
   if (rfItems.length) {
