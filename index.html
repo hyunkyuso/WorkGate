@@ -3597,9 +3597,8 @@ function renderWelfareTable() {
           const execBase2 = wd.execSpouse ? 100 : 50;
           const execTimes2 = Math.floor(calcYears(wd.startDate||e.joindate, empToday) / 2);
           let execHealthAmt = 0;
-          if (execTimes2 > 0 && wd.execUnused !== true) {
+          if (execTimes2 > 0 && wd.execUnused === false && wd.execUsed) {
             const execHist2 = wd.execHistory || [];
-            // 발생횟수 > 이력수 → 현재 사용가능 (아직 사용 안 한 회차 있음)
             if (execTimes2 > execHist2.length) {
               execHealthAmt = execBase2;
             }
@@ -3741,10 +3740,11 @@ function renderWelfareTable() {
             +ltCells+(function(){
               // 임원건강검진: 2년마다 자동 갱신, 배우자포함=100, 미포함=50
               const execBase = wd.execSpouse ? 100 : 50;
-              const execTimes = Math.floor(years / 2);
+              const execTimes = Math.floor(calcYears(startDate, empToday) / 2);
               let ev = '', execDisplay = '';
               const execHistory = wd.execHistory || [];
-              if (execTimes > 0 && wd.execUnused !== true) {
+              // 미사용 체크 시 표기 안 함
+              if (execTimes > 0 && wd.execUnused === false && wd.execUsed) {
                 // 발생횟수 > 이력수 → 현재 사용가능
                 if (execTimes > execHistory.length) {
                   ev = execBase;
@@ -4883,7 +4883,7 @@ function renderMyPageEmp(emp, email) {
   // 임원건강검진 (이력 있거나 사용 체크된 경우 표시)
   const execTimes = Math.floor(calcYears(startDate, today) / 2);
   const execHistory = wd.execHistory || [];
-  if ((execTimes > 0 && wd.execUnused !== true) || execHistory.length > 0) {
+  if ((execTimes > 0 && wd.execUnused === false && wd.execUsed) || execHistory.length > 0) {
     const execBase = wd.execSpouse ? 100 : 50;
     let execHtml = '<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">🏥 임원건강검진</div>';
 
