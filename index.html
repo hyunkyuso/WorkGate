@@ -3278,9 +3278,11 @@ function calcYears(joindate, today) {
   if (!joindate) return 0;
   const j = parseLocalDate(joindate);
   const t = (today instanceof Date) ? today : (today ? parseLocalDate(today) : new Date());
-  let y = t.getFullYear() - j.getFullYear();
-  let m = t.getMonth() - j.getMonth();
-  if (m < 0 || (m === 0 && t.getDate() < j.getDate())) y--;
+  // calcTenure와 동일하게 +1일 기준으로 계산
+  const t1 = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1);
+  let y = t1.getFullYear() - j.getFullYear();
+  let m = t1.getMonth() - j.getMonth();
+  if (m < 0 || (m === 0 && t1.getDate() < j.getDate())) y--;
   return y;
 }
 
