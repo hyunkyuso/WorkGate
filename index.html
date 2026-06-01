@@ -4771,8 +4771,13 @@ function renderMyPageEmp(emp, email) {
   const ltYears = [5,7,9,11,13,15,17,19,21,23,25];
   const ltBase = wd.spouseCheck ? 100 : 50;
   const ltUnused = wd.healthUnused || false;
+  const ltSd = parseLocalDate(startDate);
+
+  // 발생예정: 아직 발생 안 된 항목 중 가장 인접한 1개 표시
+  const nextLtYear = ltYears.find(y => years < y);
+  const ltNextIssueDate = nextLtYear ? new Date(ltSd.getFullYear()+nextLtYear, ltSd.getMonth(), ltSd.getDate()) : null;
+
   const ltItems = ltYears.filter(y => years >= y).map(y => {
-    const fld = 'longterm_'+y; // longtermYears key
     const ltVal = wd.longterm ? wd.longterm[y] : undefined;
     let status, statusColor;
     if (ltUnused) { status='미사용'; statusColor='#94a3b8'; }
@@ -4787,28 +4792,35 @@ function renderMyPageEmp(emp, email) {
     return {label: y+'년 만근', status, statusColor};
   });
 
-  // 건강검진 사용기간 계산 (발생일 기준 +2년, timezone 이슈 없이 parseLocalDate 사용)
+  // 건강검진 사용기간 계산 (발생일 기준 +2년)
   const ltExpiryMap = {};
   ltYears.forEach(y => {
-    const sd = parseLocalDate(startDate);
-    const issueDate = new Date(sd.getFullYear()+y, sd.getMonth(), sd.getDate());
+    const issueDate = new Date(ltSd.getFullYear()+y, ltSd.getMonth(), ltSd.getDate());
     ltExpiryMap[y] = '~'+fmtLocalDate(new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate()));
   });
 
   const rowStyle = 'display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px';
 
-  if (ltItems.length) {
+  if (ltItems.length || ltNextIssueDate) {
     html += '<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">🏥 장기근속 건강검진</div>';
     ltItems.forEach(({label,status,statusColor}, i) => {
       const yr = ltYears.filter(y => years >= y)[i];
-      const dotColor = statusColor;
       html += '<div style="'+rowStyle+'">'
         +'<div style="font-weight:600">'+label+'</div>'
         +(status==='사용완료'||status==='자동소멸'?'<div></div>':'<div style="font-size:12px;color:#64748b">사용기간: '+ltExpiryMap[yr]+'</div>')
-        +'<div style="width:7px;height:7px;border-radius:50%;background:'+dotColor+';flex-shrink:0"></div>'
+        +'<div style="width:7px;height:7px;border-radius:50%;background:'+statusColor+';flex-shrink:0"></div>'
         +'<div style="color:'+statusColor+';font-weight:600;white-space:nowrap">'+status+'</div>'
         +'</div>';
     });
+    // 다음 발생예정 항목
+    if (ltNextIssueDate) {
+      html += '<div style="'+rowStyle+'">'
+        +'<div style="font-weight:600">'+nextLtYear+'년 만근</div>'
+        +'<div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(ltNextIssueDate)+'</div>'
+        +'<div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div>'
+        +'<div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div>'
+        +'</div>';
+    }
     html += '</div>';
   }
 
