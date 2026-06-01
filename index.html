@@ -3593,18 +3593,15 @@ function renderWelfareTable() {
               if (used > 0) ltSum += used;
             });
           }
-          // 임원건강검진: 이력 기반 갱신 여부 판단
+          // 임원건강검진: 발생횟수 vs 이력수 비교로 현재 사용가능 여부 판단
           const execBase2 = wd.execSpouse ? 100 : 50;
           const execTimes2 = Math.floor(calcYears(wd.startDate||e.joindate, empToday) / 2);
           let execHealthAmt = 0;
           if (execTimes2 > 0 && wd.execUnused !== true) {
             const execHist2 = wd.execHistory || [];
-            if (execHist2.length > 0) {
-              const lastD2 = parseLocalDate(execHist2[execHist2.length-1].date);
-              const nextD2 = new Date(lastD2.getFullYear()+2, lastD2.getMonth(), lastD2.getDate());
-              if (empToday >= nextD2) execHealthAmt = execBase2; // 갱신됨
-            } else if (wd.execUsed) {
-              execHealthAmt = parseFloat(wd.execHealth) || execBase2;
+            // 발생횟수 > 이력수 → 현재 사용가능 (아직 사용 안 한 회차 있음)
+            if (execTimes2 > execHist2.length) {
+              execHealthAmt = execBase2;
             }
           }
           const health = ltSum + execHealthAmt;
@@ -3748,25 +3745,14 @@ function renderWelfareTable() {
               let ev = '', execDisplay = '';
               const execHistory = wd.execHistory || [];
               if (execTimes > 0 && wd.execUnused !== true) {
-                if (execHistory.length > 0) {
-                  // 마지막 이력 기준 +2년 지났으면 갱신 → 새 금액 표시
-                  const lastH = execHistory[execHistory.length-1];
-                  const lastD = parseLocalDate(lastH.date);
-                  const nextD = new Date(lastD.getFullYear()+2, lastD.getMonth(), lastD.getDate());
-                  if (empToday >= nextD) {
-                    // 갱신 — 사용가능
-                    ev = execBase;
-                    execBT += ev; execTotal += ev;
-                    execDisplay = String(ev);
-                  } else {
-                    // 아직 갱신 전 — 사용완료 표시
-                    execDisplay = '<span style="color:#94a3b8;font-size:11px">사용완료</span>';
-                  }
-                } else if (wd.execUsed) {
-                  // 이력 없이 사용 체크만
-                  ev = wd.execHealth || execBase;
-                  execBT += parseFloat(ev)||0; execTotal += parseFloat(ev)||0;
+                // 발생횟수 > 이력수 → 현재 사용가능
+                if (execTimes > execHistory.length) {
+                  ev = execBase;
+                  execBT += ev; execTotal += ev;
                   execDisplay = String(ev);
+                } else if (execHistory.length > 0) {
+                  // 이력수 = 발생횟수 → 모두 사용완료
+                  execDisplay = '<span style="color:#94a3b8;font-size:11px">사용완료</span>';
                 }
               }
               // 툴팁: 이력 목록
@@ -4913,34 +4899,28 @@ function renderMyPageEmp(emp, email) {
     }
 
     // 현재 사용 가능 여부 (2년 주기 기준)
-    // 이력 기반으로 현재 상태 판단
-    if (execHistory.length > 0) {
-      const lastDate = parseLocalDate(execHistory[execHistory.length-1].date);
-      const nextAvail = new Date(lastDate.getFullYear()+2, lastDate.getMonth(), lastDate.getDate());
-      const isAvail = today >= nextAvail;
-      const availEnd = fmtLocalDate(new Date(nextAvail.getFullYear()+2, nextAvail.getMonth(), nextAvail.getDate()-1));
-      if (isAvail) {
-        execHtml += '<div style="'+rowStyle+'">'
-          +'<div style="font-weight:600">현재 갱신분</div>'
-          +'<div style="font-size:12px;color:#64748b">사용가능기간: ~'+availEnd+'</div>'
-          +'<div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>'
-          +'<div style="color:#22c55e;font-weight:600;white-space:nowrap">사용가능 '+execBase+'만원</div>'
-          +'</div>';
-      } else {
-        execHtml += '<div style="'+rowStyle+'">'
-          +'<div style="font-weight:600">다음 갱신</div>'
-          +'<div style="font-size:12px;color:#64748b">갱신예정: '+fmtLocalDate(nextAvail)+'</div>'
-          +'<div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div>'
-          +'<div style="color:#94a3b8;font-weight:600;white-space:nowrap">갱신예정</div>'
-          +'</div>';
-      }
-    } else if (wd.execUsed) {
-      // 이력 없이 사용 체크만 된 경우 — 사용가능 표시
+    // 발생횟수 vs 이력수로 현재 상태 판단
+    const execAvail = execTimes > execHistory.length;
+    if (execAvail) {
+      // 현재 사용가능 — 다음 갱신일 계산
+      const sdExec = parseLocalDate(startDate);
+      const nextExecIssue = new Date(sdExec.getFullYear() + (execHistory.length+1)*2, sdExec.getMonth(), sdExec.getDate());
+      const execAvailEnd = fmtLocalDate(expiryDateDisplay(nextExecIssue));
       execHtml += '<div style="'+rowStyle+'">'
-        +'<div style="font-weight:600">2년에 1번</div>'
-        +'<div></div>'
+        +'<div style="font-weight:600">현재 사용가능</div>'
+        +'<div style="font-size:12px;color:#64748b">사용가능기간: ~'+execAvailEnd+'</div>'
         +'<div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>'
         +'<div style="color:#22c55e;font-weight:600;white-space:nowrap">사용가능 '+execBase+'만원</div>'
+        +'</div>';
+    } else if (execHistory.length > 0) {
+      // 모두 사용완료 — 다음 갱신 예정일
+      const lastDate = parseLocalDate(execHistory[execHistory.length-1].date);
+      const nextAvail = new Date(lastDate.getFullYear()+2, lastDate.getMonth(), lastDate.getDate());
+      execHtml += '<div style="'+rowStyle+'">'
+        +'<div style="font-weight:600">다음 갱신</div>'
+        +'<div style="font-size:12px;color:#64748b">갱신예정: '+fmtLocalDate(nextAvail)+'</div>'
+        +'<div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div>'
+        +'<div style="color:#94a3b8;font-weight:600;white-space:nowrap">갱신예정</div>'
         +'</div>';
     }
 
