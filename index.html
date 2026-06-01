@@ -4927,7 +4927,7 @@ function renderMyPageEmp(emp, email) {
   }
 
   // 리프레쉬/안식년
-  const rfMap = [{f:'refresh6',label:'리프레쉬 6년만근',yr:6},{f:'refresh15',label:'리프레쉬 15년만근',yr:15},{f:'sabbatical10',label:'안식년 10년만근',yr:10},{f:'sabbatical20',label:'안식년 20년만근',yr:20}];
+  const rfMap = [{f:'refresh6',label:'리프레쉬 6년만근',yr:6},{f:'sabbatical10',label:'안식년 10년만근',yr:10},{f:'refresh15',label:'리프레쉬 15년만근',yr:15},{f:'sabbatical20',label:'안식년 20년만근',yr:20}];
 
   // 한시 지원 대상
   // 단서조항: 발생한 항목 중 2026-01-01 이전 발생+1년 미만이면 한시 제외
@@ -4983,7 +4983,7 @@ function renderMyPageEmp(emp, email) {
         rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, targetYr2))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
       }
     } else if (!already) {
-      // 비대상(yrsAt2026<1 또는 >=20): 정규 다음 인접 1개
+      // 한시 없음 + 단서조항 해당 아님: 정규 다음 인접 1개 (근속 무관하게)
       const nextRf = [['refresh6',6],['sabbatical10',10],['refresh15',15],['sabbatical20',20]]
         .find(([f,yr]) => years < yr);
       if (nextRf) {
