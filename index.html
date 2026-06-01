@@ -4071,7 +4071,7 @@ function calcOsDutyPreview() {
   const endD = new Date(endVal);
   const startDuty = new Date(endD.getTime() + 86400000);
   const endDuty = new Date(startDuty.getTime() + (days-1)*86400000);
-  const fmt = d => d.toISOString().slice(0,10);
+  const fmt = d => fmtLocalDate(d);
   preview.style.display = 'block';
   preview.textContent = `의무복무: ${fmt(startDuty)} ~ ${fmt(endDuty)} (${days}일)`;
 }
@@ -4798,7 +4798,7 @@ function renderMyPageEmp(emp, email) {
     const issueDate = new Date(sd.getFullYear()+y, sd.getMonth(), sd.getDate());
     const cutoffLt = new Date('2026-01-01');
     const isOldLt = issueDate < cutoffLt;
-    ltExpiryMap[y] = isOldLt ? '~2027-12-31' : '~'+new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate()).toISOString().slice(0,10);
+    ltExpiryMap[y] = isOldLt ? '~2027-12-31' : '~'+fmtLocalDate(new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate()));
   });
 
   const rowStyle = 'display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px';
@@ -4835,7 +4835,7 @@ function renderMyPageEmp(emp, email) {
     const v = wd[fld];
     let usePeriod, statusTxt, dotC;
     if (notYet) {
-      usePeriod = '발생예정: '+issueDate.toISOString().slice(0,10);
+      usePeriod = '발생예정: '+fmtLocalDate(issueDate);
       statusTxt = '미발생';
       dotC = '#cbd5e1';
     } else {
@@ -4871,7 +4871,7 @@ function renderMyPageEmp(emp, email) {
     if (notYetOs) {
       osStatusTxt = '미발생';
       osDotC = '#cbd5e1';
-      osPeriod = '발생예정: '+issueDate.toISOString().slice(0,10);
+      osPeriod = '발생예정: '+fmtLocalDate(issueDate);
     } else {
       const osDisplayAmt = (v && v !== '사용완료' && v !== '사용안함' && !isNaN(parseFloat(v))) ? parseFloat(v) : osAmt;
       osStatusTxt = v==='사용완료'?'사용완료':v==='사용안함'?'사용안함':expired?'소멸':'사용가능 '+osDisplayAmt+'만원';
@@ -4926,7 +4926,7 @@ function renderMyPageEmp(emp, email) {
     const targetYr2 = rfYrMap2[rfTargetF];
     const sd2 = new Date(startDate);
     const issueDate2 = new Date(sd2.getFullYear()+targetYr2, sd2.getMonth(), sd2.getDate());
-    rfItems.push('<div style="padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><span style="font-weight:700">'+rfLabelMap[rfTargetF]+' ★한시</span><span style="font-size:12px;color:#64748b;margin-left:8px">발생예정: '+issueDate2.toISOString().slice(0,10)+'</span></div>');
+    rfItems.push('<div style="padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><span style="font-weight:700">'+rfLabelMap[rfTargetF]+' ★한시</span><span style="font-size:12px;color:#64748b;margin-left:8px">발생예정: '+fmtLocalDate(issueDate2)+'</span></div>');
   }
 
   if (rfItems.length) {
