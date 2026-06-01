@@ -3362,7 +3362,8 @@ function renderWelfareTable() {
   if(!employees||employees.length===0){document.getElementById('welfare-tbody').innerHTML='<tr><td colspan="35" style="padding:20px;text-align:center">직원 데이터 로딩 중...</td></tr>';return;}
   // 현재일: 입력값 또는 오늘
   const todayInput = document.getElementById('welfare-today');
-  const today = todayInput && todayInput.value ? new Date(todayInput.value) : new Date();
+  const today = todayInput && todayInput.value ? parseLocalDate(todayInput.value) : new Date();
+  const realToday = new Date(); // 진짜 오늘 (isFuture 비교용)
   if (todayInput && !todayInput.value) todayInput.value = today.toISOString().slice(0,10);
   const todayStr = today.toISOString().slice(0,10);
   const longtermYears = [5,7,9,11,13,15,17,19,21,23,25];
@@ -3556,10 +3557,10 @@ function renderWelfareTable() {
               used = wd.longterm[y];
             } else if(reached) {
               const nextY = longtermYears[longtermYears.indexOf(y)+1];
-              const realToday = new Date();
               const isFuture = empToday > realToday;
-              // 미래 날짜로 설정 시 자동소멸 미적용 — 금액 유지
-              const expired = !isFuture && nextY && years >= nextY;
+              const wouldExpire = nextY && years >= nextY;
+              // 미래 날짜 설정 시 자동계산 금액 있는 항목은 자동소멸 미적용
+              const expired = wouldExpire && !isFuture;
               used = expired ? -1 : baseAmt;
             } else {
               used = null;
