@@ -582,6 +582,13 @@ select.form-input{cursor:pointer}
       <div id="page-mypage" class="page">
         <div class="page-header">
           <div><div class="page-title">👤 마이페이지</div></div>
+          <div id="mypage-admin-bar" style="display:none;align-items:center;gap:10px">
+            <span style="font-size:13px;color:#64748b;font-weight:500">👁 직원 조회:</span>
+            <select id="mypage-emp-select" onchange="renderMyPageFor(this.value)" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;min-width:180px">
+              <option value="">-- 직원 선택 --</option>
+            </select>
+            <button onclick="renderMyPageFor('')" style="padding:6px 12px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:12px;color:#374151">내 페이지로</button>
+          </div>
         </div>
         <div id="mypage-content" style="max-width:700px"></div>
       </div>
@@ -4387,14 +4394,44 @@ function exportWelfareExcel() {
 function openMyPage() { showPage('mypage'); }
 function closeMyPage() {}
 
+function renderMyPageFor(uid) {
+  const select = document.getElementById('mypage-emp-select');
+  if (select) select.value = uid || '';
+  if (uid) {
+    const emp = employees.find(e => e.uid === uid);
+    renderMyPageEmp(emp);
+  } else {
+    renderMyPage();
+  }
+}
+
 function renderMyPage() {
+  // 관리자 바 표시 및 직원 목록 채우기
+  const adminBar = document.getElementById('mypage-admin-bar');
+  const select = document.getElementById('mypage-emp-select');
+  if (adminBar && select) {
+    if (isAdmin()) {
+      adminBar.style.display = 'flex';
+      // 직원 목록 갱신 (부서+이름 정렬)
+      const sorted = [...employees].sort((a,b) => (a.dept||'').localeCompare(b.dept||'') || (a.name||'').localeCompare(b.name||''));
+      select.innerHTML = '<option value="">-- 직원 선택 --</option>'
+        + sorted.map(e => `<option value="${e.uid}">${e.dept ? '['+e.dept+'] ' : ''}${e.name||''}</option>`).join('');
+    } else {
+      adminBar.style.display = 'none';
+    }
+  }
+
   const email = state.myEmail || state.user?.email;
   // id가 이메일인 직원 찾기
   const emp = employees.find(e => e.id === email) || employees.find(e => (e.email||'').toLowerCase() === (email||'').toLowerCase());
+  renderMyPageEmp(emp, email);
+}
+
+function renderMyPageEmp(emp, email) {
   const container = document.getElementById('mypage-content');
   if (!container) return;
   if (!emp) {
-    container.innerHTML = '<p style="color:#94a3b8;padding:20px">직원 정보를 찾을 수 없습니다. ('+email+')</p>';
+    container.innerHTML = '<p style="color:#94a3b8;padding:20px">직원 정보를 찾을 수 없습니다.'+(email?' ('+email+')':'')+'</p>';
     return;
   }
 
