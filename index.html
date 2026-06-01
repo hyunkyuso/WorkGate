@@ -4930,6 +4930,9 @@ function renderMyPageEmp(emp, email) {
   const rfMap = [{f:'refresh6',label:'리프레쉬 6년만근',yr:6},{f:'sabbatical10',label:'안식년 10년만근',yr:10},{f:'refresh15',label:'리프레쉬 15년만근',yr:15},{f:'sabbatical20',label:'안식년 20년만근',yr:20}];
 
   // 한시 지원 대상
+  // 2026-01-01 기준 근속 1년 미만이면 리프레쉬/안식년 한시지원 대상 아님
+  const rfEligible = yrsAt2026 >= 1;
+
   // 단서조항: 발생한 항목 중 2026-01-01 이전 발생+1년 미만이면 한시 제외
   const rfSd2026 = parseLocalDate(startDate);
   const rfCutoff2026 = parseLocalDate('2026-01-01');
@@ -4941,16 +4944,17 @@ function renderMyPageEmp(emp, email) {
     return isBeforeCutoff && withinOneYear;
   });
   let rfTargetF = null;
-  if (yrsAt2026 >= 1 && yrsAt2026 < 20 && !already) {
+  if (rfEligible && yrsAt2026 < 20 && !already) {
     if (yrsAt2026 < 6) rfTargetF = 'refresh6';
     else if (yrsAt2026 < 10) rfTargetF = 'sabbatical10';
     else if (yrsAt2026 < 15) rfTargetF = 'refresh15';
     else rfTargetF = 'sabbatical20';
   }
 
+  // rfEligible=false면 리프레쉬/안식년 전체 미표시
   const rfCutoff = new Date('2026-01-01');
   const rfExpiry2027 = new Date('2027-12-31');
-  const rfItems = rfMap.filter(({yr}) => years >= yr).map(({f,label,yr}) => {
+  const rfItems = (!rfEligible) ? [] : rfMap.filter(({yr}) => years >= yr).map(({f,label,yr}) => {
     const sd = new Date(startDate);
     const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
     const isOldRf = issueDate < rfCutoff;
@@ -4973,13 +4977,25 @@ function renderMyPageEmp(emp, email) {
   const rfYrMap3 = {refresh6:6, sabbatical10:10, refresh15:15, sabbatical20:20};
 
   // 사용완료 또는 자동소멸 있으면 1회 소진 → 다음 표시 없음
-  const rfDone = rfItems.some(i => i.includes('사용완료') || i.includes('자동소멸'));
+  // 한시★(rfTargetF)도 사용완료면 소진
+  const rfDone = rfMap.some(({f, yr}) => {
+    if (years < yr) return false;
+    const v = wd[f];
+    if (v === '사용완료') return true;
+    // 자동소멸 여부: 만료일 체크
+    const sdCheck = parseLocalDate(startDate);
+    const issueDCheck = new Date(sdCheck.getFullYear()+yr, sdCheck.getMonth(), sdCheck.getDate());
+    const isOldCheck = issueDCheck < parseLocalDate('2026-01-01');
+    const expiryCheck = isOldCheck ? new Date('2027-12-31') : expiryDateDisplay(issueDCheck);
+    return today > expiryCheck;
+  }) || (rfTargetF && wd[rfTargetF] === '사용완료');
 
   if (!rfDone) {
     if (rfTargetF) {
-      // 한시★ 대상: rfTargetF 1개만 (정규 다음 인접 없음)
+      // 한시★ 대상: rfTargetF가 이미 발생항목에 없고 아직 미발생인 경우만 추가
       const targetYr2 = rfYrMap3[rfTargetF];
-      if (years < targetYr2 && !rfItems.some(i => i.includes('★한시'))) {
+      const alreadyInItems = rfMap.some(({f,yr}) => f === rfTargetF && years >= yr);
+      if (years < targetYr2 && !alreadyInItems && !rfItems.some(i => i.includes('★한시'))) {
         rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, targetYr2))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
       }
     } else if (!already) {
