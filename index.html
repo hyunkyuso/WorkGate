@@ -3253,14 +3253,13 @@ function calcTenure(joindate, today) {
   let d = t.getDate() - j.getDate() + 1; // 입사일 당일 포함
   if (d <= 0) {
     m--;
-    const prevMonth = new Date(t.getFullYear(), t.getMonth(), 0);
-    d += prevMonth.getDate();
+    d += new Date(t.getFullYear(), t.getMonth(), 0).getDate();
   }
   if (m < 0) { y--; m += 12; }
-  // d가 해당 월 일수 초과 시 다음 달로 올림
-  const daysInCurMonth = new Date(t.getFullYear(), t.getMonth() - (t.getDate() < j.getDate() ? 1 : 0), 0).getDate();
-  if (d > daysInCurMonth) { d -= daysInCurMonth; m++; }
-  if (m >= 12) { m -= 12; y++; }
+  // d가 이전달 말일 이상이면 다음달 0일로 올림
+  const prevMonthDays = new Date(t.getFullYear(), t.getMonth(), 0).getDate();
+  if (d >= prevMonthDays) { d = d - prevMonthDays; m++; }
+  if (m >= 12) { y++; m -= 12; }
   return y + '년 ' + m + '개월 ' + d + '일';
 }
 
