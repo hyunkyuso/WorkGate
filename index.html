@@ -4787,14 +4787,12 @@ function renderMyPageEmp(emp, email) {
     return {label: y+'년 만근', status, statusColor};
   });
 
-  // 건강검진 사용기간 계산
+  // 건강검진 사용기간 계산 (발생일 기준 +2년, timezone 이슈 없이 parseLocalDate 사용)
   const ltExpiryMap = {};
   ltYears.forEach(y => {
-    const sd = new Date(startDate);
+    const sd = parseLocalDate(startDate);
     const issueDate = new Date(sd.getFullYear()+y, sd.getMonth(), sd.getDate());
-    const cutoffLt = new Date('2026-01-01');
-    const isOldLt = issueDate < cutoffLt;
-    ltExpiryMap[y] = isOldLt ? '~2027-12-31' : '~'+fmtLocalDate(new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate()));
+    ltExpiryMap[y] = '~'+fmtLocalDate(new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate()));
   });
 
   const rowStyle = 'display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px';
