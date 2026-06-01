@@ -3313,8 +3313,9 @@ function calcOverseasAmt(wd, joindate, today) {
     if (!reached) { result[fld] = null; return; }
     const v = wd[fld];
     if (v === '사용완료') { result[fld] = '사용완료'; return; }
-    if (v !== undefined && v !== null) {
-      result[fld] = parseFloat(v)||0;
+    if (v === '사용안함') { result[fld] = '사용안함'; return; }
+    if (v !== undefined && v !== null && !isNaN(parseFloat(v))) {
+      result[fld] = parseFloat(v);
       total += result[fld];
       return;
     }
