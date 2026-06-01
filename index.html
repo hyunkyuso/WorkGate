@@ -4954,7 +4954,7 @@ function renderMyPageEmp(emp, email) {
   // rfEligible=false면 리프레쉬/안식년 전체 미표시
   const rfCutoff = new Date('2026-01-01');
   const rfExpiry2027 = new Date('2027-12-31');
-  const rfItems = (!rfEligible) ? [] : rfMap.filter(({yr}) => years >= yr).map(({f,label,yr}) => {
+  const rfItems = rfEligible ? rfMap.filter(({yr}) => years >= yr).map(({f,label,yr}) => {
     const sd = new Date(startDate);
     const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
     const isOldRf = issueDate < rfCutoff;
@@ -4990,7 +4990,7 @@ function renderMyPageEmp(emp, email) {
     return today > expiryCheck;
   }) || (rfTargetF && wd[rfTargetF] === '사용완료');
 
-  if (!rfDone) {
+  if (rfEligible && !rfDone) {
     if (rfTargetF) {
       // 한시★ 대상: rfTargetF가 이미 발생항목에 없고 아직 미발생인 경우만 추가
       const targetYr2 = rfYrMap3[rfTargetF];
@@ -5010,7 +5010,7 @@ function renderMyPageEmp(emp, email) {
     // already=true(단서조항): 다음 인접 표시 없음
   }
 
-  if (rfItems.length) {
+  if (rfEligible && rfItems.length) {
     html += '<div><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">🌿 리프레쉬 / 안식년</div>'+rfItems.join('')+'</div>';
   }
 
