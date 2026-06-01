@@ -4813,6 +4813,12 @@ function renderMyPageEmp(emp, email) {
 
   const rowStyle = 'display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px';
 
+  // 건강검진 미사용 체크 시 건강검진 섹션 전체 숨김
+  if (wd.healthUnused) {
+    // 아무것도 표시 안 함
+  } else {
+  // (건강검진 표시 블록 — else 닫힘은 아래에서)
+
   // 임원건강검진 (사용자만 표시)
   const execTimes = Math.floor(calcYears(startDate, today) / 2);
   if (execTimes > 0 && wd.execUnused === false && wd.execUsed) {
@@ -4849,6 +4855,11 @@ function renderMyPageEmp(emp, email) {
     }
     html += '</div>';
   }
+
+  } // end healthUnused else
+
+  // 해외연수 미사용 체크 시 해외연수 + 리프레쉬/안식년 전체 숨김
+  if (!wd.overseasBaseUnused) {
 
   // 장기근속 해외연수 (3/6/10년) — 미발생 포함 항상 전체 표시
   const osFields = [{yr:3,base:100},{yr:6,base:200},{yr:10,base:300}];
@@ -5002,6 +5013,8 @@ function renderMyPageEmp(emp, email) {
   if (rfItems.length) {
     html += '<div><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">🌿 리프레쉬 / 안식년</div>'+rfItems.join('')+'</div>';
   }
+
+  } // end overseasBaseUnused else
 
   if (!html) html = '<p style="color:#94a3b8;font-size:13px">아직 발생한 복리후생 항목이 없습니다.</p>';
 
