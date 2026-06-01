@@ -4930,25 +4930,22 @@ function renderMyPageEmp(emp, email) {
   const rfMap = [{f:'refresh6',label:'리프레쉬 6년만근',yr:6},{f:'refresh15',label:'리프레쉬 15년만근',yr:15},{f:'sabbatical10',label:'안식년 10년만근',yr:10},{f:'sabbatical20',label:'안식년 20년만근',yr:20}];
 
   // 한시 지원 대상
+  // 단서조항: 발생한 항목 중 2026-01-01 이전 발생+1년 미만이면 한시 제외
+  const rfSd2026 = parseLocalDate(startDate);
+  const rfCutoff2026 = parseLocalDate('2026-01-01');
+  const already = [6,10,15,20].some(y => {
+    if (yrsAt2026 < y) return false;
+    const issueD = new Date(rfSd2026.getFullYear()+y, rfSd2026.getMonth(), rfSd2026.getDate());
+    const isBeforeCutoff = issueD < rfCutoff2026;
+    const withinOneYear = new Date(issueD.getFullYear()+1, issueD.getMonth(), issueD.getDate()) > rfCutoff2026;
+    return isBeforeCutoff && withinOneYear;
+  });
   let rfTargetF = null;
-  if (yrsAt2026 >= 1 && yrsAt2026 < 20) {
-    // 정규 발생 시점 도달했거나(yrsAt2026>=y), 또는 2025년에 발생(발생일이 2025년 내)한 경우 제외
-    const rfSd2026 = parseLocalDate(startDate);
-    const rfCutoff2026 = parseLocalDate('2026-01-01');
-    // 발생한 항목 중 2026-01-01 이전 발생+1년 미만이면 제외 (단서조항)
-    const already = [6,10,15,20].some(y => {
-      if (yrsAt2026 < y) return false; // 미발생은 제외 조건 아님
-      const issueD = new Date(rfSd2026.getFullYear()+y, rfSd2026.getMonth(), rfSd2026.getDate());
-      const isBeforeCutoff = issueD < rfCutoff2026;
-      const withinOneYear = new Date(issueD.getFullYear()+1, issueD.getMonth(), issueD.getDate()) > rfCutoff2026;
-      return isBeforeCutoff && withinOneYear;
-    });
-    if (!already) {
-      if (yrsAt2026 < 6) rfTargetF = 'refresh6';
-      else if (yrsAt2026 < 10) rfTargetF = 'sabbatical10';
-      else if (yrsAt2026 < 15) rfTargetF = 'refresh15';
-      else rfTargetF = 'sabbatical20';
-    }
+  if (yrsAt2026 >= 1 && yrsAt2026 < 20 && !already) {
+    if (yrsAt2026 < 6) rfTargetF = 'refresh6';
+    else if (yrsAt2026 < 10) rfTargetF = 'sabbatical10';
+    else if (yrsAt2026 < 15) rfTargetF = 'refresh15';
+    else rfTargetF = 'sabbatical20';
   }
 
   const rfCutoff = new Date('2026-01-01');
@@ -4980,13 +4977,13 @@ function renderMyPageEmp(emp, email) {
 
   if (!rfDone) {
     if (rfTargetF) {
-      // 한시★ 대상: rfTargetF 1개만 표시 (정규 따로 없음)
+      // 한시★ 대상: rfTargetF 1개만 (정규 다음 인접 없음)
       const targetYr2 = rfYrMap3[rfTargetF];
       if (years < targetYr2 && !rfItems.some(i => i.includes('★한시'))) {
         rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, targetYr2))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
       }
-    } else {
-      // 한시 없음(already=true 또는 비대상): 정규 순서에서 다음 인접 1개만
+    } else if (!already) {
+      // 비대상(yrsAt2026<1 또는 >=20): 정규 다음 인접 1개
       const nextRf = [['refresh6',6],['sabbatical10',10],['refresh15',15],['sabbatical20',20]]
         .find(([f,yr]) => years < yr);
       if (nextRf) {
@@ -4994,6 +4991,7 @@ function renderMyPageEmp(emp, email) {
         rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="font-weight:600">'+rfLabelMap3[f]+'</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, yr))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
       }
     }
+    // already=true(단서조항): 다음 인접 표시 없음
   }
 
   if (rfItems.length) {
