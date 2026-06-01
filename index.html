@@ -3685,7 +3685,24 @@ function renderWelfareTable() {
                 const tip = (wd.overseasTooltip&&wd.overseasTooltip[fld])||'';
                 const tipAttr = tip?' title="'+tip.replace(/"/g,"'")+'"':'';
                 const tipDot = tip?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':'';
-                return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:'+osBg+';cursor:pointer;position:relative;'+osFontW+'"'+tipAttr+' data-uid="'+uid_+'" data-field="'+fld+'" ondblclick="editWelfareCell(this)">'+val+tipDot+'</td>';
+                // 의무복무 현황 표시
+                const duty = wd.overseasDuty && wd.overseasDuty[fld];
+                let dutyBadge = '';
+                if (duty && duty.dutyStart && duty.dutyEnd) {
+                  const dutyEndD = new Date(duty.dutyEnd);
+                  const dutyStartD = new Date(duty.dutyStart);
+                  const todayD = today;
+                  const isActive = todayD >= dutyStartD && todayD <= dutyEndD;
+                  const isDone = todayD > dutyEndD;
+                  const remainDays = isActive ? Math.ceil((dutyEndD - todayD) / 86400000) : 0;
+                  if (isActive) {
+                    dutyBadge = '<span style="position:absolute;bottom:2px;left:2px;background:#ef4444;color:#fff;font-size:9px;padding:1px 4px;border-radius:3px;white-space:nowrap">의무 D-'+remainDays+'</span>';
+                  } else if (!isDone) {
+                    dutyBadge = '<span style="position:absolute;bottom:2px;left:2px;background:#f59e0b;color:#fff;font-size:9px;padding:1px 4px;border-radius:3px;white-space:nowrap">의무예정</span>';
+                  }
+                }
+                const dutyTipAttr = duty&&duty.dutyStart ? ' title="사용기간: '+(duty.startDate||'-')+' ~ '+(duty.endDate||'-')+'&#10;사용금액: '+(duty.usedAmt||'-')+'만원&#10;의무복무: '+(duty.dutyStart||'-')+' ~ '+(duty.dutyEnd||'-')+'('+duty.dutyDays+'일)"' : tipAttr;
+                return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:'+osBg+';cursor:pointer;position:relative;'+osFontW+'"'+(duty?dutyTipAttr:tipAttr)+' data-uid="'+uid_+'" data-field="'+fld+'" ondblclick="editWelfareCell(this)">'+val+tipDot+dutyBadge+'</td>';
               }).join('');
             })()+(function(){
               // 2026-01-01 기준 근속년수
@@ -3876,14 +3893,32 @@ function showOverseasModal(uid, field) {
   modal.id = 'overseas-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `
-    <div style="background:#fff;border-radius:12px;padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+    <div style="background:#fff;border-radius:12px;padding:24px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
       <div style="font-size:15px;font-weight:700;margin-bottom:4px">장기근속 해외연수 (${yr}년 만근)</div>
       <div style="font-size:12px;color:#64748b;margin-bottom:16px">기본: ${base}만원 | 자녀 1명당 50% 추가 | 자동계산: ${autoAmt}만원</div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
-          <input type="checkbox" id="os-done" ${cur==='사용완료'?'checked':''} style="width:18px;height:18px;accent-color:var(--ac)">
+          <input type="checkbox" id="os-done" ${cur==='사용완료'?'checked':''} onchange="toggleOsDoneFields(this)" style="width:18px;height:18px;accent-color:var(--ac)">
           사용완료
         </label>
+        <!-- 사용완료 시 추가 입력란 -->
+        <div id="os-done-fields" style="display:${cur==='사용완료'?'flex':'none'};flex-direction:column;gap:8px;padding:10px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0">
+          <div style="font-size:12px;font-weight:600;color:#15803d">✈️ 사용 상세 정보</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+            <span style="width:60px;flex-shrink:0;color:#374151">시작일</span>
+            <input type="date" id="os-start" value="${wd2.overseasDuty&&wd2.overseasDuty[field]?wd2.overseasDuty[field].startDate:''}" style="flex:1;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+            <span style="width:60px;flex-shrink:0;color:#374151">종료일</span>
+            <input type="date" id="os-end" value="${wd2.overseasDuty&&wd2.overseasDuty[field]?wd2.overseasDuty[field].endDate:''}" style="flex:1;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+            <span style="width:60px;flex-shrink:0;color:#374151">사용금액</span>
+            <input type="number" id="os-used-amt" value="${wd2.overseasDuty&&wd2.overseasDuty[field]?wd2.overseasDuty[field].usedAmt:''}" placeholder="만원" style="width:90px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+            <span style="color:#64748b;font-size:12px">만원</span>
+          </div>
+          <div id="os-duty-preview" style="font-size:12px;color:#0369a1;background:#e0f2fe;padding:6px 8px;border-radius:6px;display:none"></div>
+        </div>
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;padding:8px 10px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca">
           <input type="checkbox" id="os-nouse" ${cur==='사용안함'?'checked':''} style="width:16px;height:16px;accent-color:#ef4444">
           <span style="color:#dc2626;font-weight:600">사용안함</span> <span style="color:#64748b;font-size:12px">(체크 시 색상 제거)</span>
@@ -3906,6 +3941,11 @@ function showOverseasModal(uid, field) {
     </div>`;
     document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  // 의무복무 미리보기 이벤트
+  const osEndEl = document.getElementById('os-end');
+  const osAmtEl = document.getElementById('os-used-amt');
+  if (osEndEl) osEndEl.addEventListener('change', calcOsDutyPreview);
+  if (osAmtEl) osAmtEl.addEventListener('input', calcOsDutyPreview);
 }
 
 function clearOverseasOverride(uid, field) {
@@ -3915,6 +3955,25 @@ function clearOverseasOverride(uid, field) {
   renderWelfareTable();
 }
 
+function toggleOsDoneFields(cb) {
+  const el = document.getElementById('os-done-fields');
+  if (el) el.style.display = cb.checked ? 'flex' : 'none';
+}
+function calcOsDutyPreview() {
+  const endVal = document.getElementById('os-end').value;
+  const amtVal = document.getElementById('os-used-amt').value;
+  const preview = document.getElementById('os-duty-preview');
+  if (!endVal || !amtVal) { preview.style.display='none'; return; }
+  const amt = parseFloat(amtVal);
+  const days = amt <= 100 ? 30 : amt <= 200 ? 90 : 180;
+  const endD = new Date(endVal);
+  const startDuty = new Date(endD.getTime() + 86400000);
+  const endDuty = new Date(startDuty.getTime() + (days-1)*86400000);
+  const fmt = d => d.toISOString().slice(0,10);
+  preview.style.display = 'block';
+  preview.textContent = `의무복무: ${fmt(startDuty)} ~ ${fmt(endDuty)} (${days}일)`;
+}
+
 function saveOverseasModal(uid, field, yr) {
   const done = document.getElementById('os-done').checked;
   const manualAmt = document.getElementById('os-amount').value;
@@ -3922,16 +3981,34 @@ function saveOverseasModal(uid, field, yr) {
 
   if (!welfareData[uid]) welfareData[uid] = {};
   if (!welfareData[uid].overseasTooltip) welfareData[uid].overseasTooltip = {};
+  if (!welfareData[uid].overseasDuty) welfareData[uid].overseasDuty = {};
 
   const nouse = document.getElementById('os-nouse').checked;
   if (done) {
     welfareData[uid][field] = '사용완료';
+    // 사용기간/금액/의무복무 저장
+    const startDate = document.getElementById('os-start').value;
+    const endDate = document.getElementById('os-end').value;
+    const usedAmt = parseFloat(document.getElementById('os-used-amt').value) || 0;
+    let dutyDays = 0, dutyStart = '', dutyEnd = '';
+    if (endDate && usedAmt) {
+      dutyDays = usedAmt <= 100 ? 30 : usedAmt <= 200 ? 90 : 180;
+      const endD = new Date(endDate);
+      const sd = new Date(endD.getTime() + 86400000);
+      const ed = new Date(sd.getTime() + (dutyDays-1)*86400000);
+      dutyStart = sd.toISOString().slice(0,10);
+      dutyEnd = ed.toISOString().slice(0,10);
+    }
+    welfareData[uid].overseasDuty[field] = { startDate, endDate, usedAmt, dutyDays, dutyStart, dutyEnd };
   } else if (nouse) {
     welfareData[uid][field] = '사용안함';
+    delete welfareData[uid].overseasDuty[field];
   } else if (manualAmt) {
     welfareData[uid][field] = parseFloat(manualAmt);
+    delete welfareData[uid].overseasDuty[field];
   } else {
     delete welfareData[uid][field];
+    delete welfareData[uid].overseasDuty[field];
   }
   if (tooltip) welfareData[uid].overseasTooltip[field] = tooltip;
   else delete welfareData[uid].overseasTooltip[field];
