@@ -4928,11 +4928,26 @@ function renderMyPageEmp(emp, email) {
   // 한시 지원 대상인데 아직 발생 안 된 경우
   if (rfTargetF && rfItems.length === 0) {
     const rfYrMap2 = {refresh6:6,refresh15:15,sabbatical10:10,sabbatical20:20};
-    const rfLabelMap = {refresh6:'리프레쉬 6년만근',refresh15:'리프레쉬 15년만근',sabbatical10:'안식년 10년만근',sabbatical20:'안식년 20년만근'};
+    const rfLabelMap2 = {refresh6:'리프레쉬 6년만근',refresh15:'리프레쉬 15년만근',sabbatical10:'안식년 10년만근',sabbatical20:'안식년 20년만근'};
     const targetYr2 = rfYrMap2[rfTargetF];
-    const sd2 = new Date(startDate);
+    const sd2 = parseLocalDate(startDate);
     const issueDate2 = new Date(sd2.getFullYear()+targetYr2, sd2.getMonth(), sd2.getDate());
-    rfItems.push('<div style="padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><span style="font-weight:700">'+rfLabelMap[rfTargetF]+' ★한시</span><span style="font-size:12px;color:#64748b;margin-left:8px">발생예정: '+fmtLocalDate(issueDate2)+'</span></div>');
+    rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap2[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDate2)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
+  }
+
+  // 정규 발생 시점 중 다음 인접한 미발생 항목 표시
+  const rfAllYrs = {refresh6:6, sabbatical10:10, refresh15:15, sabbatical20:20};
+  const rfLabelMap3 = {refresh6:'리프레쉬 6년만근', sabbatical10:'안식년 10년만근', refresh15:'리프레쉬 15년만근', sabbatical20:'안식년 20년만근'};
+  const rfSd = parseLocalDate(startDate);
+  // 발생 안 된 정규 항목 중 가장 인접한 1개 (한시 대상 제외)
+  const nextRfEntry = Object.entries(rfAllYrs).find(([f, yr]) => {
+    if (f === rfTargetF) return false; // 한시는 위에서 처리
+    return years < yr;
+  });
+  if (nextRfEntry) {
+    const [nextRfF, nextRfYr] = nextRfEntry;
+    const nextRfIssue = new Date(rfSd.getFullYear()+nextRfYr, rfSd.getMonth(), rfSd.getDate());
+    rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="font-weight:600">'+rfLabelMap3[nextRfF]+'</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(nextRfIssue)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
   }
 
   if (rfItems.length) {
