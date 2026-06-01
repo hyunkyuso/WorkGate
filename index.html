@@ -582,12 +582,23 @@ select.form-input{cursor:pointer}
       <div id="page-mypage" class="page">
         <div class="page-header">
           <div><div class="page-title">👤 마이페이지</div></div>
-          <div id="mypage-admin-bar" style="display:none;align-items:center;gap:10px">
-            <span style="font-size:13px;color:#64748b;font-weight:500">👁 직원 조회:</span>
-            <select id="mypage-emp-select" onchange="renderMyPageFor(this.value)" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;min-width:180px">
-              <option value="">-- 직원 선택 --</option>
-            </select>
-            <button onclick="renderMyPageFor('')" style="padding:6px 12px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:12px;color:#374151">내 페이지로</button>
+          <div id="mypage-admin-bar" style="display:none;flex-direction:column;gap:8px;align-items:flex-end">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <!-- 부서 필터 -->
+              <select id="mypage-dept-filter" onchange="filterMypageEmps()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;min-width:130px;background:#fff">
+                <option value="">전체 부서</option>
+              </select>
+              <!-- 이름 검색 -->
+              <div style="position:relative;display:flex;align-items:center">
+                <span style="position:absolute;left:8px;color:#94a3b8;font-size:13px">🔍</span>
+                <input type="text" id="mypage-name-search" oninput="filterMypageEmps()" placeholder="이름 검색" style="padding:6px 10px 6px 28px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;width:130px">
+              </div>
+              <!-- 직원 선택 드롭다운 -->
+              <select id="mypage-emp-select" onchange="renderMyPageFor(this.value)" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;min-width:160px;background:#fff">
+                <option value="">-- 직원 선택 --</option>
+              </select>
+              <button onclick="renderMyPageFor('')" style="padding:6px 12px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:12px;color:#374151;white-space:nowrap">내 페이지로</button>
+            </div>
           </div>
         </div>
         <div id="mypage-content" style="max-width:700px"></div>
@@ -4410,6 +4421,22 @@ function exportWelfareExcel() {
 function openMyPage() { showPage('mypage'); }
 function closeMyPage() {}
 
+function filterMypageEmps() {
+  const dept = (document.getElementById('mypage-dept-filter')||{}).value || '';
+  const name = (document.getElementById('mypage-name-search')||{}).value || '';
+  const select = document.getElementById('mypage-emp-select');
+  if (!select) return;
+  const sorted = [...employees].sort((a,b) => (a.dept||'').localeCompare(b.dept||'') || (a.name||'').localeCompare(b.name||''));
+  const filtered = sorted.filter(e => {
+    const deptMatch = !dept || (e.dept||'') === dept;
+    const nameMatch = !name || (e.name||'').includes(name);
+    return deptMatch && nameMatch;
+  });
+  const cur = select.value;
+  select.innerHTML = '<option value="">-- 직원 선택 ('+ filtered.length +'명) --</option>'
+    + filtered.map(e => `<option value="${e.uid}"${e.uid===cur?' selected':''}>${e.dept?'['+e.dept+'] ':''}${e.name||''}</option>`).join('');
+}
+
 function renderMyPageFor(uid) {
   const select = document.getElementById('mypage-emp-select');
   if (select) select.value = uid || '';
@@ -4430,7 +4457,14 @@ function renderMyPage() {
       adminBar.style.display = 'flex';
       // 직원 목록 갱신 (부서+이름 정렬)
       const sorted = [...employees].sort((a,b) => (a.dept||'').localeCompare(b.dept||'') || (a.name||'').localeCompare(b.name||''));
-      select.innerHTML = '<option value="">-- 직원 선택 --</option>'
+      // 부서 목록 초기화
+      const deptFilter = document.getElementById('mypage-dept-filter');
+      if (deptFilter) {
+        const depts = [...new Set(employees.map(e => e.dept||'').filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+        deptFilter.innerHTML = '<option value="">전체 부서</option>'
+          + depts.map(d => `<option value="${d}">${d}</option>`).join('');
+      }
+      select.innerHTML = '<option value="">-- 직원 선택 ('+sorted.length+'명) --</option>'
         + sorted.map(e => `<option value="${e.uid}">${e.dept ? '['+e.dept+'] ' : ''}${e.name||''}</option>`).join('');
     } else {
       adminBar.style.display = 'none';
