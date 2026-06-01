@@ -4595,8 +4595,12 @@ function _doExportWelfareExcel() {
       const rowspan = parseInt(td.getAttribute('rowspan')||'1');
       const colspan = parseInt(td.getAttribute('colspan')||'1');
       const txt = td.innerText.trim().replace(/\s+/g,' ');
+      // 근속년수(ci=7), 리프레쉬(ci=31~32), 안식년(ci=33~34) → 텍스트 유지
+      // 주단위 값(1주,2주 등) → 텍스트 유지
+      const isTextCol = ci === 7 || ci >= 31;
+      const hasKorean = /[년월일주]/.test(txt);
       const num = parseFloat(txt);
-      const value = (!isNaN(num) && txt !== '' && txt !== '-') ? num : txt;
+      const value = (!isNaN(num) && txt !== '' && txt !== '-' && !isTextCol && !hasKorean) ? num : txt;
       const bg = getBgHex(td) || 'FFFFFF';
       const fontColor = getFontHex(td);
       const bold = td.style.fontWeight === '700' || td.style.fontWeight === 'bold';
