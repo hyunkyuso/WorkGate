@@ -4538,15 +4538,19 @@ function _doExportWelfareExcel() {
   const r2 = ws.addRow(['','','','','','','','',
     '생일','부모님생신','건강검진','해외연수','',
     '5년만근','7년만근','9년만근','11년만근','13년만근','15년만근','17년만근','19년만근','21년만근','23년만근','25년만근',
-    '해당자','2년에1번',
+    '','2년에1번',
     '3년만근','6년만근','10년만근','15년만근','20년만근',
     '6년만근','15년만근','10년만근','20년만근']);
   r2.height = 28;
   r2.eachCell((c,i) => applyStyle(c, h1Colors[i-1]||C.header, true));
 
-  // 헤더 병합
+  // 헤더 병합 (정확한 컬럼 구조 반영)
+  // rowspan=2: 본부명~근속년수(1~8), 개별합계(13), 임원건강검진(25)
+  // colspan: 발생금액(9~12), 건강검진(14~24), 해외연수(27~31), 리프레쉬(32~33), 안식년(34~35)
+  // Z열(26)=2년에1번은 2행 단독 — 병합 없음
   [[1,1,2,1],[1,2,2,2],[1,3,2,3],[1,4,2,4],[1,5,2,5],[1,6,2,6],[1,7,2,7],[1,8,2,8],
-   [1,9,1,12],[1,13,2,13],[1,14,1,24],[1,25,1,26],[1,27,1,31],[1,32,1,33],[1,34,1,35]]
+   [1,9,1,12],[1,13,2,13],[1,14,1,24],[1,25,2,25],
+   [1,27,1,31],[1,32,1,33],[1,34,1,35]]
   .forEach(([r1,c1,r2,c2]) => ws.mergeCells(r1,c1,r2,c2));
 
   // ── HTML td 배경색 → hex 변환 ──
@@ -4635,6 +4639,23 @@ function _doExportWelfareExcel() {
         applyStyle(cell, 'FFFFFF', false);
       }
     }
+  });
+
+  // ── 날짜 서식 적용 (기산일=F, 현재일=G) ──
+  ws.getColumn(6).numFmt = 'yyyy-mm-dd';
+  ws.getColumn(7).numFmt = 'yyyy-mm-dd';
+  // 날짜 문자열을 실제 Date로 변환
+  const dateColNums = [6, 7];
+  ws.eachRow((row, rowNum) => {
+    if (rowNum <= 2) return;
+    dateColNums.forEach(colNum => {
+      const cell = row.getCell(colNum);
+      if (cell.value && typeof cell.value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(cell.value)) {
+        const [y,m,d] = cell.value.split('-').map(Number);
+        cell.value = new Date(y, m-1, d);
+        cell.numFmt = 'yyyy-mm-dd';
+      }
+    });
   });
 
   // ── 다운로드 ──
