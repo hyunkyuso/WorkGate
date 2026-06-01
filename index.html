@@ -3593,12 +3593,19 @@ function renderWelfareTable() {
               if (used > 0) ltSum += used;
             });
           }
-          // 임원건강검진: 건강검진 미사용 여부와 무관하게 별도 합산
+          // 임원건강검진: 이력 기반 갱신 여부 판단
           const execBase2 = wd.execSpouse ? 100 : 50;
-          const execTimes2 = Math.floor(calcYears(wd.startDate||e.joindate, today) / 2);
+          const execTimes2 = Math.floor(calcYears(wd.startDate||e.joindate, empToday) / 2);
           let execHealthAmt = 0;
-          if (execTimes2 > 0 && wd.execUnused === false && wd.execUsed) {
-            execHealthAmt = parseFloat(wd.execHealth) || execBase2;
+          if (execTimes2 > 0 && wd.execUnused !== true) {
+            const execHist2 = wd.execHistory || [];
+            if (execHist2.length > 0) {
+              const lastD2 = parseLocalDate(execHist2[execHist2.length-1].date);
+              const nextD2 = new Date(lastD2.getFullYear()+2, lastD2.getMonth(), lastD2.getDate());
+              if (empToday >= nextD2) execHealthAmt = execBase2; // 갱신됨
+            } else if (wd.execUsed) {
+              execHealthAmt = parseFloat(wd.execHealth) || execBase2;
+            }
           }
           const health = ltSum + execHealthAmt;
           const subtotal=birthday+parent+health+overseas;
@@ -3737,24 +3744,38 @@ function renderWelfareTable() {
             +ltCells+(function(){
               // 임원건강검진: 2년마다 자동 갱신, 배우자포함=100, 미포함=50
               const execBase = wd.execSpouse ? 100 : 50;
-              const execTimes = Math.floor(years / 2); // 발생 횟수
-              let ev = '';
-              if (execTimes > 0) {
-                if (wd.execUnused === false && wd.execUsed) {
+              const execTimes = Math.floor(years / 2);
+              let ev = '', execDisplay = '';
+              const execHistory = wd.execHistory || [];
+              if (execTimes > 0 && wd.execUnused !== true) {
+                if (execHistory.length > 0) {
+                  // 마지막 이력 기준 +2년 지났으면 갱신 → 새 금액 표시
+                  const lastH = execHistory[execHistory.length-1];
+                  const lastD = parseLocalDate(lastH.date);
+                  const nextD = new Date(lastD.getFullYear()+2, lastD.getMonth(), lastD.getDate());
+                  if (empToday >= nextD) {
+                    // 갱신 — 사용가능
+                    ev = execBase;
+                    execBT += ev; execTotal += ev;
+                    execDisplay = String(ev);
+                  } else {
+                    // 아직 갱신 전 — 사용완료 표시
+                    execDisplay = '<span style="color:#94a3b8;font-size:11px">사용완료</span>';
+                  }
+                } else if (wd.execUsed) {
+                  // 이력 없이 사용 체크만
                   ev = wd.execHealth || execBase;
-                  execBT += parseFloat(ev)||0;
-                  execTotal += parseFloat(ev)||0;
+                  execBT += parseFloat(ev)||0; execTotal += parseFloat(ev)||0;
+                  execDisplay = String(ev);
                 }
               }
-              // 사용완료 + 날짜 툴팁
+              // 툴팁: 이력 목록
               let execTip = wd.execTooltip||'';
-              if (wd.execDone && wd.execUsedDate) {
-                execTip = (execTip ? execTip+'\n' : '')+'사용완료: '+wd.execUsedDate;
+              if (execHistory.length > 0) {
+                execTip = (execTip?execTip+'&#10;':'')+execHistory.map(h=>h.date+' · '+h.amt+'만원').join('&#10;');
               }
               const execTipAttr = execTip ? ' title="'+execTip.replace(/"/g,"'")+'"' : '';
-              const execTipDot = execTip ? '<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>' : '';
-              // 사용완료 표시
-              const execDisplay = wd.execDone ? '<span style="color:#94a3b8;font-size:11px">사용완료</span>' : ev;
+              const execTipDot = execHistory.length > 0 ? '<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>' : '';
               return '<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;background:#d1fae5;cursor:pointer;position:relative"'+execTipAttr+' data-uid="'+uid_+'" data-field="execHealth" ondblclick="editWelfareCell(this)">'+execDisplay+execTipDot+'</td>';
             })()+(function(){
               const osCh = wd.overseasChildren || 0;
@@ -4875,7 +4896,7 @@ function renderMyPageEmp(emp, email) {
 
   // 임원건강검진 (사용자만 표시 — 건강검진 미사용 여부 무관)
   const execTimes = Math.floor(calcYears(startDate, today) / 2);
-  if (execTimes > 0 && wd.execUnused === false) {
+  if (execTimes > 0 && wd.execUnused !== true) {
     const execBase = wd.execSpouse ? 100 : 50;
     const execHistory = wd.execHistory || [];
     let execHtml = '<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">🏥 임원건강검진</div>';
@@ -4893,37 +4914,35 @@ function renderMyPageEmp(emp, email) {
     }
 
     // 현재 사용 가능 여부 (2년 주기 기준)
-    if (wd.execUsed) {
-      // 마지막 이력 기준 다음 갱신일 계산
-      const lastHistory = execHistory.length > 0 ? execHistory[execHistory.length-1] : null;
-      if (lastHistory) {
-        const lastDate = parseLocalDate(lastHistory.date);
-        const nextAvail = new Date(lastDate.getFullYear()+2, lastDate.getMonth(), lastDate.getDate());
-        const isAvail = today >= nextAvail;
-        if (isAvail) {
-          execHtml += '<div style="'+rowStyle+'">'
-            +'<div style="font-weight:600">현재 갱신분</div>'
-            +'<div style="font-size:12px;color:#64748b">사용가능기간: ~'+fmtLocalDate(new Date(nextAvail.getFullYear()+2, nextAvail.getMonth(), nextAvail.getDate()-1))+'</div>'
-            +'<div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>'
-            +'<div style="color:#22c55e;font-weight:600;white-space:nowrap">사용가능 '+execBase+'만원</div>'
-            +'</div>';
-        } else {
-          execHtml += '<div style="'+rowStyle+'">'
-            +'<div style="font-weight:600">다음 갱신</div>'
-            +'<div style="font-size:12px;color:#64748b">갱신예정: '+fmtLocalDate(nextAvail)+'</div>'
-            +'<div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div>'
-            +'<div style="color:#94a3b8;font-weight:600;white-space:nowrap">갱신예정</div>'
-            +'</div>';
-        }
-      } else {
-        // 이력 없이 사용 체크만 된 경우
+    // 이력 기반으로 현재 상태 판단
+    if (execHistory.length > 0) {
+      const lastDate = parseLocalDate(execHistory[execHistory.length-1].date);
+      const nextAvail = new Date(lastDate.getFullYear()+2, lastDate.getMonth(), lastDate.getDate());
+      const isAvail = today >= nextAvail;
+      const availEnd = fmtLocalDate(new Date(nextAvail.getFullYear()+2, nextAvail.getMonth(), nextAvail.getDate()-1));
+      if (isAvail) {
         execHtml += '<div style="'+rowStyle+'">'
-          +'<div style="font-weight:600">2년에 1번</div>'
-          +'<div></div>'
+          +'<div style="font-weight:600">현재 갱신분</div>'
+          +'<div style="font-size:12px;color:#64748b">사용가능기간: ~'+availEnd+'</div>'
           +'<div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>'
           +'<div style="color:#22c55e;font-weight:600;white-space:nowrap">사용가능 '+execBase+'만원</div>'
           +'</div>';
+      } else {
+        execHtml += '<div style="'+rowStyle+'">'
+          +'<div style="font-weight:600">다음 갱신</div>'
+          +'<div style="font-size:12px;color:#64748b">갱신예정: '+fmtLocalDate(nextAvail)+'</div>'
+          +'<div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div>'
+          +'<div style="color:#94a3b8;font-weight:600;white-space:nowrap">갱신예정</div>'
+          +'</div>';
       }
+    } else if (wd.execUsed) {
+      // 이력 없이 사용 체크만 된 경우 — 사용가능 표시
+      execHtml += '<div style="'+rowStyle+'">'
+        +'<div style="font-weight:600">2년에 1번</div>'
+        +'<div></div>'
+        +'<div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>'
+        +'<div style="color:#22c55e;font-weight:600;white-space:nowrap">사용가능 '+execBase+'만원</div>'
+        +'</div>';
     }
 
     execHtml += '</div>';
