@@ -4970,39 +4970,33 @@ function renderMyPageEmp(emp, email) {
     return '<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;'+bg+'border-radius:8px;margin-bottom:6px"><div style="font-weight:'+(isHandsOn?'700':'600')+'">'+lbl+'</div><div style="font-size:12px;color:#64748b">'+rfPeriod+'</div><div style="width:7px;height:7px;border-radius:50%;background:'+dotC2+';flex-shrink:0"></div><div style="color:'+dotC2+';font-weight:600;white-space:nowrap">'+statusTxt2+'</div></div>';
   });
 
-  // 6→10→15→20년 순서 중 다음 인접 1개만 표시 (한시★ 포함 통합 풀)
+  // 6→10→15→20 통합 풀 — 다음 인접 미발생 1개 표시 (한시★ 우선)
   const rfSd = parseLocalDate(startDate);
   const rfLabelMap3 = {refresh6:'리프레쉬 6년만근', sabbatical10:'안식년 10년만근', refresh15:'리프레쉬 15년만근', sabbatical20:'안식년 20년만근'};
+  const rfYrMap3 = {refresh6:6, sabbatical10:10, refresh15:15, sabbatical20:20};
 
-  // 발생한 항목이 없으면 → 한시★ 또는 다음 정규 중 가장 인접한 1개만
-  if (rfItems.length === 0) {
-    // 한시 대상이 있으면 우선
-    if (rfTargetF) {
-      const rfYrMap2 = {refresh6:6,refresh15:15,sabbatical10:10,sabbatical20:20};
-      const targetYr2 = rfYrMap2[rfTargetF];
-      const issueDate2 = new Date(rfSd.getFullYear()+targetYr2, rfSd.getMonth(), rfSd.getDate());
-      rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, targetYr2))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
-    } else {
-      // 한시 대상 아니면 정규 중 인접 1개
-      const nextRf = [['refresh6',6],['sabbatical10',10],['refresh15',15],['sabbatical20',20]]
-        .find(([f,yr]) => years < yr);
+  // 사용완료 또는 자동소멸 항목이 있으면 1회 소진 → 다음 미발생 표시 안 함
+  const rfDone = rfItems.some(i => i.includes('사용완료') || i.includes('자동소멸'));
+
+  if (!rfDone) {
+    // 다음 인접 미발생: 한시★ 대상이면 우선, 아니면 정규 순서에서 찾기
+    const rfAllOrder = [['refresh6',6],['sabbatical10',10],['refresh15',15],['sabbatical20',20]];
+    // 이미 표시된 항목 yr 목록
+    const shownYrs = rfMap.filter(({yr}) => years >= yr).map(({yr}) => yr);
+    // 한시★가 이미 rfItems에 있으면 추가 안 함
+    const hansiShown = rfItems.some(i => i.includes('★한시'));
+
+    if (rfTargetF && !hansiShown) {
+      const targetYr2 = rfYrMap3[rfTargetF];
+      if (years < targetYr2) {
+        rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, targetYr2))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
+      }
+    } else if (!rfTargetF) {
+      // 한시 대상 아님 → 정규 순서에서 아직 발생 안 된 인접 1개
+      const nextRf = rfAllOrder.find(([f,yr]) => years < yr);
       if (nextRf) {
         const [f, yr] = nextRf;
-        const issueD = new Date(rfSd.getFullYear()+yr, rfSd.getMonth(), rfSd.getDate());
         rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="font-weight:600">'+rfLabelMap3[f]+'</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, yr))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
-      }
-    }
-  } else {
-    // 발생한 항목이 있는 경우 — 사용완료/자동소멸이면 다음 항목 표시 안 함 (1회 지원)
-    const rfUsed = rfItems.some(i => i.includes('사용완료') || i.includes('자동소멸'));
-    if (!rfUsed) {
-      // 아직 사용 중(사용가능/사용안함)이면 한시★만 추가 표시
-      if (rfTargetF && !rfItems.some(i => i.includes('★한시'))) {
-        const rfYrMap2 = {refresh6:6,refresh15:15,sabbatical10:10,sabbatical20:20};
-        const targetYr2 = rfYrMap2[rfTargetF];
-        if (years < targetYr2) {
-          rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, targetYr2))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
-        }
       }
     }
   }
