@@ -3897,8 +3897,8 @@ function renderWelfareTable() {
   });
 
   document.getElementById('welfare-tbody').innerHTML = rows;
-  let ltTC2=longtermYears.map(y=>'<td style="'+tfStyle+'">'+(ltTotals[y]||'')+'</td>').join('');
   const tfStyle = 'border:1px solid #cbd5e1;padding:6px;text-align:center;background:#e2e8f0;font-weight:700';
+  let ltTC2=longtermYears.map(y=>'<td style="'+tfStyle+'">'+(ltTotals[y]||'')+'</td>').join('');
   document.getElementById('welfare-tfoot').innerHTML='<tr style="background:#e2e8f0;font-weight:700">'
     +'<td colspan="8" style="'+tfStyle+'">전체 합계</td>'
     +'<td style="'+tfStyle+'">'+totalBirthday+'</td>'
@@ -4552,7 +4552,7 @@ function _doExportWelfareExcel() {
   const r1v = [
     '본부명','부서명','팀명','직위','성명','기산일','현재일','근속년수',
     '발생금액','','','','개별합계',
-    '장기근속 건강검진(건강검진 미사용 시 자동 소진)','','','','','','','','','','','',
+    '장기근속 건강검진(건강검진 미사용 시 자동 소진)','','','','','','','','','','',
     '임원건강검진',
     '장기근속 해외연수','','','','',
     '리프레쉬','',
@@ -4579,9 +4579,10 @@ function _doExportWelfareExcel() {
   // ── 병합 ──
   // rowspan=2: A~H(1~8), M(13), Y(25)
   // rowspan=2: A~H(1~8), M(13) — Y(25)는 rowspan 없음, 1행=임원건강검진, 2행=2년에1번
+  // rowspan=2: A~H(1~8), M(13)
   [[1,1,2,1],[1,2,2,2],[1,3,2,3],[1,4,2,4],[1,5,2,5],[1,6,2,6],[1,7,2,7],[1,8,2,8],[1,13,2,13]]
     .forEach(([r1,c1,r2,c2])=>ws.mergeCells(r1,c1,r2,c2));
-  // colspan: 발생금액(I~L=9~12), 건강검진(N~X=14~24), 해외연수(Z~AD=26~30), 리프레쉬(AE~AF=31~32), 안식년(AG~AH=33~34)
+  // colspan 1행: 발생금액(I~L=9~12), 건강검진(N~X=14~24), 해외연수(Z~AD=26~30), 리프레쉬(AE~AF=31~32), 안식년(AG~AH=33~34)
   [[1,9,1,12],[1,14,1,24],[1,26,1,30],[1,31,1,32],[1,33,1,34]]
     .forEach(([r1,c1,r2,c2])=>ws.mergeCells(r1,c1,r2,c2));
 
