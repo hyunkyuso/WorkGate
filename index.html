@@ -4499,55 +4499,42 @@ function _doExportWelfareExcel() {
   if (!tbody) { showToast('❌ 테이블을 먼저 열어주세요'); return; }
 
   const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet('복리후생 지원현황', { views: [{ state: 'frozen', ySplit: 2 }] });
+  const ws = wb.addWorksheet('복리후생 지원현황', { views: [{ state:'frozen', ySplit:2 }] });
 
-  // ── 컬럼 정의 ──
   const colWidths = [10,12,10,8,8,12,12,16,7,7,7,7,9,7,7,7,7,7,7,7,7,7,7,7,9,9,7,7,7,7,7,7,7,7,7];
   ws.columns = colWidths.map(w => ({ width: w }));
 
-  // ── 색상 정의 ──
-  const C = {
-    header:  'F1F5F9', // 기본 헤더
-    yellow:  'FEF9C3', // 발생금액
-    green:   'DCFCE7', // 건강검진
-    green2:  'D1FAE5', // 임원건강검진
-    pink:    'FCE7F3', // 해외연수
-    purple:  'E0E7FF', // 리프레쉬
-    amber:   'FEF3C7', // 안식년
-    white:   'FFFFFF',
-    rowEven: 'F8FAFC',
+  // 색상
+  const C = { header:'F1F5F9', yellow:'FEF9C3', green:'DCFCE7', green2:'D1FAE5',
+    pink:'FCE7F3', purple:'E0E7FF', amber:'FEF3C7', white:'FFFFFF' };
+
+  const bdr = () => ({ top:{style:'thin',color:{argb:'FFE2E8F0'}}, bottom:{style:'thin',color:{argb:'FFE2E8F0'}},
+    left:{style:'thin',color:{argb:'FFE2E8F0'}}, right:{style:'thin',color:{argb:'FFE2E8F0'}} });
+
+  const applyStyle = (cell, bg='FFFFFF', bold=false, fontColor='374141') => {
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF'+bg } };
+    cell.font = { bold, size:9, name:'맑은 고딕', color:{ argb:'FF'+fontColor } };
+    cell.alignment = { horizontal:'center', vertical:'middle', wrapText:false };
+    cell.border = bdr();
   };
 
-  const border = (color='E2E8F0') => ({
-    top:    { style:'thin', color:{ argb:'FF'+color } },
-    bottom: { style:'thin', color:{ argb:'FF'+color } },
-    left:   { style:'thin', color:{ argb:'FF'+color } },
-    right:  { style:'thin', color:{ argb:'FF'+color } },
-  });
-
-  const hStyle = (bg, bold=true) => ({
-    font: { bold, size: 9, name: '맑은 고딕' },
-    fill: { type:'pattern', pattern:'solid', fgColor:{ argb:'FF'+bg } },
-    alignment: { horizontal:'center', vertical:'middle', wrapText:true },
-    border: border(),
-  });
-  const cellStyle = (bg=C.white, bold=false, color='000000') => ({
-    font: { bold, size: 9, name: '맑은 고딕', color:{ argb:'FF'+color } },
-    fill: { type:'pattern', pattern:'solid', fgColor:{ argb:'FF'+bg } },
-    alignment: { horizontal:'center', vertical:'middle' },
-    border: border(),
-  });
-
   // ── 헤더 1행 ──
+  const h1Colors = [
+    ...Array(8).fill(C.header),
+    ...Array(4).fill(C.yellow), C.yellow,
+    ...Array(11).fill(C.green),
+    C.green2, C.green2,
+    ...Array(5).fill(C.pink),
+    C.purple, C.purple,
+    C.amber, C.amber,
+  ];
   const r1 = ws.addRow(['본부명','부서명','팀명','직위','성명','기산일','현재일','근속년수',
     '발생금액','','','','개별합계',
     '장기근속 건강검진(건강검진 미사용 시 자동 소진)','','','','','','','','','','','',
-    '임원건강검진','',
-    '장기근속 해외연수(발생일기준 2년내 사용원칙)','','','','',
-    '리프레쉬','','안식년','']);
+    '임원건강검진','','장기근속 해외연수','','','','','리프레쉬','','안식년','']);
   r1.height = 28;
+  r1.eachCell((c,i) => applyStyle(c, h1Colors[i-1]||C.header, true));
 
-  // ── 헤더 2행 ──
   const r2 = ws.addRow(['','','','','','','','',
     '생일','부모님생신','건강검진','해외연수','',
     '5년만근','7년만근','9년만근','11년만근','13년만근','15년만근','17년만근','19년만근','21년만근','23년만근','25년만근',
@@ -4555,103 +4542,108 @@ function _doExportWelfareExcel() {
     '3년만근','6년만근','10년만근','15년만근','20년만근',
     '6년만근','15년만근','10년만근','20년만근']);
   r2.height = 28;
+  r2.eachCell((c,i) => applyStyle(c, h1Colors[i-1]||C.header, true));
 
-  // ── 헤더 셀 스타일 적용 ──
-  const h1Colors = [
-    ...Array(8).fill(C.header),    // 본부명~근속년수
-    ...Array(4).fill(C.yellow),    // 발생금액 4개
-    C.yellow,                       // 개별합계
-    ...Array(11).fill(C.green),    // 건강검진 11개
-    C.green2, C.green2,            // 임원건강검진
-    ...Array(5).fill(C.pink),      // 해외연수 5개
-    C.purple, C.purple,            // 리프레쉬
-    C.amber, C.amber,              // 안식년
-  ];
-  r1.eachCell((cell, colNum) => { Object.assign(cell, hStyle(h1Colors[colNum-1]||C.header)); });
-  r2.eachCell((cell, colNum) => { Object.assign(cell, hStyle(h1Colors[colNum-1]||C.header)); });
+  // 헤더 병합
+  [[1,1,2,1],[1,2,2,2],[1,3,2,3],[1,4,2,4],[1,5,2,5],[1,6,2,6],[1,7,2,7],[1,8,2,8],
+   [1,9,1,12],[1,13,2,13],[1,14,1,24],[1,25,1,26],[1,27,1,31],[1,32,1,33],[1,34,1,35]]
+  .forEach(([r1,c1,r2,c2]) => ws.mergeCells(r1,c1,r2,c2));
 
-  // ── 헤더 병합 ──
-  const merges1 = [
-    [1,1,2,1],[1,2,2,2],[1,3,2,3],[1,4,2,4],[1,5,2,5],  // 본부명~성명
-    [1,6,2,6],[1,7,2,7],[1,8,2,8],                        // 기산일~근속년수
-    [1,9,1,12],   // 발생금액
-    [1,13,2,13],  // 개별합계
-    [1,14,1,24],  // 건강검진
-    [1,25,1,26],  // 임원건강검진
-    [1,27,1,31],  // 해외연수
-    [1,32,1,33],  // 리프레쉬
-    [1,34,1,35],  // 안식년
-  ];
-  merges1.forEach(([r1,c1,r2,c2]) => ws.mergeCells(r1,c1,r2,c2));
-
-  // ── 데이터 행 ──
-  const trs = tbody.querySelectorAll('tr');
-  let rowIdx = 3;
-  trs.forEach(tr => {
-    const cells = tr.querySelectorAll('td');
-    if (!cells.length) return;
-    const rowData = [];
-    cells.forEach(td => {
-      let txt = td.innerText.trim().replace(/\n/g,' ');
-      const num = parseFloat(txt);
-      rowData.push(!isNaN(num) && txt !== '' && txt !== '-' ? num : txt);
-    });
-    if (!rowData.length) return;
-
-    // 합계행 여부 (행 배경색으로 판단)
-    const isSumRow = tr.style.background || tr.querySelector('td[colspan]');
-    const dataRow = ws.addRow(rowData);
-    dataRow.height = 18;
-
-    // 셀 배경색 — HTML td의 배경색을 그대로 반영
-    cells.forEach((td, ci) => {
-      const cell = dataRow.getCell(ci+1);
-      const bg = td.style.background || td.style.backgroundColor || '';
-      // 배경색 매핑
-      let bgHex = C.white;
-      if (bg.includes('fef9c3') || bg.includes('254,249,195')) bgHex = 'FEF9C3';
-      else if (bg.includes('dcfce7') || bg.includes('220,252,231')) bgHex = 'DCFCE7';
-      else if (bg.includes('fce7f3') || bg.includes('252,231,243')) bgHex = 'FCE7F3';
-      else if (bg.includes('e0e7ff') || bg.includes('224,231,255')) bgHex = 'E0E7FF';
-      else if (bg.includes('fef3c7') || bg.includes('254,243,199')) bgHex = 'FEF3C7';
-      else if (bg.includes('fed7aa') || bg.includes('254,215,170')) bgHex = 'FED7AA';
-      else if (bg.includes('bfdbfe') || bg.includes('191,219,254')) bgHex = 'BFDBFE';
-      else if (bg.includes('bbf7d0') || bg.includes('187,247,208')) bgHex = 'BBF7D0';
-      else if (bg.includes('fef9c3') || bg.includes('254,249,195')) bgHex = 'FEF9C3';
-      else if (bg.includes('fef3c7') || bg.includes('254,243,199')) bgHex = 'FEF3C7';
-      else if (bg.includes('f0fdf4') || bg.includes('240,253,244')) bgHex = 'F0FDF4';
-      else if (bg.includes('fef2f2') || bg.includes('254,242,242')) bgHex = 'FEF2F2';
-      else if (bg.includes('f8fafc') || bg.includes('248,250,252')) bgHex = 'F8FAFC';
-      else if (bg.includes('fef4') || bg.includes('fffbeb')) bgHex = 'FFFBEB';
-
-      // 텍스트 색상
-      let fontColor = '374151';
-      const tdColor = td.style.color || '';
-      if (tdColor.includes('22c55e') || tdColor.includes('34,197,94')) fontColor = '15803D';
-      else if (tdColor.includes('ef4444') || tdColor.includes('239,68,68')) fontColor = 'DC2626';
-      else if (tdColor.includes('f59e0b') || tdColor.includes('245,158,11')) fontColor = 'D97706';
-      else if (tdColor.includes('94a3b8') || tdColor.includes('148,163,184')) fontColor = '94A3B8';
-
-      const bold = td.style.fontWeight === '700' || td.style.fontWeight === 'bold' || td.querySelector('strong');
-      Object.assign(cell, cellStyle(bgHex, !!bold, fontColor));
-    });
-
-    // 합계행 굵게
-    if (tr.style.fontWeight === '700' || tr.querySelector('td[style*="font-weight:700"]')) {
-      dataRow.font = { bold: true, size: 9, name: '맑은 고딕' };
+  // ── HTML td 배경색 → hex 변환 ──
+  function getBgHex(td) {
+    const bg = (td.style.background || td.style.backgroundColor || '').toLowerCase();
+    if (!bg || bg === 'transparent') return null;
+    // rgb(r,g,b) 파싱
+    const rgb = bg.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (rgb) {
+      return [parseInt(rgb[1]),parseInt(rgb[2]),parseInt(rgb[3])]
+        .map(v => v.toString(16).padStart(2,'0')).join('').toUpperCase();
     }
-    rowIdx++;
+    // hex #rrggbb
+    const hex = bg.match(/#([0-9a-f]{6})/);
+    if (hex) return hex[1].toUpperCase();
+    return null;
+  }
+  function getFontHex(td) {
+    const c = (td.style.color || '').toLowerCase();
+    if (!c) return '374151';
+    const rgb = c.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (rgb) return [parseInt(rgb[1]),parseInt(rgb[2]),parseInt(rgb[3])].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
+    const hex = c.match(/#([0-9a-f]{6})/);
+    if (hex) return hex[1].toUpperCase();
+    return '374151';
+  }
+
+  // ── HTML rowspan → Excel 병합 추적 ──
+  // grid[row][col] = { value, bg, fontColor, bold, rowspan, colspan }
+  const trs = Array.from(tbody.querySelectorAll('tr'));
+  const totalCols = 35;
+  // sparse grid: grid[r][c] = cell info
+  const grid = [];
+  const occupied = {}; // "r,c" → true
+
+  trs.forEach((tr, ri) => {
+    if (!grid[ri]) grid[ri] = {};
+    let ci = 0;
+    Array.from(tr.querySelectorAll('td')).forEach(td => {
+      // 빈 칸 skip
+      while (occupied[`${ri},${ci}`]) ci++;
+      const rowspan = parseInt(td.getAttribute('rowspan')||'1');
+      const colspan = parseInt(td.getAttribute('colspan')||'1');
+      const txt = td.innerText.trim().replace(/\s+/g,' ');
+      const num = parseFloat(txt);
+      const value = (!isNaN(num) && txt !== '' && txt !== '-') ? num : txt;
+      const bg = getBgHex(td) || 'FFFFFF';
+      const fontColor = getFontHex(td);
+      const bold = td.style.fontWeight === '700' || td.style.fontWeight === 'bold';
+      grid[ri][ci] = { value, bg, fontColor, bold, rowspan, colspan };
+      // 점유 표시
+      for (let dr = 0; dr < rowspan; dr++) {
+        for (let dc = 0; dc < colspan; dc++) {
+          occupied[`${ri+dr},${ci+dc}`] = true;
+        }
+      }
+      ci += colspan;
+    });
+  });
+
+  // ── 그리드 → 워크시트 ──
+  const dataStartRow = 3;
+  trs.forEach((tr, ri) => {
+    const wsRow = ws.getRow(dataStartRow + ri);
+    // 합계행 높이
+    const isSumRow = tr.style.background || tr.querySelector('td[colspan]');
+    wsRow.height = isSumRow ? 20 : 16;
+
+    for (let ci = 0; ci < totalCols; ci++) {
+      const cell = wsRow.getCell(ci + 1);
+      if (grid[ri] && grid[ri][ci]) {
+        const info = grid[ri][ci];
+        cell.value = info.value;
+        applyStyle(cell, info.bg, info.bold, info.fontColor);
+        // rowspan/colspan 병합
+        if (info.rowspan > 1 || info.colspan > 1) {
+          const er = dataStartRow + ri + info.rowspan - 1;
+          const ec = ci + info.colspan;
+          try { ws.mergeCells(dataStartRow + ri, ci + 1, er, ec); } catch(e){}
+        }
+      } else if (!occupied[`${ri},${ci}`]) {
+        // 완전히 비어있는 셀도 스타일 적용
+        applyStyle(cell, 'FFFFFF', false);
+      } else {
+        // 병합된 셀 영역 — 스타일만
+        applyStyle(cell, 'FFFFFF', false);
+      }
+    }
   });
 
   // ── 다운로드 ──
   wb.xlsx.writeBuffer().then(buf => {
-    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `복리후생_지원현황_${todayVal}.xlsx`;
-    a.click();
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = `복리후생_지원현황_${todayVal}.xlsx`;
+    a.click(); URL.revokeObjectURL(url);
     showToast('📊 Excel 다운로드 완료!');
   });
 }
