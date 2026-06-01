@@ -3298,7 +3298,7 @@ function calcOverseasAmt(wd, joindate, today) {
     return { result, total };
   }
 
-  const sd = new Date(wd.startDate || joindate);
+  const sd = parseLocalDate(wd.startDate || joindate);
   const yrs = calcYears(wd.startDate || joindate, today);
 
   osFields.forEach(([fld, yr, base]) => {
@@ -3698,14 +3698,14 @@ function renderWelfareTable() {
               const osTargetBase = osTarget==='overseas15' ? 600 : osTarget==='overseas20' ? 1000 : 0;
               const osTargetAmt = osTargetBase + osTargetBase * 0.5 * osCh_;
               // 발생일: 기산일 + 15년(또는 20년) → 2년 후 소멸
-              const sd_os = new Date(startDate);
+              const sd_os = parseLocalDate(startDate);
               const osIssueDate = osTargetYr > 0 ? new Date(sd_os.getFullYear()+osTargetYr, sd_os.getMonth(), sd_os.getDate()) : null;
               const osExpired = osIssueDate ? today > new Date(osIssueDate.getFullYear()+2, osIssueDate.getMonth(), osIssueDate.getDate()) : false;
 
               return osYears.map(([yr,base,fld])=>{
                 const v = osResult[fld];
                 // 사용기간 계산
-                const osIssueD = new Date((new Date(startDate)).getFullYear()+yr, (new Date(startDate)).getMonth(), (new Date(startDate)).getDate());
+                const _sdOs = parseLocalDate(startDate); const osIssueD = new Date(_sdOs.getFullYear()+yr, _sdOs.getMonth(), _sdOs.getDate());
                 const osCutoff = new Date('2026-01-01');
                 const osExpiryD = osIssueD < osCutoff ? new Date('2027-12-31') : new Date(osIssueD.getFullYear()+2, osIssueD.getMonth(), osIssueD.getDate());
                 const osReached3 = years >= yr;
