@@ -4954,7 +4954,7 @@ function renderMyPageEmp(emp, email) {
   // rfEligible=false면 리프레쉬/안식년 전체 미표시
   const rfCutoff = new Date('2026-01-01');
   const rfExpiry2027 = new Date('2027-12-31');
-  const rfItems = rfEligible ? rfMap.filter(({yr}) => years >= yr).map(({f,label,yr}) => {
+  const rfItems = !rfEligible ? [] : rfMap.filter(({yr}) => years >= yr).map(({f,label,yr}) => {
     const sd = new Date(startDate);
     const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
     const isOldRf = issueDate < rfCutoff;
@@ -4976,15 +4976,15 @@ function renderMyPageEmp(emp, email) {
   const rfLabelMap3 = {refresh6:'리프레쉬 6년만근', sabbatical10:'안식년 10년만근', refresh15:'리프레쉬 15년만근', sabbatical20:'안식년 20년만근'};
   const rfYrMap3 = {refresh6:6, sabbatical10:10, refresh15:15, sabbatical20:20};
 
-  // 사용완료 또는 자동소멸 있으면 1회 소진 → 다음 표시 없음
-  // 한시★(rfTargetF)도 사용완료면 소진
+  // 리프레쉬/안식년 통합 1회 지원 — 어느 항목이든 사용완료/자동소멸 있으면 소진
+  // 단 사용가능 항목이 있어도 다른 항목이 사용완료면 소진으로 처리
+  const sdRfDone = parseLocalDate(startDate);
   const rfDone = rfMap.some(({f, yr}) => {
-    if (years < yr) return false;
     const v = wd[f];
-    if (v === '사용완료') return true;
+    if (v === '사용완료') return true; // 발생 여부 무관하게 사용완료면 소진
+    if (years < yr) return false;
     // 자동소멸 여부: 만료일 체크
-    const sdCheck = parseLocalDate(startDate);
-    const issueDCheck = new Date(sdCheck.getFullYear()+yr, sdCheck.getMonth(), sdCheck.getDate());
+    const issueDCheck = new Date(sdRfDone.getFullYear()+yr, sdRfDone.getMonth(), sdRfDone.getDate());
     const isOldCheck = issueDCheck < parseLocalDate('2026-01-01');
     const expiryCheck = isOldCheck ? new Date('2027-12-31') : expiryDateDisplay(issueDCheck);
     return today > expiryCheck;
