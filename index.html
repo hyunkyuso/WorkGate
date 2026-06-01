@@ -3255,6 +3255,20 @@ function parseLocalDate(str) {
   return new Date(parts[0], parts[1]-1, parts[2]);
 }
 
+// 임원건강검진 발생횟수 계산 (기산일 당일부터 1회, 이후 2년마다)
+function calcExecTimes(startDate, today) {
+  const sd = parseLocalDate(startDate);
+  const t = (today instanceof Date) ? today : (today ? parseLocalDate(today) : new Date());
+  if (t < sd) return 0;
+  let n = 1; // 기산일 당일 1회 발생
+  while (true) {
+    const issueD = new Date(sd.getFullYear()+n*2, sd.getMonth(), sd.getDate());
+    if (issueD > t) break;
+    n++;
+  }
+  return n;
+}
+
 // 전역 날짜 포맷 함수 (timezone 이슈 없이 로컬 날짜 반환)
 function fmtLocalDate(d) {
   if (!d) return '';
@@ -3595,7 +3609,7 @@ function renderWelfareTable() {
           }
           // 임원건강검진: 발생횟수 vs 이력수 비교로 현재 사용가능 여부 판단
           const execBase2 = wd.execSpouse ? 100 : 50;
-          const execTimes2 = Math.floor(calcYears(wd.startDate||e.joindate, empToday) / 2);
+          const execTimes2 = calcExecTimes(wd.startDate||e.joindate, empToday);
           let execHealthAmt = 0;
           if (execTimes2 > 0 && wd.execUnused === false && wd.execUsed) {
             const execHist2 = wd.execHistory || [];
@@ -3740,7 +3754,7 @@ function renderWelfareTable() {
             +ltCells+(function(){
               // 임원건강검진: 2년마다 자동 갱신, 배우자포함=100, 미포함=50
               const execBase = wd.execSpouse ? 100 : 50;
-              const execTimes = Math.floor(calcYears(startDate, empToday) / 2);
+              const execTimes = calcExecTimes(startDate, empToday);
               let ev = '', execDisplay = '';
               const execHistory = wd.execHistory || [];
               // 미사용 체크 시 표기 안 함
@@ -4881,7 +4895,7 @@ function renderMyPageEmp(emp, email) {
   const rowStyle = 'display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px';
 
   // 임원건강검진 (이력 있거나 사용 체크된 경우 표시)
-  const execTimes = Math.floor(calcYears(startDate, today) / 2);
+  const execTimes = calcExecTimes(startDate, today);
   const execHistory = wd.execHistory || [];
   if ((execTimes > 0 && wd.execUnused === false && wd.execUsed) || execHistory.length > 0) {
     const execBase = wd.execSpouse ? 100 : 50;
@@ -4901,13 +4915,13 @@ function renderMyPageEmp(emp, email) {
 
     // 현재 사용 가능 여부 (2년 주기 기준)
     // 기산일 기준 발생횟수 vs 이력수 비교
-    const execTotalIssues = Math.floor(calcYears(startDate, today) / 2);
+    const execTotalIssues = calcExecTimes(startDate, today);
     const execAvail = execTotalIssues > execHistory.length;
     const sdExec = parseLocalDate(startDate);
 
     if (execAvail) {
       // 현재 사용가능 — 현재 회차 발생일 + 2년이 사용기간
-      const curIssueNum = execHistory.length + 1; // 현재 미사용 회차
+      const curIssueNum = execHistory.length; // 현재 미사용 회차 (0부터 시작, 첫발생=기산일)
       const curIssueDate = new Date(sdExec.getFullYear() + curIssueNum*2, sdExec.getMonth(), sdExec.getDate());
       const execAvailEnd = fmtLocalDate(expiryDateDisplay(curIssueDate));
       execHtml += '<div style="'+rowStyle+'">'
@@ -4918,7 +4932,7 @@ function renderMyPageEmp(emp, email) {
         +'</div>';
     } else {
       // 모두 사용완료 — 다음 갱신일 = 기산일 + (이력수+1)*2년
-      const nextIssueDate = new Date(sdExec.getFullYear() + (execHistory.length+1)*2, sdExec.getMonth(), sdExec.getDate());
+      const nextIssueDate = new Date(sdExec.getFullYear() + execHistory.length*2, sdExec.getMonth(), sdExec.getDate());
       execHtml += '<div style="'+rowStyle+'">'
         +'<div style="font-weight:600">다음 갱신</div>'
         +'<div style="font-size:12px;color:#64748b">갱신예정: '+fmtLocalDate(nextIssueDate)+'</div>'
