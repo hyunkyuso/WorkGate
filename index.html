@@ -4392,8 +4392,6 @@ function removeExecHistory(uid, idx) {
 
 function saveExecHealth(uid) {
   const used = document.getElementById('exec-used').checked;
-  const done = document.getElementById('exec-done') ? document.getElementById('exec-done').checked : false;
-  const usedDate = document.getElementById('exec-used-date') ? document.getElementById('exec-used-date').value : '';
   const unused = document.getElementById('exec-unused').checked;
   const spouse = document.getElementById('exec-spouse').checked;
   const tooltip = document.getElementById('exec-tooltip').value.trim();
@@ -4402,6 +4400,7 @@ function saveExecHealth(uid) {
   welfareData[uid].execUnused = unused;
   welfareData[uid].execSpouse = spouse;
   welfareData[uid].execHealth = unused ? 0 : (used ? (spouse ? 100 : 50) : 0);
+  // execHistory는 addExecHealthHistory에서 별도 관리 — 여기서 건드리지 않음
   if (tooltip) welfareData[uid].execTooltip = tooltip;
   else delete welfareData[uid].execTooltip;
   saveWelfare();
