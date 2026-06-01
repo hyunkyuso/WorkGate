@@ -591,7 +591,7 @@ select.form-input{cursor:pointer}
               <!-- 이름 검색 -->
               <div style="position:relative;display:flex;align-items:center">
                 <span style="position:absolute;left:8px;color:#94a3b8;font-size:13px">🔍</span>
-                <input type="text" id="mypage-name-search" oninput="filterMypageEmps()" placeholder="이름 검색" style="padding:6px 10px 6px 28px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;width:130px">
+                <input type="text" id="mypage-name-search" oninput="filterMypageEmps()" onkeydown="if(event.key==='Enter')mypageSearchEnter()" placeholder="이름 검색" style="padding:6px 10px 6px 28px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;width:130px">
               </div>
               <!-- 직원 선택 드롭다운 -->
               <select id="mypage-emp-select" onchange="renderMyPageFor(this.value)" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;min-width:160px;background:#fff">
@@ -4420,6 +4420,19 @@ function exportWelfareExcel() {
 
 function openMyPage() { showPage('mypage'); }
 function closeMyPage() {}
+
+function mypageSearchEnter() {
+  const select = document.getElementById('mypage-emp-select');
+  if (!select) return;
+  const opts = [...select.options].filter(o => o.value);
+  if (opts.length === 1) {
+    // 결과 1명이면 바로 렌더링
+    renderMyPageFor(opts[0].value);
+  } else if (opts.length > 1) {
+    // 여러 명이면 드롭다운 포커스
+    select.focus();
+  }
+}
 
 function filterMypageEmps() {
   const dept = (document.getElementById('mypage-dept-filter')||{}).value || '';
