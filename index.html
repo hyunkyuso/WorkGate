@@ -3263,6 +3263,12 @@ function fmtLocalDate(d) {
   const day = String(d.getDate()).padStart(2,'0');
   return y+'-'+m+'-'+day;
 }
+// 발생예정일 표시용: +1일 근속 계산 기준으로 -1일 (기산일+yr년 -1일)
+function issueDateDisplay(startDate, yr) {
+  const sd = parseLocalDate(startDate);
+  const d = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate() - 1);
+  return d;
+}
 
 function calcTenure(joindate, today) {
   if (!joindate) return '';
@@ -4798,7 +4804,7 @@ function renderMyPageEmp(emp, email) {
   // 건강검진 사용기간 계산 (발생일 기준 +2년)
   const ltExpiryMap = {};
   ltYears.forEach(y => {
-    const issueDate = new Date(ltSd.getFullYear()+y, ltSd.getMonth(), ltSd.getDate());
+    const issueDate = new Date(ltSd.getFullYear()+y, ltSd.getMonth(), ltSd.getDate() - 1); // +1일 근속 기준 -1일
     ltExpiryMap[y] = '~'+fmtLocalDate(new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate()));
   });
 
@@ -4819,7 +4825,7 @@ function renderMyPageEmp(emp, email) {
     if (ltNextIssueDate) {
       html += '<div style="'+rowStyle+'">'
         +'<div style="font-weight:600">'+nextLtYear+'년 만근</div>'
-        +'<div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(ltNextIssueDate)+'</div>'
+        +'<div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, nextLtYear))+'</div>'
         +'<div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div>'
         +'<div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div>'
         +'</div>';
@@ -4833,10 +4839,10 @@ function renderMyPageEmp(emp, email) {
   const expiry2027 = new Date('2027-12-31');
   const osItems = osFields.map(({yr,base}) => {
     const fld = 'overseas'+yr;
-    const sd = new Date(startDate);
-    const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
+    const sd = parseLocalDate(startDate);
+    const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate() - 1); // +1일 근속 기준 -1일
     const notYet = today < issueDate;
-    const isOld = issueDate < cutoff;
+    const isOld = issueDate < parseLocalDate('2026-01-01');
     const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
     const rfExpiry = isOld ? expiry2027 : expiry2yr;
     const expired = !notYet && today > rfExpiry;
@@ -4844,7 +4850,7 @@ function renderMyPageEmp(emp, email) {
     const v = wd[fld];
     let usePeriod, statusTxt, dotC;
     if (notYet) {
-      usePeriod = '발생예정: '+fmtLocalDate(issueDate);
+      usePeriod = '발생예정: '+fmtLocalDate(issueDateDisplay(startDate, yr));
       statusTxt = '미발생';
       dotC = '#cbd5e1';
     } else {
@@ -4869,7 +4875,7 @@ function renderMyPageEmp(emp, email) {
     const osBase = osTargetYr===15 ? 600 : 1000;
     const osAmt = osBase + osBase*0.5*osCh;
     const sd = parseLocalDate(startDate);
-    const issueDate = new Date(sd.getFullYear()+osTargetYr, sd.getMonth(), sd.getDate());
+    const issueDate = new Date(sd.getFullYear()+osTargetYr, sd.getMonth(), sd.getDate() - 1);
     const notYetOs = today < issueDate;
     const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
     const osCutoff = new Date('2026-01-01');
@@ -4880,7 +4886,7 @@ function renderMyPageEmp(emp, email) {
     if (notYetOs) {
       osStatusTxt = '미발생';
       osDotC = '#cbd5e1';
-      osPeriod = '발생예정: '+fmtLocalDate(issueDate);
+      osPeriod = '발생예정: '+fmtLocalDate(issueDateDisplay(startDate, osTargetYr));
     } else {
       const osDisplayAmt = (v && v !== '사용완료' && v !== '사용안함' && !isNaN(parseFloat(v))) ? parseFloat(v) : osAmt;
       osStatusTxt = v==='사용완료'?'사용완료':v==='사용안함'?'사용안함':expired?'소멸':'사용가능 '+osDisplayAmt+'만원';
@@ -4923,7 +4929,7 @@ function renderMyPageEmp(emp, email) {
   const rfExpiry2027 = new Date('2027-12-31');
   const rfItems = rfMap.filter(({yr}) => years >= yr).map(({f,label,yr}) => {
     const sd = new Date(startDate);
-    const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
+    const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate() - 1); // +1일 근속 기준 -1일
     const isOldRf = issueDate < rfCutoff;
     const expiry2yr = new Date(issueDate.getFullYear()+2, issueDate.getMonth(), issueDate.getDate());
     const rfExpiry = isOldRf ? rfExpiry2027 : expiry2yr;
@@ -4949,7 +4955,7 @@ function renderMyPageEmp(emp, email) {
       const rfYrMap2 = {refresh6:6,refresh15:15,sabbatical10:10,sabbatical20:20};
       const targetYr2 = rfYrMap2[rfTargetF];
       const issueDate2 = new Date(rfSd.getFullYear()+targetYr2, rfSd.getMonth(), rfSd.getDate());
-      rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDate2)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
+      rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, targetYr2))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
     } else {
       // 한시 대상 아니면 정규 중 인접 1개
       const nextRf = [['refresh6',6],['sabbatical10',10],['refresh15',15],['sabbatical20',20]]
@@ -4957,7 +4963,7 @@ function renderMyPageEmp(emp, email) {
       if (nextRf) {
         const [f, yr] = nextRf;
         const issueD = new Date(rfSd.getFullYear()+yr, rfSd.getMonth(), rfSd.getDate());
-        rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="font-weight:600">'+rfLabelMap3[f]+'</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueD)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
+        rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="font-weight:600">'+rfLabelMap3[f]+'</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, yr))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
       }
     }
   } else {
@@ -4969,7 +4975,7 @@ function renderMyPageEmp(emp, email) {
       const targetYr2 = rfYrMap2[rfTargetF];
       if (years < targetYr2) {
         const issueDate2 = new Date(rfSd.getFullYear()+targetYr2, rfSd.getMonth(), rfSd.getDate());
-        rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDate2)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
+        rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, targetYr2))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
       }
     } else if (!rfTargetF) {
       const nextRf = [['refresh6',6],['sabbatical10',10],['refresh15',15],['sabbatical20',20]]
@@ -4977,7 +4983,7 @@ function renderMyPageEmp(emp, email) {
       if (nextRf) {
         const [f, yr] = nextRf;
         const issueD = new Date(rfSd.getFullYear()+yr, rfSd.getMonth(), rfSd.getDate());
-        rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="font-weight:600">'+rfLabelMap3[f]+'</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueD)+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
+        rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="font-weight:600">'+rfLabelMap3[f]+'</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, yr))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
       }
     }
   }
