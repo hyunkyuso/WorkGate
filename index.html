@@ -3255,6 +3255,15 @@ function parseLocalDate(str) {
   return new Date(parts[0], parts[1]-1, parts[2]);
 }
 
+// 전역 날짜 포맷 함수 (timezone 이슈 없이 로컬 날짜 반환)
+function fmtLocalDate(d) {
+  if (!d) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
+
 function calcTenure(joindate, today) {
   if (!joindate) return '';
   const j = parseLocalDate(joindate);
@@ -3415,13 +3424,6 @@ function renderWelfareTable() {
   const todayInput = document.getElementById('welfare-today');
   const today = todayInput && todayInput.value ? parseLocalDate(todayInput.value) : new Date();
   const realToday = new Date(); // 진짜 오늘 (isFuture 비교용)
-  // parseLocalDate로 만든 Date는 toISOString()이 UTC 변환으로 하루 전날이 될 수 있으므로 로컬 포맷 사용
-  const fmtLocalDate = d => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const day = String(d.getDate()).padStart(2,'0');
-    return y+'-'+m+'-'+day;
-  };
   if (todayInput && !todayInput.value) todayInput.value = fmtLocalDate(today);
   const todayStr = fmtLocalDate(today);
   const longtermYears = [5,7,9,11,13,15,17,19,21,23,25];
@@ -4496,6 +4498,7 @@ function _doExportWelfareExcel() {
   const todayInput = document.getElementById('welfare-today');
   const todayVal = todayInput && todayInput.value ? todayInput.value : fmtLocalDate(new Date());
   const tbody = document.getElementById('welfare-tbody');
+  const tfoot = document.getElementById('welfare-tfoot');
   if (!tbody) { showToast('❌ 테이블을 먼저 열어주세요'); return; }
 
   const wb = new ExcelJS.Workbook();
@@ -4581,7 +4584,11 @@ function _doExportWelfareExcel() {
 
   // ── HTML rowspan → Excel 병합 추적 ──
   // grid[row][col] = { value, bg, fontColor, bold, rowspan, colspan }
-  const trs = Array.from(tbody.querySelectorAll('tr'));
+  // tbody + tfoot 합쳐서 처리
+  const trs = [
+    ...Array.from(tbody.querySelectorAll('tr')),
+    ...(tfoot ? Array.from(tfoot.querySelectorAll('tr')) : [])
+  ];
   const totalCols = 35;
   // sparse grid: grid[r][c] = cell info
   const grid = [];
