@@ -3278,11 +3278,15 @@ function calcYears(joindate, today) {
   if (!joindate) return 0;
   const j = parseLocalDate(joindate);
   const t = (today instanceof Date) ? today : (today ? parseLocalDate(today) : new Date());
-  // calcTenure와 동일하게 +1일 기준으로 계산
-  const t1 = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1);
-  let y = t1.getFullYear() - j.getFullYear();
-  let m = t1.getMonth() - j.getMonth();
-  if (m < 0 || (m === 0 && t1.getDate() < j.getDate())) y--;
+  // calcTenure의 년수 부분과 동일한 로직 (+1일 포함)
+  let y = t.getFullYear() - j.getFullYear();
+  let m = t.getMonth() - j.getMonth();
+  let d = t.getDate() - j.getDate() + 1;
+  if (d <= 0) { m--; d += new Date(t.getFullYear(), t.getMonth(), 0).getDate(); }
+  if (m < 0) { y--; m += 12; }
+  const prevMonthDays = new Date(t.getFullYear(), t.getMonth(), 0).getDate();
+  if (d >= prevMonthDays) { d = d - prevMonthDays; m++; }
+  if (m >= 12) { y++; m -= 12; }
   return y;
 }
 
@@ -3516,6 +3520,8 @@ function renderWelfareTable() {
           let ltSum = 0;
           if (!ltHealthUnused) {
             const tempYears = calcYears(wd.startDate||e.joindate, today);
+            const tempRealYears = calcYears(wd.startDate||e.joindate, realToday);
+            const isFutureLt = empToday > realToday;
             longtermYears.forEach(y => {
               const reached = tempYears >= y;
               if (!reached) return;
@@ -3524,7 +3530,9 @@ function renderWelfareTable() {
                 used = wd.longterm[y];
               } else {
                 const nextY = longtermYears[longtermYears.indexOf(y)+1];
-                const expired = nextY && tempYears >= nextY;
+                const wouldExpireLt = nextY && tempYears >= nextY;
+                const wasAlreadyExpiredLt2 = nextY && tempRealYears >= nextY;
+                const expired = wouldExpireLt && (!isFutureLt || wasAlreadyExpiredLt2);
                 used = expired ? 0 : ltBase;
               }
               if (used > 0) ltSum += used;
