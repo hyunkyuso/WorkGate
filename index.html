@@ -4970,30 +4970,25 @@ function renderMyPageEmp(emp, email) {
     return '<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;'+bg+'border-radius:8px;margin-bottom:6px"><div style="font-weight:'+(isHandsOn?'700':'600')+'">'+lbl+'</div><div style="font-size:12px;color:#64748b">'+rfPeriod+'</div><div style="width:7px;height:7px;border-radius:50%;background:'+dotC2+';flex-shrink:0"></div><div style="color:'+dotC2+';font-weight:600;white-space:nowrap">'+statusTxt2+'</div></div>';
   });
 
-  // 6→10→15→20 통합 풀 — 다음 인접 미발생 1개 표시 (한시★ 우선)
+  // 6→10→15→20 통합 풀 — 다음 인접 미발생 1개
   const rfSd = parseLocalDate(startDate);
   const rfLabelMap3 = {refresh6:'리프레쉬 6년만근', sabbatical10:'안식년 10년만근', refresh15:'리프레쉬 15년만근', sabbatical20:'안식년 20년만근'};
   const rfYrMap3 = {refresh6:6, sabbatical10:10, refresh15:15, sabbatical20:20};
 
-  // 사용완료 또는 자동소멸 항목이 있으면 1회 소진 → 다음 미발생 표시 안 함
+  // 사용완료 또는 자동소멸 있으면 1회 소진 → 다음 표시 없음
   const rfDone = rfItems.some(i => i.includes('사용완료') || i.includes('자동소멸'));
 
   if (!rfDone) {
-    // 다음 인접 미발생: 한시★ 대상이면 우선, 아니면 정규 순서에서 찾기
-    const rfAllOrder = [['refresh6',6],['sabbatical10',10],['refresh15',15],['sabbatical20',20]];
-    // 이미 표시된 항목 yr 목록
-    const shownYrs = rfMap.filter(({yr}) => years >= yr).map(({yr}) => yr);
-    // 한시★가 이미 rfItems에 있으면 추가 안 함
-    const hansiShown = rfItems.some(i => i.includes('★한시'));
-
-    if (rfTargetF && !hansiShown) {
+    if (rfTargetF) {
+      // 한시★ 대상: rfTargetF 1개만 표시 (정규 따로 없음)
       const targetYr2 = rfYrMap3[rfTargetF];
-      if (years < targetYr2) {
+      if (years < targetYr2 && !rfItems.some(i => i.includes('★한시'))) {
         rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #6366f1;border-radius:8px;margin-bottom:6px"><div style="font-weight:700">'+rfLabelMap3[rfTargetF]+' ★한시</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, targetYr2))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
       }
-    } else if (!rfTargetF) {
-      // 한시 대상 아님 → 정규 순서에서 아직 발생 안 된 인접 1개
-      const nextRf = rfAllOrder.find(([f,yr]) => years < yr);
+    } else {
+      // 한시 없음(already=true 또는 비대상): 정규 순서에서 다음 인접 1개만
+      const nextRf = [['refresh6',6],['sabbatical10',10],['refresh15',15],['sabbatical20',20]]
+        .find(([f,yr]) => years < yr);
       if (nextRf) {
         const [f, yr] = nextRf;
         rfItems.push('<div style="display:grid;grid-template-columns:130px 1fr 10px 160px;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px"><div style="font-weight:600">'+rfLabelMap3[f]+'</div><div style="font-size:12px;color:#64748b">발생예정: '+fmtLocalDate(issueDateDisplay(startDate, yr))+'</div><div style="width:7px;height:7px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></div><div style="color:#94a3b8;font-weight:600;white-space:nowrap">미발생</div></div>');
