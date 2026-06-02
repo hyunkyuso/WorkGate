@@ -613,12 +613,7 @@ select.form-input{cursor:pointer}
               <option value="">전체 월</option>
               <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option><option value="4">4월</option><option value="5">5월</option><option value="6">6월</option><option value="7">7월</option><option value="8">8월</option><option value="9">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
             </select>
-            <select id="birthday-type-filter" onchange="renderBirthdayTable()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
-              <option value="">구분 전체</option>
-              <option value="본인">본인</option>
-              <option value="부">부</option>
-              <option value="모">모</option>
-            </select>
+
           </div>
         </div>
         <div style="overflow-x:auto">
@@ -626,7 +621,6 @@ select.form-input{cursor:pointer}
             <thead>
               <tr style="background:#f1f5f9">
                 <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:40px">순번</th>
-                <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:60px">구분</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:80px">본부</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:80px">대상자</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:100px">생일</th>
@@ -5052,7 +5046,6 @@ function renderBirthdayTable() {
   const tbody = document.getElementById('birthday-tbody');
   if (!tbody) return;
   const monthFilter = (document.getElementById('birthday-month-filter')||{}).value || '';
-  const typeFilter = (document.getElementById('birthday-type-filter')||{}).value || '';
   const rows = [];
 
   employees.forEach(e => {
@@ -5070,44 +5063,24 @@ function renderBirthdayTable() {
         let sm = bm, sd = bd;
         if ((e.birthType||'양력') === '음력') { const s=lunarToSolar(bm,bd); sm=s.month; sd=s.day; }
         if (!monthFilter || sm === parseInt(monthFilter)) {
-          if (!typeFilter || typeFilter === '본인') {
-            rows.push({ type:'본인', bonbu, name, date:`${sm}월 ${sd}일`, month:sm, day:sd, amt:birthdayAmt, note:workplace });
-          }
+          rows.push({ type:'본인', bonbu, name, date:`${sm}월 ${sd}일`, month:sm, day:sd, amt:birthdayAmt, note:workplace });
         }
       }
     }
 
-    // 부모 생일
-    if (wd.parentUsed !== false && e.parents && e.parents.length > 0) {
-      e.parents.forEach(p => {
-        if (!p.name) return;
-        const pm = parseInt(p.birthMonth||'0'), pd = parseInt(p.birthDay||'0');
-        if (!pm || !pd) return;
-        let sm = pm, sd = pd;
-        if ((p.birthType||'양력') === '음력') { const s=lunarToSolar(pm,pd); sm=s.month; sd=s.day; }
-        const pLabel = p.isFather?'부':p.isMother?'모':'';
-        if (!pLabel) return;
-        const pAmt = (wd.parentFather&&p.isFather)||(wd.parentMother&&p.isMother) ? 2 : 0;
-        if (!monthFilter || sm === parseInt(monthFilter)) {
-          if (!typeFilter || typeFilter === pLabel) {
-            rows.push({ type:`${pLabel}(${p.name})`, bonbu, name, date:`${sm}월 ${sd}일`, month:sm, day:sd, amt:pAmt, note:workplace });
-          }
-        }
-      });
-    }
+    // 부모 생일 제외
   });
 
   rows.sort((a,b) => a.month-b.month || a.day-b.day);
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8">해당 생일자가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:#94a3b8">해당 생일자가 없습니다</td></tr>';
     return;
   }
 
   const td = (v,s='') => `<td style="border:1px solid #e2e8f0;padding:7px 10px;text-align:center;${s}">${v}</td>`;
   tbody.innerHTML = rows.map((r,i) => `<tr>
     ${td(i+1,'color:#94a3b8;font-size:12px')}
-    ${td(r.type)}
     ${td(r.bonbu)}
     ${td(r.name,'font-weight:500')}
     ${td(r.date)}
@@ -5513,7 +5486,7 @@ function showPage(id, el) {
   if(id === 'orgview') initOrgView();
   if(id === 'welfare') renderWelfareTable();
   if(id === 'mypage') renderMyPage();
-  if(id === 'birthday') renderBirthdayTable();
+  if(id === 'birthday') { setTimeout(renderBirthdayTable, 100); }
   if(id === 'organization') renderDeptTable();
 }
 
