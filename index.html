@@ -795,6 +795,16 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="form-row">
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">근무장소</label>
+            <select class="form-input" id="emp-workplace">
+              <option value="">선택</option>
+              <option value="서울">서울</option>
+              <option value="경산">경산</option>
+              <option value="베트남">베트남</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
           <div class="form-group" style="margin-bottom:0"><label class="form-label">재직구분</label>
             <select class="form-input" id="emp-status">
               <option value="재직">재직</option><option value="휴직">휴직</option><option value="퇴직">퇴직</option>
@@ -1834,6 +1844,7 @@ function openEmployeeModal(uid) {
     loadConcurrentRows(e.concurrent||[]);
     document.getElementById('emp-joindate').value = e.joindate||'';
     document.getElementById('emp-leavedate').value = e.leavedate||'';
+    document.getElementById('emp-workplace').value = e.workplace||'';
     // 본인 개인정보
     document.getElementById('emp-birth-month').value = e.birthMonth||'';
     document.getElementById('emp-birth-day').value = e.birthDay||'';
@@ -1857,7 +1868,7 @@ function openEmployeeModal(uid) {
   } else {
     document.getElementById('emp-modal-title').textContent = '직원 추가';
     document.getElementById('emp-modal-save-btn').textContent = '저장';
-    ['emp-id','emp-name','emp-joindate','emp-leavedate','emp-mobile','emp-home-addr']
+    ['emp-id','emp-name','emp-joindate','emp-leavedate','emp-mobile','emp-home-addr','emp-workplace']
       .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
     ['emp-dept','emp-position','emp-title','emp-duty'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('emp-birth-type').value = '양력';
@@ -2059,6 +2070,7 @@ function saveEmployee() {
       status: document.getElementById('emp-status').value,
       joindate: document.getElementById('emp-joindate').value,
       leavedate: document.getElementById('emp-leavedate').value,
+      workplace: document.getElementById('emp-workplace').value.trim(),
       concurrent: getConcurrentRows(),
       ...personalInfo,
       photo: photo || prev.photo,
@@ -2115,6 +2127,7 @@ function saveEmployee() {
       status: document.getElementById('emp-status').value,
       joindate: document.getElementById('emp-joindate').value,
       leavedate: document.getElementById('emp-leavedate').value,
+      workplace: document.getElementById('emp-workplace').value.trim(),
       concurrent: getConcurrentRows(),
       ...personalInfo,
       photo, history: [{date: now, changes: ['최초 등록']}],
