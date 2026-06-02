@@ -5034,37 +5034,51 @@ function lunarToSolar(lunarMonth, lunarDay) {
 
 function getBonbu(emp) {
   if (!emp.dept) return '';
-  // 직위/직책이 수석전문위원이면 경영관리본부
-  if ((emp.title||'').includes('수석전문위원') || (emp.duty||'').includes('수석전문위원') || (emp.dept||'').includes('수석전문위원')) {
-    return '경영관리본부';
-  }
-  // 본부 직접 매핑 테이블
-  const bonbuMap = [
-    { bonbu:'글로벌사업본부',    keywords:['글로벌사업','해외사업','해외기획'] },
-    { bonbu:'글로벌기획본부',    keywords:['글로벌기획','글로벌전략'] },
-    { bonbu:'경영관리본부',      keywords:['경영관리','인사','총무','재무','회계','경영지원','수석전문위원'] },
-    { bonbu:'AI전략기획본부',    keywords:['AI전략','AI기획','AI전략기획','기획'] },
-    { bonbu:'AI GIS연구본부',    keywords:['AI GIS','AI GIS연구','GIS연구','응용개발'] },
-    { bonbu:'SW기술연구소',      keywords:['SW','소프트웨어','SW지원','SW영업'] },
-    { bonbu:'SW영업본부',        keywords:['SW영업'] },
-    { bonbu:'GIS사업본부',       keywords:['GIS사업','GIS1','GIS2','GIS'] },
-    { bonbu:'도시계획사업본부',  keywords:['도시계획','도시계획사업'] },
-  ];
   const dept = emp.dept || '';
-  // 정확히 본부명과 일치하면 그대로
+  const role = emp.role || '';
+  const title = emp.title || '';
+
+  // 수석전문위원 → 경영관리본부
+  if (title === '수석전문위원' || role === '수석전문위원') return '경영관리본부';
+
+  // 본부명 직접 매핑 (정확한 부서명 → 본부명)
+  // 우선순위 높은 순서로 배치
+  const bonbuMap = [
+    { bonbu:'도시계획사업본부', keywords:['도시계획'] },
+    { bonbu:'AI GIS연구본부',   keywords:['AI GIS','GIS연구','응용개발연구'] },
+    { bonbu:'GIS사업본부',      keywords:['GIS사업','GIS1부','GIS2부','GIS사업1','GIS사업2'] },
+    { bonbu:'AI전략기획본부',   keywords:['AI전략기획','AI기획','R&D기획'] },
+    { bonbu:'글로벌사업본부',   keywords:['글로벌사업','해외사업','해외기획'] },
+    { bonbu:'글로벌기획본부',   keywords:['글로벌기획','글로벌전략기획'] },
+    { bonbu:'SW기술연구소',     keywords:['SW지원','SW기술','소프트웨어'] },
+    { bonbu:'SW영업본부',       keywords:['SW영업'] },
+    { bonbu:'경영관리본부',     keywords:['경영관리','인사총무','재무회계','경영지원','수석전문위원','인사'] },
+  ];
+
+  // 정확히 본부명과 일치
   const exact = bonbuMap.find(b => b.bonbu === dept);
   if (exact) return exact.bonbu;
-  // 키워드 매칭
+
+  // 키워드 매핑 (긴 키워드 우선)
   for (const b of bonbuMap) {
-    if (b.keywords.some(k => dept.includes(k))) return b.bonbu;
+    for (const k of b.keywords) {
+      if (dept.includes(k)) return b.bonbu;
+    }
   }
-  // departments 배열에서 직속 상위 찾기
-  const deptObj = departments.find(d => d.name === dept);
-  if (deptObj && deptObj.parent) {
-    const parent = departments.find(d => d.id === deptObj.parent || d.name === deptObj.parent);
-    if (parent) return parent.name;
-  }
-  return dept;
+
+  // departments 배열에서 상위 조직 거슬러 올라가기
+  const findBonbu = (deptName, depth=0) => {
+    if (depth > 5) return deptName;
+    const d = departments.find(x => x.name === deptName);
+    if (!d || !d.parent) return deptName;
+    const parent = departments.find(x => x.id === d.parent || x.name === d.parent);
+    if (!parent) return deptName;
+    // 부모가 최상위(정도유아이티 등)면 현재 반환
+    const grandParent = departments.find(x => x.id === parent.parent || x.name === parent.parent);
+    if (!grandParent) return parent.name;
+    return findBonbu(parent.name, depth+1);
+  };
+  return findBonbu(dept);
 }
 
 function renderBirthdayTable() {
