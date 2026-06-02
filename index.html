@@ -5029,21 +5029,22 @@ function lunarToSolar(lunarMonth, lunarDay) {
 
 function getBonbu(emp) {
   if (!emp.dept) return '';
-  for (const bonbu of Object.keys(deptTree||{})) {
-    if (bonbu === emp.dept) return bonbu;
-    const subs = deptTree[bonbu];
-    if (!subs) continue;
-    for (const sub of Object.keys(subs)) {
-      if (sub === emp.dept) return bonbu;
-      const teams = subs[sub];
-      if (teams && typeof teams === 'object') {
-        for (const team of Object.keys(teams)) {
-          if (team === emp.dept) return bonbu;
-        }
-      }
-    }
+  // departments 배열에서 해당 부서의 상위 본부 찾기
+  // 1. 직접 level1 찾기
+  const deptObj = departments.find(d => d.name === emp.dept);
+  if (!deptObj) return emp.dept;
+  // parent 거슬러 올라가며 최상위 찾기
+  let current = deptObj;
+  let bonbu = current.name;
+  const visited = new Set();
+  while (current && current.parent && !visited.has(current.id)) {
+    visited.add(current.id);
+    const parent = departments.find(d => d.id === current.parent || d.name === current.parent);
+    if (!parent) break;
+    bonbu = parent.name;
+    current = parent;
   }
-  return emp.dept;
+  return bonbu;
 }
 
 function renderBirthdayTable() {
