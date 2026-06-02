@@ -858,7 +858,15 @@ select.form-input{cursor:pointer}
         <div style="margin-top:10px;padding:14px;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border)">
           <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:10px">👨‍👩‍👧 부모 정보</div>
           <!-- 부모1 -->
-          <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px">부모 1</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+            <span style="font-size:12px;font-weight:600;color:var(--t2)">부모 1</span>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+              <input type="checkbox" id="emp-p1-is-father" style="accent-color:var(--ac)"> 부
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+              <input type="checkbox" id="emp-p1-is-mother" style="accent-color:var(--ac)"> 모
+            </label>
+          </div>
           <div class="form-row" style="margin-bottom:8px">
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">이름</label>
@@ -887,7 +895,15 @@ select.form-input{cursor:pointer}
             <input type="text" class="form-input" id="emp-p1-addr" placeholder="주소 입력">
           </div>
           <!-- 부모2 -->
-          <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px">부모 2</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+            <span style="font-size:12px;font-weight:600;color:var(--t2)">부모 2</span>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+              <input type="checkbox" id="emp-p2-is-father" style="accent-color:var(--ac)"> 부
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+              <input type="checkbox" id="emp-p2-is-mother" style="accent-color:var(--ac)"> 모
+            </label>
+          </div>
           <div class="form-row" style="margin-bottom:8px">
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">이름</label>
@@ -1785,11 +1801,15 @@ function openEmployeeModal(uid) {
     document.getElementById('emp-p1-birth').value = (e.parents&&e.parents[0]&&e.parents[0].birth)||'';
     document.getElementById('emp-p1-birth-type').value = (e.parents&&e.parents[0]&&e.parents[0].birthType)||'양력';
     document.getElementById('emp-p1-addr').value = (e.parents&&e.parents[0]&&e.parents[0].addr)||'';
+    document.getElementById('emp-p1-is-father').checked = !!(e.parents&&e.parents[0]&&e.parents[0].isFather);
+    document.getElementById('emp-p1-is-mother').checked = !!(e.parents&&e.parents[0]&&e.parents[0].isMother);
     document.getElementById('emp-p2-name').value = (e.parents&&e.parents[1]&&e.parents[1].name)||'';
     document.getElementById('emp-p2-tel').value = (e.parents&&e.parents[1]&&e.parents[1].tel)||'';
     document.getElementById('emp-p2-birth').value = (e.parents&&e.parents[1]&&e.parents[1].birth)||'';
     document.getElementById('emp-p2-birth-type').value = (e.parents&&e.parents[1]&&e.parents[1].birthType)||'양력';
     document.getElementById('emp-p2-addr').value = (e.parents&&e.parents[1]&&e.parents[1].addr)||'';
+    document.getElementById('emp-p2-is-father').checked = !!(e.parents&&e.parents[1]&&e.parents[1].isFather);
+    document.getElementById('emp-p2-is-mother').checked = !!(e.parents&&e.parents[1]&&e.parents[1].isMother);
     // 기존 사진 표시: 미리보기만 보여주고 크롭 에디터는 비활성
     // (새 사진 선택 시에만 크롭 에디터 활성화)
     if (e.photo) {
@@ -1998,6 +2018,8 @@ function saveEmployee() {
         birth: document.getElementById('emp-p1-birth').value,
         birthType: document.getElementById('emp-p1-birth-type').value,
         addr: document.getElementById('emp-p1-addr').value.trim(),
+        isFather: document.getElementById('emp-p1-is-father').checked,
+        isMother: document.getElementById('emp-p1-is-mother').checked,
       },
       {
         name: document.getElementById('emp-p2-name').value.trim(),
@@ -2005,6 +2027,8 @@ function saveEmployee() {
         birth: document.getElementById('emp-p2-birth').value,
         birthType: document.getElementById('emp-p2-birth-type').value,
         addr: document.getElementById('emp-p2-addr').value.trim(),
+        isFather: document.getElementById('emp-p2-is-father').checked,
+        isMother: document.getElementById('emp-p2-is-mother').checked,
       }
     ]
   };
@@ -4561,23 +4585,41 @@ function saveHealthCheck(uid) {
 }
 
 function showParentBirthdayModal(uid, father, mother) {
-  // 기존 모달 제거
   const existing = document.getElementById('parent-modal');
   if (existing) existing.remove();
+
+  // 직원 정보에서 부/모 체크 여부 확인
+  const emp = employees.find(e => e.uid === uid);
+  const wd2 = welfareData[uid] || {};
+  const hasFather = emp && emp.parents && emp.parents.some(p => p.isFather && p.name);
+  const hasMother = emp && emp.parents && emp.parents.some(p => p.isMother && p.name);
+  const isUsed = wd2.parentUsed !== false; // 기본 사용
+
+  const fatherName = emp && emp.parents ? (emp.parents.find(p=>p.isFather)||{}).name||'부' : '부';
+  const motherName = emp && emp.parents ? (emp.parents.find(p=>p.isMother)||{}).name||'모' : '모';
 
   const modal = document.createElement('div');
   modal.id = 'parent-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `
-    <div style="background:#fff;border-radius:12px;padding:24px;width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+    <div style="background:#fff;border-radius:12px;padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
       <div style="font-size:15px;font-weight:700;margin-bottom:16px">부모님 생신 지급</div>
-      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px">
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
-          <input type="checkbox" id="pb-father" ${father?'checked':''} style="width:18px;height:18px;accent-color:var(--ac)"> 부 (2만원)
+          <input type="radio" name="pb-use" id="pb-used" value="used" ${isUsed?'checked':''} style="accent-color:var(--ac)">
+          <span style="font-weight:600">사용</span>
+          <span style="font-size:12px;color:#64748b">(직원관리 부/모 체크 반영)</span>
         </label>
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
-          <input type="checkbox" id="pb-mother" ${mother?'checked':''} style="width:18px;height:18px;accent-color:var(--ac)"> 모 (2만원)
+          <input type="radio" name="pb-use" id="pb-unused" value="unused" ${!isUsed?'checked':''} style="accent-color:#ef4444">
+          <span style="font-weight:600">미사용</span>
         </label>
+      </div>
+      <div style="padding:10px;background:#f8fafc;border-radius:8px;font-size:13px;color:#374151;margin-bottom:16px">
+        <div style="font-weight:600;margin-bottom:6px">직원관리 등록 부모:</div>
+        ${hasFather ? `<div>✓ 부: ${fatherName} (2만원)</div>` : '<div style="color:#94a3b8">부 미등록</div>'}
+        ${hasMother ? `<div>✓ 모: ${motherName} (2만원)</div>` : '<div style="color:#94a3b8">모 미등록</div>'}
+        <div style="margin-top:6px;font-weight:600;color:var(--ac)">합계: ${(hasFather?2:0)+(hasMother?2:0)}만원</div>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button onclick="document.getElementById('parent-modal').remove()" style="padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
@@ -4589,12 +4631,16 @@ function showParentBirthdayModal(uid, father, mother) {
 }
 
 function saveParentBirthday(uid) {
-  const father = document.getElementById('pb-father').checked;
-  const mother = document.getElementById('pb-mother').checked;
+  const used = document.getElementById('pb-used').checked;
+  const emp = employees.find(e => e.uid === uid);
+  const hasFather = emp && emp.parents && emp.parents.some(p => p.isFather && p.name);
+  const hasMother = emp && emp.parents && emp.parents.some(p => p.isMother && p.name);
   if (!welfareData[uid]) welfareData[uid] = {};
-  welfareData[uid].parentFather = father;
-  welfareData[uid].parentMother = mother;
-  welfareData[uid].parentBirthday = (father ? 2 : 0) + (mother ? 2 : 0);
+  welfareData[uid].parentUsed = used;
+  // 사용 시 직원정보 부/모 체크 반영, 미사용 시 0
+  welfareData[uid].parentFather = used && hasFather;
+  welfareData[uid].parentMother = used && hasMother;
+  welfareData[uid].parentBirthday = used ? ((hasFather?2:0)+(hasMother?2:0)) : 0;
   saveWelfare();
   document.getElementById('parent-modal').remove();
   renderWelfareTable();
