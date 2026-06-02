@@ -625,6 +625,7 @@ select.form-input{cursor:pointer}
           <table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead>
               <tr style="background:#f1f5f9">
+                <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:40px">순번</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:60px">구분</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:80px">본부</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:80px">대상자</th>
@@ -5009,90 +5010,110 @@ function _doExportWelfareExcel() {
 }
 
 
-function lunarToSolar(month, day, year) {
-  // 간단한 음력→양력 근사 변환 (평균 약 30일 차이)
-  // 정확한 변환은 라이브러리 필요 - 여기서는 표시용으로 음력임을 표기
-  return null; // 정확 변환 불가시 null 반환
+function lunarToSolar(lunarMonth, lunarDay) {
+  // 2025년 기준 음력→양력 변환
+  // 음력 1월 1일 = 양력 1월 29일 (2025년)
+  const lunarMonthDays = [30,29,30,29,30,29,30,29,30,29,30,29];
+  let totalDays = 0;
+  for (let m = 1; m < lunarMonth; m++) totalDays += lunarMonthDays[m-1];
+  totalDays += lunarDay;
+  // 양력 1월 29일부터 카운트
+  let solarDOY = 28 + totalDays; // 28 = 1월 29일이 29번째
+  const solarMonthDays = [31,28,31,30,31,30,31,31,30,31,30,31];
+  let rem = solarDOY, sm = 1;
+  for (let m = 0; m < 12; m++) {
+    if (rem <= solarMonthDays[m]) { sm = m+1; break; }
+    rem -= solarMonthDays[m];
+    sm = m+2;
+  }
+  return { month: sm, day: rem };
+}
+
+function getBonbu(emp) {
+  if (!emp.dept) return '';
+  for (const bonbu of Object.keys(deptTree||{})) {
+    if (bonbu === emp.dept) return bonbu;
+    const subs = deptTree[bonbu];
+    if (!subs) continue;
+    for (const sub of Object.keys(subs)) {
+      if (sub === emp.dept) return bonbu;
+      const teams = subs[sub];
+      if (teams && typeof teams === 'object') {
+        for (const team of Object.keys(teams)) {
+          if (team === emp.dept) return bonbu;
+        }
+      }
+    }
+  }
+  return emp.dept;
 }
 
 function renderBirthdayTable() {
   const tbody = document.getElementById('birthday-tbody');
   if (!tbody) return;
-
   const monthFilter = (document.getElementById('birthday-month-filter')||{}).value || '';
   const typeFilter = (document.getElementById('birthday-type-filter')||{}).value || '';
-
   const rows = [];
 
   employees.forEach(e => {
     if (e.status === '퇴직') return;
     const wd = welfareData[e.uid] || {};
-    const bonbu = e.dept || '';
+    const bonbu = getBonbu(e);
     const name = e.name || '';
     const workplace = e.workplace || '';
-    const birthday = wd.birthday ?? 10; // 생일 상품권가액
 
-    // 본인 생일 — 복리후생 생일이 0이면 미사용
+    // 본인 생일
     const birthdayAmt = wd.birthday ?? 10;
     if (birthdayAmt > 0) {
-      const bMonth = e.birthMonth || '';
-      const bDay = e.birthDay || '';
-      const bType = e.birthType || '양력';
-      if (bMonth && bDay) {
-        let displayDate = `${parseInt(bMonth)}월 ${parseInt(bDay)}일`;
-        if (bType === '음력') displayDate += ' (음력)';
-        const monthNum = parseInt(bMonth);
-        if (!monthFilter || monthNum === parseInt(monthFilter)) {
+      const bm = parseInt(e.birthMonth||'0'), bd = parseInt(e.birthDay||'0');
+      if (bm && bd) {
+        let sm = bm, sd = bd;
+        if ((e.birthType||'양력') === '음력') { const s=lunarToSolar(bm,bd); sm=s.month; sd=s.day; }
+        if (!monthFilter || sm === parseInt(monthFilter)) {
           if (!typeFilter || typeFilter === '본인') {
-            rows.push({ type:'본인', bonbu, name, date: displayDate, month: monthNum, day: parseInt(bDay), amt: birthdayAmt, note: workplace });
+            rows.push({ type:'본인', bonbu, name, date:`${sm}월 ${sd}일`, month:sm, day:sd, amt:birthdayAmt, note:workplace });
           }
         }
       }
     }
 
-    // 부모 생일 — 복리후생 부모님생신 미사용이면 제외
+    // 부모 생일
     if (wd.parentUsed !== false && e.parents && e.parents.length > 0) {
       e.parents.forEach(p => {
         if (!p.name) return;
-        const pMonth = p.birthMonth || '';
-        const pDay = p.birthDay || '';
-        const pType = p.birthType || '양력';
-        if (!pMonth || !pDay) return;
-        let displayDate = `${parseInt(pMonth)}월 ${parseInt(pDay)}일`;
-        if (pType === '음력') displayDate += ' (음력)';
-        const monthNum = parseInt(pMonth);
-        const pTypeLabel = p.isFather ? '부' : p.isMother ? '모' : '';
-        if (!pTypeLabel) return;
-        const parentAmt = (wd.parentFather && p.isFather) || (wd.parentMother && p.isMother) ? 2 : 0;
-        if (!monthFilter || monthNum === parseInt(monthFilter)) {
-          if (!typeFilter || typeFilter === pTypeLabel) {
-            rows.push({ type: pTypeLabel+'('+p.name+')', bonbu, name, date: displayDate, month: monthNum, day: parseInt(pDay), amt: parentAmt, note: workplace });
+        const pm = parseInt(p.birthMonth||'0'), pd = parseInt(p.birthDay||'0');
+        if (!pm || !pd) return;
+        let sm = pm, sd = pd;
+        if ((p.birthType||'양력') === '음력') { const s=lunarToSolar(pm,pd); sm=s.month; sd=s.day; }
+        const pLabel = p.isFather?'부':p.isMother?'모':'';
+        if (!pLabel) return;
+        const pAmt = (wd.parentFather&&p.isFather)||(wd.parentMother&&p.isMother) ? 2 : 0;
+        if (!monthFilter || sm === parseInt(monthFilter)) {
+          if (!typeFilter || typeFilter === pLabel) {
+            rows.push({ type:`${pLabel}(${p.name})`, bonbu, name, date:`${sm}월 ${sd}일`, month:sm, day:sd, amt:pAmt, note:workplace });
           }
         }
       });
     }
   });
 
-  // 생일 순 정렬 (월→일)
-  rows.sort((a,b) => a.month - b.month || a.day - b.day);
+  rows.sort((a,b) => a.month-b.month || a.day-b.day);
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:#94a3b8">해당 생일자가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8">해당 생일자가 없습니다</td></tr>';
     return;
   }
 
-  const td = (v, style='') => `<td style="border:1px solid #e2e8f0;padding:7px 10px;text-align:center;${style}">${v}</td>`;
-  tbody.innerHTML = rows.map((r,i) => {
-    const bg = i%2===0 ? '' : 'background:#f8fafc;';
-    return `<tr style="${bg}">
-      ${td(r.type)}
-      ${td(r.bonbu)}
-      ${td(r.name,'font-weight:500')}
-      ${td(r.date)}
-      ${td(r.amt ? r.amt+'만원' : '-')}
-      ${td(r.note||'-')}
-    </tr>`;
-  }).join('');
+  const td = (v,s='') => `<td style="border:1px solid #e2e8f0;padding:7px 10px;text-align:center;${s}">${v}</td>`;
+  tbody.innerHTML = rows.map((r,i) => `<tr>
+    ${td(i+1,'color:#94a3b8;font-size:12px')}
+    ${td(r.type)}
+    ${td(r.bonbu)}
+    ${td(r.name,'font-weight:500')}
+    ${td(r.date)}
+    ${td(r.amt?r.amt+'만원':'-')}
+    ${td(r.note||'-')}
+  </tr>`).join('');
 }
 
 function openMyPage() { showPage('mypage'); }
