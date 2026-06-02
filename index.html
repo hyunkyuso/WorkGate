@@ -3463,6 +3463,10 @@ function startWelfareListener() {
       if (page && page.classList.contains('active')) {
         renderWelfareTable();
       }
+      const bPage = document.getElementById('page-birthday');
+      if (bPage && bPage.classList.contains('active')) {
+        renderBirthdayTable();
+      }
     }
   }, e => console.error('welfare listener:', e));
 }
@@ -5045,6 +5049,12 @@ function getBonbu(emp) {
 function renderBirthdayTable() {
   const tbody = document.getElementById('birthday-tbody');
   if (!tbody) return;
+  // 데이터 미로드 시 재시도
+  if (!employees || employees.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:#94a3b8">데이터 로딩 중...</td></tr>';
+    setTimeout(renderBirthdayTable, 500);
+    return;
+  }
   const monthFilter = (document.getElementById('birthday-month-filter')||{}).value || '';
   const rows = [];
 
@@ -5486,7 +5496,7 @@ function showPage(id, el) {
   if(id === 'orgview') initOrgView();
   if(id === 'welfare') renderWelfareTable();
   if(id === 'mypage') renderMyPage();
-  if(id === 'birthday') { setTimeout(renderBirthdayTable, 100); }
+  if(id === 'birthday') { renderBirthdayTable(); }
   if(id === 'organization') renderDeptTable();
 }
 
