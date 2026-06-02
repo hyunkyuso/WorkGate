@@ -866,98 +866,8 @@ select.form-input{cursor:pointer}
         <!-- 부모 정보 -->
         <div style="margin-top:10px;padding:14px;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border)">
           <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:10px">👨‍👩‍👧 부모 정보</div>
-          <!-- 부모1 -->
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-            <span style="font-size:12px;font-weight:600;color:var(--t2)">부모 1</span>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
-              <input type="checkbox" id="emp-p1-is-father" style="accent-color:var(--ac)"> 부
-            </label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
-              <input type="checkbox" id="emp-p1-is-mother" style="accent-color:var(--ac)"> 모
-            </label>
-          </div>
-          <div class="form-row" style="margin-bottom:8px">
-            <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">이름</label>
-              <input type="text" class="form-input" id="emp-p1-name" placeholder="이름">
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">연락처</label>
-              <input type="tel" class="form-input" id="emp-p1-tel" placeholder="010-0000-0000">
-            </div>
-          </div>
-          <div class="form-row" style="margin-bottom:8px">
-            <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">생일 (월/일)</label>
-              <div style="display:flex;gap:6px">
-                <select class="form-input" id="emp-p1-birth-month" style="flex:1">
-                  <option value="">월</option>
-                  ${Array.from({length:12},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}월</option>`).join('')}
-                </select>
-                <select class="form-input" id="emp-p1-birth-day" style="flex:1">
-                  <option value="">일</option>
-                  ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}일</option>`).join('')}
-                </select>
-              </div>
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">양력/음력</label>
-              <select class="form-input" id="emp-p1-birth-type">
-                <option value="양력">양력</option>
-                <option value="음력">음력</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group" style="margin-bottom:12px">
-            <label class="form-label">주소</label>
-            <input type="text" class="form-input" id="emp-p1-addr" placeholder="주소 입력">
-          </div>
-          <!-- 부모2 -->
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-            <span style="font-size:12px;font-weight:600;color:var(--t2)">부모 2</span>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
-              <input type="checkbox" id="emp-p2-is-father" style="accent-color:var(--ac)"> 부
-            </label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
-              <input type="checkbox" id="emp-p2-is-mother" style="accent-color:var(--ac)"> 모
-            </label>
-          </div>
-          <div class="form-row" style="margin-bottom:8px">
-            <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">이름</label>
-              <input type="text" class="form-input" id="emp-p2-name" placeholder="이름">
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">연락처</label>
-              <input type="tel" class="form-input" id="emp-p2-tel" placeholder="010-0000-0000">
-            </div>
-          </div>
-          <div class="form-row" style="margin-bottom:8px">
-            <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">생일 (월/일)</label>
-              <div style="display:flex;gap:6px">
-                <select class="form-input" id="emp-p2-birth-month" style="flex:1">
-                  <option value="">월</option>
-                  ${Array.from({length:12},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}월</option>`).join('')}
-                </select>
-                <select class="form-input" id="emp-p2-birth-day" style="flex:1">
-                  <option value="">일</option>
-                  ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}일</option>`).join('')}
-                </select>
-              </div>
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">양력/음력</label>
-              <select class="form-input" id="emp-p2-birth-type">
-                <option value="양력">양력</option>
-                <option value="음력">음력</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group" style="margin-bottom:0">
-            <label class="form-label">주소</label>
-            <input type="text" class="form-input" id="emp-p2-addr" placeholder="주소 입력">
-          </div>
+          <div id="parent-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addParentRow()" style="font-size:11px">+ 부모 추가</button>
         </div>
 
     <div class="modal-footer">
@@ -1631,6 +1541,69 @@ let editingEmpId = null;
 let editingDeptId = null;
 
 // ── 겸직 관련 함수 ──
+function addParentRow(data={}) {
+  const list = document.getElementById('parent-list');
+  if (!list) return;
+  const idx = list.children.length;
+  const months = Array.from({length:12},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${data.birthMonth===String(i+1).padStart(2,'0')?'selected':''}>${i+1}월</option>`).join('');
+  const days = Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${data.birthDay===String(i+1).padStart(2,'0')?'selected':''}>${i+1}일</option>`).join('');
+  const row = document.createElement('div');
+  row.className = 'parent-row';
+  row.style.cssText = 'padding:10px;background:#fff;border-radius:8px;border:1px solid var(--border);display:flex;flex-direction:column;gap:8px';
+  row.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;gap:12px">
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;font-weight:600">
+          <input type="radio" name="parent-type-${idx}" value="father" ${data.isFather?'checked':''} style="accent-color:var(--ac)"> 부
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;font-weight:600">
+          <input type="radio" name="parent-type-${idx}" value="mother" ${data.isMother?'checked':''} style="accent-color:var(--ac)"> 모
+        </label>
+      </div>
+      <button type="button" onclick="this.closest('.parent-row').remove()" style="padding:2px 8px;border-radius:4px;border:none;background:#fee2e2;color:#ef4444;cursor:pointer;font-size:11px">삭제</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <input type="text" placeholder="이름" value="${data.name||''}" data-field="name" class="form-input" style="flex:1">
+      <input type="tel" placeholder="연락처" value="${data.tel||''}" data-field="tel" class="form-input" style="flex:1">
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select data-field="birthMonth" class="form-input" style="flex:1"><option value="">월</option>${months}</select>
+      <select data-field="birthDay" class="form-input" style="flex:1"><option value="">일</option>${days}</select>
+      <select data-field="birthType" class="form-input" style="flex:1">
+        <option value="양력" ${(data.birthType||'양력')==='양력'?'selected':''}>양력</option>
+        <option value="음력" ${data.birthType==='음력'?'selected':''}>음력</option>
+      </select>
+    </div>
+    <input type="text" placeholder="주소" value="${data.addr||''}" data-field="addr" class="form-input">
+  `;
+  list.appendChild(row);
+}
+
+function getParentRows() {
+  const rows = document.querySelectorAll('#parent-list .parent-row');
+  return Array.from(rows).map((row, idx) => {
+    const typeRadios = row.querySelectorAll(`input[name="parent-type-${idx}"]`);
+    const type = Array.from(typeRadios).find(r => r.checked)?.value || '';
+    return {
+      name: row.querySelector('[data-field="name"]')?.value.trim() || '',
+      tel: row.querySelector('[data-field="tel"]')?.value.trim() || '',
+      birthMonth: row.querySelector('[data-field="birthMonth"]')?.value || '',
+      birthDay: row.querySelector('[data-field="birthDay"]')?.value || '',
+      birthType: row.querySelector('[data-field="birthType"]')?.value || '양력',
+      addr: row.querySelector('[data-field="addr"]')?.value.trim() || '',
+      isFather: type === 'father',
+      isMother: type === 'mother',
+    };
+  });
+}
+
+function loadParentRows(parents=[]) {
+  const list = document.getElementById('parent-list');
+  if (!list) return;
+  list.innerHTML = '';
+  parents.forEach(p => addParentRow(p));
+}
+
 function addConcurrentRow(dept='', title='') {
   const list = document.getElementById('concurrent-list');
   const row = document.createElement('div');
@@ -1826,20 +1799,7 @@ function openEmployeeModal(uid) {
     // 부모 정보
     document.getElementById('emp-p1-name').value = (e.parents&&e.parents[0]&&e.parents[0].name)||'';
     document.getElementById('emp-p1-tel').value = (e.parents&&e.parents[0]&&e.parents[0].tel)||'';
-    document.getElementById('emp-p1-birth-month').value = (e.parents&&e.parents[0]&&e.parents[0].birthMonth)||'';
-    document.getElementById('emp-p1-birth-day').value = (e.parents&&e.parents[0]&&e.parents[0].birthDay)||'';
-    document.getElementById('emp-p1-birth-type').value = (e.parents&&e.parents[0]&&e.parents[0].birthType)||'양력';
-    document.getElementById('emp-p1-addr').value = (e.parents&&e.parents[0]&&e.parents[0].addr)||'';
-    document.getElementById('emp-p1-is-father').checked = !!(e.parents&&e.parents[0]&&e.parents[0].isFather);
-    document.getElementById('emp-p1-is-mother').checked = !!(e.parents&&e.parents[0]&&e.parents[0].isMother);
-    document.getElementById('emp-p2-name').value = (e.parents&&e.parents[1]&&e.parents[1].name)||'';
-    document.getElementById('emp-p2-tel').value = (e.parents&&e.parents[1]&&e.parents[1].tel)||'';
-    document.getElementById('emp-p2-birth-month').value = (e.parents&&e.parents[1]&&e.parents[1].birthMonth)||'';
-    document.getElementById('emp-p2-birth-day').value = (e.parents&&e.parents[1]&&e.parents[1].birthDay)||'';
-    document.getElementById('emp-p2-birth-type').value = (e.parents&&e.parents[1]&&e.parents[1].birthType)||'양력';
-    document.getElementById('emp-p2-addr').value = (e.parents&&e.parents[1]&&e.parents[1].addr)||'';
-    document.getElementById('emp-p2-is-father').checked = !!(e.parents&&e.parents[1]&&e.parents[1].isFather);
-    document.getElementById('emp-p2-is-mother').checked = !!(e.parents&&e.parents[1]&&e.parents[1].isMother);
+    loadParentRows(e.parents||[]);
     // 기존 사진 표시: 미리보기만 보여주고 크롭 에디터는 비활성
     // (새 사진 선택 시에만 크롭 에디터 활성화)
     if (e.photo) {
@@ -1855,13 +1815,11 @@ function openEmployeeModal(uid) {
   } else {
     document.getElementById('emp-modal-title').textContent = '직원 추가';
     document.getElementById('emp-modal-save-btn').textContent = '저장';
-    ['emp-id','emp-name','emp-joindate','emp-leavedate','emp-mobile','emp-home-addr',
-      'emp-p1-name','emp-p1-tel','emp-p1-birth','emp-p1-addr',
-      'emp-p2-name','emp-p2-tel','emp-p2-birth','emp-p2-addr'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    ['emp-id','emp-name','emp-joindate','emp-leavedate','emp-mobile','emp-home-addr']
+      .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
     ['emp-dept','emp-position','emp-title','emp-duty'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('emp-birth-type').value = '양력';
-    document.getElementById('emp-p1-birth-type').value = '양력';
-    document.getElementById('emp-p2-birth-type').value = '양력';
+    loadParentRows([]);
     document.getElementById('emp-status').value = '재직';
     document.getElementById('emp-role').value = '일반';
     loadConcurrentRows([]);
@@ -2042,28 +2000,7 @@ function saveEmployee() {
     birthType: document.getElementById('emp-birth-type').value,
     mobile: document.getElementById('emp-mobile').value.trim(),
     homeAddr: document.getElementById('emp-home-addr').value.trim(),
-    parents: [
-      {
-        name: document.getElementById('emp-p1-name').value.trim(),
-        tel: document.getElementById('emp-p1-tel').value.trim(),
-        birthMonth: document.getElementById('emp-p1-birth-month').value,
-        birthDay: document.getElementById('emp-p1-birth-day').value,
-        birthType: document.getElementById('emp-p1-birth-type').value,
-        addr: document.getElementById('emp-p1-addr').value.trim(),
-        isFather: document.getElementById('emp-p1-is-father').checked,
-        isMother: document.getElementById('emp-p1-is-mother').checked,
-      },
-      {
-        name: document.getElementById('emp-p2-name').value.trim(),
-        tel: document.getElementById('emp-p2-tel').value.trim(),
-        birthMonth: document.getElementById('emp-p2-birth-month').value,
-        birthDay: document.getElementById('emp-p2-birth-day').value,
-        birthType: document.getElementById('emp-p2-birth-type').value,
-        addr: document.getElementById('emp-p2-addr').value.trim(),
-        isFather: document.getElementById('emp-p2-is-father').checked,
-        isMother: document.getElementById('emp-p2-is-mother').checked,
-      }
-    ]
+    parents: getParentRows()
   };
   if (editingEmpId) {
     const idx = employees.findIndex(e => e.uid === editingEmpId);
