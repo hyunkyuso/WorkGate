@@ -5029,22 +5029,12 @@ function lunarToSolar(lunarMonth, lunarDay) {
 
 function getBonbu(emp) {
   if (!emp.dept) return '';
-  // departments 배열에서 해당 부서의 상위 본부 찾기
-  // 1. 직접 level1 찾기
   const deptObj = departments.find(d => d.name === emp.dept);
   if (!deptObj) return emp.dept;
-  // parent 거슬러 올라가며 최상위 찾기
-  let current = deptObj;
-  let bonbu = current.name;
-  const visited = new Set();
-  while (current && current.parent && !visited.has(current.id)) {
-    visited.add(current.id);
-    const parent = departments.find(d => d.id === current.parent || d.name === current.parent);
-    if (!parent) break;
-    bonbu = parent.name;
-    current = parent;
-  }
-  return bonbu;
+  // 직속 상위 1단계만 반환
+  if (!deptObj.parent) return emp.dept; // 이미 최상위
+  const parent = departments.find(d => d.id === deptObj.parent || d.name === deptObj.parent);
+  return parent ? parent.name : emp.dept;
 }
 
 function renderBirthdayTable() {
@@ -5091,14 +5081,24 @@ function renderBirthdayTable() {
   }
 
   const td = (v,s='') => `<td style="border:1px solid #e2e8f0;padding:7px 10px;text-align:center;${s}">${v}</td>`;
+  const fmtAmt = (amt) => amt ? '₩' + (amt*10000).toLocaleString() : '-';
+  const totalAmt = rows.reduce((sum,r) => sum + (r.amt||0), 0);
   tbody.innerHTML = rows.map((r,i) => `<tr>
     ${td(i+1,'color:#94a3b8;font-size:12px')}
     ${td(r.bonbu)}
     ${td(r.name,'font-weight:500')}
     ${td(r.date)}
-    ${td(r.amt?r.amt+'만원':'-')}
+    ${td(fmtAmt(r.amt))}
     ${td(r.note||'-')}
-  </tr>`).join('');
+  </tr>`).join('')
+  + `<tr style="background:#f1f5f9;font-weight:700">
+    ${td('')}
+    ${td('합계','font-weight:700')}
+    ${td(rows.length+'명','font-weight:700')}
+    ${td('')}
+    ${td('₩'+(totalAmt*10000).toLocaleString(),'font-weight:700;color:var(--ac)')}
+    ${td('')}
+  </tr>`;
 }
 
 function openMyPage() { showPage('mypage'); }
