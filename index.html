@@ -5029,12 +5029,37 @@ function lunarToSolar(lunarMonth, lunarDay) {
 
 function getBonbu(emp) {
   if (!emp.dept) return '';
-  const deptObj = departments.find(d => d.name === emp.dept);
-  if (!deptObj) return emp.dept;
-  // 직속 상위 1단계만 반환
-  if (!deptObj.parent) return emp.dept; // 이미 최상위
-  const parent = departments.find(d => d.id === deptObj.parent || d.name === deptObj.parent);
-  return parent ? parent.name : emp.dept;
+  // 직위/직책이 수석전문위원이면 경영관리본부
+  if ((emp.title||'').includes('수석전문위원') || (emp.duty||'').includes('수석전문위원') || (emp.dept||'').includes('수석전문위원')) {
+    return '경영관리본부';
+  }
+  // 본부 직접 매핑 테이블
+  const bonbuMap = [
+    { bonbu:'글로벌사업본부',    keywords:['글로벌사업','해외사업','해외기획'] },
+    { bonbu:'글로벌기획본부',    keywords:['글로벌기획','글로벌전략'] },
+    { bonbu:'경영관리본부',      keywords:['경영관리','인사','총무','재무','회계','경영지원','수석전문위원'] },
+    { bonbu:'AI전략기획본부',    keywords:['AI전략','AI기획','AI전략기획','기획'] },
+    { bonbu:'AI GIS연구본부',    keywords:['AI GIS','AI GIS연구','GIS연구','응용개발'] },
+    { bonbu:'SW기술연구소',      keywords:['SW','소프트웨어','SW지원','SW영업'] },
+    { bonbu:'SW영업본부',        keywords:['SW영업'] },
+    { bonbu:'GIS사업본부',       keywords:['GIS사업','GIS1','GIS2','GIS'] },
+    { bonbu:'도시계획사업본부',  keywords:['도시계획','도시계획사업'] },
+  ];
+  const dept = emp.dept || '';
+  // 정확히 본부명과 일치하면 그대로
+  const exact = bonbuMap.find(b => b.bonbu === dept);
+  if (exact) return exact.bonbu;
+  // 키워드 매칭
+  for (const b of bonbuMap) {
+    if (b.keywords.some(k => dept.includes(k))) return b.bonbu;
+  }
+  // departments 배열에서 직속 상위 찾기
+  const deptObj = departments.find(d => d.name === dept);
+  if (deptObj && deptObj.parent) {
+    const parent = departments.find(d => d.id === deptObj.parent || d.name === deptObj.parent);
+    if (parent) return parent.name;
+  }
+  return dept;
 }
 
 function renderBirthdayTable() {
