@@ -831,8 +831,17 @@ select.form-input{cursor:pointer}
           <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:10px">👤 본인 정보</div>
           <div class="form-row" style="margin-bottom:8px">
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">생년월일</label>
-              <input type="date" class="form-input" id="emp-birth-date">
+              <label class="form-label">생일 (월/일)</label>
+              <div style="display:flex;gap:6px;align-items:center">
+                <select class="form-input" id="emp-birth-month" style="flex:1">
+                  <option value="">월</option>
+                  ${Array.from({length:12},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}월</option>`).join('')}
+                </select>
+                <select class="form-input" id="emp-birth-day" style="flex:1">
+                  <option value="">일</option>
+                  ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}일</option>`).join('')}
+                </select>
+              </div>
             </div>
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">양력/음력</label>
@@ -879,8 +888,17 @@ select.form-input{cursor:pointer}
           </div>
           <div class="form-row" style="margin-bottom:8px">
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">생년월일</label>
-              <input type="date" class="form-input" id="emp-p1-birth">
+              <label class="form-label">생일 (월/일)</label>
+              <div style="display:flex;gap:6px">
+                <select class="form-input" id="emp-p1-birth-month" style="flex:1">
+                  <option value="">월</option>
+                  ${Array.from({length:12},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}월</option>`).join('')}
+                </select>
+                <select class="form-input" id="emp-p1-birth-day" style="flex:1">
+                  <option value="">일</option>
+                  ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}일</option>`).join('')}
+                </select>
+              </div>
             </div>
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">양력/음력</label>
@@ -916,8 +934,17 @@ select.form-input{cursor:pointer}
           </div>
           <div class="form-row" style="margin-bottom:8px">
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">생년월일</label>
-              <input type="date" class="form-input" id="emp-p2-birth">
+              <label class="form-label">생일 (월/일)</label>
+              <div style="display:flex;gap:6px">
+                <select class="form-input" id="emp-p2-birth-month" style="flex:1">
+                  <option value="">월</option>
+                  ${Array.from({length:12},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}월</option>`).join('')}
+                </select>
+                <select class="form-input" id="emp-p2-birth-day" style="flex:1">
+                  <option value="">일</option>
+                  ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}일</option>`).join('')}
+                </select>
+              </div>
             </div>
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">양력/음력</label>
@@ -1791,21 +1818,24 @@ function openEmployeeModal(uid) {
     document.getElementById('emp-joindate').value = e.joindate||'';
     document.getElementById('emp-leavedate').value = e.leavedate||'';
     // 본인 개인정보
-    document.getElementById('emp-birth-date').value = e.birthDate||'';
+    document.getElementById('emp-birth-month').value = e.birthMonth||'';
+    document.getElementById('emp-birth-day').value = e.birthDay||'';
     document.getElementById('emp-birth-type').value = e.birthType||'양력';
     document.getElementById('emp-mobile').value = e.mobile||'';
     document.getElementById('emp-home-addr').value = e.homeAddr||'';
     // 부모 정보
     document.getElementById('emp-p1-name').value = (e.parents&&e.parents[0]&&e.parents[0].name)||'';
     document.getElementById('emp-p1-tel').value = (e.parents&&e.parents[0]&&e.parents[0].tel)||'';
-    document.getElementById('emp-p1-birth').value = (e.parents&&e.parents[0]&&e.parents[0].birth)||'';
+    document.getElementById('emp-p1-birth-month').value = (e.parents&&e.parents[0]&&e.parents[0].birthMonth)||'';
+    document.getElementById('emp-p1-birth-day').value = (e.parents&&e.parents[0]&&e.parents[0].birthDay)||'';
     document.getElementById('emp-p1-birth-type').value = (e.parents&&e.parents[0]&&e.parents[0].birthType)||'양력';
     document.getElementById('emp-p1-addr').value = (e.parents&&e.parents[0]&&e.parents[0].addr)||'';
     document.getElementById('emp-p1-is-father').checked = !!(e.parents&&e.parents[0]&&e.parents[0].isFather);
     document.getElementById('emp-p1-is-mother').checked = !!(e.parents&&e.parents[0]&&e.parents[0].isMother);
     document.getElementById('emp-p2-name').value = (e.parents&&e.parents[1]&&e.parents[1].name)||'';
     document.getElementById('emp-p2-tel').value = (e.parents&&e.parents[1]&&e.parents[1].tel)||'';
-    document.getElementById('emp-p2-birth').value = (e.parents&&e.parents[1]&&e.parents[1].birth)||'';
+    document.getElementById('emp-p2-birth-month').value = (e.parents&&e.parents[1]&&e.parents[1].birthMonth)||'';
+    document.getElementById('emp-p2-birth-day').value = (e.parents&&e.parents[1]&&e.parents[1].birthDay)||'';
     document.getElementById('emp-p2-birth-type').value = (e.parents&&e.parents[1]&&e.parents[1].birthType)||'양력';
     document.getElementById('emp-p2-addr').value = (e.parents&&e.parents[1]&&e.parents[1].addr)||'';
     document.getElementById('emp-p2-is-father').checked = !!(e.parents&&e.parents[1]&&e.parents[1].isFather);
@@ -1825,7 +1855,7 @@ function openEmployeeModal(uid) {
   } else {
     document.getElementById('emp-modal-title').textContent = '직원 추가';
     document.getElementById('emp-modal-save-btn').textContent = '저장';
-    ['emp-id','emp-name','emp-joindate','emp-leavedate','emp-birth-date','emp-mobile','emp-home-addr',
+    ['emp-id','emp-name','emp-joindate','emp-leavedate','emp-mobile','emp-home-addr',
       'emp-p1-name','emp-p1-tel','emp-p1-birth','emp-p1-addr',
       'emp-p2-name','emp-p2-tel','emp-p2-birth','emp-p2-addr'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
     ['emp-dept','emp-position','emp-title','emp-duty'].forEach(id => document.getElementById(id).value = '');
@@ -2007,7 +2037,8 @@ function saveEmployee() {
 
   // 본인 및 부모 정보
   const personalInfo = {
-    birthDate: document.getElementById('emp-birth-date').value,
+    birthMonth: document.getElementById('emp-birth-month').value,
+    birthDay: document.getElementById('emp-birth-day').value,
     birthType: document.getElementById('emp-birth-type').value,
     mobile: document.getElementById('emp-mobile').value.trim(),
     homeAddr: document.getElementById('emp-home-addr').value.trim(),
@@ -2015,7 +2046,8 @@ function saveEmployee() {
       {
         name: document.getElementById('emp-p1-name').value.trim(),
         tel: document.getElementById('emp-p1-tel').value.trim(),
-        birth: document.getElementById('emp-p1-birth').value,
+        birthMonth: document.getElementById('emp-p1-birth-month').value,
+        birthDay: document.getElementById('emp-p1-birth-day').value,
         birthType: document.getElementById('emp-p1-birth-type').value,
         addr: document.getElementById('emp-p1-addr').value.trim(),
         isFather: document.getElementById('emp-p1-is-father').checked,
@@ -2024,7 +2056,8 @@ function saveEmployee() {
       {
         name: document.getElementById('emp-p2-name').value.trim(),
         tel: document.getElementById('emp-p2-tel').value.trim(),
-        birth: document.getElementById('emp-p2-birth').value,
+        birthMonth: document.getElementById('emp-p2-birth-month').value,
+        birthDay: document.getElementById('emp-p2-birth-day').value,
         birthType: document.getElementById('emp-p2-birth-type').value,
         addr: document.getElementById('emp-p2-addr').value.trim(),
         isFather: document.getElementById('emp-p2-is-father').checked,
