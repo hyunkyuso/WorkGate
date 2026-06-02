@@ -825,6 +825,98 @@ select.form-input{cursor:pointer}
           <div id="concurrent-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
           <button type="button" class="btn btn-ghost btn-sm" onclick="addConcurrentRow()" style="font-size:11px">+ 겸직 추가</button>
         </div>
+
+        <!-- 본인 개인정보 -->
+        <div style="margin-top:12px;padding:14px;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border)">
+          <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:10px">👤 본인 정보</div>
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">생년월일</label>
+              <input type="date" class="form-input" id="emp-birth-date">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">양력/음력</label>
+              <select class="form-input" id="emp-birth-type">
+                <option value="양력">양력</option>
+                <option value="음력">음력</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">휴대전화</label>
+              <input type="tel" class="form-input" id="emp-mobile" placeholder="010-0000-0000">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">집주소</label>
+            <input type="text" class="form-input" id="emp-home-addr" placeholder="주소 입력">
+          </div>
+        </div>
+
+        <!-- 부모 정보 -->
+        <div style="margin-top:10px;padding:14px;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border)">
+          <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:10px">👨‍👩‍👧 부모 정보</div>
+          <!-- 부모1 -->
+          <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px">부모 1</div>
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">이름</label>
+              <input type="text" class="form-input" id="emp-p1-name" placeholder="이름">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">연락처</label>
+              <input type="tel" class="form-input" id="emp-p1-tel" placeholder="010-0000-0000">
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">생년월일</label>
+              <input type="date" class="form-input" id="emp-p1-birth">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">양력/음력</label>
+              <select class="form-input" id="emp-p1-birth-type">
+                <option value="양력">양력</option>
+                <option value="음력">음력</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">주소</label>
+            <input type="text" class="form-input" id="emp-p1-addr" placeholder="주소 입력">
+          </div>
+          <!-- 부모2 -->
+          <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px">부모 2</div>
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">이름</label>
+              <input type="text" class="form-input" id="emp-p2-name" placeholder="이름">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">연락처</label>
+              <input type="tel" class="form-input" id="emp-p2-tel" placeholder="010-0000-0000">
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">생년월일</label>
+              <input type="date" class="form-input" id="emp-p2-birth">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">양력/음력</label>
+              <select class="form-input" id="emp-p2-birth-type">
+                <option value="양력">양력</option>
+                <option value="음력">음력</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">주소</label>
+            <input type="text" class="form-input" id="emp-p2-addr" placeholder="주소 입력">
+          </div>
+        </div>
+
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('emp-modal')">닫기</button>
       <button class="btn btn-primary" id="emp-modal-save-btn" onclick="saveEmployee()">저장</button>
@@ -1682,6 +1774,22 @@ function openEmployeeModal(uid) {
     loadConcurrentRows(e.concurrent||[]);
     document.getElementById('emp-joindate').value = e.joindate||'';
     document.getElementById('emp-leavedate').value = e.leavedate||'';
+    // 본인 개인정보
+    document.getElementById('emp-birth-date').value = e.birthDate||'';
+    document.getElementById('emp-birth-type').value = e.birthType||'양력';
+    document.getElementById('emp-mobile').value = e.mobile||'';
+    document.getElementById('emp-home-addr').value = e.homeAddr||'';
+    // 부모 정보
+    document.getElementById('emp-p1-name').value = (e.parents&&e.parents[0]&&e.parents[0].name)||'';
+    document.getElementById('emp-p1-tel').value = (e.parents&&e.parents[0]&&e.parents[0].tel)||'';
+    document.getElementById('emp-p1-birth').value = (e.parents&&e.parents[0]&&e.parents[0].birth)||'';
+    document.getElementById('emp-p1-birth-type').value = (e.parents&&e.parents[0]&&e.parents[0].birthType)||'양력';
+    document.getElementById('emp-p1-addr').value = (e.parents&&e.parents[0]&&e.parents[0].addr)||'';
+    document.getElementById('emp-p2-name').value = (e.parents&&e.parents[1]&&e.parents[1].name)||'';
+    document.getElementById('emp-p2-tel').value = (e.parents&&e.parents[1]&&e.parents[1].tel)||'';
+    document.getElementById('emp-p2-birth').value = (e.parents&&e.parents[1]&&e.parents[1].birth)||'';
+    document.getElementById('emp-p2-birth-type').value = (e.parents&&e.parents[1]&&e.parents[1].birthType)||'양력';
+    document.getElementById('emp-p2-addr').value = (e.parents&&e.parents[1]&&e.parents[1].addr)||'';
     // 기존 사진 표시: 미리보기만 보여주고 크롭 에디터는 비활성
     // (새 사진 선택 시에만 크롭 에디터 활성화)
     if (e.photo) {
@@ -1697,8 +1805,13 @@ function openEmployeeModal(uid) {
   } else {
     document.getElementById('emp-modal-title').textContent = '직원 추가';
     document.getElementById('emp-modal-save-btn').textContent = '저장';
-    ['emp-id','emp-name','emp-joindate','emp-leavedate'].forEach(id => document.getElementById(id).value = '');
+    ['emp-id','emp-name','emp-joindate','emp-leavedate','emp-birth-date','emp-mobile','emp-home-addr',
+      'emp-p1-name','emp-p1-tel','emp-p1-birth','emp-p1-addr',
+      'emp-p2-name','emp-p2-tel','emp-p2-birth','emp-p2-addr'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
     ['emp-dept','emp-position','emp-title','emp-duty'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('emp-birth-type').value = '양력';
+    document.getElementById('emp-p1-birth-type').value = '양력';
+    document.getElementById('emp-p2-birth-type').value = '양력';
     document.getElementById('emp-status').value = '재직';
     document.getElementById('emp-role').value = '일반';
     loadConcurrentRows([]);
@@ -1871,6 +1984,30 @@ function saveEmployee() {
   }
   const now = new Date().toLocaleString('ko-KR');
 
+
+  // 본인 및 부모 정보
+  const personalInfo = {
+    birthDate: document.getElementById('emp-birth-date').value,
+    birthType: document.getElementById('emp-birth-type').value,
+    mobile: document.getElementById('emp-mobile').value.trim(),
+    homeAddr: document.getElementById('emp-home-addr').value.trim(),
+    parents: [
+      {
+        name: document.getElementById('emp-p1-name').value.trim(),
+        tel: document.getElementById('emp-p1-tel').value.trim(),
+        birth: document.getElementById('emp-p1-birth').value,
+        birthType: document.getElementById('emp-p1-birth-type').value,
+        addr: document.getElementById('emp-p1-addr').value.trim(),
+      },
+      {
+        name: document.getElementById('emp-p2-name').value.trim(),
+        tel: document.getElementById('emp-p2-tel').value.trim(),
+        birth: document.getElementById('emp-p2-birth').value,
+        birthType: document.getElementById('emp-p2-birth-type').value,
+        addr: document.getElementById('emp-p2-addr').value.trim(),
+      }
+    ]
+  };
   if (editingEmpId) {
     const idx = employees.findIndex(e => e.uid === editingEmpId);
     if (idx < 0) return;
@@ -1887,6 +2024,7 @@ function saveEmployee() {
       joindate: document.getElementById('emp-joindate').value,
       leavedate: document.getElementById('emp-leavedate').value,
       concurrent: getConcurrentRows(),
+      ...personalInfo,
       photo: photo || prev.photo,
       history: [...(prev.history||[]), {
         date: now,
@@ -1942,6 +2080,7 @@ function saveEmployee() {
       joindate: document.getElementById('emp-joindate').value,
       leavedate: document.getElementById('emp-leavedate').value,
       concurrent: getConcurrentRows(),
+      ...personalInfo,
       photo, history: [{date: now, changes: ['최초 등록']}],
     };
     employees.push(empData);
