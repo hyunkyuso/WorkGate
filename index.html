@@ -5878,19 +5878,18 @@ function _renderDeptFund() {
       const qNames = quarters.map((_,qi) => getQNames(qi));
       // 최대 인원수 파악 (모든 분기 중 최대)
       const maxEmpCount = Math.max(0, ...qNames.map(n=>n.length));
-      // 4명 이하: 이름1줄+빈1줄=2줄, 5명 이상: 최대4줄
-      const nameRowCount = maxEmpCount <= 4 ? 2 : Math.min(4, Math.ceil(maxEmpCount/4) + 1);
-      const dataRowCount = maxEmpCount <= 4 ? 1 : Math.min(4, Math.ceil(maxEmpCount/4));
+      // 이름행+비고행 쌍으로 구성
+      // 4명 이하: 1쌍(이름+비고) = 2줄
+      // 5명 이상: 2쌍 = 4줄 (최대)
+      const pairCount = maxEmpCount <= 4 ? 1 : 2;
 
-      const nameRows = Array.from({length:dataRowCount}, (_,rowIdx) =>
+      const nameRows = Array.from({length:pairCount}, (_,rowIdx) =>
         quarters.map((_,qi) => {
           const chunk = qNames[qi].slice(rowIdx*4, rowIdx*4+4);
           return Array.from({length:4}, (_,i) => chunk[i]||'');
         })
       );
-      // 빈행 수 = nameRowCount - dataRowCount
-      const emptyRowCount = nameRowCount - dataRowCount;
-      const maxChunks = nameRowCount;
+      const maxChunks = pairCount * 2; // 이름행 + 비고행
 
       // 퇴사자 별도 행
       const leaversByQ = quarters.map(([qs,qe],qi) => {
@@ -5950,21 +5949,15 @@ function _renderDeptFund() {
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
           <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
-        ${nameRows.map((rowByQ, rowIdx) => `<tr>
+        ${nameRows.map((rowByQ, rowIdx) => `
+        <tr>
           ${rowByQ[0].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
           ${rowByQ[1].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
           ${rowByQ[2].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
           ${rowByQ[3].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
           <td style="${nameNs}text-align:right;font-weight:600">${rowIdx===0?fmtMoney(tTotal):''}</td>
-        </tr>`).join('')}
-        ${hasLeavers ? `<tr>
-          ${leaversByQ[0].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
-          ${leaversByQ[1].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
-          ${leaversByQ[2].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
-          ${leaversByQ[3].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
-          <td style="${nameNs}"></td>
-        </tr>` : ''}
-        ${Array.from({length:emptyRowCount}, () => `<tr>
+        </tr>
+        <tr>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
