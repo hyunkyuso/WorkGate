@@ -5752,21 +5752,20 @@ function _renderDeptFund() {
 
   // 헤더: 소속 04~06 소속 07~09 소속 10~12 소속 01~03(대기) | 합계 | 구분 | 비고
   // 레이아웃: [소속][Q1][소속][Q2][소속][Q3][소속][Q4] [합계] [구분] [비고]
-  const COL_W = 'width:10%;';
-  const AMT_W = 'width:9%;';
+  const CW = 'width:5.5%;';
   const colgroup = `<colgroup>
-    <col style="${COL_W}"><col style="${AMT_W}">
-    <col style="${COL_W}"><col style="${AMT_W}">
-    <col style="${COL_W}"><col style="${AMT_W}">
-    <col style="${COL_W}"><col style="${AMT_W}">
-    <col style="width:9%"><col style="width:7%">
+    <col style="${CW}"><col style="${CW}"><col style="${CW}"><col style="${CW}">
+    <col style="${CW}"><col style="${CW}"><col style="${CW}"><col style="${CW}">
+    <col style="${CW}"><col style="${CW}"><col style="${CW}"><col style="${CW}">
+    <col style="${CW}"><col style="${CW}"><col style="${CW}"><col style="${CW}">
+    <col style="width:7%"><col style="width:5%">
   </colgroup>`;
   const headerRow = () => colgroup + `<tr>
-    ${th('소속')}${th('01월~03월')}
-    ${th('소속')}${th('04월~06월')}
-    ${th('소속')}${th('07월~09월')}
-    ${th('소속')}${th('10월~12월')}
-    ${th('구분')}${th('비고')}
+    <th colspan="4" style="${thStyle}border-right:2px solid #78909c">소속 / 01월~03월</th>
+    <th colspan="4" style="${thStyle}border-right:2px solid #78909c">소속 / 04월~06월</th>
+    <th colspan="4" style="${thStyle}border-right:2px solid #78909c">소속 / 07월~09월</th>
+    <th colspan="4" style="${thStyle}border-right:2px solid #78909c">소속 / 10월~12월</th>
+    <th style="${thStyle}">구분</th><th style="${thStyle}">비고</th>
   </tr>`;
 
   const today = new Date();
@@ -5797,22 +5796,22 @@ function _renderDeptFund() {
     html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
-        ${td(bonbu,`font-weight:700;background:${BG_BONBU}`)}
-        ${td(qAmts[0]===null?'-':fmtMoney(qAmts[0]),`text-align:right;font-weight:600;background:${BG_BONBU}`)}
-        ${td(bonbu,`font-weight:700;background:${BG_BONBU}`)}
-        ${td(qAmts[1]===null?'-':fmtMoney(qAmts[1]),`text-align:right;font-weight:600;background:${BG_BONBU}`)}
-        ${td(bonbu,`font-weight:700;background:${BG_BONBU}`)}
-        ${td(qAmts[2]===null?'-':fmtMoney(qAmts[2]),`text-align:right;font-weight:600;background:${BG_BONBU}`)}
-        ${td(bonbu,`font-weight:700;background:${BG_BONBU}`)}
-        ${td(qAmts[3]===null?'-':fmtMoney(qAmts[3]),`text-align:right;font-weight:600;background:${BG_BONBU}`)}
-        ${td('계',`font-weight:700;background:${BG_BONBU}`)}
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};text-align:center">${bonbu}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};border-right:2px solid #78909c">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};text-align:center">${bonbu}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};border-right:2px solid #78909c">${qAmts[1]===null?'-':fmtMoney(qAmts[1])}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};text-align:center">${bonbu}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};border-right:2px solid #78909c">${qAmts[2]===null?'-':fmtMoney(qAmts[2])}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};text-align:center">${bonbu}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};border-right:2px solid #78909c">${qAmts[3]===null?'-':fmtMoney(qAmts[3])}</td>
+        <td style="${tdStyle}font-weight:700;background:${BG_BONBU};text-align:center">계</td>
         <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:${BG_BONBU}" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel}</td>
       </tr>
       <tr>
-        <td colspan="2" style="${tdStyle}text-align:center">${headName}</td>
-        <td colspan="2" style="${tdStyle}text-align:center">${headName}</td>
-        <td colspan="2" style="${tdStyle}text-align:center">${headName}</td>
-        <td colspan="2" style="${tdStyle}text-align:center">${headName}</td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:2px solid #78909c">${headName}</td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:2px solid #78909c">${headName}</td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:2px solid #78909c">${headName}</td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:2px solid #78909c">${headName}</td>
         <td style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
       </tr>
       <tr><td colspan="10" style="height:8px;border:none"></td></tr>
@@ -5863,16 +5862,20 @@ function _renderDeptFund() {
         return pa-pb;
       };
 
+      // 각 분기별 이름 배열 (4칸 고정)
       const namesByQ = quarters.map(([qs,qe],qi) => {
-        if (qi===0) return '';
-        return teamMembers
+        if (qi===0) return ['','','',''];
+        const active = teamMembers
           .filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0)
-          .sort(sortEmp)
-          .map(e=>{
-            const lv = e.leavedate ? parseLocalDate(e.leavedate) : null;
-            const lvNote = lv&&lv.getFullYear()===year ? `<div style="color:#ef4444;font-size:9px">${lv.getMonth()+1}/${lv.getDate()}퇴사</div>` : '';
-            return `<td style="border:1px solid #c8d6b9;padding:4px 6px;text-align:center;font-size:11px;width:auto">${e.name}${lvNote}</td>`;
-          }).join('');
+          .sort(sortEmp);
+        // 4칸 고정, 이름 없으면 빈칸
+        return [0,1,2,3].map(i => {
+          if (i >= active.length) return '';
+          const e = active[i];
+          const lv = e.leavedate ? parseLocalDate(e.leavedate) : null;
+          const lvNote = lv&&lv.getFullYear()===year ? `<div style="color:#ef4444;font-size:9px">${lv.getMonth()+1}/${lv.getDate()}퇴사</div>` : '';
+          return e.name + lvNote;
+        });
       });
 
       const nameNs = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;`;
@@ -5894,40 +5897,40 @@ function _renderDeptFund() {
         ${colgroup}
         <tbody>
         <tr style="background:${BG_DEPT}">
-          ${td(dept,`font-weight:600;background:${BG_DEPT}`)}
-          ${td(bAmts[0]===null?'-':fmtMoney(bAmts[0]),`text-align:right;background:${BG_DEPT}`)}
-          ${td(dept,`font-weight:600;background:${BG_DEPT}`)}
-          ${td(bAmts[1]===null?'-':fmtMoney(bAmts[1]),`text-align:right;background:${BG_DEPT}`)}
-          ${td(dept,`font-weight:600;background:${BG_DEPT}`)}
-          ${td(bAmts[2]===null?'-':fmtMoney(bAmts[2]),`text-align:right;background:${BG_DEPT}`)}
-          ${td(dept,`font-weight:600;background:${BG_DEPT}`)}
-          ${td(bAmts[3]===null?'-':fmtMoney(bAmts[3]),`text-align:right;background:${BG_DEPT}`)}
-          ${td('계',`font-weight:600;background:${BG_DEPT}`)}
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:2px solid #78909c">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:2px solid #78909c">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:2px solid #78909c">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:2px solid #78909c">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
+          <td style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">계</td>
           ${noteCell}
         </tr>
         <tr>
-          ${deptHeadNote(0)}${deptHeadNote(1)}${deptHeadNote(2)}${deptHeadNote(3)}
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:2px solid #78909c">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[0])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:2px solid #78909c">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[1])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:2px solid #78909c">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[2])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:2px solid #78909c">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
           <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
         <tr>
-          ${td('')}${td(tAmts[0]===null?'-':fmtMoney(tAmts[0]),'text-align:right')}
-          ${td('')}${td(tAmts[1]===null?'-':fmtMoney(tAmts[1]),'text-align:right')}
-          ${td('')}${td(tAmts[2]===null?'-':fmtMoney(tAmts[2]),'text-align:right')}
-          ${td('')}${td(tAmts[3]===null?'-':fmtMoney(tAmts[3]),'text-align:right')}
-          ${td('계','font-weight:600')}
+          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:2px solid #78909c">${tAmts[0]===null?'-':fmtMoney(tAmts[0])}</td>
+          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:2px solid #78909c">${tAmts[1]===null?'-':fmtMoney(tAmts[1])}</td>
+          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:2px solid #78909c">${tAmts[2]===null?'-':fmtMoney(tAmts[2])}</td>
+          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:2px solid #78909c">${tAmts[3]===null?'-':fmtMoney(tAmts[3])}</td>
+          <td style="${tdStyle}text-align:center;font-weight:600">계</td>
         </tr>
         <tr>
-          <td colspan="2" style="${nameNs}text-align:center">${namesByQ[0]?`<table style="width:100%;border-collapse:collapse"><tr>${namesByQ[0]}</tr></table>`:''}</td>
-          <td colspan="2" style="${nameNs}text-align:center">${namesByQ[1]?`<table style="width:100%;border-collapse:collapse"><tr>${namesByQ[1]}</tr></table>`:''}</td>
-          <td colspan="2" style="${nameNs}text-align:center">${namesByQ[2]?`<table style="width:100%;border-collapse:collapse"><tr>${namesByQ[2]}</tr></table>`:''}</td>
-          <td colspan="2" style="${nameNs}text-align:center">${namesByQ[3]?`<table style="width:100%;border-collapse:collapse"><tr>${namesByQ[3]}</tr></table>`:''}</td>
+          ${namesByQ[0].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
+          ${namesByQ[1].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
+          ${namesByQ[2].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
+          ${namesByQ[3].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
           <td style="${nameNs}text-align:right;font-weight:600">${fmtMoney(tTotal)}</td>
         </tr>
         <tr>
-          <td colspan="2" style="${nameNs}"></td>
-          <td colspan="2" style="${nameNs}"></td>
-          <td colspan="2" style="${nameNs}"></td>
-          <td colspan="2" style="${nameNs}"></td>
+          ${'<td style="'+nameNs+'"></td>'.repeat(16)}
           <td style="${nameNs}"></td>
         </tr>
         <tr><td colspan="10" style="height:10px;border:none"></td></tr>
