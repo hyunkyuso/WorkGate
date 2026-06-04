@@ -624,6 +624,7 @@ select.form-input{cursor:pointer}
           <table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead>
               <tr style="background:#f1f5f9">
+                <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:36px">제외</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:50px">순번</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:90px">생일날짜</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:100px">발송일자</th>
@@ -635,7 +636,7 @@ select.form-input{cursor:pointer}
               </tr>
             </thead>
             <tbody id="pb-tbody">
-              <tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8">로딩 중...</td></tr>
+              <tr><td colspan="9" style="text-align:center;padding:32px;color:#94a3b8">로딩 중...</td></tr>
             </tbody>
           </table>
         </div>
@@ -664,6 +665,7 @@ select.form-input{cursor:pointer}
           <table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead>
               <tr style="background:#f1f5f9">
+                <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:36px">제외</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:40px">순번</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:80px">본부</th>
                 <th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:center;min-width:80px">대상자</th>
@@ -673,7 +675,7 @@ select.form-input{cursor:pointer}
               </tr>
             </thead>
             <tbody id="birthday-tbody">
-              <tr><td colspan="6" style="text-align:center;padding:32px;color:#94a3b8">로딩 중...</td></tr>
+              <tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8">로딩 중...</td></tr>
             </tbody>
           </table>
         </div>
@@ -5232,6 +5234,8 @@ async function exportBirthdayExcel() {
 // Firebase에서 발송일자/비고 저장/불러오기
 const PB_SEND_KEY = 'pb_send_dates';
 const PB_NOTE_KEY = 'pb_notes';
+const PB_SKIP_KEY = 'pb_skips';
+const PB_DATE_KEY = 'pb_custom_dates';
 
 async function savePbField(key, docKey, val) {
   try {
@@ -5250,6 +5254,8 @@ async function loadPbField(docKey) {
 
 let pbSendDates = {};
 let pbNotes = {};
+let pbSkips = {};
+let pbCustomDates = {};
 
 function renderParentBirthdayTable() {
   const tbody = document.getElementById('pb-tbody');
@@ -5261,9 +5267,11 @@ function renderParentBirthdayTable() {
   }
   const yearF = parseInt((document.getElementById('pb-year-filter')||{}).value || new Date().getFullYear());
   const monthF = (document.getElementById('pb-month-filter')||{}).value || '';
-  Promise.all([loadPbField(PB_SEND_KEY), loadPbField(PB_NOTE_KEY)]).then(([dates, notes]) => {
+  Promise.all([loadPbField(PB_SEND_KEY), loadPbField(PB_NOTE_KEY), loadPbField(PB_SKIP_KEY), loadPbField(PB_DATE_KEY)]).then(([dates, notes, skips, customDates]) => {
     pbSendDates = dates;
     pbNotes = notes;
+    pbSkips = skips;
+    pbCustomDates = customDates;
     _renderPbTable(yearF, monthF);
   });
 }
@@ -5314,17 +5322,22 @@ function _renderPbTable(yearF, monthF) {
       }
       if (monthF && sm !== parseInt(monthF)) return;
       const sendKey = `${e.uid}_${pi}_${yearF}`;
+      const skipped = pbSkips[sendKey] || false;
+      if (skipped) return; // 제외 처리된 경우 스킵
+      const customDate = pbCustomDates[sendKey];
+      const displayDate = customDate || `${sm}월 ${sd}일`;
       rows.push({
         uid: e.uid, pi,
-        month: sm, day: sd,
-        date: `${sm}월 ${sd}일`,
+        month: customDate ? parseInt(customDate.split('월')[0]) : sm,
+        day: customDate ? parseInt(customDate.split('월')[1]) : sd,
+        date: displayDate,
         sendDate: pbSendDates[sendKey] || '',
         empName: e.name||'',
         parentName: p.name||'',
         addr: p.addr||'',
         mobile: p.tel||'',
         note: pbNotes[sendKey] || '',
-        sendKey
+        sendKey, skipped
       });
     });
   });
@@ -5332,13 +5345,20 @@ function _renderPbTable(yearF, monthF) {
   rows.sort((a,b) => a.month-b.month || a.day-b.day);
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8">해당 생신자가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:#94a3b8">해당 생신자가 없습니다</td></tr>';
     return;
   }
 
   const td = (v,s='') => `<td style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;${s}">${v}</td>`;
   tbody.innerHTML = rows.map((r,i) => {
-    // 발송일자: 월 필터 시 날짜 입력란(달력), 전체월이면 빈칸
+    // 생일날짜: 수기 수정 가능한 입력란
+    const dateCell = `<td style="border:1px solid #e2e8f0;padding:3px 5px;text-align:center">
+      <input type="text" value="${r.date}" placeholder="X월 X일"
+        style="width:72px;padding:2px 4px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;text-align:center"
+        onchange="pbCustomDates['${r.sendKey}']=this.value;savePbField('${r.sendKey}','${PB_DATE_KEY}',this.value);renderParentBirthdayTable()">
+    </td>`;
+
+    // 발송일자: 월 필터 시 달력, 전체월이면 텍스트
     const sendCell = monthF
       ? `<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">
           <input type="date" value="${r.sendDate}"
@@ -5348,8 +5368,13 @@ function _renderPbTable(yearF, monthF) {
       : `<td style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;color:#94a3b8;font-size:11px">${r.sendDate ? r.sendDate.replace(/-/g,'.') : '-'}</td>`;
 
     return `<tr>
+      <td style="border:1px solid #e2e8f0;padding:4px;text-align:center">
+        <input type="checkbox" title="해당 연도 제외"
+          onchange="pbSkips['${r.sendKey}']=this.checked;savePbField('${r.sendKey}','${PB_SKIP_KEY}',this.checked);renderParentBirthdayTable()"
+          style="width:15px;height:15px;accent-color:#ef4444;cursor:pointer">
+      </td>
       ${td(i+1,'color:#94a3b8;font-size:12px')}
-      ${td(r.date)}
+      ${dateCell}
       ${sendCell}
       ${td(r.empName,'font-weight:500')}
       ${td(r.parentName)}
@@ -5478,18 +5503,42 @@ async function exportParentBirthdayExcel() {
   a.href = URL.createObjectURL(blob); a.download = title+'.xlsx'; a.click();
 }
 
+const BD_SKIP_KEY = 'bd_skips';
+let bdSkips = {};
+
+async function loadBdSkips() {
+  try {
+    const snap = await db.collection('settings').doc(BD_SKIP_KEY).get();
+    bdSkips = snap.exists ? snap.data() : {};
+  } catch(e) { bdSkips = {}; }
+}
+
+async function saveBdSkip(key, val) {
+  try {
+    const snap = await db.collection('settings').doc(BD_SKIP_KEY).get();
+    const data = snap.exists ? snap.data() : {};
+    data[key] = val;
+    await db.collection('settings').doc(BD_SKIP_KEY).set(data);
+  } catch(e) {}
+}
+
 function renderBirthdayTable() {
   const tbody = document.getElementById('birthday-tbody');
   if (!tbody) return;
   // 데이터 미로드 시 재시도
   if (!employees || employees.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:#94a3b8">데이터 로딩 중...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:#94a3b8">데이터 로딩 중...</td></tr>';
     setTimeout(renderBirthdayTable, 500);
     return;
   }
+  loadBdSkips().then(() => _renderBirthdayTable());
+}
+
+function _renderBirthdayTable() {
   const yearFilter = parseInt((document.getElementById('birthday-year-filter')||{}).value || '2025');
   const monthFilter = (document.getElementById('birthday-month-filter')||{}).value || '';
   const rows = [];
+  const skipPrefix = `bd_${yearFilter}_`;
 
   employees.forEach(e => {
     if (e.status === '퇴직') return;
@@ -5506,7 +5555,9 @@ function renderBirthdayTable() {
         let sm = bm, sd = bd;
         if ((e.birthType||'양력') === '음력') { const s=lunarToSolar(bm,bd,yearFilter); sm=s.month; sd=s.day; }
         if (!monthFilter || sm === parseInt(monthFilter)) {
-          rows.push({ type:'본인', bonbu, name, date:`${sm}월 ${sd}일`, month:sm, day:sd, amt:birthdayAmt, note:workplace });
+          const skipKey = `bd_${yearFilter}_${e.uid}`;
+          if (bdSkips[skipKey]) return;
+          rows.push({ type:'본인', bonbu, name, date:`${sm}월 ${sd}일`, month:sm, day:sd, amt:birthdayAmt, note:workplace, skipKey, uid:e.uid });
         }
       }
     }
@@ -5530,6 +5581,11 @@ function renderBirthdayTable() {
     return (note||'') === '경산' ? '경산' : '';
   };
   tbody.innerHTML = rows.map((r,i) => `<tr>
+    <td style="border:1px solid #e2e8f0;padding:4px;text-align:center">
+      <input type="checkbox" title="해당 연도 제외"
+        onchange="bdSkips['${r.skipKey}']=this.checked;saveBdSkip('${r.skipKey}',this.checked);renderBirthdayTable()"
+        style="width:15px;height:15px;accent-color:#ef4444;cursor:pointer">
+    </td>
     ${td(i+1,'color:#94a3b8;font-size:12px')}
     ${td(r.bonbu)}
     ${td(r.name,'font-weight:500')}
@@ -5538,7 +5594,8 @@ function renderBirthdayTable() {
     ${td(showNote(r.note))}
   </tr>`).join('')
   + `<tr style="background:#f1f5f9;font-weight:700">
-    <td colspan="4" style="border:1px solid #e2e8f0;padding:7px 10px;text-align:center;font-weight:700">합계</td>
+    <td style="border:1px solid #e2e8f0;padding:7px 10px"></td>
+    <td colspan="3" style="border:1px solid #e2e8f0;padding:7px 10px;text-align:center;font-weight:700">합계</td>
     ${td('₩'+(totalAmt*10000).toLocaleString(),'font-weight:700;color:var(--ac)')}
     ${td('')}
   </tr>`;
