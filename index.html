@@ -5454,21 +5454,21 @@ async function exportParentBirthdayExcel() {
     }
   });
 
-  // 빈 행
-  const lastDataRow = rows.length + 5;
-  ws.addRow(['','','','','','','','']);
+  // 빈 행 (데이터 끝 + 헤더4행 = rows.length+4, 다음이 빈행)
+  ws.addRow(['','','','','','','','']); // 빈행1
+  ws.addRow(['','','','','','','','']); // 빈행2
 
-  // 서명 행: 대표이사
-  const signRow = lastDataRow + 1;
-  ws.addRow(['','','','','(주)정도UIT 대표이사 노 성 기 배상','','','']);
+  // 서명 행
+  const signRow = ws.rowCount + 1;
+  ws.addRow(['(주)정도UIT 대표이사 노 성 기 배상','','','','','','','']);
   ws.mergeCells(`A${signRow}:H${signRow}`);
   const signCell = ws.getCell(`A${signRow}`);
   signCell.font = {bold:true, size:13};
   signCell.alignment = {horizontal:'center', vertical:'middle'};
-  ws.getRow(signRow).height = 28;
+  ws.getRow(signRow).height = 30;
 
   // 담당자 행
-  const staffRow = signRow + 1;
+  const staffRow = ws.rowCount + 1;
   ws.addRow(['담당자 : 인사총무부 최주희 대리 (010-8942-1061, choijh@uitgis.com)','','','','','','','']);
   ws.mergeCells(`A${staffRow}:H${staffRow}`);
   ws.getCell(`A${staffRow}`).font = {size:10};
