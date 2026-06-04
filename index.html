@@ -613,7 +613,7 @@ select.form-input{cursor:pointer}
             <select id="pb-year-filter" onchange="renderParentBirthdayTable()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
               <option value="2025">2025년</option><option value="2026">2026년</option><option value="2027">2027년</option><option value="2028">2028년</option><option value="2029">2029년</option><option value="2030">2030년</option>
             </select>
-            <select id="pb-month-filter" onchange="renderParentBirthdayTable()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+            <select id="pb-month-filter" onchange="if(!this.value){document.querySelectorAll('#pb-tbody input[type=date]').forEach(el=>{el.value='';const k=el.closest('tr').querySelector('input[type=date]')==el?el.onchange:null;})} renderParentBirthdayTable()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
               <option value="">전체 월</option>
               <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option><option value="4">4월</option><option value="5">5월</option><option value="6">6월</option><option value="7">7월</option><option value="8">8월</option><option value="9">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
             </select>
@@ -5229,25 +5229,27 @@ async function exportBirthdayExcel() {
 }
 
 
-// Firebase에서 발송일자 저장/불러오기
+// Firebase에서 발송일자/비고 저장/불러오기
 const PB_SEND_KEY = 'pb_send_dates';
-async function savePbSendDate(uid, parentIdx, year, dateVal) {
-  const key = `${uid}_${parentIdx}_${year}`;
+const PB_NOTE_KEY = 'pb_notes';
+
+async function savePbField(key, docKey, val) {
   try {
-    const snap = await db.collection('settings').doc(PB_SEND_KEY).get();
+    const snap = await db.collection('settings').doc(docKey).get();
     const data = snap.exists ? snap.data() : {};
-    data[key] = dateVal;
-    await db.collection('settings').doc(PB_SEND_KEY).set(data);
-  } catch(e) { console.error('발송일 저장 오류', e); }
+    data[key] = val;
+    await db.collection('settings').doc(docKey).set(data);
+  } catch(e) { console.error('저장 오류', e); }
 }
-async function loadPbSendDates() {
+async function loadPbField(docKey) {
   try {
-    const snap = await db.collection('settings').doc(PB_SEND_KEY).get();
+    const snap = await db.collection('settings').doc(docKey).get();
     return snap.exists ? snap.data() : {};
   } catch(e) { return {}; }
 }
 
 let pbSendDates = {};
+let pbNotes = {};
 
 function renderParentBirthdayTable() {
   const tbody = document.getElementById('pb-tbody');
@@ -5257,15 +5259,35 @@ function renderParentBirthdayTable() {
     setTimeout(renderParentBirthdayTable, 500);
     return;
   }
-
   const yearF = parseInt((document.getElementById('pb-year-filter')||{}).value || new Date().getFullYear());
   const monthF = (document.getElementById('pb-month-filter')||{}).value || '';
-
-  // 발송일 불러오기
-  loadPbSendDates().then(dates => {
+  Promise.all([loadPbField(PB_SEND_KEY), loadPbField(PB_NOTE_KEY)]).then(([dates, notes]) => {
     pbSendDates = dates;
+    pbNotes = notes;
     _renderPbTable(yearF, monthF);
   });
+}
+
+function pbToggleJeju(sendKey) {
+  const cur = pbNotes[sendKey] || '';
+  const val = cur ? '' : '제주도 택배\n3,000원 추가';
+  pbNotes[sendKey] = val;
+  savePbField(sendKey, PB_NOTE_KEY, val);
+  // 해당 셀 업데이트
+  const td = document.getElementById('pb-note-'+sendKey);
+  if (td) {
+    td.innerHTML = _pbNoteCell(sendKey, val);
+  }
+}
+
+function _pbNoteCell(sendKey, note) {
+  const hasJeju = note && note.includes('제주도');
+  return `<div style="display:flex;align-items:center;justify-content:center;gap:4px;min-height:28px">
+    ${hasJeju ? `<span style="font-size:11px;color:#dc2626;white-space:pre-line;line-height:1.3">${note}</span>` : ''}
+    <button onclick="pbToggleJeju('${sendKey}')" style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid ${hasJeju?'#dc2626':'#94a3b8'};background:${hasJeju?'#fee2e2':'#f8fafc'};color:${hasJeju?'#dc2626':'#64748b'};cursor:pointer;white-space:nowrap">
+      ${hasJeju ? '삭제' : '산간지역'}
+    </button>
+  </div>`;
 }
 
 function _renderPbTable(yearF, monthF) {
@@ -5276,42 +5298,33 @@ function _renderPbTable(yearF, monthF) {
   employees.forEach(e => {
     if (e.status === '퇴직') return;
     const wd = welfareData[e.uid] || {};
-    // 부모님생신 미사용이면 제외
     if (wd.parentUsed === false) return;
     if (!e.parents || e.parents.length === 0) return;
-
     e.parents.forEach((p, pi) => {
       if (!p.name) return;
       const pLabel = p.isFather ? '부' : p.isMother ? '모' : '';
       if (!pLabel) return;
-      // 해당 부모 미사용이면 제외
       if (pLabel === '부' && !wd.parentFather) return;
       if (pLabel === '모' && !wd.parentMother) return;
-
       const pm = parseInt(p.birthMonth||'0'), pd = parseInt(p.birthDay||'0');
       if (!pm || !pd) return;
-
       let sm = pm, sd = pd;
       if ((p.birthType||'양력') === '음력') {
         const sol = lunarToSolar(pm, pd, yearF);
         sm = sol.month; sd = sol.day;
       }
-
       if (monthF && sm !== parseInt(monthF)) return;
-
       const sendKey = `${e.uid}_${pi}_${yearF}`;
-      const sendDate = pbSendDates[sendKey] || '';
-
       rows.push({
         uid: e.uid, pi,
         month: sm, day: sd,
         date: `${sm}월 ${sd}일`,
-        sendDate,
+        sendDate: pbSendDates[sendKey] || '',
         empName: e.name||'',
         parentName: p.name||'',
         addr: p.addr||'',
         mobile: p.mobile||'',
-        note: '',
+        note: pbNotes[sendKey] || '',
         sendKey
       });
     });
@@ -5325,21 +5338,27 @@ function _renderPbTable(yearF, monthF) {
   }
 
   const td = (v,s='') => `<td style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;${s}">${v}</td>`;
-  tbody.innerHTML = rows.map((r,i) => `<tr>
-    ${td(i+1,'color:#94a3b8;font-size:12px')}
-    ${td(r.date)}
-    <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">
-      <input type="text" value="${r.sendDate}" placeholder="월 일"
-        style="width:80px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;text-align:center"
-        onchange="savePbSendDate('${r.uid}',${r.pi},${yearF},'${r.sendKey}',this.value)"
-        oninput="pbSendDates['${r.sendKey}']=this.value">
-    </td>
-    ${td(r.empName,'font-weight:500')}
-    ${td(r.parentName)}
-    ${td(r.addr,'text-align:left;padding:6px 10px')}
-    ${td(r.mobile)}
-    ${td(r.note)}
-  </tr>`).join('');
+  tbody.innerHTML = rows.map((r,i) => {
+    // 발송일자: 월 필터 시 날짜 입력란(달력), 전체월이면 빈칸
+    const sendCell = monthF
+      ? `<td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">
+          <input type="date" value="${r.sendDate}"
+            style="padding:3px 6px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;width:120px"
+            onchange="pbSendDates['${r.sendKey}']=this.value;savePbField('${r.sendKey}','${PB_SEND_KEY}',this.value)">
+         </td>`
+      : `<td style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;color:#94a3b8;font-size:11px">${r.sendDate ? r.sendDate.replace(/-/g,'.') : '-'}</td>`;
+
+    return `<tr>
+      ${td(i+1,'color:#94a3b8;font-size:12px')}
+      ${td(r.date)}
+      ${sendCell}
+      ${td(r.empName,'font-weight:500')}
+      ${td(r.parentName)}
+      ${td(r.addr,'text-align:left;padding:6px 10px')}
+      ${td(r.mobile)}
+      <td id="pb-note-${r.sendKey}" style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${_pbNoteCell(r.sendKey, r.note)}</td>
+    </tr>`;
+  }).join('');
 }
 
 async function exportParentBirthdayExcel() {
@@ -5378,7 +5397,7 @@ async function exportParentBirthdayExcel() {
       if ((p.birthType||'양력') === '음력') { const sol = lunarToSolar(pm, pd, yearF); sm=sol.month; sd=sol.day; }
       if (monthF && sm !== monthF) return;
       const sendKey = `${e.uid}_${pi}_${yearF}`;
-      rows.push({ date:`${sm}월 ${sd}일`, month:sm, day:sd, sendDate:dates[sendKey]||'', empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.mobile||'', note:'' });
+      const noteVal = (await loadPbField(PB_NOTE_KEY))[sendKey]||''; rows.push({ date:`${sm}월 ${sd}일`, month:sm, day:sd, sendDate:(dates[sendKey]||'').replace(/-/g,'.'), empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.mobile||'', note:noteVal });
     });
   });
   rows.sort((a,b) => a.month-b.month || a.day-b.day);
