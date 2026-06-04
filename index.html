@@ -5736,12 +5736,19 @@ function _renderDeptFund() {
     bonbuMap[bonbu][dept].push(e);
   });
 
-  const thStyle = 'border:1px solid #c8d6b9;padding:5px 8px;text-align:center;background:#d9e5cc;font-size:11px;white-space:nowrap;';
-  const tdStyle = 'border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-size:11px;';
+  // 색상 상수
+  const BORDER = '1px solid #b0bec5';
+  const BORDER_STRONG = '2px solid #78909c';
+  const BG_BONBU = '#dce8f5';    // 본부: 옅은 파랑
+  const BG_DEPT  = '#e8f0e0';    // 부서: 옅은 초록
+  const BG_HEAD  = '#f1f5f9';    // 헤더
+  const thStyle = `border:${BORDER};padding:5px 8px;text-align:center;background:${BG_HEAD};font-size:11px;white-space:nowrap;`;
+  const tdStyle = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;`;
+  const nameTd  = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;`;
   const th = (v, s='') => `<th style="${thStyle}${s}">${v}</th>`;
   const td = (v, s='') => `<td style="${tdStyle}${s}">${v}</td>`;
   const fmtMoney = v => v ? v.toLocaleString() : '-';
-  const dash = td('-','color:#94a3b8');
+  const dash = td('-',`color:#94a3b8`);
 
   // 헤더: 소속 04~06 소속 07~09 소속 10~12 소속 01~03(대기) | 합계 | 구분 | 비고
   // 레이아웃: [소속][Q1][소속][Q2][소속][Q3][소속][Q4] [합계] [구분] [비고]
@@ -5790,17 +5797,17 @@ function _renderDeptFund() {
     // 행2: [이름(colspan=2)][이름][이름][이름] [연간합계] [본부장]
     html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
-      <tr style="background:#c5d9a8">
-        ${td(bonbu,'font-weight:700;background:#c5d9a8')}
-        ${td(qAmts[0]===null?'-':fmtMoney(qAmts[0]),'text-align:right;font-weight:600;background:#c5d9a8')}
-        ${td(bonbu,'font-weight:700;background:#c5d9a8')}
-        ${td(qAmts[1]===null?'-':fmtMoney(qAmts[1]),'text-align:right;font-weight:600;background:#c5d9a8')}
-        ${td(bonbu,'font-weight:700;background:#c5d9a8')}
-        ${td(qAmts[2]===null?'-':fmtMoney(qAmts[2]),'text-align:right;font-weight:600;background:#c5d9a8')}
-        ${td(bonbu,'font-weight:700;background:#c5d9a8')}
-        ${td(qAmts[3]===null?'-':fmtMoney(qAmts[3]),'text-align:right;font-weight:600;background:#c5d9a8')}
-        ${td('계','font-weight:700;background:#c5d9a8')}
-        ${td('본부장','font-weight:700;background:#c5d9a8')}
+      <tr style="background:${BG_BONBU}">
+        ${td(bonbu,`font-weight:700;background:${BG_BONBU}`)}
+        ${td(qAmts[0]===null?'-':fmtMoney(qAmts[0]),`text-align:right;font-weight:600;background:${BG_BONBU}`)}
+        ${td(bonbu,`font-weight:700;background:${BG_BONBU}`)}
+        ${td(qAmts[1]===null?'-':fmtMoney(qAmts[1]),`text-align:right;font-weight:600;background:${BG_BONBU}`)}
+        ${td(bonbu,`font-weight:700;background:${BG_BONBU}`)}
+        ${td(qAmts[2]===null?'-':fmtMoney(qAmts[2]),`text-align:right;font-weight:600;background:${BG_BONBU}`)}
+        ${td(bonbu,`font-weight:700;background:${BG_BONBU}`)}
+        ${td(qAmts[3]===null?'-':fmtMoney(qAmts[3]),`text-align:right;font-weight:600;background:${BG_BONBU}`)}
+        ${td('계',`font-weight:700;background:${BG_BONBU}`)}
+        ${td('본부장',`font-weight:700;background:${BG_BONBU}`)}
       </tr>
       <tr>
         <td colspan="2" style="${tdStyle}text-align:center">${headName}</td>
@@ -5860,7 +5867,7 @@ function _renderDeptFund() {
           }).join('');
       });
 
-      const nameNs = 'border:1px solid #c8d6b9;padding:4px 6px;text-align:center;font-size:11px;';
+      const nameNs = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;`;
       const deptHeadNote = qi => {
         if (!deptHead) return `<td colspan="2" style="${nameNs}">-</td>`;
         const [qs,qe] = quarters[qi];
@@ -5873,16 +5880,16 @@ function _renderDeptFund() {
       html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
         ${colgroup}
         <tbody>
-        <tr style="background:#e8f0e0">
-          ${td(dept,'font-weight:600;background:#e8f0e0')}
-          ${td(bAmts[0]===null?'-':fmtMoney(bAmts[0]),'text-align:right;background:#e8f0e0')}
-          ${td(dept,'font-weight:600;background:#e8f0e0')}
-          ${td(bAmts[1]===null?'-':fmtMoney(bAmts[1]),'text-align:right;background:#e8f0e0')}
-          ${td(dept,'font-weight:600;background:#e8f0e0')}
-          ${td(bAmts[2]===null?'-':fmtMoney(bAmts[2]),'text-align:right;background:#e8f0e0')}
-          ${td(dept,'font-weight:600;background:#e8f0e0')}
-          ${td(bAmts[3]===null?'-':fmtMoney(bAmts[3]),'text-align:right;background:#e8f0e0')}
-          ${td('계','font-weight:600;background:#e8f0e0')}
+        <tr style="background:${BG_DEPT}">
+          ${td(dept,`font-weight:600;background:${BG_DEPT}`)}
+          ${td(bAmts[0]===null?'-':fmtMoney(bAmts[0]),`text-align:right;background:${BG_DEPT}`)}
+          ${td(dept,`font-weight:600;background:${BG_DEPT}`)}
+          ${td(bAmts[1]===null?'-':fmtMoney(bAmts[1]),`text-align:right;background:${BG_DEPT}`)}
+          ${td(dept,`font-weight:600;background:${BG_DEPT}`)}
+          ${td(bAmts[2]===null?'-':fmtMoney(bAmts[2]),`text-align:right;background:${BG_DEPT}`)}
+          ${td(dept,`font-weight:600;background:${BG_DEPT}`)}
+          ${td(bAmts[3]===null?'-':fmtMoney(bAmts[3]),`text-align:right;background:${BG_DEPT}`)}
+          ${td('계',`font-weight:600;background:${BG_DEPT}`)}
           ${td('')}
         </tr>
         <tr>
@@ -5910,7 +5917,7 @@ function _renderDeptFund() {
           <td style="${nameNs}text-align:right;font-weight:600">${fmtMoney(tTotal)}</td>
           <td style="${nameNs}"></td>
         </tr>
-        <tr><td colspan="10" style="height:12px;border:none;background:#f8fafc"></td></tr>
+        <tr><td colspan="10" style="height:10px;border:none"></td></tr>
         </tbody></table>`;
     });
   });
