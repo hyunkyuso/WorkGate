@@ -5615,10 +5615,9 @@ function _renderBirthdayTable() {
     ${td(r.name,`font-weight:500${r.isSkipped?';opacity:0.4;text-decoration:line-through':''}`)}
     ${monthFilter && !r.isSkipped
       ? `<td style="border:1px solid #e2e8f0;padding:3px 5px;text-align:center">
-          <input type="date" value="${r.customDate||''}" placeholder="${r.origDate}"
+          <input type="date" value="${r.customDate || (yearFilter+'-'+String(r.month).padStart(2,'0')+'-'+String(r.day).padStart(2,'0'))}"
             style="padding:2px 4px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;width:130px"
             onchange="bdCustomDates['${r.skipKey}']=this.value;saveBdCustomDate('${r.skipKey}',this.value);_renderBirthdayTable()">
-          <div style="font-size:10px;color:#94a3b8;margin-top:1px">${r.origDate}</div>
         </td>`
       : td(r.date, r.isSkipped?'opacity:0.4;text-decoration:line-through':'')
     }
