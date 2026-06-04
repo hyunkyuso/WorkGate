@@ -5913,7 +5913,7 @@ function _renderDeptFund() {
       const typeLabel = deptType || '';
       // noteCell 제거됨 - noteCellHtml 사용
       const hasLeavers = leaversByQ.some(q => q.some(n=>n));
-      const noteRowspan = 3 + maxChunks + (hasLeavers ? 1 : 0);
+      const noteRowspan = 2 + maxChunks + (hasLeavers ? 1 : 0);
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;color:#374151;font-size:11px;vertical-align:middle;background:#fafafa" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
 
       const nameNs = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
@@ -5949,13 +5949,6 @@ function _renderDeptFund() {
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[2])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
           <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
-        </tr>
-        <tr>
-          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[0]===null?'-':fmtMoney(tAmts[0])}</td>
-          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[1]===null?'-':fmtMoney(tAmts[1])}</td>
-          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[2]===null?'-':fmtMoney(tAmts[2])}</td>
-          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[3]===null?'-':fmtMoney(tAmts[3])}</td>
-          <td style="${tdStyle}text-align:center;font-weight:600">계</td>
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `<tr>
           ${rowByQ[0].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
