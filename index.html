@@ -5211,19 +5211,21 @@ function renderBirthdayTable() {
   const td = (v,s='') => `<td style="border:1px solid #e2e8f0;padding:7px 10px;text-align:center;${s}">${v}</td>`;
   const fmtAmt = (amt) => amt ? '₩' + (amt*10000).toLocaleString() : '-';
   const totalAmt = rows.reduce((sum,r) => sum + (r.amt||0), 0);
+  // 월 필터 시 비고는 경산만 표기
+  const showNote = (note) => {
+    if (!monthFilter) return note||'-';
+    return (note||'') === '경산' ? '경산' : '';
+  };
   tbody.innerHTML = rows.map((r,i) => `<tr>
     ${td(i+1,'color:#94a3b8;font-size:12px')}
     ${td(r.bonbu)}
     ${td(r.name,'font-weight:500')}
     ${td(r.date)}
     ${td(fmtAmt(r.amt))}
-    ${td(r.note||'-')}
+    ${td(showNote(r.note))}
   </tr>`).join('')
   + `<tr style="background:#f1f5f9;font-weight:700">
-    ${td('')}
-    ${td('합계','font-weight:700')}
-    ${td(rows.length+'명','font-weight:700')}
-    ${td('')}
+    <td colspan="4" style="border:1px solid #e2e8f0;padding:7px 10px;text-align:center;font-weight:700">합계</td>
     ${td('₩'+(totalAmt*10000).toLocaleString(),'font-weight:700;color:var(--ac)')}
     ${td('')}
   </tr>`;
