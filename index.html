@@ -5962,21 +5962,28 @@ async function saveMyInfo(uid) {
   (emp.parents||[]).forEach((p,pi) => {
     const newTel = document.getElementById(`myinfo-p${pi}-tel`)?.value.trim()||'';
     const newType = document.getElementById(`myinfo-p${pi}-type`)?.value||'양력';
-    const newMonth = document.getElementById(`myinfo-p${pi}-month`)?.value||'';
-    const newDay = document.getElementById(`myinfo-p${pi}-day`)?.value||'';
+    const newMonthRaw = document.getElementById(`myinfo-p${pi}-month`)?.value||'';
+    const newDayRaw = document.getElementById(`myinfo-p${pi}-day`)?.value||'';
     const newPAddr = document.getElementById(`myinfo-p${pi}-addr`)?.value.trim()||'';
     const pLabel = p.isFather?'부':'모';
 
+    // parseInt로 비교하여 "03" vs "3" 문제 해결
+    const oldMonthN = parseInt(p.birthMonth||'0');
+    const oldDayN = parseInt(p.birthDay||'0');
+    const newMonthN = parseInt(newMonthRaw||'0');
+    const newDayN = parseInt(newDayRaw||'0');
+
     if (newTel !== (p.tel||'')) changes.push(`${pLabel}(${p.name}) 연락처: ${p.tel||'없음'} → ${newTel}`);
     if (newType !== (p.birthType||'양력')) changes.push(`${pLabel}(${p.name}) 양음력: ${p.birthType||'양력'} → ${newType}`);
-    if (newMonth !== (p.birthMonth||'')) changes.push(`${pLabel}(${p.name}) 생일월: ${p.birthMonth||'없음'} → ${newMonth}`);
-    if (newDay !== (p.birthDay||'')) changes.push(`${pLabel}(${p.name}) 생일일: ${p.birthDay||'없음'} → ${newDay}`);
+    if (newMonthN !== oldMonthN && newMonthN > 0) changes.push(`${pLabel}(${p.name}) 생일월: ${p.birthMonth||'없음'} → ${newMonthRaw}`);
+    if (newDayN !== oldDayN && newDayN > 0) changes.push(`${pLabel}(${p.name}) 생일일: ${p.birthDay||'없음'} → ${newDayRaw}`);
     if (newPAddr !== (p.addr||'')) changes.push(`${pLabel}(${p.name}) 주소: ${p.addr||'없음'} → ${newPAddr}`);
 
     p.tel = newTel;
     p.birthType = newType;
-    p.birthMonth = newMonth;
-    p.birthDay = newDay;
+    // 생일 빈값이면 기존값 유지
+    if (newMonthN > 0) p.birthMonth = String(newMonthN).padStart(2,'0');
+    if (newDayN > 0) p.birthDay = String(newDayN).padStart(2,'0');
     p.addr = newPAddr;
   });
 
