@@ -5816,6 +5816,9 @@ function _renderDeptFund() {
     // ── 부서별 테이블 (헤더 없이, 본부 이름 중복 제거) ──
     deptNames.forEach(dept => {
       if (dept.includes('수석전문위원')) return;
+      if (dept.includes('베트남경영관리')) return;
+      // 부서명이 본부명과 같으면 (본부장 행에서 이미 처리) 제외
+      if (dept === bonbu) return;
       const empList = depts[dept];
       const setting = deptFundSettings[dept] || { buseojang:true, teamjang:true };
       const deptHead = empList.find(e=>(e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장'));
@@ -5835,13 +5838,26 @@ function _renderDeptFund() {
       });
       const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
 
+      // 직책 정렬 순서
+      const TITLE_ORD = {'본부장':0,'부서장':1,'팀장':2,'수석':3,'책임':4,'선임':5,'주임':6,'사원':7};
+      const POS_ORD = {'부장':0,'차장':1,'과장':2,'대리':3,'사원':4};
+      const sortEmp = (a,b) => {
+        const ta = TITLE_ORD[a.title||'']??50, tb = TITLE_ORD[b.title||'']??50;
+        if(ta!==tb) return ta-tb;
+        const pa = POS_ORD[a.position||'']??50, pb = POS_ORD[b.position||'']??50;
+        return pa-pb;
+      };
+
       const namesByQ = quarters.map(([qs,qe],qi) => {
         if (qi===0) return '';
-        return teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).map(e=>{
-          const lv = e.leavedate ? parseLocalDate(e.leavedate) : null;
-          const lvNote = lv&&lv.getFullYear()===year ? `<span style="color:#ef4444;font-size:9px">(${lv.getMonth()+1}/${lv.getDate()}퇴사)</span>` : '';
-          return `<span style="display:inline-block;padding:0 4px">${e.name}${lvNote}</span>`;
-        }).join('');
+        return teamMembers
+          .filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0)
+          .sort(sortEmp)
+          .map(e=>{
+            const lv = e.leavedate ? parseLocalDate(e.leavedate) : null;
+            const lvNote = lv&&lv.getFullYear()===year ? `<div style="color:#ef4444;font-size:9px">${lv.getMonth()+1}/${lv.getDate()}퇴사</div>` : '';
+            return `<td style="border:1px solid #c8d6b9;padding:4px 6px;text-align:center;font-size:11px;width:auto">${e.name}${lvNote}</td>`;
+          }).join('');
       });
 
       const nameNs = 'border:1px solid #c8d6b9;padding:4px 6px;text-align:center;font-size:11px;';
@@ -5883,14 +5899,18 @@ function _renderDeptFund() {
           ${td('팀장','font-size:11px;color:#64748b')}
         </tr>
         <tr style="border-bottom:2px solid #c8d6b9">
-          <td style="${nameNs}"></td><td style="${nameNs}text-align:left">${namesByQ[0]}</td>
-          <td style="${nameNs}"></td><td style="${nameNs}text-align:left">${namesByQ[1]}</td>
-          <td style="${nameNs}"></td><td style="${nameNs}text-align:left">${namesByQ[2]}</td>
-          <td style="${nameNs}"></td><td style="${nameNs}text-align:left">${namesByQ[3]}</td>
+          <td style="${nameNs}"></td>
+          <td style="${nameNs}padding:0"><table style="width:100%;border-collapse:collapse">${namesByQ[0]?`<tr>${namesByQ[0]}</tr>`:''}</table></td>
+          <td style="${nameNs}"></td>
+          <td style="${nameNs}padding:0"><table style="width:100%;border-collapse:collapse">${namesByQ[1]?`<tr>${namesByQ[1]}</tr>`:''}</table></td>
+          <td style="${nameNs}"></td>
+          <td style="${nameNs}padding:0"><table style="width:100%;border-collapse:collapse">${namesByQ[2]?`<tr>${namesByQ[2]}</tr>`:''}</table></td>
+          <td style="${nameNs}"></td>
+          <td style="${nameNs}padding:0"><table style="width:100%;border-collapse:collapse">${namesByQ[3]?`<tr>${namesByQ[3]}</tr>`:''}</table></td>
           <td style="${nameNs}text-align:right;font-weight:600">${fmtMoney(tTotal)}</td>
           <td style="${nameNs}"></td>
         </tr>
-        <tr><td colspan="10" style="height:10px;border:none"></td></tr>
+        <tr><td colspan="10" style="height:12px;border:none;background:#f8fafc"></td></tr>
         </tbody></table>`;
     });
   });
