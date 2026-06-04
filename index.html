@@ -5139,6 +5139,8 @@ async function exportBirthdayExcel() {
   // 데이터 수집
   const yearF = parseInt(year);
   const monthF = month ? parseInt(month) : 0;
+  const skipData = await loadPbField(BD_SKIP_KEY).catch(()=>({}));
+  const customDateData = await loadPbField(BD_DATE_KEY).catch(()=>({}));
   const rows = [];
   employees.forEach(e => {
     if (e.status === '퇴직') return;
@@ -5151,7 +5153,11 @@ async function exportBirthdayExcel() {
         let sm = bm, sd = bd;
         if ((e.birthType||'양력') === '음력') { const s=lunarToSolar(bm,bd,yearF); sm=s.month; sd=s.day; }
         if (!monthF || sm === monthF) {
-          rows.push({ bonbu, name:e.name||'', date:`${sm}월 ${sd}일`, month:sm, day:sd, amt:birthdayAmt, note:e.workplace||'' });
+          const skipKey = `bd_${yearF}_${e.uid}`;
+          if (skipData[skipKey]) return; // 제외된 항목
+          const customDate = customDateData[skipKey] || '';
+          const displayDate = customDate ? customDate.replace(/(\d+)-(\d+)-(\d+)/, (_,y,m,d)=>`${parseInt(m)}월 ${parseInt(d)}일`) : `${sm}월 ${sd}일`;
+          rows.push({ bonbu, name:e.name||'', date:displayDate, month:sm, day:sd, amt:birthdayAmt, note:e.workplace||'' });
         }
       }
     }
@@ -5406,7 +5412,7 @@ async function exportParentBirthdayExcel() {
 
   const yearF = parseInt(year);
   const monthF = month ? parseInt(month) : 0;
-  const [dates, notes] = await Promise.all([loadPbField(PB_SEND_KEY), loadPbField(PB_NOTE_KEY)]);
+  const [dates, notes, skipsDl, customDatesDl] = await Promise.all([loadPbField(PB_SEND_KEY), loadPbField(PB_NOTE_KEY), loadPbField(PB_SKIP_KEY), loadPbField(PB_DATE_KEY)]);
   const rows = [];
 
   employees.forEach(e => {
@@ -5424,7 +5430,10 @@ async function exportParentBirthdayExcel() {
       if ((p.birthType||'양력') === '음력') { const sol = lunarToSolar(pm, pd, yearF); sm=sol.month; sd=sol.day; }
       if (monthF && sm !== monthF) return;
       const sendKey = `${e.uid}_${pi}_${yearF}`;
-      rows.push({ date:`${sm}월 ${sd}일`, month:sm, day:sd, sendDate:(dates[sendKey]||'').replace(/-/g,'.'), empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.tel||'', note:notes[sendKey]||'' });
+      if (skipsDl[sendKey]) return;
+      const cdDl = customDatesDl[sendKey] || '';
+      const dateDl = cdDl ? cdDl.replace(/-(\d+)-(\d+)$/, (_, m, d) => `${parseInt(m)}월 ${parseInt(d)}일`).replace(/^\d+-/, '') : `${sm}월 ${sd}일`;
+      rows.push({ date:dateDl, month:sm, day:sd, sendDate:(dates[sendKey]||'').replace(/-/g,'.'), empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.tel||'', note:notes[sendKey]||'' });
     });
   });
   rows.sort((a,b) => a.month-b.month || a.day-b.day);
