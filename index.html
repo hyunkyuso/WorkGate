@@ -5323,7 +5323,7 @@ function _renderPbTable(yearF, monthF) {
         empName: e.name||'',
         parentName: p.name||'',
         addr: p.addr||'',
-        mobile: p.mobile||'',
+        mobile: p.tel||'',
         note: pbNotes[sendKey] || '',
         sendKey
       });
@@ -5397,7 +5397,7 @@ async function exportParentBirthdayExcel() {
       if ((p.birthType||'양력') === '음력') { const sol = lunarToSolar(pm, pd, yearF); sm=sol.month; sd=sol.day; }
       if (monthF && sm !== monthF) return;
       const sendKey = `${e.uid}_${pi}_${yearF}`;
-      rows.push({ date:`${sm}월 ${sd}일`, month:sm, day:sd, sendDate:(dates[sendKey]||'').replace(/-/g,'.'), empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.mobile||'', note:notes[sendKey]||'' });
+      rows.push({ date:`${sm}월 ${sd}일`, month:sm, day:sd, sendDate:(dates[sendKey]||'').replace(/-/g,'.'), empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.tel||'', note:notes[sendKey]||'' });
     });
   });
   rows.sort((a,b) => a.month-b.month || a.day-b.day);
@@ -5406,31 +5406,74 @@ async function exportParentBirthdayExcel() {
   const ws = wb.addWorksheet('부모님생신현황');
   const border = {top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
   const center = {horizontal:'center',vertical:'middle'};
+  const left = {horizontal:'left',vertical:'middle'};
 
-  ws.columns = [{width:6},{width:10},{width:10},{width:10},{width:10},{width:40},{width:14},{width:14}];
+  ws.columns = [{width:6},{width:10},{width:10},{width:10},{width:10},{width:44},{width:15},{width:16}];
 
-  // 제목행
-  ws.addRow(['■ ' + title,'','','','','','','']);
+  // 행1: 회사명+연월 제목 (전체 병합)
+  ws.addRow([`㈜정도유아이티(${year}년${month?month+'월':''})`, '','','','','','','']);
   ws.mergeCells('A1:H1');
-  const t = ws.getCell('A1');
-  t.font = {bold:true, size:13}; t.alignment = {horizontal:'left',vertical:'middle'};
-  ws.getRow(1).height = 24;
+  const t1 = ws.getCell('A1');
+  t1.font = {bold:true, size:16};
+  t1.alignment = {horizontal:'center', vertical:'middle'};
+  ws.getRow(1).height = 36;
 
-  // 헤더
-  ws.addRow(['순번','생일날짜','발송일자','직원이름','성함','주 소','연 락 처','비고']);
-  const hr = ws.getRow(2);
-  hr.height = 20;
+  // 행2: 빈 행
+  ws.addRow(['','','','','','','','']);
+  ws.getRow(2).height = 8;
+
+  // 행3: 빈 행
+  ws.addRow(['','','','','','','','']);
+  ws.getRow(3).height = 8;
+
+  // 행4: 헤더
+  ws.addRow(['순번','생일날짜','발송일자','직원이름','성함','주　　소','연　락　처','비고']);
+  const hr = ws.getRow(4);
+  hr.height = 22;
   hr.eachCell(cell => {
-    cell.font={bold:true}; cell.alignment=center; cell.border=border;
-    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF2F2F2'}};
+    cell.font = {bold:true};
+    cell.alignment = center;
+    cell.border = border;
+    cell.fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FFF2F2F2'}};
   });
 
+  // 데이터 행
   rows.forEach((r,i) => {
-    const dr = ws.addRow([i+1, r.date, r.sendDate, r.empName, r.parentName, r.addr, r.mobile, r.note]);
-    dr.height = 18;
-    dr.eachCell(cell => { cell.alignment=center; cell.border=border; });
-    ws.getCell(`F${i+3}`).alignment = {horizontal:'left',vertical:'middle'};
+    const noteText = r.note ? r.note.replace(/\n/g,' ') : '';
+    const dr = ws.addRow([i+1, r.date, r.sendDate, r.empName, r.parentName, r.addr, r.mobile, noteText]);
+    dr.height = 20;
+    dr.eachCell((cell, col) => {
+      cell.border = border;
+      cell.alignment = col === 6 ? left : center;
+    });
+    // 산간지역(제주도) 비고 노란 배경
+    if (noteText) {
+      ws.getCell(`H${i+5}`).fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFF00'}};
+      ws.getCell(`D${i+5}`).fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFF00'}};
+      ws.getCell(`E${i+5}`).fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFF00'}};
+    }
   });
+
+  // 빈 행
+  const lastDataRow = rows.length + 5;
+  ws.addRow(['','','','','','','','']);
+
+  // 서명 행: 대표이사
+  const signRow = lastDataRow + 1;
+  ws.addRow(['','','','','(주)정도UIT 대표이사 노 성 기 배상','','','']);
+  ws.mergeCells(`A${signRow}:H${signRow}`);
+  const signCell = ws.getCell(`A${signRow}`);
+  signCell.font = {bold:true, size:13};
+  signCell.alignment = {horizontal:'center', vertical:'middle'};
+  ws.getRow(signRow).height = 28;
+
+  // 담당자 행
+  const staffRow = signRow + 1;
+  ws.addRow(['담당자 : 인사총무부 최주희 대리 (010-8942-1061, choijh@uitgis.com)','','','','','','','']);
+  ws.mergeCells(`A${staffRow}:H${staffRow}`);
+  ws.getCell(`A${staffRow}`).font = {size:10};
+  ws.getCell(`A${staffRow}`).alignment = {horizontal:'left', vertical:'middle'};
+  ws.getRow(staffRow).height = 18;
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
