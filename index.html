@@ -5705,10 +5705,11 @@ function _renderDeptFund() {
   const container = document.getElementById('deptfund-content');
   if (!container) return;
   const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
-  // 1~3월 대기: 4~6, 7~9, 10~12만 표시
-  const quarters = [[3,5],[6,8],[9,11]];
-  const qLabels = ['04월~06월','07월~09월','10월~12월'];
-  const colSpan = 6; // 소속+3분기+소속+구분(합계)+비고
+  // 전체 4분기 (1~3월은 대기로 '-' 표시)
+  const quarters = [[0,2],[3,5],[6,8],[9,11]];
+  const qLabels = ['01월~03월','04월~06월','07월~09월','10월~12월'];
+  const Q1_PENDING = true; // 1~3월 대기
+  const colSpan = 10; // 소속x4 + 금액x4 + 합계 + 구분 + 비고
 
   const getDeptSortOrder = (name) => {
     const d = departments.find(x => x.name === name);
@@ -5735,11 +5736,22 @@ function _renderDeptFund() {
     bonbuMap[bonbu][dept].push(e);
   });
 
-  const thStyle = 'border:1px solid #c8d6b9;padding:6px 10px;text-align:center;background:#d9e5cc;font-size:12px;white-space:nowrap;';
-  const tdStyle = 'border:1px solid #e2e8f0;padding:5px 8px;text-align:center;font-size:12px;';
+  const thStyle = 'border:1px solid #c8d6b9;padding:5px 8px;text-align:center;background:#d9e5cc;font-size:11px;white-space:nowrap;';
+  const tdStyle = 'border:1px solid #e2e8f0;padding:4px 6px;text-align:center;font-size:11px;';
   const th = (v, s='') => `<th style="${thStyle}${s}">${v}</th>`;
   const td = (v, s='') => `<td style="${tdStyle}${s}">${v}</td>`;
   const fmtMoney = v => v ? v.toLocaleString() : '-';
+  const dash = td('-','color:#94a3b8');
+
+  // 헤더: 소속 04~06 소속 07~09 소속 10~12 소속 01~03(대기) | 합계 | 구분 | 비고
+  // 레이아웃: [소속][Q1][소속][Q2][소속][Q3][소속][Q4] [합계] [구분] [비고]
+  const headerRow = () => `<tr>
+    ${th('소속','min-width:100px')}${th('01월~03월','min-width:90px')}
+    ${th('소속','min-width:100px')}${th('04월~06월','min-width:90px')}
+    ${th('소속','min-width:100px')}${th('07월~09월','min-width:90px')}
+    ${th('소속','min-width:100px')}${th('10월~12월','min-width:90px')}
+    ${th('구분','min-width:70px')}${th('비고','min-width:60px')}
+  </tr>`;
 
   const today = new Date();
   let html = `<div style="margin-bottom:4px;text-align:right;font-size:12px;color:#64748b">작성일자: ${year}. ${String(today.getMonth()+1).padStart(2,'0')}. ${String(today.getDate()).padStart(2,'0')}.</div>`;
@@ -5751,37 +5763,44 @@ function _renderDeptFund() {
 
   bonbuNames.forEach(bonbu => {
     if (!bonbuMap[bonbu]) return;
-    // 정도유아이티, 수석전문위원 제외
     if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원')) return;
     const depts = bonbuMap[bonbu];
-
-    // 부서를 sortOrder 순으로 정렬
     const deptNames = Object.keys(depts).sort((a,b) => getDeptSortOrder(a) - getDeptSortOrder(b));
-
-    // ── 본부장 운영비 테이블 ──
     const allEmpInBonbu = deptNames.flatMap(d => depts[d]);
-    const bonbuQAmts = quarters.map(([qs,qe]) => {
-      let total = 0;
-      allEmpInBonbu.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) total+=50000; });
-      return total;
-    });
-    const bonbuTotal = bonbuQAmts.reduce((s,v)=>s+v,0);
-    const bonbuHead = allEmpInBonbu.find(e=>(e.title||'').includes('본부장'));
 
-    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:1px;font-size:12px">
-      <thead>${headerRow}</thead><tbody>
-      <tr style="background:#edf3e8">
-        ${td(bonbu,'font-weight:700')}
-        ${bonbuQAmts.map(v=>td(fmtMoney(v),'text-align:right;font-weight:600')).join('')}
-        ${td(bonbu,'font-weight:700')}
-        ${td(fmtMoney(bonbuTotal),'text-align:right;font-weight:700')}
-        ${td('계','font-weight:700')}
-        ${td('본부장','font-weight:700')}
+    // 분기별 금액 계산 (Q1=대기)
+    const qAmts = quarters.map(([qs,qe],qi) => {
+      if (qi===0) return null; // 1~3월 대기
+      let t=0; allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;}); return t;
+    });
+    const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
+    const bonbuHead = allEmpInBonbu.find(e=>(e.title||'').includes('본부장'));
+    const headName = bonbuHead ? bonbuHead.name : '';
+
+    // ── 본부장 테이블 (스크린샷 레이아웃) ──
+    // 행1: [소속][Q1금액][소속][Q2금액][소속][Q3금액][소속][Q4금액][합계행][구분][비고]
+    // 행2: [이름(colspan=2)][이름][이름][이름] [연간합계] [본부장]
+    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px">
+      <thead>${headerRow()}</thead><tbody>
+      <tr style="background:#c5d9a8">
+        ${td(bonbu,'font-weight:700;background:#c5d9a8')}
+        ${td(qAmts[0]===null?'-':fmtMoney(qAmts[0]),'text-align:right;font-weight:600;background:#c5d9a8')}
+        ${td(bonbu,'font-weight:700;background:#c5d9a8')}
+        ${td(qAmts[1]===null?'-':fmtMoney(qAmts[1]),'text-align:right;font-weight:600;background:#c5d9a8')}
+        ${td(bonbu,'font-weight:700;background:#c5d9a8')}
+        ${td(qAmts[2]===null?'-':fmtMoney(qAmts[2]),'text-align:right;font-weight:600;background:#c5d9a8')}
+        ${td(bonbu,'font-weight:700;background:#c5d9a8')}
+        ${td(qAmts[3]===null?'-':fmtMoney(qAmts[3]),'text-align:right;font-weight:600;background:#c5d9a8')}
+        ${td('계','font-weight:700;background:#c5d9a8')}
+        ${td('본부장','font-weight:700;background:#c5d9a8')}
       </tr>
       <tr>
-        <td colspan="${colSpan}" style="${tdStyle}text-align:center;color:#374151">
-          ${bonbuHead ? bonbuHead.name : ''}
-        </td>
+        <td colspan="2" style="${tdStyle}text-align:center">${headName}</td>
+        <td colspan="2" style="${tdStyle}text-align:center">${headName}</td>
+        <td colspan="2" style="${tdStyle}text-align:center">${headName}</td>
+        <td colspan="2" style="${tdStyle}text-align:center">${headName}</td>
+        <td style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
+        <td style="${tdStyle}"></td>
       </tr>
       </tbody></table>`;
 
@@ -5789,67 +5808,83 @@ function _renderDeptFund() {
     deptNames.forEach(dept => {
       const empList = depts[dept];
       const setting = deptFundSettings[dept] || { buseojang:true, teamjang:true };
+      const deptHead = empList.find(e=>(e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장'));
 
-      html += `<table style="width:100%;border-collapse:collapse;margin-bottom:1px;font-size:12px">
-        <thead>${headerRow}</thead><tbody>`;
+      html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px">
+        <thead>${headerRow()}</thead><tbody>`;
 
       // 부서장 행
       if (setting.buseojang) {
-        const deptHead = empList.find(e=>(e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장'));
-        const bAmts = quarters.map(([qs,qe]) => {
+        const bAmts = quarters.map(([qs,qe],qi) => {
+          if (qi===0) return null;
           let t=0; empList.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;}); return t;
         });
-        const bTotal = bAmts.reduce((s,v)=>s+v,0);
-        const note = deptHead&&(deptHead.status==='휴직'||deptHead.status==='육아휴직')
-          ? `${deptHead.name}<br><span style="color:#ef4444;font-size:10px">(${deptHead.leavestart||''}~${deptHead.leaveend||''}, ${deptHead.status})</span>`
-          : (deptHead?deptHead.name:'');
+        const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
 
-        html += `<tr style="background:#f0f4ea">
-          ${td(dept,'font-weight:600')}
-          ${bAmts.map(v=>td(v?fmtMoney(v):'-','text-align:right')).join('')}
-          ${td(dept,'font-weight:600')}
-          ${td(bTotal?fmtMoney(bTotal):'-','text-align:right;font-weight:600')}
-          ${td('계','font-weight:600')}
+        const makeHeadCell = (qi) => {
+          if (!deptHead) return `<td colspan="2" style="${tdStyle}text-align:center">-</td>`;
+          const isLeave = deptHead.status==='휴직'||deptHead.status==='육아휴직';
+          const [qs,qe] = quarters[qi];
+          const active = qi===0 ? false : getEmpMonthsInQuarter(deptHead,year,qs,qe)>0;
+          const note = isLeave ? `<br><span style="color:#ef4444;font-size:10px">(부서장)</span>` : '<br><span style="font-size:10px;color:#64748b">(부서장)</span>';
+          return `<td colspan="2" style="${tdStyle}text-align:center">${active||qi===0?deptHead.name:''}${active||qi===0?note:''}</td>`;
+        };
+
+        html += `<tr style="background:#e8f0e0">
+          ${td(dept,'font-weight:600;background:#e8f0e0')}
+          ${td(bAmts[0]===null?'-':fmtMoney(bAmts[0]),'text-align:right;background:#e8f0e0')}
+          ${td(dept,'font-weight:600;background:#e8f0e0')}
+          ${td(bAmts[1]===null?'-':fmtMoney(bAmts[1]),'text-align:right;background:#e8f0e0')}
+          ${td(dept,'font-weight:600;background:#e8f0e0')}
+          ${td(bAmts[2]===null?'-':fmtMoney(bAmts[2]),'text-align:right;background:#e8f0e0')}
+          ${td(dept,'font-weight:600;background:#e8f0e0')}
+          ${td(bAmts[3]===null?'-':fmtMoney(bAmts[3]),'text-align:right;background:#e8f0e0')}
+          ${td('계','font-weight:600;background:#e8f0e0')}
           ${td('')}
         </tr>
         <tr>
-          <td colspan="5" style="${tdStyle}text-align:center">${note}</td>
-          <td style="${tdStyle}text-align:center;color:#64748b;font-size:11px">부서장</td>
+          ${makeHeadCell(0)}${makeHeadCell(1)}${makeHeadCell(2)}${makeHeadCell(3)}
+          <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
+          <td style="${tdStyle}text-align:center;color:#374151;font-size:11px">부서장</td>
         </tr>`;
       }
 
       // 팀장 행
       if (setting.teamjang) {
-        const tAmts = quarters.map(([qs,qe]) => {
+        const tAmts = quarters.map(([qs,qe],qi) => {
+          if (qi===0) return null;
           let t=0; empList.forEach(e=>{t+=getEmpMonthsInQuarter(e,year,qs,qe)*40000;}); return t;
         });
-        const tTotal = tAmts.reduce((s,v)=>s+v,0);
-        // 이름 분기별로
-        const namesByQ = quarters.map(([qs,qe]) =>
-          empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).map(e=>{
+        const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
+        const namesByQ = quarters.map(([qs,qe],qi) => {
+          if (qi===0) return '';
+          return empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).map(e=>{
             const lv = e.leavedate ? parseLocalDate(e.leavedate) : null;
-            const note = lv && lv.getFullYear()===year ? `<span style="color:#ef4444;font-size:10px">(${lv.getMonth()+1}/${lv.getDate()}퇴사)</span>` : '';
-            return e.name + note;
-          }).join('　')
-        );
+            const lvNote = lv&&lv.getFullYear()===year ? `<span style="color:#ef4444;font-size:9px">${lv.getMonth()+1}/${lv.getDate()}퇴사</span>` : '';
+            return `<span>${e.name}${lvNote}</span>`;
+          }).join('　');
+        });
 
         html += `<tr>
-          ${td('')}
-          ${tAmts.map(v=>td(fmtMoney(v),'text-align:right')).join('')}
-          ${td('')}
-          ${td(fmtMoney(tTotal),'text-align:right;font-weight:600')}
+          ${td('')}${td(tAmts[0]===null?'-':fmtMoney(tAmts[0]),'text-align:right')}
+          ${td('')}${td(tAmts[1]===null?'-':fmtMoney(tAmts[1]),'text-align:right')}
+          ${td('')}${td(tAmts[2]===null?'-':fmtMoney(tAmts[2]),'text-align:right')}
+          ${td('')}${td(tAmts[3]===null?'-':fmtMoney(tAmts[3]),'text-align:right')}
           ${td('계','font-weight:600')}
-          ${td('팀장','color:#64748b;font-size:11px')}
+          ${td('팀장','color:#64748b')}
         </tr>
         <tr>
-          ${td('')}
-          ${namesByQ.map(n=>td(n,'text-align:left;font-size:11px')).join('')}
-          ${td('')}${td('')}${td('')}
+          <td style="${tdStyle}"></td><td style="${tdStyle}text-align:left;font-size:11px">${namesByQ[0]||''}</td>
+          <td style="${tdStyle}"></td><td style="${tdStyle}text-align:left;font-size:11px">${namesByQ[1]||''}</td>
+          <td style="${tdStyle}"></td><td style="${tdStyle}text-align:left;font-size:11px">${namesByQ[2]||''}</td>
+          <td style="${tdStyle}"></td><td style="${tdStyle}text-align:left;font-size:11px">${namesByQ[3]||''}</td>
+          <td style="${tdStyle}text-align:right;font-weight:600">${fmtMoney(tTotal)}</td>
+          <td style="${tdStyle}"></td>
         </tr>`;
       }
 
       // 체크박스
-      html += `<tr style="background:#fafafa"><td colspan="${colSpan}" style="${tdStyle}padding:3px 10px;font-size:11px;color:#64748b">
+      html += `<tr style="background:#fafafa"><td colspan="10" style="${tdStyle}padding:3px 10px;font-size:11px;color:#64748b">
         적용:
         <label style="margin-right:8px;cursor:pointer"><input type="checkbox" ${setting.buseojang?'checked':''} onchange="toggleDeptFundSetting('${dept}','buseojang',this.checked)" style="accent-color:var(--ac)"> 부서장</label>
         <label style="cursor:pointer"><input type="checkbox" ${setting.teamjang?'checked':''} onchange="toggleDeptFundSetting('${dept}','teamjang',this.checked)" style="accent-color:var(--ac)"> 팀장</label>
