@@ -5719,7 +5719,12 @@ function _renderDeptFund() {
   // 조직 구조: departments sortOrder 기준으로 본부 정렬
   // 본부 목록을 sortOrder 순으로
   const bonbuNames = [...new Set(employees.map(e => getBonbu(e)).filter(Boolean))];
-  bonbuNames.sort((a,b) => getDeptSortOrder(a) - getDeptSortOrder(b));
+  // departments sortOrder 기준 정렬
+  bonbuNames.sort((a,b) => {
+    const da = departments.find(d=>d.name===a);
+    const db = departments.find(d=>d.name===b);
+    return (da?.sortOrder||999) - (db?.sortOrder||999);
+  });
 
   // 본부별 부서 구성
   const bonbuMap = {};
@@ -5731,24 +5736,8 @@ function _renderDeptFund() {
     const bonbu = getBonbu(e);
     if (!bonbu) return;
     if (!bonbuMap[bonbu]) bonbuMap[bonbu] = {};
-    // 부서(buseo) 기준으로 그룹핑 - 팀 소속이면 상위 부서로
-    const hier = (() => {
-      const d = departments.find(x => x.name === (e.dept||''));
-      if (!d) return { buseo: e.dept||'' };
-      const chain = [];
-      let cur = d;
-      for (let i=0; i<10; i++) {
-        if (!cur) break;
-        chain.push(cur);
-        if (!cur.parent || cur.parent === '') break;
-        cur = departments.find(x => x.id === cur.parent) || null;
-      }
-      const filtered = chain.filter(x => x && x.parent && x.parent !== '');
-      if (filtered.length >= 2) return { buseo: filtered[1]?.name || e.dept };
-      if (filtered.length === 1) return { buseo: filtered[0]?.name || e.dept };
-      return { buseo: e.dept||'' };
-    })();
-    const deptKey = hier.buseo || e.dept || '';
+    // e.dept 그대로 사용 (팀명이든 부서명이든)
+    const deptKey = e.dept || '';
     if (!deptKey) return;
     if (!bonbuMap[bonbu][deptKey]) bonbuMap[bonbu][deptKey] = [];
     bonbuMap[bonbu][deptKey].push(e);
@@ -5798,7 +5787,11 @@ function _renderDeptFund() {
     if (!bonbuMap[bonbu]) return;
     if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원') || bonbu.includes('베트남') || bonbu.includes('글로벌')) return;
     const depts = bonbuMap[bonbu];
-    const deptNames = Object.keys(depts).sort((a,b) => getDeptSortOrder(a) - getDeptSortOrder(b));
+    const deptNames = Object.keys(depts).sort((a,b) => {
+      const da = departments.find(d=>d.name===a);
+      const db = departments.find(d=>d.name===b);
+      return (da?.sortOrder||999) - (db?.sortOrder||999);
+    });
 
     // 각 부서에 하위 팀이 있는지 확인
     const deptHasSubTeams = {};
