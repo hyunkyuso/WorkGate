@@ -5977,6 +5977,11 @@ async function saveMyInfo(uid) {
       await histRef.set({ changes: hist.slice(0,50) });
     }
 
+    // employees 배열 및 localStorage 업데이트
+    const empIdx = employees.findIndex(e => e.uid === uid);
+    if (empIdx > -1) employees[empIdx] = emp;
+    localStorage.setItem('wg_employees', JSON.stringify(employees));
+
     document.getElementById('myinfo-modal').remove();
     showToast('✅ 정보가 저장되었습니다');
     renderMyPageEmp(emp);
