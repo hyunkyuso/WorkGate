@@ -5304,8 +5304,7 @@ function _renderPbTable(yearF, monthF) {
       if (!p.name) return;
       const pLabel = p.isFather ? '부' : p.isMother ? '모' : '';
       if (!pLabel) return;
-      if (pLabel === '부' && !wd.parentFather) return;
-      if (pLabel === '모' && !wd.parentMother) return;
+      // parentFather/Mother 미설정 시에도 부모 등록되어 있으면 표시
       const pm = parseInt(p.birthMonth||'0'), pd = parseInt(p.birthDay||'0');
       if (!pm || !pd) return;
       let sm = pm, sd = pd;
@@ -5389,8 +5388,6 @@ async function exportParentBirthdayExcel() {
       if (!p.name) return;
       const pLabel = p.isFather ? '부' : p.isMother ? '모' : '';
       if (!pLabel) return;
-      if (pLabel === '부' && !wd.parentFather) return;
-      if (pLabel === '모' && !wd.parentMother) return;
       const pm = parseInt(p.birthMonth||'0'), pd = parseInt(p.birthDay||'0');
       if (!pm || !pd) return;
       let sm = pm, sd = pd;
@@ -5471,9 +5468,9 @@ async function exportParentBirthdayExcel() {
   const staffRow = ws.rowCount + 1;
   ws.addRow(['담당자 : 인사총무부 최주희 대리 (010-8942-1061, choijh@uitgis.com)','','','','','','','']);
   ws.mergeCells(`A${staffRow}:H${staffRow}`);
-  ws.getCell(`A${staffRow}`).font = {size:10};
+  ws.getCell(`A${staffRow}`).font = {size:11, bold:false};
   ws.getCell(`A${staffRow}`).alignment = {horizontal:'left', vertical:'middle'};
-  ws.getRow(staffRow).height = 18;
+  ws.getRow(staffRow).height = 20;
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
