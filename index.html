@@ -5372,20 +5372,21 @@ function _renderPbTable(yearF, monthF) {
          </td>`
       : `<td style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;color:#94a3b8;font-size:11px">${r.sendDate ? r.sendDate.replace(/-/g,'.') : '-'}</td>`;
 
-    return `<tr>
+    const sk = r.skipped ? 'opacity:0.4;text-decoration:line-through' : '';
+    return `<tr style="${r.skipped?'background:#fef2f2':''}">
       <td style="border:1px solid #e2e8f0;padding:4px;text-align:center">
         <input type="checkbox" title="해당 연도 제외" ${r.skipped?'checked':''}
           onchange="pbSkips['${r.sendKey}']=this.checked;savePbField('${r.sendKey}','${PB_SKIP_KEY}',this.checked);_renderPbTable(parseInt(document.getElementById('pb-year-filter').value),(document.getElementById('pb-month-filter')||{}).value||'')"
           style="width:15px;height:15px;accent-color:#ef4444;cursor:pointer">
       </td>
-      ${td(i+1,'color:#94a3b8;font-size:12px')}
-      ${dateCell}
-      ${sendCell}
-      ${td(r.empName,'font-weight:500')}
-      ${td(r.parentName)}
-      ${td(r.addr,'text-align:left;padding:6px 10px')}
-      ${td(r.mobile)}
-      <td id="pb-note-${r.sendKey}" style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">${_pbNoteCell(r.sendKey, r.note)}</td>
+      ${td(i+1,`color:#94a3b8;font-size:12px;${sk}`)}
+      ${r.skipped ? td(r.date, sk) : dateCell}
+      ${r.skipped ? td(r.sendDate?r.sendDate.replace(/-/g,'.'):'', sk) : sendCell}
+      ${td(r.empName,`font-weight:500;${sk}`)}
+      ${td(r.parentName, sk)}
+      ${td(r.addr,`text-align:left;padding:6px 10px;${sk}`)}
+      ${td(r.mobile, sk)}
+      <td id="pb-note-${r.sendKey}" style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center;${sk}">${r.skipped?'':_pbNoteCell(r.sendKey, r.note)}</td>
     </tr>`;
   }).join('');
 }
