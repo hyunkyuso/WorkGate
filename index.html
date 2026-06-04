@@ -5731,9 +5731,27 @@ function _renderDeptFund() {
     const bonbu = getBonbu(e);
     if (!bonbu) return;
     if (!bonbuMap[bonbu]) bonbuMap[bonbu] = {};
-    const dept = e.dept || '';
-    if (!bonbuMap[bonbu][dept]) bonbuMap[bonbu][dept] = [];
-    bonbuMap[bonbu][dept].push(e);
+    // 부서(buseo) 기준으로 그룹핑 - 팀 소속이면 상위 부서로
+    const hier = (() => {
+      const d = departments.find(x => x.name === (e.dept||''));
+      if (!d) return { buseo: e.dept||'' };
+      const chain = [];
+      let cur = d;
+      for (let i=0; i<10; i++) {
+        if (!cur) break;
+        chain.push(cur);
+        if (!cur.parent || cur.parent === '') break;
+        cur = departments.find(x => x.id === cur.parent) || null;
+      }
+      const filtered = chain.filter(x => x && x.parent && x.parent !== '');
+      if (filtered.length >= 2) return { buseo: filtered[1]?.name || e.dept };
+      if (filtered.length === 1) return { buseo: filtered[0]?.name || e.dept };
+      return { buseo: e.dept||'' };
+    })();
+    const deptKey = hier.buseo || e.dept || '';
+    if (!deptKey) return;
+    if (!bonbuMap[bonbu][deptKey]) bonbuMap[bonbu][deptKey] = [];
+    bonbuMap[bonbu][deptKey].push(e);
   });
 
   // 색상 상수
@@ -5989,10 +6007,10 @@ function _renderDeptFund() {
           <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
         <tr>
-          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[0]===null?'-':fmtMoney(tAmts[0])}</td>
-          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[1]===null?'-':fmtMoney(tAmts[1])}</td>
-          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[2]===null?'-':fmtMoney(tAmts[2])}</td>
-          <td colspan="3" style="${tdStyle}"></td><td style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[3]===null?'-':fmtMoney(tAmts[3])}</td>
+          <td colspan="4" style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[0]===null?'-':fmtMoney(tAmts[0])}</td>
+          <td colspan="4" style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[1]===null?'-':fmtMoney(tAmts[1])}</td>
+          <td colspan="4" style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[2]===null?'-':fmtMoney(tAmts[2])}</td>
+          <td colspan="4" style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[3]===null?'-':fmtMoney(tAmts[3])}</td>
           <td style="${tdStyle}text-align:center;font-weight:600">계</td>
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
