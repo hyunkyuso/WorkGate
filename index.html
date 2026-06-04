@@ -663,7 +663,7 @@ select.form-input{cursor:pointer}
           <div><div class="page-title">💰 부서장 운영비</div><div class="page-sub">본부장/부서장/팀장 운영비 현황</div></div>
           <div style="display:flex;gap:8px;align-items:center">
             <select id="deptfund-year" onchange="renderDeptFund()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
-              <option value="2024">2024년</option><option value="2025">2025년</option><option value="2026">2026년</option><option value="2027">2027년</option><option value="2028">2028년</option><option value="2029">2029년</option><option value="2030">2030년</option>
+              <option value="2026" selected>2026년</option><option value="2027">2027년</option><option value="2028">2028년</option><option value="2029">2029년</option><option value="2030">2030년</option>
             </select>
             <button onclick="exportDeptFundExcel()" style="padding:6px 12px;border-radius:8px;border:1px solid #217346;color:#217346;background:#fff;cursor:pointer;font-size:13px;font-weight:600">📊 Excel</button>
           </div>
@@ -5744,12 +5744,15 @@ function _renderDeptFund() {
   const today = new Date();
   let html = `<div style="margin-bottom:4px;text-align:right;font-size:12px;color:#64748b">작성일자: ${year}. ${String(today.getMonth()+1).padStart(2,'0')}. ${String(today.getDate()).padStart(2,'0')}.</div>`;
   html += `<div style="font-size:16px;font-weight:700;margin-bottom:12px">${year}년 부서장/팀장 운영비</div>`;
+  html += '<div style="background:#fff9ec;border:1px solid #fde68a;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:12px;line-height:1.8;color:#374151"><div style="font-weight:700;">1. 본부장운영비/부서장운영비/팀운영비 예산 편성 기준(21.04.01개정)*본부장운영비 신설</div><div style="color:#dc2626;">ⓐ본부장운영비 (분기/1인/5만원, 본부장,인턴,정직원 포함)</div><div style="color:#dc2626;">ⓑ본부 내 팀장이 없는 경우 매월 본부장 및 해당 팀원 월/1인/4만원</div><div style="color:#dc2626;">ⓒ본부원이 없을 경우 본부장운영비는 지원하지 않음</div><div style="color:#dc2626;">ⓓ베트남지사에 파견된 본부장의 본부장운영비는 파견된 본부장에게 위임</div><div style="color:#dc2626;">ⓔ부서장운영비 (분기/1인/5만원, 부서장,인턴,정직원 포함)</div><div style="color:#dc2626;">ⓕ부서 내 팀장이 없는 경우 매월 부서장 및 해당 팀원 월/1인/4만원</div><div style="color:#dc2626;">ⓖ부서원이 없을 경우 부서장운영비는 지원하지 않음(부득이한 사유 발생 또는 조직의 특성에 따라 본부장간의 합의를 통해 운영비를 별도로 책정할 수 있다.)</div><div style="color:#dc2626;">ⓗ베트남지사에 파견된 부서장의 부서장운영비는 파견된 부서장에게 위임</div><div style="color:#dc2626;">ⓘ친목도모 및 화합을 위한 회식(식사,스포츠,문화행사관람)의 목적으로만 사용가능하며 물품의 구매(선물포함), 현금성상품권 구매 등의 용도로 사용이 불가함</div><div style="color:#dc2626;">ⓙ팀장이 없는 부서장 운영비는 팀장 운영비와 비교하여 지원 규모가 큰 항목을 적용(단, 중복지원 불가)</div><div style="font-weight:700;">2. 규정에 없는 지시사항</div><div style="color:#dc2626;">ⓐ육아휴직자는 모든 운영비에서 제외</div><div style="color:#dc2626;">ⓑ팀장 또는 부서장이 육아휴직일 때 일반적인 사항은 부서장 또는 본부장 운영비에 편입</div><div style="color:#dc2626;">ⓒ팀장 또는 부서장이 육아휴직, 퇴사 예정 등 장기간 부재일 경우 팀장 또는 부서장 운영비 대체자가 운영(해당 본부장 확인 필요)</div><div style="color:#dc2626;">ⓓ팀장 또는 부서장이 장기근속 및 기타 사유로 한달이상 부재일 경우 팀장 및 부서장 운영비는 소속 팀원 및 부서원들에게 운영비 사용에 관한 위임은 가능. 단, 정산은 팀장 및 부서장이 해야 함</div><div style="color:#dc2626;">※ 21.04 월부터 상한가,하한가 적용 삭제</div></div>';
 
   // 헤더 행 (재사용)
   const headerRow = `<tr>${th('소속','min-width:120px')}${qLabels.map(q=>th(q,'min-width:100px')).join('')}${th('소속','min-width:120px')}${th('구분','min-width:80px')}${th('비고','min-width:60px')}</tr>`;
 
   bonbuNames.forEach(bonbu => {
     if (!bonbuMap[bonbu]) return;
+    // 정도유아이티, 수석전문위원 제외
+    if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원')) return;
     const depts = bonbuMap[bonbu];
 
     // 부서를 sortOrder 순으로 정렬
