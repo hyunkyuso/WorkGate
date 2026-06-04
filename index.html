@@ -5377,7 +5377,7 @@ async function exportParentBirthdayExcel() {
 
   const yearF = parseInt(year);
   const monthF = month ? parseInt(month) : 0;
-  const dates = await loadPbSendDates();
+  const [dates, notes] = await Promise.all([loadPbField(PB_SEND_KEY), loadPbField(PB_NOTE_KEY)]);
   const rows = [];
 
   employees.forEach(e => {
@@ -5397,7 +5397,7 @@ async function exportParentBirthdayExcel() {
       if ((p.birthType||'양력') === '음력') { const sol = lunarToSolar(pm, pd, yearF); sm=sol.month; sd=sol.day; }
       if (monthF && sm !== monthF) return;
       const sendKey = `${e.uid}_${pi}_${yearF}`;
-      const noteVal = (await loadPbField(PB_NOTE_KEY))[sendKey]||''; rows.push({ date:`${sm}월 ${sd}일`, month:sm, day:sd, sendDate:(dates[sendKey]||'').replace(/-/g,'.'), empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.mobile||'', note:noteVal });
+      rows.push({ date:`${sm}월 ${sd}일`, month:sm, day:sd, sendDate:(dates[sendKey]||'').replace(/-/g,'.'), empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.mobile||'', note:notes[sendKey]||'' });
     });
   });
   rows.sort((a,b) => a.month-b.month || a.day-b.day);
