@@ -5323,14 +5323,16 @@ function _renderPbTable(yearF, monthF) {
       if (monthF && sm !== parseInt(monthF)) return;
       const sendKey = `${e.uid}_${pi}_${yearF}`;
       const skipped = pbSkips[sendKey] || false;
-      if (skipped) return; // 제외 처리된 경우 스킵
-      const customDate = pbCustomDates[sendKey];
-      const displayDate = customDate || `${sm}월 ${sd}일`;
+      const customDate = pbCustomDates[sendKey] || '';
+      const origDate = `${sm}월 ${sd}일`;
+      const displayDate = customDate || origDate;
       rows.push({
         uid: e.uid, pi,
         month: customDate ? parseInt(customDate.split('월')[0]) : sm,
         day: customDate ? parseInt(customDate.split('월')[1]) : sd,
+        origDate,
         date: displayDate,
+        customDate,
         sendDate: pbSendDates[sendKey] || '',
         empName: e.name||'',
         parentName: p.name||'',
@@ -5351,12 +5353,15 @@ function _renderPbTable(yearF, monthF) {
 
   const td = (v,s='') => `<td style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;${s}">${v}</td>`;
   tbody.innerHTML = rows.map((r,i) => {
-    // 생일날짜: 수기 수정 가능한 입력란
-    const dateCell = `<td style="border:1px solid #e2e8f0;padding:3px 5px;text-align:center">
-      <input type="text" value="${r.date}" placeholder="X월 X일"
-        style="width:72px;padding:2px 4px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;text-align:center"
-        onchange="pbCustomDates['${r.sendKey}']=this.value;savePbField('${r.sendKey}','${PB_DATE_KEY}',this.value);renderParentBirthdayTable()">
-    </td>`;
+    // 생일날짜: 월 필터 시만 달력 입력, 전체월은 텍스트
+    const dateCell = monthF
+      ? `<td style="border:1px solid #e2e8f0;padding:3px 5px;text-align:center">
+          <input type="date" value="${r.customDate||''}"
+            style="padding:2px 4px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;width:130px"
+            onchange="pbCustomDates['${r.sendKey}']=this.value;savePbField('${r.sendKey}','${PB_DATE_KEY}',this.value);_renderPbTable(parseInt(document.getElementById('pb-year-filter').value),(document.getElementById('pb-month-filter')||{}).value||'')">
+          <div style="font-size:10px;color:#94a3b8;margin-top:1px">${r.origDate}</div>
+        </td>`
+      : td(r.date);
 
     // 발송일자: 월 필터 시 달력, 전체월이면 텍스트
     const sendCell = monthF
@@ -5369,7 +5374,7 @@ function _renderPbTable(yearF, monthF) {
 
     return `<tr>
       <td style="border:1px solid #e2e8f0;padding:4px;text-align:center">
-        <input type="checkbox" title="해당 연도 제외"
+        <input type="checkbox" title="해당 연도 제외" ${r.skipped?'checked':''}
           onchange="pbSkips['${r.sendKey}']=this.checked;savePbField('${r.sendKey}','${PB_SKIP_KEY}',this.checked);_renderPbTable(parseInt(document.getElementById('pb-year-filter').value),(document.getElementById('pb-month-filter')||{}).value||'')"
           style="width:15px;height:15px;accent-color:#ef4444;cursor:pointer">
       </td>
@@ -5576,7 +5581,7 @@ function _renderBirthdayTable() {
           const isSkipped = bdSkips[skipKey] || false;
           const customDate = bdCustomDates[skipKey] || '';
           const displayDate = customDate || `${sm}월 ${sd}일`;
-          rows.push({ type:'본인', bonbu, name, date:displayDate, month:customDate?parseInt(customDate):sm, day:sd, amt:isSkipped?0:birthdayAmt, note:workplace, skipKey, uid:e.uid, isSkipped, customDate });
+          rows.push({ type:'본인', bonbu, name, date:displayDate, origDate:`${sm}월 ${sd}일`, month:customDate?parseInt(customDate):sm, day:sd, amt:isSkipped?0:birthdayAmt, note:workplace, skipKey, uid:e.uid, isSkipped, customDate });
         }
       }
     }
@@ -5610,9 +5615,10 @@ function _renderBirthdayTable() {
     ${td(r.name,`font-weight:500${r.isSkipped?';opacity:0.4;text-decoration:line-through':''}`)}
     ${monthFilter && !r.isSkipped
       ? `<td style="border:1px solid #e2e8f0;padding:3px 5px;text-align:center">
-          <input type="date" value="${r.customDate||''}"
+          <input type="date" value="${r.customDate||''}" placeholder="${r.origDate}"
             style="padding:2px 4px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;width:130px"
-            onchange="bdCustomDates['${r.skipKey}']=this.value;saveBdCustomDate('${r.skipKey}',this.value);renderBirthdayTable()">
+            onchange="bdCustomDates['${r.skipKey}']=this.value;saveBdCustomDate('${r.skipKey}',this.value);_renderBirthdayTable()">
+          <div style="font-size:10px;color:#94a3b8;margin-top:1px">${r.origDate}</div>
         </td>`
       : td(r.date, r.isSkipped?'opacity:0.4;text-decoration:line-through':'')
     }
