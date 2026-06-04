@@ -5504,13 +5504,28 @@ async function exportParentBirthdayExcel() {
 }
 
 const BD_SKIP_KEY = 'bd_skips';
+const BD_DATE_KEY = 'bd_custom_dates';
 let bdSkips = {};
+let bdCustomDates = {};
 
 async function loadBdSkips() {
   try {
-    const snap = await db.collection('settings').doc(BD_SKIP_KEY).get();
-    bdSkips = snap.exists ? snap.data() : {};
-  } catch(e) { bdSkips = {}; }
+    const [skipSnap, dateSnap] = await Promise.all([
+      db.collection('settings').doc(BD_SKIP_KEY).get(),
+      db.collection('settings').doc(BD_DATE_KEY).get()
+    ]);
+    bdSkips = skipSnap.exists ? skipSnap.data() : {};
+    bdCustomDates = dateSnap.exists ? dateSnap.data() : {};
+  } catch(e) { bdSkips = {}; bdCustomDates = {}; }
+}
+
+async function saveBdCustomDate(key, val) {
+  try {
+    const snap = await db.collection('settings').doc(BD_DATE_KEY).get();
+    const data = snap.exists ? snap.data() : {};
+    data[key] = val;
+    await db.collection('settings').doc(BD_DATE_KEY).set(data);
+  } catch(e) {}
 }
 
 async function saveBdSkip(key, val) {
@@ -5535,6 +5550,8 @@ function renderBirthdayTable() {
 }
 
 function _renderBirthdayTable() {
+  const tbody = document.getElementById('birthday-tbody');
+  if (!tbody) return;
   const yearFilter = parseInt((document.getElementById('birthday-year-filter')||{}).value || '2025');
   const monthFilter = (document.getElementById('birthday-month-filter')||{}).value || '';
   const rows = [];
@@ -5557,7 +5574,9 @@ function _renderBirthdayTable() {
         if (!monthFilter || sm === parseInt(monthFilter)) {
           const skipKey = `bd_${yearFilter}_${e.uid}`;
           const isSkipped = bdSkips[skipKey] || false;
-          rows.push({ type:'본인', bonbu, name, date:`${sm}월 ${sd}일`, month:sm, day:sd, amt:isSkipped?0:birthdayAmt, note:workplace, skipKey, uid:e.uid, isSkipped });
+          const customDate = bdCustomDates[skipKey] || '';
+          const displayDate = customDate || `${sm}월 ${sd}일`;
+          rows.push({ type:'본인', bonbu, name, date:displayDate, month:customDate?parseInt(customDate):sm, day:sd, amt:isSkipped?0:birthdayAmt, note:workplace, skipKey, uid:e.uid, isSkipped, customDate });
         }
       }
     }
@@ -5589,7 +5608,14 @@ function _renderBirthdayTable() {
     ${td(i+1,`color:#94a3b8;font-size:12px${r.isSkipped?';opacity:0.4':''}`)}
     ${td(r.bonbu,r.isSkipped?'opacity:0.4;text-decoration:line-through':'')}
     ${td(r.name,`font-weight:500${r.isSkipped?';opacity:0.4;text-decoration:line-through':''}`)}
-    ${td(r.date,r.isSkipped?'opacity:0.4;text-decoration:line-through':'')}
+    ${monthFilter && !r.isSkipped
+      ? `<td style="border:1px solid #e2e8f0;padding:3px 5px;text-align:center">
+          <input type="date" value="${r.customDate||''}"
+            style="padding:2px 4px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;width:130px"
+            onchange="bdCustomDates['${r.skipKey}']=this.value;saveBdCustomDate('${r.skipKey}',this.value);renderBirthdayTable()">
+        </td>`
+      : td(r.date, r.isSkipped?'opacity:0.4;text-decoration:line-through':'')
+    }
     ${td(r.isSkipped?'-':fmtAmt(r.amt),r.isSkipped?'opacity:0.4':'')}
     ${td(r.isSkipped?'':showNote(r.note),r.isSkipped?'opacity:0.4':'')}
   </tr>`).join('')
