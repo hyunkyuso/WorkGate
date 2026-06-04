@@ -5838,6 +5838,9 @@ function _renderDeptFund() {
       const deptHead = empList.find(e=>(e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장'));
 
       // 부서장/본부장 금액 (type에 따라)
+      const deptType = setting.type || '';  // 'bonbu','buseojang','teamjang','buseojang+teamjang'
+      const typeLabel = deptType || '';
+      // noteCell 제거됨 - noteCellHtml 사용
       const isTypeBonbu = (setting.type||'').includes('본부장');
       const isTypeBuseojang = (setting.type||'').includes('부서장');
       const isTypeTeamjang = (setting.type||'').includes('팀장');
@@ -5947,9 +5950,6 @@ function _renderDeptFund() {
           return `<span style="color:#ef4444">${e.name}<div style="font-size:9px">${lv.getMonth()+1}/${lv.getDate()}퇴사</div></span>`;
         });
       });
-      const deptType = setting.type || '';  // 'bonbu','buseojang','teamjang','buseojang+teamjang'
-      const typeLabel = deptType || '';
-      // noteCell 제거됨 - noteCellHtml 사용
       const hasLeavers = leaversByQ.some(q => q.some(n=>n));
       const noteRowspan = 2 + maxChunks + (hasLeavers ? 1 : 0);
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;color:#374151;font-size:11px;vertical-align:middle;background:#fafafa" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
