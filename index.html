@@ -289,6 +289,7 @@ select.form-input{cursor:pointer}
         <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
         <div class="nav-item admin-only" onclick="showPage('birthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎂</span> 생일자 현황</div>
         <div class="nav-item admin-only" onclick="showPage('parentbirthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎁</span> 부모님 생신현황</div>
+        <div class="nav-item admin-only" onclick="showPage('deptfund',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">💰</span> 부서장 운영비</div>
         <div class="nav-item" onclick="showPage('mypage',this)"><span class="nav-icon">👤</span> 마이페이지</div>
         <div class="nav-item admin-only" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> 설정</div>
       </div>
@@ -657,6 +658,21 @@ select.form-input{cursor:pointer}
         </div>
       </div>
 
+      <div id="page-deptfund" class="page">
+        <div class="page-header">
+          <div><div class="page-title">💰 부서장 운영비</div><div class="page-sub">본부장/부서장/팀장 운영비 현황</div></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="deptfund-year" onchange="renderDeptFund()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+              <option value="2024">2024년</option><option value="2025">2025년</option><option value="2026">2026년</option><option value="2027">2027년</option><option value="2028">2028년</option><option value="2029">2029년</option><option value="2030">2030년</option>
+            </select>
+            <button onclick="exportDeptFundExcel()" style="padding:6px 12px;border-radius:8px;border:1px solid #217346;color:#217346;background:#fff;cursor:pointer;font-size:13px;font-weight:600">📊 Excel</button>
+          </div>
+        </div>
+        <div id="deptfund-content" style="overflow-x:auto;padding:8px">
+          <p style="color:#94a3b8">로딩 중...</p>
+        </div>
+      </div>
+
       <div id="page-birthday" class="page">
         <div class="page-header">
           <div><div class="page-title">🎂 생일자 현황</div><div class="page-sub">직원 생일자 현황을 관리합니다</div></div>
@@ -898,7 +914,7 @@ select.form-input{cursor:pointer}
         </div>
         <div class="form-row">
           <div class="form-group" style="margin-bottom:0"><label class="form-label">재직구분</label>
-            <select class="form-input" id="emp-status">
+            <select class="form-input" id="emp-status" onchange="toggleLeaveFields(this.value)">
               <option value="재직">재직</option><option value="휴직">휴직</option><option value="육아휴직">육아휴직</option><option value="퇴직">퇴직</option>
             </select>
           </div>
@@ -917,6 +933,14 @@ select.form-input{cursor:pointer}
           </div>
           <div class="form-group" style="margin-bottom:0"><label class="form-label">퇴사일</label>
             <input type="date" class="form-input" id="emp-leavedate" onchange="autoSetRetired(this)">
+          </div>
+        </div>
+        <div class="form-row" id="leave-date-row" style="display:none">
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">휴직 시작일</label>
+            <input type="date" class="form-input" id="emp-leavestart">
+          </div>
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">휴직 종료일 <span style="font-size:10px;color:#94a3b8">(복귀예정)</span></label>
+            <input type="date" class="form-input" id="emp-leaveend">
           </div>
         </div>
       </div>
@@ -1936,7 +1960,10 @@ function openEmployeeModal(uid) {
     loadConcurrentRows(e.concurrent||[]);
     document.getElementById('emp-joindate').value = e.joindate||'';
     document.getElementById('emp-leavedate').value = e.leavedate||'';
+    document.getElementById('emp-leavestart').value = e.leavestart||'';
+    document.getElementById('emp-leaveend').value = e.leaveend||'';
     document.getElementById('emp-workplace').value = e.workplace||'';
+    toggleLeaveFields(e.status||'재직');
     // 본인 개인정보
     document.getElementById('emp-birth-month').value = e.birthMonth||'';
     document.getElementById('emp-birth-day').value = e.birthDay||'';
@@ -1960,8 +1987,9 @@ function openEmployeeModal(uid) {
   } else {
     document.getElementById('emp-modal-title').textContent = '직원 추가';
     document.getElementById('emp-modal-save-btn').textContent = '저장';
-    ['emp-id','emp-name','emp-joindate','emp-leavedate','emp-mobile','emp-home-addr','emp-workplace']
+    ['emp-id','emp-name','emp-joindate','emp-leavedate','emp-leavestart','emp-leaveend','emp-mobile','emp-home-addr','emp-workplace']
       .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    toggleLeaveFields('재직');
     ['emp-dept','emp-position','emp-title','emp-duty'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('emp-birth-type').value = '양력';
     loadParentRows([]);
@@ -2115,6 +2143,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { passive: false });
 });
 
+function toggleLeaveFields(status) {
+  const row = document.getElementById('leave-date-row');
+  if (!row) return;
+  row.style.display = (status === '휴직' || status === '육아휴직') ? 'flex' : 'none';
+}
+
 function autoSetRetired(input) {
   if (input.value) {
     document.getElementById('emp-status').value = '퇴직';
@@ -2162,6 +2196,8 @@ function saveEmployee() {
       status: document.getElementById('emp-status').value,
       joindate: document.getElementById('emp-joindate').value,
       leavedate: document.getElementById('emp-leavedate').value,
+      leavestart: document.getElementById('emp-leavestart')?.value || '',
+      leaveend: document.getElementById('emp-leaveend')?.value || '',
       workplace: document.getElementById('emp-workplace').value.trim(),
       concurrent: getConcurrentRows(),
       ...personalInfo,
@@ -2219,6 +2255,8 @@ function saveEmployee() {
       status: document.getElementById('emp-status').value,
       joindate: document.getElementById('emp-joindate').value,
       leavedate: document.getElementById('emp-leavedate').value,
+      leavestart: document.getElementById('emp-leavestart')?.value || '',
+      leaveend: document.getElementById('emp-leaveend')?.value || '',
       workplace: document.getElementById('emp-workplace').value.trim(),
       concurrent: getConcurrentRows(),
       ...personalInfo,
@@ -5599,6 +5637,277 @@ async function saveBdSkip(key, val) {
   } catch(e) {}
 }
 
+
+// ===== 부서장 운영비 =====
+
+// 해당 월에 직원이 재직중인지 + 유효 개월수 반환
+function getEmpMonthsInQuarter(emp, year, qStart, qEnd) {
+  // qStart, qEnd: 0-based month (0=Jan)
+  const joinDate = parseLocalDate(emp.joindate);
+  const leaveDate = emp.leavedate ? parseLocalDate(emp.leavedate) : null;
+  const leaveStart = emp.leavestart ? parseLocalDate(emp.leavestart) : null;
+  const leaveEnd = emp.leaveend ? parseLocalDate(emp.leaveend) : null;
+
+  let months = 0;
+  for (let m = qStart; m <= qEnd; m++) {
+    const monthStart = new Date(year, m, 1);
+    const monthEnd = new Date(year, m + 1, 0);
+
+    // 입사일 체크: 입사월부터 반영
+    if (joinDate && joinDate > monthEnd) continue;
+    // 퇴사일 체크: 퇴사월까지 반영
+    if (leaveDate && leaveDate < monthStart) continue;
+
+    // 휴직/육아휴직 체크: 휴직 다음달부터 제외, 복귀월은 반영
+    if (leaveStart && (emp.status === '휴직' || emp.status === '육아휴직')) {
+      // 휴직 시작 다음달부터 제외
+      const leaveNextMonth = new Date(leaveStart.getFullYear(), leaveStart.getMonth() + 1, 1);
+      // 복귀월은 포함
+      const returnMonth = leaveEnd ? new Date(leaveEnd.getFullYear(), leaveEnd.getMonth(), 1) : null;
+      if (monthStart >= leaveNextMonth) {
+        if (!returnMonth || monthStart < returnMonth) continue;
+      }
+    }
+    months++;
+  }
+  return months;
+}
+
+// 부서 설정 Firebase 저장/불러오기
+const DEPTFUND_SETTINGS_KEY = 'deptfund_settings';
+let deptFundSettings = {}; // { deptId: { mode: 'buseojang'|'teamjang'|'both' } }
+
+async function loadDeptFundSettings() {
+  try {
+    const snap = await db.collection('settings').doc(DEPTFUND_SETTINGS_KEY).get();
+    deptFundSettings = snap.exists ? snap.data() : {};
+  } catch(e) { deptFundSettings = {}; }
+}
+
+async function saveDeptFundSettings() {
+  try {
+    await db.collection('settings').doc(DEPTFUND_SETTINGS_KEY).set(deptFundSettings);
+  } catch(e) { console.error(e); }
+}
+
+function renderDeptFund() {
+  const container = document.getElementById('deptfund-content');
+  if (!container) return;
+  if (!employees || employees.length === 0) {
+    container.innerHTML = '<p style="color:#94a3b8">데이터 로딩 중...</p>';
+    setTimeout(renderDeptFund, 500);
+    return;
+  }
+  loadDeptFundSettings().then(() => _renderDeptFund());
+}
+
+function _renderDeptFund() {
+  const container = document.getElementById('deptfund-content');
+  if (!container) return;
+  const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
+  const quarters = [[0,2],[3,5],[6,8],[9,11]];
+  const qLabels = ['01월~03월','04월~06월','07월~09월','10월~12월'];
+
+  // 조직 구조 구성: 본부 > 부서 > 팀
+  // deptTree 구조로 본부/부서/팀 추출
+  const bonbuList = {};
+  employees.forEach(e => {
+    if (e.status === '퇴직') {
+      // 퇴직자: 해당 연도에 재직했으면 포함
+      const leaveDate = e.leavedate ? parseLocalDate(e.leavedate) : null;
+      if (!leaveDate || leaveDate.getFullYear() < year) return;
+    }
+    const bonbu = getBonbu(e);
+    if (!bonbu) return;
+    if (!bonbuList[bonbu]) bonbuList[bonbu] = {};
+    const dept = e.dept || '';
+    if (!bonbuList[bonbu][dept]) bonbuList[bonbu][dept] = [];
+    bonbuList[bonbu][dept].push(e);
+  });
+
+  const th = (v, attr='') => `<th style="border:1px solid #c8d6b9;padding:6px 10px;text-align:center;background:#d9e5cc;font-size:12px;white-space:nowrap;${attr}">${v}</th>`;
+  const td = (v, attr='') => `<td style="border:1px solid #e2e8f0;padding:5px 8px;text-align:center;font-size:12px;${attr}">${v}</td>`;
+  const fmtMoney = v => v ? v.toLocaleString() : '-';
+
+  let html = `<div style="margin-bottom:6px;text-align:right;font-size:12px;color:#64748b">작성일자: ${year}. ${String(new Date().getMonth()+1).padStart(2,'0')}. ${String(new Date().getDate()).padStart(2,'0')}.</div>`;
+  html += `<div style="font-size:16px;font-weight:700;margin-bottom:12px">${year}년 부서장/팀장 운영비</div>`;
+
+  Object.keys(bonbuList).sort().forEach(bonbu => {
+    const depts = bonbuList[bonbu];
+
+    // 본부장 운영비
+    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:2px;font-size:12px">
+      <thead><tr>
+        ${th('소속')} ${qLabels.map(q=>th(q)).join('')} ${th('소속')} ${th('구분')} ${th('비고')}
+      </tr></thead><tbody>`;
+
+    // 본부장 행 (본부의 최고직 1명 또는 title=본부장)
+    const bonbuHead = Object.values(depts).flat().find(e => (e.title||'').includes('본부장') || (e.duty||'').includes('본부장'));
+
+    const bonbuQAmts = quarters.map(([qs,qe]) => {
+      // 본부 전체 인원 x 5만원
+      const allEmp = Object.values(depts).flat();
+      let total = 0;
+      allEmp.forEach(e => {
+        const m = getEmpMonthsInQuarter(e, year, qs, qe);
+        total += m > 0 ? 50000 : 0;
+      });
+      return total;
+    });
+    const bonbuTotal = bonbuQAmts.reduce((s,v)=>s+v,0);
+
+    html += `<tr style="background:#f0f4ea">
+      ${td(bonbu,'font-weight:600')}
+      ${bonbuQAmts.map(v=>td(fmtMoney(v),'text-align:right')).join('')}
+      ${td(bonbu,'font-weight:600')}
+      ${td(fmtMoney(bonbuTotal),'text-align:right;font-weight:600')}
+      ${td('계','font-weight:600')}
+      ${td('본부장','font-weight:600')}
+      ${td('')}
+    </tr>`;
+    if (bonbuHead) {
+      html += `<tr><td colspan="8" style="border:1px solid #e2e8f0;padding:4px 12px;font-size:12px;text-align:center;color:#374151">${bonbuHead.name}</td></tr>`;
+    }
+
+    html += `</tbody></table>`;
+
+    // 부서별 부서장/팀장 운영비
+    Object.keys(depts).sort().forEach(dept => {
+      const empList = depts[dept];
+      const settingKey = dept;
+      const setting = deptFundSettings[settingKey] || { buseojang: true, teamjang: true };
+
+      html += `<table style="width:100%;border-collapse:collapse;margin-bottom:2px;font-size:12px">
+        <thead><tr>
+          ${th('소속')} ${qLabels.map(q=>th(q)).join('')} ${th('소속')} ${th('구분')} ${th('비고')}
+        </tr></thead><tbody>`;
+
+      // 부서장 행
+      if (setting.buseojang) {
+        const deptHead = empList.find(e => (e.title||'').includes('부서장') || (e.title||'').includes('부장') || (e.title||'').includes('실장'));
+        const buseojangAmts = quarters.map(([qs,qe]) => {
+          let total = 0;
+          empList.forEach(e => {
+            const m = getEmpMonthsInQuarter(e, year, qs, qe);
+            total += m > 0 ? 50000 : 0;
+          });
+          return total;
+        });
+        const buseojangTotal = buseojangAmts.reduce((s,v)=>s+v,0);
+
+        const deptHeadNote = deptHead && (deptHead.status==='휴직'||deptHead.status==='육아휴직')
+          ? `(${deptHead.leavestart||''}~${deptHead.leaveend||''}, ${deptHead.status})`
+          : '';
+
+        html += `<tr style="background:#f0f4ea">
+          ${td(dept,'font-weight:600')}
+          ${buseojangAmts.map((v,i)=>td(v?fmtMoney(v):'-','text-align:right')).join('')}
+          ${td(dept,'font-weight:600')}
+          ${td(buseojangTotal?fmtMoney(buseojangTotal):'-','text-align:right;font-weight:600')}
+          ${td('계','font-weight:600')}
+          ${td('')}
+          ${td('')}
+        </tr>`;
+
+        if (deptHead) {
+          html += `<tr><td colspan="7" style="border:1px solid #e2e8f0;padding:4px 12px;font-size:12px;text-align:center">
+            ${deptHead.name}${deptHeadNote?`<br><span style="color:#ef4444;font-size:11px">${deptHeadNote}</span>`:''}
+          </td><td style="border:1px solid #e2e8f0;padding:4px;text-align:center">부서장</td></tr>`;
+        }
+      }
+
+      // 팀장 행
+      if (setting.teamjang) {
+        const teamAmts = quarters.map(([qs,qe]) => {
+          let total = 0;
+          empList.forEach(e => {
+            const m = getEmpMonthsInQuarter(e, year, qs, qe);
+            total += m * 40000;
+          });
+          return total;
+        });
+        const teamTotal = teamAmts.reduce((s,v)=>s+v,0);
+        const teamNames = empList.filter(e=>e.status!=='퇴직'||true).map(e=>e.name).join(' ');
+
+        html += `<tr>
+          ${td('')}
+          ${teamAmts.map(v=>td(fmtMoney(v),'text-align:right')).join('')}
+          ${td('')}
+          ${td(fmtMoney(teamTotal),'text-align:right;font-weight:600')}
+          ${td('계','font-weight:600')}
+          ${td('팀장','')}
+          ${td('')}
+        </tr>
+        <tr><td colspan="8" style="border:1px solid #e2e8f0;padding:4px 12px;font-size:12px;color:#374151">${teamNames}</td></tr>`;
+      }
+
+      // 부서장/팀장 체크박스
+      html += `<tr style="background:#fafafa"><td colspan="8" style="border:1px solid #e2e8f0;padding:4px 12px;font-size:11px;color:#64748b">
+        적용:
+        <label style="margin-right:8px;cursor:pointer">
+          <input type="checkbox" ${setting.buseojang?'checked':''} onchange="toggleDeptFundSetting('${dept}','buseojang',this.checked)" style="accent-color:var(--ac)"> 부서장
+        </label>
+        <label style="cursor:pointer">
+          <input type="checkbox" ${setting.teamjang?'checked':''} onchange="toggleDeptFundSetting('${dept}','teamjang',this.checked)" style="accent-color:var(--ac)"> 팀장
+        </label>
+      </td></tr>`;
+
+      html += `</tbody></table>`;
+    });
+  });
+
+  container.innerHTML = html;
+}
+
+function toggleDeptFundSetting(dept, type, checked) {
+  if (!deptFundSettings[dept]) deptFundSettings[dept] = { buseojang: true, teamjang: true };
+  deptFundSettings[dept][type] = checked;
+  saveDeptFundSettings();
+  _renderDeptFund();
+}
+
+async function exportDeptFundExcel() {
+  showToast('⏳ Excel 생성 중...');
+  if (!window.ExcelJS) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('부서장운영비');
+  const border = {top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
+  const center = {horizontal:'center',vertical:'middle'};
+  const right = {horizontal:'right',vertical:'middle'};
+  const green = {type:'pattern',pattern:'solid',fgColor:{argb:'FFD9E5CC'}};
+
+  ws.columns = [{width:16},{width:14},{width:14},{width:14},{width:14},{width:16},{width:14},{width:10},{width:14}];
+
+  // 제목
+  ws.addRow([`${year}년 부서장/팀장 운영비`]);
+  ws.mergeCells('A1:I1');
+  ws.getCell('A1').font = {bold:true,size:14};
+  ws.getCell('A1').alignment = center;
+  ws.getRow(1).height = 28;
+
+  ws.addRow(['소속','01월~03월','04월~06월','07월~09월','10월~12월','소속','구분','비고']);
+  const hr = ws.getRow(2);
+  hr.eachCell(cell => { cell.border=border; cell.fill=green; cell.font={bold:true}; cell.alignment=center; });
+  hr.height = 20;
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${year}년_부서장운영비.xlsx`;
+  a.click();
+  showToast('✅ Excel 다운로드 완료');
+}
+
+
 function renderBirthdayTable() {
   const tbody = document.getElementById('birthday-tbody');
   if (!tbody) return;
@@ -6371,6 +6680,7 @@ function showPage(id, el) {
   if(id === 'welfare') renderWelfareTable();
   if(id === 'mypage') renderMyPage();
   if(id === 'birthday') { renderBirthdayTable(); }
+  if(id === 'deptfund') { renderDeptFund(); }
   if(id === 'myinfo-history') { renderMyInfoHistory(); }
   if(id === 'parentbirthday') { renderParentBirthdayTable(); }
   if(id === 'organization') renderDeptTable();
