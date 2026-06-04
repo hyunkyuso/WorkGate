@@ -5466,7 +5466,14 @@ async function exportParentBirthdayExcel() {
       if (skipsDl[sendKey]) return;
       const cdDl = customDatesDl[sendKey] || '';
       const dateDl = cdDl ? cdDl.replace(/-(\d+)-(\d+)$/, (_, m, d) => `${parseInt(m)}월 ${parseInt(d)}일`).replace(/^\d+-/, '') : `${sm}월 ${sd}일`;
-      rows.push({ date:dateDl, month:sm, day:sd, sendDate:(dates[sendKey]||'').replace(/-/g,'.'), empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.tel||'', note:notes[sendKey]||'' });
+      const rawSend = dates[sendKey]||'';
+      let sendDateFmt = '';
+      if (rawSend) {
+        const sp = rawSend.split('-');
+        if (sp.length === 3) sendDateFmt = `${parseInt(sp[1])}월 ${parseInt(sp[2])}일`;
+        else sendDateFmt = rawSend;
+      }
+      rows.push({ date:dateDl, month:sm, day:sd, sendDate:sendDateFmt, empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.tel||'', note:notes[sendKey]||'' });
     });
   });
   rows.sort((a,b) => a.month-b.month || a.day-b.day);
