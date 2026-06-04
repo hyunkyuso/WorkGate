@@ -5186,6 +5186,8 @@ async function exportBirthdayExcel() {
         let sm = bm, sd = bd;
         if ((e.birthType||'양력') === '음력') { const s=lunarToSolar(bm,bd,yearF); sm=s.month; sd=s.day; }
         if (!monthF || sm === monthF) {
+          const joinYearExcel = parseInt((wd.startDate||e.joindate||'').slice(0,4)||'0');
+          if (joinYearExcel && yearF < joinYearExcel) return;
           const skipKey = `bd_${yearF}_${e.uid}`;
           if (skipData[skipKey]) return; // 제외된 항목
           const customDate = customDateData[skipKey] || '';
@@ -5354,6 +5356,9 @@ function _renderPbTable(yearF, monthF) {
       // parentFather/Mother 미설정 시에도 부모 등록되어 있으면 표시
       const pm = parseInt(p.birthMonth||'0'), pd = parseInt(p.birthDay||'0');
       if (!pm || !pd) return;
+      // 입사연도 이전이면 제외
+      const joinYearPb = parseInt((wd.startDate||e.joindate||'').slice(0,4)||'0');
+      if (joinYearPb && yearF < joinYearPb) return;
       let sm = pm, sd = pd;
       if ((p.birthType||'양력') === '음력') {
         const sol = lunarToSolar(pm, pd, yearF);
@@ -5463,6 +5468,8 @@ async function exportParentBirthdayExcel() {
       if ((p.birthType||'양력') === '음력') { const sol = lunarToSolar(pm, pd, yearF); sm=sol.month; sd=sol.day; }
       if (monthF && sm !== monthF) return;
       const sendKey = `${e.uid}_${pi}_${yearF}`;
+      const joinYearPbEx = parseInt((wd.startDate||e.joindate||'').slice(0,4)||'0');
+      if (joinYearPbEx && yearF < joinYearPbEx) return;
       if (skipsDl[sendKey]) return;
       const cdDl = customDatesDl[sendKey] || '';
       const dateDl = cdDl ? cdDl.replace(/-(\d+)-(\d+)$/, (_, m, d) => `${parseInt(m)}월 ${parseInt(d)}일`).replace(/^\d+-/, '') : `${sm}월 ${sd}일`;
@@ -5623,6 +5630,9 @@ function _renderBirthdayTable() {
     if (birthdayAmt > 0) {
       const bm = parseInt(e.birthMonth||'0'), bd = parseInt(e.birthDay||'0');
       if (bm && bd) {
+        // 입사연도 이전이면 제외
+        const joinYear = parseInt((wd.startDate||e.joindate||'').slice(0,4)||'0');
+        if (joinYear && yearFilter < joinYear) return;
         let sm = bm, sd = bd;
         if ((e.birthType||'양력') === '음력') { const s=lunarToSolar(bm,bd,yearFilter); sm=s.month; sd=s.day; }
         if (!monthFilter || sm === parseInt(monthFilter)) {
