@@ -5748,6 +5748,48 @@ function renderMyPage() {
 
 
 
+async function deleteMyInfoHistory(uid, idx) {
+  if (!confirm('이 수정 이력을 삭제하고 해당 변경사항을 원래 값으로 되돌리겠습니까?')) return;
+  try {
+    const histRef = db.collection('myinfo_changes').doc(uid);
+    const snap = await histRef.get();
+    if (!snap.exists) return;
+    const hist = snap.data().changes||[];
+    const target = hist[idx];
+    if (!target) return;
+
+    // 변경사항 역복원
+    const emp = employees.find(e => e.uid === uid);
+    if (emp && target.changes) {
+      target.changes.forEach(ch => {
+        // "필드: 이전값 → 이후값" 형태에서 이전값 추출
+        const match = ch.match(/^(.+?): (.+?) → (.+)$/);
+        if (!match) return;
+        const [, field, before] = match;
+        if (field === '휴대전화') emp.mobile = before === '없음' ? '' : before;
+        if (field === '집주소') { emp['home-addr'] = before === '없음' ? '' : before; }
+        // 부모님 필드는 복잡하여 알림만
+      });
+      // Firebase 업데이트
+      const empDocId = emp.id || uid;
+      await db.collection('employees').doc(empDocId).update({
+        mobile: emp.mobile,
+        'home-addr': emp['home-addr'],
+        parents: emp.parents||[]
+      });
+    }
+
+    // 이력 삭제
+    hist.splice(idx, 1);
+    await histRef.set({ changes: hist });
+    showToast('✅ 이력이 삭제되고 값이 복원되었습니다');
+    renderMyInfoHistory();
+  } catch(e) {
+    showToast('❌ 삭제 중 오류');
+    console.error(e);
+  }
+}
+
 async function renderMyInfoHistory() {
   const container = document.getElementById('myinfo-history-content');
   if (!container) return;
@@ -5758,14 +5800,13 @@ async function renderMyInfoHistory() {
     const allChanges = [];
     snap.forEach(doc => {
       const emp = employees.find(e => e.uid === doc.id);
-      const empName = emp ? emp.name : doc.id;
+      const empName = emp ? emp.name : (doc.data().changes?.[0]?.empName || doc.id);
       const data = doc.data().changes||[];
-      data.forEach(c => {
-        allChanges.push({ empName, uid: doc.id, date: c.date, by: c.by, changes: c.changes });
+      data.forEach((c, idx) => {
+        allChanges.push({ empName, uid: doc.id, idx, date: c.date, by: c.by, changes: c.changes });
       });
     });
 
-    // 최신순 정렬
     allChanges.sort((a,b) => new Date(b.date)-new Date(a.date));
 
     if (!allChanges.length) {
@@ -5782,7 +5823,10 @@ async function renderMyInfoHistory() {
       <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-weight:700;font-size:14px;color:var(--t1)">👤 ${c.empName}</span>
-          <span style="font-size:12px;color:#94a3b8">${fmt(c.date)}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:#94a3b8">${fmt(c.date)}</span>
+            <button onclick="deleteMyInfoHistory('${c.uid}',${c.idx})" style="padding:3px 8px;font-size:11px;border-radius:6px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer">삭제+복원</button>
+          </div>
         </div>
         <div style="font-size:11px;color:#64748b;margin-bottom:6px">수정자: ${c.by}</div>
         <ul style="margin:0;padding-left:16px;font-size:13px;color:#374151">
@@ -5916,7 +5960,8 @@ async function saveMyInfo(uid) {
 
   // Firebase 저장
   try {
-    await db.collection('employees').doc(uid).update({
+    const empDocId = emp.id || uid;
+    await db.collection('employees').doc(empDocId).update({
       mobile: emp.mobile,
       'home-addr': emp['home-addr'],
       parents: emp.parents||[]
@@ -5928,7 +5973,7 @@ async function saveMyInfo(uid) {
       const histRef = db.collection('myinfo_changes').doc(uid);
       const snap = await histRef.get();
       const hist = snap.exists ? snap.data().changes||[] : [];
-      hist.unshift({ date: now, by: state.myEmail, changes });
+      hist.unshift({ date: now, by: state.myEmail, empName: emp.name||'', changes });
       await histRef.set({ changes: hist.slice(0,50) });
     }
 
