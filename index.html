@@ -5745,12 +5745,21 @@ function _renderDeptFund() {
 
   // 헤더: 소속 04~06 소속 07~09 소속 10~12 소속 01~03(대기) | 합계 | 구분 | 비고
   // 레이아웃: [소속][Q1][소속][Q2][소속][Q3][소속][Q4] [합계] [구분] [비고]
-  const headerRow = () => `<tr>
-    ${th('소속','min-width:100px')}${th('01월~03월','min-width:90px')}
-    ${th('소속','min-width:100px')}${th('04월~06월','min-width:90px')}
-    ${th('소속','min-width:100px')}${th('07월~09월','min-width:90px')}
-    ${th('소속','min-width:100px')}${th('10월~12월','min-width:90px')}
-    ${th('구분','min-width:70px')}${th('비고','min-width:60px')}
+  const COL_W = 'width:10%;';
+  const AMT_W = 'width:9%;';
+  const colgroup = `<colgroup>
+    <col style="${COL_W}"><col style="${AMT_W}">
+    <col style="${COL_W}"><col style="${AMT_W}">
+    <col style="${COL_W}"><col style="${AMT_W}">
+    <col style="${COL_W}"><col style="${AMT_W}">
+    <col style="width:9%"><col style="width:7%">
+  </colgroup>`;
+  const headerRow = () => colgroup + `<tr>
+    ${th('소속')}${th('01월~03월')}
+    ${th('소속')}${th('04월~06월')}
+    ${th('소속')}${th('07월~09월')}
+    ${th('소속')}${th('10월~12월')}
+    ${th('구분')}${th('비고')}
   </tr>`;
 
   const today = new Date();
@@ -5779,7 +5788,7 @@ function _renderDeptFund() {
     // ── 본부장 테이블 (스크린샷 레이아웃) ──
     // 행1: [소속][Q1금액][소속][Q2금액][소속][Q3금액][소속][Q4금액][합계행][구분][비고]
     // 행2: [이름(colspan=2)][이름][이름][이름] [연간합계] [본부장]
-    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px">
+    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:#c5d9a8">
         ${td(bonbu,'font-weight:700;background:#c5d9a8')}
@@ -5805,11 +5814,12 @@ function _renderDeptFund() {
 
     // ── 부서별 테이블 ──
     deptNames.forEach(dept => {
+      if (dept.includes('수석전문위원')) return;
       const empList = depts[dept];
       const setting = deptFundSettings[dept] || { buseojang:true, teamjang:true };
       const deptHead = empList.find(e=>(e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장'));
 
-      html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px">
+      html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
         <thead>${headerRow()}</thead><tbody>`;
 
       // 부서장 행
@@ -5843,8 +5853,8 @@ function _renderDeptFund() {
         </tr>
         <tr>
           ${makeHeadCell(0)}${makeHeadCell(1)}${makeHeadCell(2)}${makeHeadCell(3)}
-          <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
-          <td style="${tdStyle}text-align:center;color:#374151;font-size:11px">부서장</td>
+          <td style="${tdStyle}text-align:right;font-weight:600;border-top:2px solid #c8d6b9">${bTotal?fmtMoney(bTotal):'-'}</td>
+          <td style="${tdStyle}text-align:center;color:#374151;font-size:11px;border-top:2px solid #c8d6b9">부서장</td>
         </tr>`;
       }
 
@@ -5881,13 +5891,6 @@ function _renderDeptFund() {
           <td style="${tdStyle}"></td>
         </tr>`;
       }
-
-      // 체크박스
-      html += `<tr style="background:#fafafa"><td colspan="10" style="${tdStyle}padding:3px 10px;font-size:11px;color:#64748b">
-        적용:
-        <label style="margin-right:8px;cursor:pointer"><input type="checkbox" ${setting.buseojang?'checked':''} onchange="toggleDeptFundSetting('${dept}','buseojang',this.checked)" style="accent-color:var(--ac)"> 부서장</label>
-        <label style="cursor:pointer"><input type="checkbox" ${setting.teamjang?'checked':''} onchange="toggleDeptFundSetting('${dept}','teamjang',this.checked)" style="accent-color:var(--ac)"> 팀장</label>
-      </td></tr>`;
 
       html += `</tbody></table>`;
     });
