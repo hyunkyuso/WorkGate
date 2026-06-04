@@ -5556,8 +5556,8 @@ function _renderBirthdayTable() {
         if ((e.birthType||'양력') === '음력') { const s=lunarToSolar(bm,bd,yearFilter); sm=s.month; sd=s.day; }
         if (!monthFilter || sm === parseInt(monthFilter)) {
           const skipKey = `bd_${yearFilter}_${e.uid}`;
-          if (bdSkips[skipKey]) return;
-          rows.push({ type:'본인', bonbu, name, date:`${sm}월 ${sd}일`, month:sm, day:sd, amt:birthdayAmt, note:workplace, skipKey, uid:e.uid });
+          const isSkipped = bdSkips[skipKey] || false;
+          rows.push({ type:'본인', bonbu, name, date:`${sm}월 ${sd}일`, month:sm, day:sd, amt:isSkipped?0:birthdayAmt, note:workplace, skipKey, uid:e.uid, isSkipped });
         }
       }
     }
@@ -5574,7 +5574,7 @@ function _renderBirthdayTable() {
 
   const td = (v,s='') => `<td style="border:1px solid #e2e8f0;padding:7px 10px;text-align:center;${s}">${v}</td>`;
   const fmtAmt = (amt) => amt ? '₩' + (amt*10000).toLocaleString() : '-';
-  const totalAmt = rows.reduce((sum,r) => sum + (r.amt||0), 0);
+  const totalAmt = rows.reduce((sum,r) => sum + (r.isSkipped ? 0 : (r.amt||0)), 0);
   // 월 필터 시 비고는 경산만 표기
   const showNote = (note) => {
     if (!monthFilter) return note||'-';
@@ -5582,16 +5582,16 @@ function _renderBirthdayTable() {
   };
   tbody.innerHTML = rows.map((r,i) => `<tr>
     <td style="border:1px solid #e2e8f0;padding:4px;text-align:center">
-      <input type="checkbox" title="해당 연도 제외"
+      <input type="checkbox" title="해당 연도 제외" ${r.isSkipped?'checked':''}
         onchange="bdSkips['${r.skipKey}']=this.checked;saveBdSkip('${r.skipKey}',this.checked);renderBirthdayTable()"
         style="width:15px;height:15px;accent-color:#ef4444;cursor:pointer">
     </td>
-    ${td(i+1,'color:#94a3b8;font-size:12px')}
-    ${td(r.bonbu)}
-    ${td(r.name,'font-weight:500')}
-    ${td(r.date)}
-    ${td(fmtAmt(r.amt))}
-    ${td(showNote(r.note))}
+    ${td(i+1,`color:#94a3b8;font-size:12px${r.isSkipped?';opacity:0.4':''}`)}
+    ${td(r.bonbu,r.isSkipped?'opacity:0.4;text-decoration:line-through':'')}
+    ${td(r.name,`font-weight:500${r.isSkipped?';opacity:0.4;text-decoration:line-through':''}`)}
+    ${td(r.date,r.isSkipped?'opacity:0.4;text-decoration:line-through':'')}
+    ${td(r.isSkipped?'-':fmtAmt(r.amt),r.isSkipped?'opacity:0.4':'')}
+    ${td(r.isSkipped?'':showNote(r.note),r.isSkipped?'opacity:0.4':'')}
   </tr>`).join('')
   + `<tr style="background:#f1f5f9;font-weight:700">
     <td style="border:1px solid #e2e8f0;padding:7px 10px"></td>
