@@ -5743,7 +5743,7 @@ function _renderDeptFund() {
   const BG_DEPT  = '#e8f0e0';    // 부서: 옅은 초록
   const BG_HEAD  = '#f1f5f9';    // 헤더
   const thStyle = `border:${BORDER};padding:5px 8px;text-align:center;background:${BG_HEAD};font-size:11px;white-space:nowrap;`;
-  const tdStyle = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;`;
+  const tdStyle = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
   const nameTd  = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;`;
   const th = (v, s='') => `<th style="${thStyle}${s}">${v}</th>`;
   const td = (v, s='') => `<td style="${tdStyle}${s}">${v}</td>`;
@@ -5876,16 +5876,15 @@ function _renderDeptFund() {
 
       // 분기별 이름 배열
       const qNames = quarters.map((_,qi) => getQNames(qi));
-      // 최대 행수 계산 (4개씩 청크)
-      const maxChunks = Math.max(1, ...qNames.map(names => Math.ceil(names.length/4)));
-
-      // nameRows[row][qi] = 4개 이름 배열
-      const nameRows = Array.from({length:maxChunks}, (_,rowIdx) =>
+      // 이름행은 항상 4행 고정 (4칸 x 4행 = 16명까지)
+      const NAME_ROWS = 4;
+      const nameRows = Array.from({length:NAME_ROWS}, (_,rowIdx) =>
         quarters.map((_,qi) => {
           const chunk = qNames[qi].slice(rowIdx*4, rowIdx*4+4);
-          return [0,1,2,3].map(i => chunk[i]||'');
+          return Array.from({length:4}, (_,i) => chunk[i]||'');
         })
       );
+      const maxChunks = NAME_ROWS;
 
       // 퇴사자 별도 행
       const leaversByQ = quarters.map(([qs,qe],qi) => {
@@ -5908,7 +5907,7 @@ function _renderDeptFund() {
       const noteRowspan = 3 + maxChunks + (hasLeavers ? 1 : 0);
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;color:#374151;font-size:11px;vertical-align:middle;background:#fafafa" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
 
-      const nameNs = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;`;
+      const nameNs = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
       const deptHeadNote = qi => {
         if (!deptHead) return `<td colspan="2" style="${nameNs}">-</td>`;
         const [qs,qe] = quarters[qi];
