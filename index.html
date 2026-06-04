@@ -5733,14 +5733,19 @@ function _renderDeptFund() {
       const leaveDate = e.leavedate ? parseLocalDate(e.leavedate) : null;
       if (!leaveDate || leaveDate.getFullYear() < year) return;
     }
+    // 겸직자(부직책)는 주소속만 사용 - 겸직 배열에 있는 경우 제외
+    // e.concurrent(겸직) 배열이 있어도 주소속(e.dept)으로만 처리
     const bonbu = getBonbu(e);
     if (!bonbu) return;
+    if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원') || bonbu.includes('베트남') || bonbu.includes('글로벌')) return;
     if (!bonbuMap[bonbu]) bonbuMap[bonbu] = {};
-    // e.dept 그대로 사용 (팀명이든 부서명이든)
     const deptKey = e.dept || '';
     if (!deptKey) return;
     if (!bonbuMap[bonbu][deptKey]) bonbuMap[bonbu][deptKey] = [];
-    bonbuMap[bonbu][deptKey].push(e);
+    // 중복 방지
+    if (!bonbuMap[bonbu][deptKey].find(x=>x.uid===e.uid)) {
+      bonbuMap[bonbu][deptKey].push(e);
+    }
   });
 
   // 색상 상수
@@ -5786,6 +5791,7 @@ function _renderDeptFund() {
   bonbuNames.forEach(bonbu => {
     if (!bonbuMap[bonbu]) return;
     if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원') || bonbu.includes('베트남') || bonbu.includes('글로벌')) return;
+    if (Object.keys(bonbuMap[bonbu]).length === 0) return;
     const depts = bonbuMap[bonbu];
     const deptNames = Object.keys(depts).sort((a,b) => {
       const da = departments.find(d=>d.name===a);
@@ -5901,6 +5907,53 @@ function _renderDeptFund() {
 
       // 분기별 이름 배열
       const qNames = quarters.map((_,qi) => getQNames(qi));
+      // 팀 단위 조직 (부서장 없고 하위팀 없음) → 이름만 표시
+      if (!deptHead && !hasSubTeams) {
+        const nameNsT = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
+        const qNamesT = quarters.map((_,qi) => {
+          if (qi===0) return [];
+          const [qs,qe] = quarters[qi];
+          return empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).sort(sortEmp||((a,b)=>0)).map(e=>e.name);
+        });
+        const maxET = Math.max(0, ...qNamesT.map(n=>n.length));
+        const pairT = maxET <= 4 ? 1 : 2;
+        const nameRowsT = Array.from({length:pairT}, (_,ri) =>
+          quarters.map((_,qi) => {
+            const chunk = qNamesT[qi].slice(ri*4, ri*4+4);
+            return Array.from({length:4}, (_,i) => chunk[i]||'');
+          })
+        );
+        const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;background:#fafafa" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
+        html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
+          ${colgroup}<tbody>
+          <tr style="background:${BG_DEPT}">
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
+            <td style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">계</td>
+            ${noteCellT}
+          </tr>
+          ${nameRowsT.map((rowByQ,ri) => `
+          <tr>
+            ${rowByQ[0].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
+            ${rowByQ[1].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
+            ${rowByQ[2].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
+            ${rowByQ[3].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
+            <td style="${nameNsT}text-align:right;font-weight:600">${ri===0?fmtMoney(tTotal):''}</td>
+          </tr>
+          <tr>
+            ${'<td style="'+nameNsT+'"></td>'.repeat(16)}<td style="${nameNsT}"></td>
+          </tr>`).join('')}
+          <tr><td colspan="17" style="height:8px;border:none"></td></tr>
+          </tbody></table>`;
+        return;
+      }
+
       // 하위팀 있는 부서는 이름행 미표시
       if (hasSubTeams) {
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
