@@ -5068,6 +5068,19 @@ function lunarToSolar(lunarMonth, lunarDay, year) {
   if (!tbl[lunarMonth]) return { month: lunarMonth, day: lunarDay };
   const entry = tbl[lunarMonth][lunarDay - 1];
   if (!entry) return { month: lunarMonth, day: lunarDay };
+  // 음력 11~12월이 다음해 1~2월로 넘어가는 경우 → year-1 테이블 사용
+  // 예: 2026년으로 조회 시 음력 12월 → 실제로는 2025년 음력 12월
+  if (lunarMonth >= 11 && entry[0] <= 2) {
+    const prevTbl = LUNAR_SOLAR_TABLES[year - 1];
+    if (prevTbl && prevTbl[lunarMonth]) {
+      const prevEntry = prevTbl[lunarMonth][lunarDay - 1];
+      if (prevEntry && prevEntry[0] >= 11) {
+        // 이전 해 테이블 결과가 11월 이후면 그게 맞음
+      } else if (prevEntry) {
+        return { month: prevEntry[0], day: prevEntry[1] };
+      }
+    }
+  }
   return { month: entry[0], day: entry[1] };
 }
 
