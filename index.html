@@ -287,6 +287,7 @@ select.form-input{cursor:pointer}
         <div class="nav-item admin-only" onclick="showPage('codemanage',this)"><span class="nav-icon">🗂️</span> 코드 관리</div>
         <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
         <div class="nav-item admin-only" onclick="showPage('birthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎂</span> 생일자 현황</div>
+        <div class="nav-item admin-only" onclick="showPage('parentbirthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎁</span> 부모님 생신현황</div>
         <div class="nav-item" onclick="showPage('mypage',this)"><span class="nav-icon">👤</span> 마이페이지</div>
         <div class="nav-item admin-only" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> 설정</div>
       </div>
@@ -603,6 +604,41 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div id="mypage-content" style="max-width:700px"></div>
+      </div>
+
+      <div id="page-parentbirthday" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🎁 부모님 생신현황</div><div class="page-sub">직원 부모님 생신 상품권 발송 현황</div></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="pb-year-filter" onchange="renderParentBirthdayTable()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+              <option value="2025">2025년</option><option value="2026">2026년</option><option value="2027">2027년</option><option value="2028">2028년</option><option value="2029">2029년</option><option value="2030">2030년</option>
+            </select>
+            <select id="pb-month-filter" onchange="renderParentBirthdayTable()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+              <option value="">전체 월</option>
+              <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option><option value="4">4월</option><option value="5">5월</option><option value="6">6월</option><option value="7">7월</option><option value="8">8월</option><option value="9">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+            </select>
+            <button onclick="exportParentBirthdayExcel()" style="padding:6px 12px;border-radius:8px;border:1px solid #217346;color:#217346;background:#fff;cursor:pointer;font-size:13px;font-weight:600">📊 Excel</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="background:#f1f5f9">
+                <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:50px">순번</th>
+                <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:90px">생일날짜</th>
+                <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:100px">발송일자</th>
+                <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:80px">직원이름</th>
+                <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:80px">성함</th>
+                <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:200px">주소</th>
+                <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:120px">연락처</th>
+                <th style="border:1px solid #e2e8f0;padding:8px 10px;text-align:center;min-width:100px">비고</th>
+              </tr>
+            </thead>
+            <tbody id="pb-tbody">
+              <tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8">로딩 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div id="page-birthday" class="page">
@@ -5192,6 +5228,197 @@ async function exportBirthdayExcel() {
   a.click();
 }
 
+
+// Firebase에서 발송일자 저장/불러오기
+const PB_SEND_KEY = 'pb_send_dates';
+async function savePbSendDate(uid, parentIdx, year, dateVal) {
+  const key = `${uid}_${parentIdx}_${year}`;
+  try {
+    const snap = await db.collection('settings').doc(PB_SEND_KEY).get();
+    const data = snap.exists ? snap.data() : {};
+    data[key] = dateVal;
+    await db.collection('settings').doc(PB_SEND_KEY).set(data);
+  } catch(e) { console.error('발송일 저장 오류', e); }
+}
+async function loadPbSendDates() {
+  try {
+    const snap = await db.collection('settings').doc(PB_SEND_KEY).get();
+    return snap.exists ? snap.data() : {};
+  } catch(e) { return {}; }
+}
+
+let pbSendDates = {};
+
+function renderParentBirthdayTable() {
+  const tbody = document.getElementById('pb-tbody');
+  if (!tbody) return;
+  if (!employees || employees.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8">데이터 로딩 중...</td></tr>';
+    setTimeout(renderParentBirthdayTable, 500);
+    return;
+  }
+
+  const yearF = parseInt((document.getElementById('pb-year-filter')||{}).value || new Date().getFullYear());
+  const monthF = (document.getElementById('pb-month-filter')||{}).value || '';
+
+  // 발송일 불러오기
+  loadPbSendDates().then(dates => {
+    pbSendDates = dates;
+    _renderPbTable(yearF, monthF);
+  });
+}
+
+function _renderPbTable(yearF, monthF) {
+  const tbody = document.getElementById('pb-tbody');
+  if (!tbody) return;
+  const rows = [];
+
+  employees.forEach(e => {
+    if (e.status === '퇴직') return;
+    const wd = welfareData[e.uid] || {};
+    // 부모님생신 미사용이면 제외
+    if (wd.parentUsed === false) return;
+    if (!e.parents || e.parents.length === 0) return;
+
+    e.parents.forEach((p, pi) => {
+      if (!p.name) return;
+      const pLabel = p.isFather ? '부' : p.isMother ? '모' : '';
+      if (!pLabel) return;
+      // 해당 부모 미사용이면 제외
+      if (pLabel === '부' && !wd.parentFather) return;
+      if (pLabel === '모' && !wd.parentMother) return;
+
+      const pm = parseInt(p.birthMonth||'0'), pd = parseInt(p.birthDay||'0');
+      if (!pm || !pd) return;
+
+      let sm = pm, sd = pd;
+      if ((p.birthType||'양력') === '음력') {
+        const sol = lunarToSolar(pm, pd, yearF);
+        sm = sol.month; sd = sol.day;
+      }
+
+      if (monthF && sm !== parseInt(monthF)) return;
+
+      const sendKey = `${e.uid}_${pi}_${yearF}`;
+      const sendDate = pbSendDates[sendKey] || '';
+
+      rows.push({
+        uid: e.uid, pi,
+        month: sm, day: sd,
+        date: `${sm}월 ${sd}일`,
+        sendDate,
+        empName: e.name||'',
+        parentName: p.name||'',
+        addr: p.addr||'',
+        mobile: p.mobile||'',
+        note: '',
+        sendKey
+      });
+    });
+  });
+
+  rows.sort((a,b) => a.month-b.month || a.day-b.day);
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8">해당 생신자가 없습니다</td></tr>';
+    return;
+  }
+
+  const td = (v,s='') => `<td style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;${s}">${v}</td>`;
+  tbody.innerHTML = rows.map((r,i) => `<tr>
+    ${td(i+1,'color:#94a3b8;font-size:12px')}
+    ${td(r.date)}
+    <td style="border:1px solid #e2e8f0;padding:4px 6px;text-align:center">
+      <input type="text" value="${r.sendDate}" placeholder="월 일"
+        style="width:80px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;text-align:center"
+        onchange="savePbSendDate('${r.uid}',${r.pi},${yearF},'${r.sendKey}',this.value)"
+        oninput="pbSendDates['${r.sendKey}']=this.value">
+    </td>
+    ${td(r.empName,'font-weight:500')}
+    ${td(r.parentName)}
+    ${td(r.addr,'text-align:left;padding:6px 10px')}
+    ${td(r.mobile)}
+    ${td(r.note)}
+  </tr>`).join('');
+}
+
+async function exportParentBirthdayExcel() {
+  const year = (document.getElementById('pb-year-filter')||{}).value || '2025';
+  const month = (document.getElementById('pb-month-filter')||{}).value || '';
+  const title = year + '년 ' + (month ? month+'월 ' : '') + '부모님 생신현황';
+
+  if (!window.ExcelJS) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const yearF = parseInt(year);
+  const monthF = month ? parseInt(month) : 0;
+  const dates = await loadPbSendDates();
+  const rows = [];
+
+  employees.forEach(e => {
+    if (e.status === '퇴직') return;
+    const wd = welfareData[e.uid] || {};
+    if (wd.parentUsed === false) return;
+    if (!e.parents || e.parents.length === 0) return;
+    e.parents.forEach((p, pi) => {
+      if (!p.name) return;
+      const pLabel = p.isFather ? '부' : p.isMother ? '모' : '';
+      if (!pLabel) return;
+      if (pLabel === '부' && !wd.parentFather) return;
+      if (pLabel === '모' && !wd.parentMother) return;
+      const pm = parseInt(p.birthMonth||'0'), pd = parseInt(p.birthDay||'0');
+      if (!pm || !pd) return;
+      let sm = pm, sd = pd;
+      if ((p.birthType||'양력') === '음력') { const sol = lunarToSolar(pm, pd, yearF); sm=sol.month; sd=sol.day; }
+      if (monthF && sm !== monthF) return;
+      const sendKey = `${e.uid}_${pi}_${yearF}`;
+      rows.push({ date:`${sm}월 ${sd}일`, month:sm, day:sd, sendDate:dates[sendKey]||'', empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.mobile||'', note:'' });
+    });
+  });
+  rows.sort((a,b) => a.month-b.month || a.day-b.day);
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('부모님생신현황');
+  const border = {top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
+  const center = {horizontal:'center',vertical:'middle'};
+
+  ws.columns = [{width:6},{width:10},{width:10},{width:10},{width:10},{width:40},{width:14},{width:14}];
+
+  // 제목행
+  ws.addRow(['■ ' + title,'','','','','','','']);
+  ws.mergeCells('A1:H1');
+  const t = ws.getCell('A1');
+  t.font = {bold:true, size:13}; t.alignment = {horizontal:'left',vertical:'middle'};
+  ws.getRow(1).height = 24;
+
+  // 헤더
+  ws.addRow(['순번','생일날짜','발송일자','직원이름','성함','주 소','연 락 처','비고']);
+  const hr = ws.getRow(2);
+  hr.height = 20;
+  hr.eachCell(cell => {
+    cell.font={bold:true}; cell.alignment=center; cell.border=border;
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF2F2F2'}};
+  });
+
+  rows.forEach((r,i) => {
+    const dr = ws.addRow([i+1, r.date, r.sendDate, r.empName, r.parentName, r.addr, r.mobile, r.note]);
+    dr.height = 18;
+    dr.eachCell(cell => { cell.alignment=center; cell.border=border; });
+    ws.getCell(`F${i+3}`).alignment = {horizontal:'left',vertical:'middle'};
+  });
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = title+'.xlsx'; a.click();
+}
+
 function renderBirthdayTable() {
   const tbody = document.getElementById('birthday-tbody');
   if (!tbody) return;
@@ -5656,6 +5883,7 @@ function showPage(id, el) {
   if(id === 'welfare') renderWelfareTable();
   if(id === 'mypage') renderMyPage();
   if(id === 'birthday') { renderBirthdayTable(); }
+  if(id === 'parentbirthday') { renderParentBirthdayTable(); }
   if(id === 'organization') renderDeptTable();
 }
 
