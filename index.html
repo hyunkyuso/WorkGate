@@ -5981,27 +5981,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const deptIsNone = (setting.type === '' || setting.type === '없음');
       const bAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
-        const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
         let t = 0;
-        empList.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000; });
-        extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 3 * 50000; });
-        const ndList = (nameDataList||[]).filter(d=>d.qi===qi);
-        ndList.forEach(nd => {
-          const dd = dateDataList.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
-          let months = 3;
-          if (dd && dd.fullDate) {
-            const dt = new Date(dd.fullDate);
-            const dtMonth = dt.getMonth();
-            if (dd.type === 'leave' || dd.type === 'to') {
-              months = Math.min(dtMonth, qe) - qs + 1;
-              months = Math.max(0, months);
-            } else if (dd.type === 'join' || dd.type === 'from') {
-              months = qe - Math.max(dtMonth, qs) + 1;
-              months = Math.max(0, months);
-            }
-          }
-          t += months * 50000;
-        });
+        // 부서장 1명 고정 50,000
+        if (deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) t += 50000;
+        // extra 추가 인원
+        extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 50000; });
         if (t === 0) return null;
         return t;
       });
@@ -6012,34 +5996,31 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || !isTypeTeamjang) return null;
         if (hasSubTeams) return null;
         const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
-        // 기본 팀원 월수 계산
         let t = 0;
-        // 이름행 팀원 (부서장 제외)
-        teamMembers.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
-        // 부서장도 금액에 포함
-        if (deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) t += 40000;
-        // 추가 인원(extra) - 날짜 변동 없는 경우
-        extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += 3 * 40000; });
-        // nameData 추가 인원 - dateData로 월수 계산
-        const ndList = (nameDataList||[]).filter(d=>d.qi===qi);
+        const qMonths = qe - qs + 1; // 분기 월수 (3)
+
+        // 기본 팀원 (이름행 Firebase 직원, 부서장 포함)
+        empList.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
+
+        // extra 추가 인원 (날짜 없음 → 분기 전체)
+        extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
+
+        // nameData 추가 인원 → dateData 있으면 월수 계산, 없으면 분기 전체
+        const ndList = nameDataList.filter(d=>d.qi===qi);
         ndList.forEach(nd => {
           const dd = dateDataList.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
-          let months = 3; // 기본 3개월
+          let months = qMonths;
           if (dd && dd.fullDate) {
-            const dt = new Date(dd.fullDate);
-            const dtMonth = dt.getMonth(); // 0-based
+            const dtMonth = new Date(dd.fullDate).getMonth(); // 0-based
             if (dd.type === 'leave' || dd.type === 'to') {
-              // 퇴사/까지: qs월부터 퇴사월까지
-              months = Math.min(dtMonth, qe) - qs + 1;
-              months = Math.max(0, months);
+              months = Math.max(0, Math.min(dtMonth, qe) - qs + 1);
             } else if (dd.type === 'join' || dd.type === 'from') {
-              // 입사/부터: 입사월부터 qe월까지
-              months = qe - Math.max(dtMonth, qs) + 1;
-              months = Math.max(0, months);
+              months = Math.max(0, qe - Math.max(dtMonth, qs) + 1);
             }
           }
           t += months * 40000;
         });
+
         if (t === 0) return null;
         return t;
       });
@@ -7581,5 +7562,5 @@ if (!state.kpis.length) {
     </div>
   </div>
 </body>
-</html> 
+</html>
  
