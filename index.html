@@ -5976,49 +5976,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const extraList = (deptFundSettings[dept]||{}).extra || [];
       const nameDataList = (deptFundSettings[dept]||{}).nameData || [];
 
-      // 부서장 금액: 부서장 또는 본부장 체크 시에만
-      const deptIsNone = (setting.type === '' || setting.type === '없음');
-      const bAmts = quarters.map(([qs,qe],qi) => {
-        if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
-        const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
-        const qMonths = qe - qs + 1;
-        let t = 0;
-        // 이름행 기준: 실제 재직 팀원 수 + 부서장
-        const nameCount = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
-        const headCount = deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0 ? 1 : 0;
-        t += (nameCount + headCount) * 50000;
-        // extra 추가 인원 (날짜 없음 → 분기 전체)
-        extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
-        // nameData 추가 인원 → 분기 전체
-        nameDataList.filter(d=>d.qi===qi).forEach(() => { t += qMonths * 50000; });
-        if (t === 0) return null;
-        return t;
-      });
-      const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
 
-      // 팀원 금액: 팀장 체크 시에만, 하위팀 없을 때만
-      const tAmts = quarters.map(([qs,qe],qi) => {
-        if (deptIsNone || !isTypeTeamjang) return null;
-        if (hasSubTeams) return null;
-        const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
-        let t = 0;
-        const qMonths = qe - qs + 1; // 분기 월수 (3)
-
-        // 이름행 기준: 실제 재직 팀원 수 + 부서장
-        const tNameCount = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length
-                         + (deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0 ? 1 : 0);
-        t += tNameCount * 40000;
-
-        // extra 추가 인원 (날짜 없음 → 분기 전체)
-        extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
-
-        // nameData 추가 인원 (Firebase에 없는 외부 인원) → 분기 전체
-        nameDataList.filter(d=>d.qi===qi).forEach(() => { t += qMonths * 40000; });
-
-        if (t === 0) return null;
-        return t;
-      });
-      const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
 
 
       const teamHead = empList.find(e=>(e.title||'')==='팀장');
@@ -6049,6 +6007,50 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (!window._lastQNames) window._lastQNames = {};
       if (!window._lastQNames[dept]) window._lastQNames[dept] = {};
       qNames.forEach((names, qi) => { window._lastQNames[dept][qi] = names; });
+      // 부서장/팀원 금액 계산 (이름행 인원수 기준)
+      const deptIsNone = (setting.type === '' || setting.type === '없음');
+
+      const bAmts = quarters.map(([qs,qe],qi) => {
+        if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
+        const qMonths = qe - qs + 1;
+        // 이름행 인원수: 팀원 + 부서장
+        const memberCount = qNames[qi].length + (deptHead ? 1 : 0);
+        let t = memberCount * 50000;
+        // extra 추가 인원
+        extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
+        // nameData 추가 인원
+        nameDataList.filter(d=>d.qi===qi).forEach(() => { t += qMonths * 50000; });
+        return t || null;
+      });
+      const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
+
+      const tAmts = quarters.map(([qs,qe],qi) => {
+        if (deptIsNone || !isTypeTeamjang) return null;
+        if (hasSubTeams) return null;
+        const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
+        const qMonths = qe - qs + 1;
+        // 이름행 인원수: 팀원 + 부서장
+        const memberCount = qNames[qi].length + (deptHead ? 1 : 0);
+        let t = memberCount * 40000;
+        // extra 추가 인원
+        extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
+        // nameData 추가 인원 - dateData 있으면 월수 계산
+        nameDataList.filter(d=>d.qi===qi).forEach(nd => {
+          const dd = dateDataList.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
+          let months = qMonths;
+          if (dd && dd.fullDate) {
+            const dtMonth = new Date(dd.fullDate).getMonth();
+            if (dd.type === 'leave' || dd.type === 'to') {
+              months = Math.max(0, Math.min(dtMonth, qe) - qs + 1);
+            } else if (dd.type === 'join' || dd.type === 'from') {
+              months = Math.max(0, qe - Math.max(dtMonth, qs) + 1);
+            }
+          }
+          t += months * 40000;
+        });
+        return t || null;
+      });
+      const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
       // 팀 단위 조직 (부서장 없고 하위팀 없음) → 이름만 표시
       if (!deptHead && !hasSubTeams) {
         const nameNsT = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
