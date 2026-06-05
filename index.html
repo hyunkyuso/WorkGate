@@ -5906,20 +5906,22 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const qAmts = quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
       let t=0;
-      allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;});
-      const extraCount = bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').length;
-      t += extraCount * 50000;
-      return t;
+      // 각 하위 부서의 이름행 인원 합산 (부서장 포함, 재직자만)
+      deptNames.forEach(dept => {
+        const deptEmpList = depts[dept] || [];
+        deptEmpList.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000; });
+        // 해당 부서 nameData 추가 인원
+        const deptNameData = (deptFundSettings[dept]||{}).nameData || [];
+        deptNameData.filter(d=>d.qi===qi).forEach(() => { t += 50000; });
+      });
+      // 본부 extra 추가 인원
+      bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 50000; });
+      // 본부 nameData 추가 인원
+      bonbuNameDataList.filter(d=>d.qi===qi).forEach(() => { t += 50000; });
+      return t || null;
     });
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
-    // 겸직으로 이 본부의 본부장인 사람 (전체 직원에서 탐색)
-    const bonbuHeadConc = employees.find(e=>
-      (e.concurrent||[]).some(c=>c.dept===bonbu&&(c.title||'').includes('본부장'))
-    );
-    // 주소속 본부장
-    const bonbuHeadMain = allEmpInBonbu.find(e=>(e.title||'').includes('본부장'));
-    const bonbuHead = bonbuHeadConc || bonbuHeadMain;
-    const headName = bonbuHead ? bonbuHead.name : '';
+
 
     // ── 본부장 테이블 ──
     const bonbuTypeLabel = bonbuIsNone ? '' : ((deptFundSettings[bonbu]||{}).type || '본부장');
