@@ -5684,6 +5684,78 @@ async function loadDeptFundSettings() {
   } catch(e) { deptFundSettings = {}; }
 }
 
+
+function openAmtModal(cell) {
+  const dept = cell.getAttribute('data-dept');
+  const qi = parseInt(cell.getAttribute('data-qi'));
+  const type = cell.getAttribute('data-type'); // 'buseojang' or 'teamjang'
+  const qLabels = ['01~03월','04~06월','07~09월','10~12월'];
+  const unitAmt = type === 'teamjang' ? 40000 : 50000;
+
+  if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+  if (!deptFundSettings[dept].extra) deptFundSettings[dept].extra = [];
+
+  const extras = deptFundSettings[dept].extra.filter(e=>e.qi===qi && e.type===type);
+
+  const modal = document.createElement('div');
+  modal.id = 'amt-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+
+  const renderList = () => {
+    const list = deptFundSettings[dept].extra.filter(e=>e.qi===qi && e.type===type);
+    return list.map((e,idx) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9">
+        <span style="flex:1;font-size:13px">${e.name}</span>
+        <span style="font-size:11px;color:#64748b;flex:1">${e.memo||''}</span>
+        <span style="font-size:12px;font-weight:600">${(unitAmt).toLocaleString()}원</span>
+        <button onclick="removeExtra('${dept}',${qi},'${type}',${idx})" style="padding:2px 8px;border-radius:6px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:11px">삭제</button>
+      </div>`).join('') || '<div style="color:#94a3b8;font-size:12px;padding:8px 0">추가된 인원 없음</div>';
+  };
+
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:20px;width:380px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">${dept} — ${qLabels[qi]} 인원 수정</div>
+      <div style="font-size:11px;color:#64748b;margin-bottom:14px">단가: ${unitAmt.toLocaleString()}원/인</div>
+      <div id="amt-extra-list" style="margin-bottom:14px;max-height:200px;overflow-y:auto">${renderList()}</div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:12px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:#374151">인원 추가</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+          <input id="amt-name" placeholder="이름" style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;font-size:13px;outline:none">
+          <input id="amt-memo" placeholder="메모 (툴팁에 표시)" style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;font-size:13px;outline:none">
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button onclick="document.getElementById('amt-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">닫기</button>
+          <button onclick="addExtra('${dept}',${qi},'${type}')" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">추가</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+}
+
+function addExtra(dept, qi, type) {
+  const name = document.getElementById('amt-name').value.trim();
+  const memo = document.getElementById('amt-memo').value.trim();
+  if (!name) { alert('이름을 입력하세요'); return; }
+  if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+  if (!deptFundSettings[dept].extra) deptFundSettings[dept].extra = [];
+  deptFundSettings[dept].extra.push({qi, type, name, memo});
+  saveDeptFundSettings();
+  document.getElementById('amt-modal').remove();
+  _renderDeptFund();
+}
+
+function removeExtra(dept, qi, type, idx) {
+  const list = deptFundSettings[dept].extra.filter(e=>e.qi===qi && e.type===type);
+  const item = list[idx];
+  const allIdx = deptFundSettings[dept].extra.indexOf(item);
+  if (allIdx > -1) deptFundSettings[dept].extra.splice(allIdx, 1);
+  saveDeptFundSettings();
+  document.getElementById('amt-modal').remove();
+  _renderDeptFund();
+}
+
 async function saveDeptFundSettings() {
   try {
     await db.collection('settings').doc(DEPTFUND_SETTINGS_KEY).set(deptFundSettings);
@@ -5893,22 +5965,33 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const hasSubTeams = deptHasSubTeams[dept] || false;
       const teamMembers = empList.filter(e=>e.uid !== (deptHead?.uid));
 
+      // 추가 인원 (extra)
+      const extraList = (deptFundSettings[dept]||{}).extra || [];
+
       // 부서장 금액: 부서장 또는 본부장 체크 시에만
       const bAmts = quarters.map(([qs,qe],qi) => {
         if (!isTypeBonbu && !isTypeBuseojang) return null;
         const activeCount = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
-        if (activeCount === 0) return null;
-        let t=0; empList.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;}); return t;
+        const extraCount = extraList.filter(e=>e.qi===qi && e.type==='buseojang').length;
+        if (activeCount === 0 && extraCount === 0) return null;
+        let t=0;
+        empList.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;});
+        t += extraCount * 50000;
+        return t;
       });
       const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
 
       // 팀원 금액: 팀장 체크 시에만, 하위팀 없을 때만
       const tAmts = quarters.map(([qs,qe],qi) => {
-        if (!isTypeTeamjang) return null; // 팀장 체크 안하면 표시 안함
+        if (!isTypeTeamjang) return null;
         if (hasSubTeams) return null;
         const activeCount = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
-        if (activeCount === 0) return null;
-        let t=0; teamMembers.forEach(e=>{t+=getEmpMonthsInQuarter(e,year,qs,qe)*40000;}); return t;
+        const extraCount = extraList.filter(e=>e.qi===qi && e.type==='teamjang').length;
+        if (activeCount === 0 && extraCount === 0) return null;
+        let t=0;
+        teamMembers.forEach(e=>{t+=getEmpMonthsInQuarter(e,year,qs,qe)*40000;});
+        t += extraCount * 40000;
+        return t;
       });
       const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
 
@@ -5990,13 +6073,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae
             <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
             <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>
           </tr>
@@ -6063,13 +6146,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <tbody>
         <tr style="background:${BG_DEPT}">
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${(isTypeBuseojang||isTypeBonbu)&&bAmts[0]!==null?fmtMoney(bAmts[0]):'-'}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${(isTypeBuseojang||isTypeBonbu)&&bAmts[1]!==null?fmtMoney(bAmts[1]):'-'}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${(isTypeBuseojang||isTypeBonbu)&&bAmts[2]!==null?fmtMoney(bAmts[2]):'-'}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${(isTypeBuseojang||isTypeBonbu)&&bAmts[3]!==null?fmtMoney(bAmts[3]):'-'}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae
           <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
           ${noteCellHtml}
         </tr>
@@ -6081,10 +6164,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           <td style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
         <tr>
-          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${isTypeTeamjang&&tAmts[0]!==null?fmtMoney(tAmts[0]):'-'}</td>
-          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${isTypeTeamjang&&tAmts[1]!==null?fmtMoney(tAmts[1]):'-'}</td>
-          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${isTypeTeamjang&&tAmts[2]!==null?fmtMoney(tAmts[2]):'-'}</td>
-          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${isTypeTeamjang&&tAmts[3]!==null?fmtMoney(tAmts[3]):'-'}</td>
+          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae
+          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae
+          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae
+          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;font-weight:600">${isTypeTeamjang&&tTotal?fmtMoney(tTotal):'-'}</td>
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
