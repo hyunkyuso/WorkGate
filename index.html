@@ -6017,15 +6017,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // 재직 인원 × 50,000 (월수 무관, 재직시 1개월에 50,000)
         let t = 0;
         empList.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) { t += 50000; } });
-        if(dept==='재무회계부') {
-          const _ex = extraList.filter(e=>e.qi===qi&&e.type==='buseojang').length;
-          const _nd = nameDataList.filter(d=>d.qi===qi).length;
-          console.log(`재무회계부 Q${qi}: 재직${empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length}명 extra${_ex}명 nameData${_nd}명 합계${t}`);
-        }
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
         // nameData 추가 인원
-        nameDataList.filter(d=>d.qi===qi).forEach(() => { t += qMonths * 50000; });
+        nameDataList.filter(d=>d.qi===qi).forEach(() => { t += 50000; });
         return t || null;
       });
       const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
