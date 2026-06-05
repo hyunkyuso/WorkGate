@@ -5722,6 +5722,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
   // 조직 구조: departments sortOrder 기준으로 본부 정렬
   // 본부 목록을 sortOrder 순으로
+  // 디버그
+  const _deptSet = [...new Set(employees.map(e=>e.dept).filter(Boolean))];
+  console.log('=== 전체 부서→본부 매핑 ===');
+  _deptSet.forEach(d => console.log(d, '→', getBonbu({dept:d})));
+
   const bonbuNames = [...new Set(employees.map(e => getBonbu(e)).filter(Boolean))];
   // departments sortOrder 기준 정렬
   bonbuNames.sort((a,b) => getDeptSortOrder(a) - getDeptSortOrder(b));
