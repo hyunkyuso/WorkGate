@@ -5770,10 +5770,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
   // 색상 상수
   const BORDER = '1px solid #b0bec5';
   const BORDER_STRONG = '1px solid #78909c';  // 굵기 통일
-  const BG_BONBU = '#1e40af';    // 본부: 진한 파랑
+  const BG_BONBU = '#3b82f6';    // 본부: 조금 옅은 파랑
   const BG_BONBU_TEXT = '#ffffff'; // 본부 텍스트: 흰색
-  const BG_DEPT  = '#f1f5f9';    // 부서(소속행 제외): 옅은 회색
-  const BG_DEPT_HEADER = '#4ade80'; // 소속 들어간 줄: 약간 진한 녹색
+  const BG_DEPT  = '#f8fafc';    // 부서(소속행 제외): 옅은 회색
+  const BG_DEPT_HEADER = '#86efac'; // 소속 들어간 줄: 옅은 초록(진한녹색보다 옅게)
   const BG_TEAM_AMT = '#dbeafe';  // 팀장 금액 행: 옅은 파랑
   const BG_HEAD  = '#f1f5f9';    // 헤더
   const thStyle = `border:${BORDER};padding:5px 8px;text-align:center;background:${BG_HEAD};font-size:11px;white-space:nowrap;`;
@@ -5842,13 +5842,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
         <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};color:#fff;border-right:1px solid #90a4ae">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}</td>
         <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};color:#fff;border-right:1px solid #90a4ae">${qAmts[1]===null?'-':fmtMoney(qAmts[1])}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[1]===null?'-':fmtMoney(qAmts[1])}</td>
         <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};color:#fff;border-right:1px solid #90a4ae">${qAmts[2]===null?'-':fmtMoney(qAmts[2])}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[2]===null?'-':fmtMoney(qAmts[2])}</td>
         <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};color:#fff;border-right:1px solid #90a4ae">${qAmts[3]===null?'-':fmtMoney(qAmts[3])}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[3]===null?'-':fmtMoney(qAmts[3])}</td>
         <td style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">계</td>
         <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:${BG_BONBU}" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel}</td>
       </tr>
@@ -5857,7 +5857,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
         <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
         <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
-        <td style="${tdStyle}text-align:right;font-weight:700;background:${BG_BONBU};color:#fff">${fmtMoney(bonbuTotal)}</td>
+        <td style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
       </tr>
       <tr><td colspan="10" style="height:8px;border:none"></td></tr>
       </tbody></table>`;
@@ -5989,10 +5989,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;background:#fff" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>
           </tr>
           <tr>
-            <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[0])>0?deptHead.name+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
-            <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[1])>0?deptHead.name+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
-            <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[2])>0?deptHead.name+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
-            <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
+            <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[0])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
+            <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[1])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
+            <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[2])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
+            <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
             <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
           </tr>
           <tr><td colspan="17" style="height:8px;border:none"></td></tr>
@@ -6043,7 +6043,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const active = qi===0 ? false : getEmpMonthsInQuarter(deptHead,year,qs,qe)>0;
         const isLeave = deptHead.status==='휴직'||deptHead.status==='육아휴직';
         const leaveNote = isLeave ? `<br><span style="color:#ef4444;font-size:9px">(${deptHead.status})</span>` : '';
-        return `<td colspan="2" style="${nameNs}text-align:center">${active?deptHead.name+leaveNote:''}<br><span style="font-size:9px;color:#64748b">${active?'(부서장)':''}</span></td>`;
+        return `<td colspan="2" style="${nameNs}text-align:center">${active?deptHead.name+'<span style="color:#3b82f6;font-weight:500"> (부서장)</span>'+leaveNote:''}</td>`;
       };
 
       // 설정에서 구분 타입 가져오기
@@ -6064,10 +6064,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ${noteCellHtml}
         </tr>
         <tr>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[0])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[1])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[2])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[0])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<span style=\'color:#ef4444;font-size:9px\'> ('+deptHead.status+')</span>':''):''}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[1])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<span style=\'color:#ef4444;font-size:9px\'> ('+deptHead.status+')</span>':''):''}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[2])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<span style=\'color:#ef4444;font-size:9px\'> ('+deptHead.status+')</span>':''):''}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<span style=\'color:#ef4444;font-size:9px\'> ('+deptHead.status+')</span>':''):''}</td>
           <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
         <tr>
