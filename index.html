@@ -5915,11 +5915,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const qAmts = quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
       let t=0;
-      // 각 하위 부서 이름행 인원 합산 (본부명과 동일한 dept 제외)
+      // 본부장 포함
+      if (bonbuHead && bonbuHead.status!=='휴직' && bonbuHead.status!=='육아휴직' && getEmpMonthsInQuarter(bonbuHead,year,qs,qe)>0) t += 50000;
+      // 각 하위 부서 이름행 인원 합산
       deptNames.filter(dk=>dk!==bonbu).forEach(deptKey => {
         const deptEmpList = depts[deptKey] || [];
         deptEmpList.forEach(e => { 
-          if(e.status==='휴직'||e.status==='육아휴직') return; // 휴직자 제외
+          if(e.status==='휴직'||e.status==='육아휴직') return;
+          if(e.uid===bonbuHead?.uid) return;
           if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000;
         });
         ((deptFundSettings[deptKey]||{}).nameData||[]).filter(d=>d.qi===qi).forEach(() => { t += 50000; });
