@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -5156,12 +5156,12 @@ function getBonbu(emp) {
   // 우선순위 높은 순서로 배치
   const bonbuMap = [
     { bonbu:'도시계획사업본부', keywords:['도시계획'] },
-    { bonbu:'AI GIS연구본부',   keywords:['AI GIS','GIS연구','연구1팀','연구2팀','연구1부','연구2부','R&D기획'] },
+    { bonbu:'AI GIS 연구본부',  keywords:['AI GIS','GIS연구','연구1팀','연구2팀','연구1부','연구2부','R&D기획'] },
     { bonbu:'GIS사업본부',      keywords:['GIS사업','GIS1부','GIS2부','GIS사업1','GIS사업2','GIS1부','GIS2부'] },
     { bonbu:'AI전략기획본부',   keywords:['AI전략기획','AI기획','AI기획팀'] },
     { bonbu:'글로벌사업본부',   keywords:['글로벌사업','해외사업','해외기획'] },
     { bonbu:'글로벌기획본부',   keywords:['글로벌기획','글로벌전략기획'] },
-    { bonbu:'AI GIS연구본부',   keywords:['SW지원'] },
+    { bonbu:'AI GIS 연구본부',  keywords:['SW지원'] },
     { bonbu:'SW기술연구소',     keywords:['SW기술','소프트웨어','응용개발연구','응용개발'] },
     { bonbu:'SW영업본부',       keywords:['SW영업'] },
     { bonbu:'경영관리본부',     keywords:['경영관리','인사총무','재무회계','경영지원','수석전문위원','인사'] },
@@ -5737,7 +5737,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     // e.concurrent(겸직) 배열이 있어도 주소속(e.dept)으로만 처리
     const bonbu = getBonbu(e);
     if (!bonbu) return;
-    if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원') || bonbu.includes('베트남') || bonbu.includes('글로벌')) return;
+    if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원') || bonbu.includes('베트남')) return;
     if (!bonbuMap[bonbu]) bonbuMap[bonbu] = {};
     const deptKey = e.dept || '';
     if (!deptKey) return;
@@ -5790,7 +5790,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
   bonbuNames.forEach(bonbu => {
     if (!bonbuMap[bonbu]) return;
-    if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원') || bonbu.includes('베트남') || bonbu.includes('글로벌')) return;
+    if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원') || bonbu.includes('베트남')) return;
     if (Object.keys(bonbuMap[bonbu]).length === 0) return;
     const depts = bonbuMap[bonbu];
     const deptNames = Object.keys(depts).sort((a,b) => getDeptSortOrder(a) - getDeptSortOrder(b));
@@ -5843,7 +5843,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     // ── 부서별 테이블 (헤더 없이, 본부 이름 중복 제거) ──
     deptNames.forEach(dept => {
       if (dept.includes('수석전문위원')) return;
-      if (dept.includes('베트남') || dept.includes('글로벌')) return;
+      if (dept.includes('베트남')) return;
       // 부서명이 본부명과 같으면 (본부장 행에서 이미 처리) 제외
       if (dept === bonbu) return;
       const empList = depts[dept];
