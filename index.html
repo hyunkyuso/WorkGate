@@ -5830,7 +5830,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
     // 분기별 금액 계산 (Q1=대기)
     const qAmts = quarters.map(([qs,qe],qi) => {
-      if (qi===0) return null; // 1~3월 대기
       let t=0; allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;}); return t;
     });
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
@@ -5892,7 +5891,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const isTypeBuseojang = (setting.type||'').includes('부서장');
       const isTypeTeamjang = (setting.type||'').includes('팀장');
       const bAmts = quarters.map(([qs,qe],qi) => {
-        if (qi===0) return null;
         if (!isTypeBonbu && !isTypeBuseojang) return null;
         // 이름이 표기된 인원(분기 내 재직)이 있을 때만 산입
         const activeCount = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
@@ -5905,8 +5903,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const hasSubTeams = deptHasSubTeams[dept] || false;
       const teamMembers = empList.filter(e=>e.uid !== (deptHead?.uid));
       const tAmts = quarters.map(([qs,qe],qi) => {
-        if (qi===0) return null;
-        if (!isTypeTeamjang) return null;
         if (hasSubTeams) return null; // 하위팀 있으면 팀원 금액 미표시
         const activeCount = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
         if (activeCount === 0) return null;
@@ -5928,7 +5924,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // 각 분기별 이름 배열 - 4명씩 청크로 나누어 여러 행 생성
       const getQNames = (qi) => {
         const [qs,qe] = quarters[qi];
-        if (qi===0) return [];
         return teamMembers
           .filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0)
           .filter(e=>!e.leavedate || parseLocalDate(e.leavedate) > new Date(year,qe,31))
@@ -5943,8 +5938,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const nameNsT = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
         const nameNsTAmt = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;background:${BG_TEAM_AMT};`;
         const qNamesT = quarters.map((_,qi) => {
-          if (qi===0) return [];
-          const [qs,qe] = quarters[qi];
+            const [qs,qe] = quarters[qi];
           return empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0&&e.dept===dept).sort(sortEmp||((a,b)=>0)).map(e => e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name);
         });
         const maxET = Math.max(0, ...qNamesT.map(n=>n.length));
@@ -6161,8 +6155,8 @@ async function saveDeptFundType(dept, btn) {
 
   if (!deptFundSettings[dept]) deptFundSettings[dept] = { buseojang:true, teamjang:true };
   deptFundSettings[dept].type = typeLabel;
-  deptFundSettings[dept].buseojang = checks.includes('부서장') || checks.includes('본부장');
-  deptFundSettings[dept].teamjang = checks.includes('팀장');
+  deptFundSettings[dept].buseojang = !isNone && (checks.includes('부서장') || checks.includes('본부장'));
+  deptFundSettings[dept].teamjang = !isNone && checks.includes('팀장');
 
   await saveDeptFundSettings();
   document.getElementById('deptfund-type-modal').remove();
