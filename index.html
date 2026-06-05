@@ -6016,7 +6016,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const qMonths = qe - qs + 1;
         // 재직 인원 × 50,000 (월수 무관, 재직시 1개월에 50,000)
         let t = 0;
-        empList.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000; });
+        empList.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) { t += 50000; if(dept==='재무회계부') console.log(`재무회계부 Q${qi}`, e.name, e.status, e.leavedate); } });
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
         // nameData 추가 인원
