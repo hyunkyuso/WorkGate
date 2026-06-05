@@ -5980,13 +5980,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const deptIsNone = (setting.type === '' || setting.type === '없음');
       const bAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
-        // 이름행 인원수 기준 (본인 포함)
-        const nameRowCount = (deptHead ? 1 : 0) + qNames[qi].length;
+        const activeCount = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
         const extraCount = extraList.filter(e=>e.qi===qi && e.type==='buseojang').length;
-        const nameDataCount = nameDataList.filter(e=>e.qi===qi).length;
-        const totalCount = nameRowCount + extraCount + nameDataCount;
-        if (totalCount === 0) return null;
-        return totalCount * 50000;
+        if (activeCount === 0 && extraCount === 0) return null;
+        let t=0;
+        empList.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;});
+        t += extraCount * 50000;
+        return t;
       });
       const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
 
@@ -5994,13 +5994,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const tAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || !isTypeTeamjang) return null;
         if (hasSubTeams) return null;
-        // 이름행 인원수 기준 (본인 포함): qNames[qi] + nameDataList 추가 인원
-        const nameRowCount = qNames[qi].length;
+        const activeCount = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
         const extraCount = extraList.filter(e=>e.qi===qi && e.type==='teamjang').length;
-        const nameDataCount = nameDataList.filter(e=>e.qi===qi).length;
-        const totalCount = nameRowCount + extraCount + nameDataCount;
-        if (totalCount === 0) return null;
-        return totalCount * 40000;
+        if (activeCount === 0 && extraCount === 0) return null;
+        let t=0;
+        teamMembers.forEach(e=>{t+=getEmpMonthsInQuarter(e,year,qs,qe)*40000;});
+        t += extraCount * 40000;
+        return t;
       });
       const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
 
