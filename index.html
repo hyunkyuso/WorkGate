@@ -6029,6 +6029,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       // 분기별 이름 배열
       const qNames = quarters.map((_,qi) => getQNames(qi));
+      // nameData 추가 이름도 반영
+      const nameDataList = (deptFundSettings[dept]||{}).nameData || [];
+      // getDateCell에서 참조하기 위해 전역 저장
+      if (!window._lastQNames) window._lastQNames = {};
+      if (!window._lastQNames[dept]) window._lastQNames[dept] = {};
+      qNames.forEach((names, qi) => { window._lastQNames[dept][qi] = names; });
       // 팀 단위 조직 (부서장 없고 하위팀 없음) → 이름만 표시
       if (!deptHead && !hasSubTeams) {
         const nameNsT = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
@@ -6185,10 +6191,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
-          ${rowByQ[0].map((n,ci)=>`<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${n}${getDateNote(dept,0,rowIdx,ci)}</td>`).join('')}
-          ${rowByQ[1].map((n,ci)=>`<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${n}${getDateNote(dept,1,rowIdx,ci)}</td>`).join('')}
-          ${rowByQ[2].map((n,ci)=>`<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${n}${getDateNote(dept,2,rowIdx,ci)}</td>`).join('')}
-          ${rowByQ[3].map((n,ci)=>`<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${n}${getDateNote(dept,3,rowIdx,ci)}</td>`).join('')}
+          ${rowByQ[0].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${getDateNote(dept,0,rowIdx,ci)}</td>`}).join('')}
+          ${rowByQ[1].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${getDateNote(dept,1,rowIdx,ci)}</td>`}).join('')}
+          ${rowByQ[2].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${getDateNote(dept,2,rowIdx,ci)}</td>`}).join('')}
+          ${rowByQ[3].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${getDateNote(dept,3,rowIdx,ci)}</td>`}).join('')}
           <td rowspan="${pairCount*2}" style="${nameNs}text-align:right;font-weight:600;vertical-align:middle">${rowIdx===0&&isTypeTeamjang?fmtMoney(tTotal):''}</td>
         </tr>
         <tr>
@@ -6218,16 +6224,15 @@ function getDateData(dept, qi, rowIdx, col) {
 function getDateNote(dept, qi, rowIdx, col) {
   const d = getDateData(dept, qi, rowIdx, col);
   if (!d || !d.date) return '';
-  const dt = d.date; // "MM/DD" 형태로 저장
   const typeMap = {join:'입사', leave:'퇴사', from:'부터', to:'까지'};
-  return `<span style="color:#ef4444;font-size:10px;display:block">${dt} ${typeMap[d.type]||d.type}</span>`;
+  return ` <span style="color:#ef4444;font-size:10px">${d.date} ${typeMap[d.type]||d.type}</span>`;
 }
 function getDateCell(dept, qi, rowIdx, col) {
   const d = getDateData(dept, qi, rowIdx, col);
   if (!d || !d.date) return '';
-  // 연동된 이름행 이름 표시
-  const nameD = getNameData(dept, qi, rowIdx, col);
-  const nm = nameD ? nameD.name : '';
+  // 이름행의 같은 위치 이름 가져오기
+  const qNames = _lastQNames && _lastQNames[dept] && _lastQNames[dept][qi];
+  const nm = qNames ? (qNames[rowIdx*4+col]||'') : '';
   const typeMap = {join:'입사', leave:'퇴사', from:'부터', to:'까지'};
   const label = `${nm?nm+' ':''}${d.date} ${typeMap[d.type]||d.type}`;
   return `<span style="color:#ef4444;font-size:10px">${label}</span>`;
