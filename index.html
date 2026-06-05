@@ -5850,7 +5850,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">${bonbu}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[3]===null?'-':fmtMoney(qAmts[3])}</td>
         <td style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">계</td>
-        <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:#fff" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel==="없음"?"":bonbuTypeLabel}</td>
+        <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:#fff" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel==="없음"||!bonbuTypeLabel?"":bonbuTypeLabel}</td>
       </tr>
       <tr>
         <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
@@ -5942,7 +5942,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             return Array.from({length:4}, (_,i) => chunk[i]||'');
           })
         );
-        const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
+        const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
@@ -5987,7 +5987,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
             <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
-            <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>
+            <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>
           </tr>
           <tr>
             <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[0])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
@@ -6035,7 +6035,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       const hasLeavers = leaversByQ.some(q => q.some(n=>n));
       const noteRowspan = 3 + maxChunks + (hasLeavers ? 1 : 0);
-      const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
+      const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
 
       const nameNs = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
       const deptHeadNote = qi => {
@@ -6067,7 +6067,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
-          <td rowspan="2" style="${tdStyle}text-align:right;font-weight:600;vertical-align:middle">${bTotal?fmtMoney(bTotal):'-'}</td>
+          <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
         <tr>
           <td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td>
@@ -6078,6 +6078,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[2]===null?'-':fmtMoney(tAmts[2])}</td>
           <td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td>
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[3]===null?'-':fmtMoney(tAmts[3])}</td>
+          <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
