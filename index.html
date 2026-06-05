@@ -5722,35 +5722,49 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
   // 조직 구조: departments sortOrder 기준으로 본부 정렬
   // 본부 목록을 sortOrder 순으로
-  // 디버그
-  const _deptSet = [...new Set(employees.map(e=>e.dept).filter(Boolean))];
-  console.log('=== 전체 부서→본부 매핑 ===');
-  _deptSet.forEach(d => console.log(d, '→', getBonbu({dept:d})));
-
   const bonbuNames = [...new Set(employees.map(e => getBonbu(e)).filter(Boolean))];
   // departments sortOrder 기준 정렬
   bonbuNames.sort((a,b) => getDeptSortOrder(a) - getDeptSortOrder(b));
 
   // 본부별 부서 구성
   const bonbuMap = {};
+
+  // 헬퍼: 부서를 bonbuMap에 추가
+  const addToBonbuMap = (e, deptKey) => {
+    const bonbu = getBonbu({dept: deptKey, title: e.title, role: e.role});
+    if (!bonbu) return;
+    if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원') || bonbu.includes('베트남')) return;
+    if (!bonbuMap[bonbu]) bonbuMap[bonbu] = {};
+    if (!bonbuMap[bonbu][deptKey]) bonbuMap[bonbu][deptKey] = [];
+    if (!bonbuMap[bonbu][deptKey].find(x=>x.uid===e.uid)) {
+      bonbuMap[bonbu][deptKey].push(e);
+    }
+  };
+
   employees.forEach(e => {
     if (e.status === '퇴직') {
       const leaveDate = e.leavedate ? parseLocalDate(e.leavedate) : null;
       if (!leaveDate || leaveDate.getFullYear() < year) return;
     }
-    // 겸직자(부직책)는 주소속만 사용 - 겸직 배열에 있는 경우 제외
-    // e.concurrent(겸직) 배열이 있어도 주소속(e.dept)으로만 처리
-    const bonbu = getBonbu(e);
-    if (!bonbu) return;
-    if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원') || bonbu.includes('베트남')) return;
-    if (!bonbuMap[bonbu]) bonbuMap[bonbu] = {};
-    const deptKey = e.dept || '';
-    if (!deptKey) return;
-    if (!bonbuMap[bonbu][deptKey]) bonbuMap[bonbu][deptKey] = [];
-    // 중복 방지
-    if (!bonbuMap[bonbu][deptKey].find(x=>x.uid===e.uid)) {
-      bonbuMap[bonbu][deptKey].push(e);
+    // 주소속 추가
+    if (e.dept) addToBonbuMap(e, e.dept);
+    // 겸직 부서도 추가
+    if (Array.isArray(e.concurrent)) {
+      e.concurrent.forEach(c => {
+        const cDept = c.dept || c;
+        if (cDept && cDept !== e.dept) addToBonbuMap(e, cDept);
+      });
     }
+  });
+
+  // departments 기반으로 직원 없는 부서도 빈 항목으로 추가
+  departments.forEach(d => {
+    if (!d.name) return;
+    if (d.name.includes('정도유아이티') || d.name.includes('베트남') || d.name.includes('수석전문위원')) return;
+    const bonbu = getBonbu({dept: d.name});
+    if (!bonbu || bonbu.includes('정도유아이티') || bonbu.includes('베트남')) return;
+    if (!bonbuMap[bonbu]) bonbuMap[bonbu] = {};
+    if (!bonbuMap[bonbu][d.name]) bonbuMap[bonbu][d.name] = [];
   });
 
   // 색상 상수
