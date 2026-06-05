@@ -5983,11 +5983,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
         const qMonths = qe - qs + 1;
         let t = 0;
-        // 전체 팀원 (부서장 포함)
-        empList.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000; });
-        // extra 추가 인원
+        // 이름행 팀원 수 기준 (부서장 제외)
+        const nameCount = getQNames(qi).length;
+        // 부서장 1명 고정
+        const headCount = deptHead ? 1 : 0;
+        t += (nameCount + headCount) * 50000;
+        // extra 추가 인원 (날짜 없음 → 분기 전체)
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
-        // nameData 추가 인원
+        // nameData 추가 인원 → 날짜 있으면 월수 계산
         nameDataList.filter(d=>d.qi===qi).forEach(nd => {
           const dd = dateDataList.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
           let months = qMonths;
@@ -6014,8 +6017,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         let t = 0;
         const qMonths = qe - qs + 1; // 분기 월수 (3)
 
-        // 기본 팀원 (이름행 Firebase 직원, 부서장 포함)
-        empList.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
+        // 이름행 팀원 수 기준 (부서장 포함)
+        const tNameCount = getQNames(qi).length + (deptHead ? 1 : 0);
+        t += tNameCount * 40000;
 
         // extra 추가 인원 (날짜 없음 → 분기 전체)
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
