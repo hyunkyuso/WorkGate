@@ -5716,15 +5716,17 @@ function _renderDeptFund() {
     return d ? (d.sortOrder||999) : 999;
   };
 
-  // 조직 구조: departments sortOrder 기준으로 본부 정렬
-  // 본부 목록을 sortOrder 순으로
-  const bonbuNames = [...new Set(employees.map(e => getBonbu(e)).filter(Boolean))];
-  // departments sortOrder 기준 정렬
-  bonbuNames.sort((a,b) => {
-    const da = departments.find(d=>d.name===a);
-    const db = departments.find(d=>d.name===b);
-    return (da?.sortOrder||999) - (db?.sortOrder||999);
-  });
+  // 조직 순서: departments sortOrder 기준으로 본부 정렬 (직접 생성)
+  // employees 기반이 아닌 departments 기반으로 본부 목록 생성 → sortOrder 정확 적용
+  const bonbuFromDepts = departments
+    .filter(d => !d.parent)  // 최상위(본부) 부서만
+    .sort((a,b) => (a.sortOrder||999)-(b.sortOrder||999))
+    .map(d => d.name)
+    .filter(n => n && !n.includes('정도유아이티') && !n.includes('수석전문위원') && !n.includes('베트남') && !n.includes('글로벌'));
+  // employees에서 getBonbu로 발견된 본부 중 departments에 없는 것도 포함 (fallback)
+  const bonbuFromEmps = [...new Set(employees.map(e => getBonbu(e)).filter(Boolean))]
+    .filter(n => !bonbuFromDepts.includes(n) && !n.includes('정도유아이티') && !n.includes('수석전문위원') && !n.includes('베트남') && !n.includes('글로벌'));
+  const bonbuNames = [...bonbuFromDepts, ...bonbuFromEmps];
 
   // 본부별 부서 구성
   const bonbuMap = {};
@@ -5764,13 +5766,15 @@ function _renderDeptFund() {
 
   // 헤더: 소속 04~06 소속 07~09 소속 10~12 소속 01~03(대기) | 합계 | 구분 | 비고
   // 레이아웃: [소속][Q1][소속][Q2][소속][Q3][소속][Q4] [합계] [구분] [비고]
-  const CW = 'width:5.5%;';
+  // 컬럼 구조: [소속2][분기2] x 4분기 = 16col + [합계1] + [구분1] = 18col
+  // 이름행: 분기별 4td x 4 = 16td + 합계1td = 17td → 구분셀은 rowspan으로 처리
+  const CW = 'width:5.2%;';
   const colgroup = `<colgroup>
     <col style="${CW}"><col style="${CW}"><col style="${CW}"><col style="${CW}">
     <col style="${CW}"><col style="${CW}"><col style="${CW}"><col style="${CW}">
     <col style="${CW}"><col style="${CW}"><col style="${CW}"><col style="${CW}">
     <col style="${CW}"><col style="${CW}"><col style="${CW}"><col style="${CW}">
-    <col style="width:7%"><col style="width:5%">
+    <col style="width:8%"><col style="width:6%">
   </colgroup>`;
   const QBORDER = 'border-right:2px solid #90a4ae;';
   const headerRow = () => colgroup + `<tr>
@@ -5778,7 +5782,7 @@ function _renderDeptFund() {
     <th colspan="2" style="${thStyle}">소속</th><th colspan="2" style="${thStyle}${QBORDER}">04월~06월</th>
     <th colspan="2" style="${thStyle}">소속</th><th colspan="2" style="${thStyle}${QBORDER}">07월~09월</th>
     <th colspan="2" style="${thStyle}">소속</th><th colspan="2" style="${thStyle}${QBORDER}">10월~12월</th>
-    <th style="${thStyle}">구분</th><th style="${thStyle}">비고</th>
+    <th style="${thStyle}">계</th><th style="${thStyle}">구분</th>
   </tr>`;
 
   const today = new Date();
@@ -5840,8 +5844,9 @@ function _renderDeptFund() {
         <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
         <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
         <td style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
+        <td style="${tdStyle}"></td>
       </tr>
-      <tr><td colspan="10" style="height:8px;border:none"></td></tr>
+      <tr><td colspan="18" style="height:8px;border:none"></td></tr>
       </tbody></table>`;
 
     // ── 부서별 테이블 (헤더 없이, 본부 이름 중복 제거) ──
@@ -5947,7 +5952,7 @@ function _renderDeptFund() {
             <td style="${nameNsT}text-align:right;font-weight:600">${ri===0?fmtMoney(tTotal):''}</td>
           </tr>
           <tr>
-            ${'<td style="'+nameNsT+'"></td>'.repeat(16)}<td style="${nameNsT}"></td>
+            ${'<td style="'+nameNsT+'"></td>'.repeat(17)}<td style="${nameNsT}"></td>
           </tr>`).join('')}
           <tr><td colspan="17" style="height:8px;border:none"></td></tr>
           </tbody></table>`;
@@ -5976,8 +5981,9 @@ function _renderDeptFund() {
             <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[2])>0?deptHead.name+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
             <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
             <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
+            <td style="${tdStyle}"></td>
           </tr>
-          <tr><td colspan="17" style="height:8px;border:none"></td></tr>
+          <tr><td colspan="18" style="height:8px;border:none"></td></tr>
           </tbody></table>`;
         return;
       }
@@ -6051,6 +6057,7 @@ function _renderDeptFund() {
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[2])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<br><span style=\'color:#ef4444;font-size:9px\'>('+deptHead.status+')</span>':'')+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
           <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
+          <td style="${tdStyle}"></td>
         </tr>
         <tr>
           <td colspan="4" style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[0]===null?'-':fmtMoney(tAmts[0])}</td>
@@ -6058,6 +6065,7 @@ function _renderDeptFund() {
           <td colspan="4" style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[2]===null?'-':fmtMoney(tAmts[2])}</td>
           <td colspan="4" style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[3]===null?'-':fmtMoney(tAmts[3])}</td>
           <td style="${tdStyle}text-align:center;font-weight:600">계</td>
+          <td style="${tdStyle}"></td>
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
@@ -6066,15 +6074,16 @@ function _renderDeptFund() {
           ${rowByQ[2].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
           ${rowByQ[3].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
           <td style="${nameNs}text-align:right;font-weight:600">${rowIdx===0?fmtMoney(tTotal):''}</td>
+          <td style="${nameNs}"></td>
         </tr>
         <tr>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
-          <td style="${nameNs}"></td>
+          <td style="${nameNs}"></td><td style="${nameNs}"></td>
         </tr>`).join('')}
-        <tr><td colspan="17" style="height:8px;border:none"></td></tr>
+        <tr><td colspan="18" style="height:8px;border:none"></td></tr>
         <tr><td colspan="10" style="height:10px;border:none"></td></tr>
         </tbody></table>`;
     });
