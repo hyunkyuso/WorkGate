@@ -5989,20 +5989,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         t += (nameCount + headCount) * 50000;
         // extra 추가 인원 (날짜 없음 → 분기 전체)
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
-        // nameData 추가 인원 → 날짜 있으면 월수 계산
-        nameDataList.filter(d=>d.qi===qi).forEach(nd => {
-          const dd = dateDataList.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
-          let months = qMonths;
-          if (dd && dd.fullDate) {
-            const dtMonth = new Date(dd.fullDate).getMonth();
-            if (dd.type === 'leave' || dd.type === 'to') {
-              months = Math.max(0, Math.min(dtMonth, qe) - qs + 1);
-            } else if (dd.type === 'join' || dd.type === 'from') {
-              months = Math.max(0, qe - Math.max(dtMonth, qs) + 1);
-            }
-          }
-          t += months * 50000;
-        });
+        // nameData 추가 인원 → 분기 전체
+        nameDataList.filter(d=>d.qi===qi).forEach(() => { t += qMonths * 50000; });
         if (t === 0) return null;
         return t;
       });
@@ -6024,21 +6012,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // extra 추가 인원 (날짜 없음 → 분기 전체)
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
 
-        // nameData 추가 인원 → dateData 있으면 월수 계산, 없으면 분기 전체
-        const ndList = nameDataList.filter(d=>d.qi===qi);
-        ndList.forEach(nd => {
-          const dd = dateDataList.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
-          let months = qMonths;
-          if (dd && dd.fullDate) {
-            const dtMonth = new Date(dd.fullDate).getMonth(); // 0-based
-            if (dd.type === 'leave' || dd.type === 'to') {
-              months = Math.max(0, Math.min(dtMonth, qe) - qs + 1);
-            } else if (dd.type === 'join' || dd.type === 'from') {
-              months = Math.max(0, qe - Math.max(dtMonth, qs) + 1);
-            }
-          }
-          t += months * 40000;
-        });
+        // nameData 추가 인원 (Firebase에 없는 외부 인원) → 분기 전체
+        nameDataList.filter(d=>d.qi===qi).forEach(() => { t += qMonths * 40000; });
 
         if (t === 0) return null;
         return t;
