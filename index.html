@@ -5916,12 +5916,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (bonbuIsNone) return null;
       let t=0;
       // 본부장 포함
-      if (bonbuHead && bonbuHead.status!=='휴직' && bonbuHead.status!=='육아휴직' && getEmpMonthsInQuarter(bonbuHead,year,qs,qe)>0) t += 50000;
+      if (bonbuHead && getEmpMonthsInQuarter(bonbuHead,year,qs,qe)>0) t += 50000;
       // 각 하위 부서 이름행 인원 합산 (수석전문위원/베트남 제외)
       deptNames.filter(dk=>dk!==bonbu && !dk.includes('수석전문위원') && !dk.includes('베트남')).forEach(deptKey => {
         const deptEmpList = depts[deptKey] || [];
         deptEmpList.forEach(e => { 
-          if(e.status==='휴직'||e.status==='육아휴직') return;
           if(e.uid===bonbuHead?.uid) return;
           if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000;
         });
@@ -6030,10 +6029,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         const qMonths = qe - qs + 1;
         let t = 0;
-        empList.forEach(e => {
-          if(e.status==='휴직'||e.status==='육아휴직') return;
-          if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000;
-        });
+        empList.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000; });
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
         // nameData 추가 인원
@@ -6048,10 +6044,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
         const qMonths = qe - qs + 1;
         let t = 0;
-        empList.forEach(e => {
-          if(e.status==='휴직'||e.status==='육아휴직') return;
-          t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000;
-        });
+        empList.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
         // nameData 추가 인원 - dateData 있으면 월수 계산
