@@ -5980,13 +5980,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const deptIsNone = (setting.type === '' || setting.type === '없음');
       const bAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
-        const activeCount = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
+        // 이름행 인원수 기준 (본인 포함)
+        const nameRowCount = (deptHead ? 1 : 0) + qNames[qi].length;
         const extraCount = extraList.filter(e=>e.qi===qi && e.type==='buseojang').length;
-        if (activeCount === 0 && extraCount === 0) return null;
-        let t=0;
-        empList.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;});
-        t += extraCount * 50000;
-        return t;
+        const nameDataCount = nameDataList.filter(e=>e.qi===qi).length;
+        const totalCount = nameRowCount + extraCount + nameDataCount;
+        if (totalCount === 0) return null;
+        return totalCount * 50000;
       });
       const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
 
@@ -5994,13 +5994,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const tAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || !isTypeTeamjang) return null;
         if (hasSubTeams) return null;
-        const activeCount = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
+        // 이름행 인원수 기준 (본인 포함): qNames[qi] + nameDataList 추가 인원
+        const nameRowCount = qNames[qi].length;
         const extraCount = extraList.filter(e=>e.qi===qi && e.type==='teamjang').length;
-        if (activeCount === 0 && extraCount === 0) return null;
-        let t=0;
-        teamMembers.forEach(e=>{t+=getEmpMonthsInQuarter(e,year,qs,qe)*40000;});
-        t += extraCount * 40000;
-        return t;
+        const nameDataCount = nameDataList.filter(e=>e.qi===qi).length;
+        const totalCount = nameRowCount + extraCount + nameDataCount;
+        if (totalCount === 0) return null;
+        return totalCount * 40000;
       });
       const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
 
@@ -6191,17 +6191,17 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
-          ${rowByQ[0].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${getDateNote(dept,0,rowIdx,ci)}</td>`}).join('')}
-          ${rowByQ[1].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${getDateNote(dept,1,rowIdx,ci)}</td>`}).join('')}
-          ${rowByQ[2].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${getDateNote(dept,2,rowIdx,ci)}</td>`}).join('')}
-          ${rowByQ[3].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${getDateNote(dept,3,rowIdx,ci)}</td>`}).join('')}
+          ${rowByQ[0].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
+          ${rowByQ[1].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
+          ${rowByQ[2].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
+          ${rowByQ[3].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
           <td rowspan="${pairCount*2}" style="${nameNs}text-align:right;font-weight:600;vertical-align:middle">${rowIdx===0&&isTypeTeamjang?fmtMoney(tTotal):''}</td>
         </tr>
         <tr>
-          ${[0,1,2,3].map(ci=>`<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openDateCell(this)'>${getDateCell(dept,0,rowIdx,ci)}</td>`).join('')}
-          ${[0,1,2,3].map(ci=>`<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openDateCell(this)'>${getDateCell(dept,1,rowIdx,ci)}</td>`).join('')}
-          ${[0,1,2,3].map(ci=>`<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openDateCell(this)'>${getDateCell(dept,2,rowIdx,ci)}</td>`).join('')}
-          ${[0,1,2,3].map(ci=>`<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openDateCell(this)'>${getDateCell(dept,3,rowIdx,ci)}</td>`).join('')}
+          ${[0,1,2,3].map(ci=>{const dd=getDateData(dept,0,rowIdx,ci);const nm=qNames[0][rowIdx*4+ci]||(nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci)||{}).name||'';const typeMap={join:'입사',leave:'퇴사',from:'부터',to:'까지'};return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openDateCell(this)'>${dd&&dd.date?`<span style="color:#ef4444;font-size:10px">${nm?nm+' ':''}${dd.date} ${typeMap[dd.type]||dd.type}</span>`:''}</td>`}).join('')}
+          ${[0,1,2,3].map(ci=>{const dd=getDateData(dept,1,rowIdx,ci);const nm=qNames[1][rowIdx*4+ci]||(nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci)||{}).name||'';const typeMap={join:'입사',leave:'퇴사',from:'부터',to:'까지'};return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openDateCell(this)'>${dd&&dd.date?`<span style="color:#ef4444;font-size:10px">${nm?nm+' ':''}${dd.date} ${typeMap[dd.type]||dd.type}</span>`:''}</td>`}).join('')}
+          ${[0,1,2,3].map(ci=>{const dd=getDateData(dept,2,rowIdx,ci);const nm=qNames[2][rowIdx*4+ci]||(nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci)||{}).name||'';const typeMap={join:'입사',leave:'퇴사',from:'부터',to:'까지'};return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openDateCell(this)'>${dd&&dd.date?`<span style="color:#ef4444;font-size:10px">${nm?nm+' ':''}${dd.date} ${typeMap[dd.type]||dd.type}</span>`:''}</td>`}).join('')}
+          ${[0,1,2,3].map(ci=>{const dd=getDateData(dept,3,rowIdx,ci);const nm=qNames[3][rowIdx*4+ci]||(nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci)||{}).name||'';const typeMap={join:'입사',leave:'퇴사',from:'부터',to:'까지'};return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openDateCell(this)'>${dd&&dd.date?`<span style="color:#ef4444;font-size:10px">${nm?nm+' ':''}${dd.date} ${typeMap[dd.type]||dd.type}</span>`:''}</td>`}).join('')}
         </tr>`).join('')}
         <tr><td colspan="17" style="height:8px;border:none"></td></tr>
         <tr><td colspan="10" style="height:10px;border:none"></td></tr>
