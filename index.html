@@ -5850,7 +5850,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">${bonbu}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[3]===null?'-':fmtMoney(qAmts[3])}</td>
         <td style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">계</td>
-        <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:#fff" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel==="없음"||!bonbuTypeLabel?"":bonbuTypeLabel}</td>
+        <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:#fff" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel||""}</td>
       </tr>
       <tr>
         <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
@@ -5963,10 +5963,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             ${rowByQ[1].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
             ${rowByQ[2].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
             ${rowByQ[3].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
-            <td style="${nameNsT}text-align:right;font-weight:600">${ri===0?fmtMoney(tTotal):''}</td>
+            <td rowspan="2" style="${nameNsT}text-align:right;font-weight:600;vertical-align:middle">${ri===0?fmtMoney(tTotal):''}</td>
           </tr>
           <tr>
-            ${('<td style="'+nameNsT+'"></td>').repeat(16)}<td style="${nameNsT}"></td>
+            ${('<td style="'+nameNsT+'"></td>').repeat(16)}
           </tr>`).join('')}
           <tr><td colspan="17" style="height:8px;border:none"></td></tr>
           </tbody></table>`;
@@ -6144,7 +6144,7 @@ async function saveDeptFundType(dept, btn) {
   if (!isNone && document.getElementById('df-type-bonbu')?.checked) checks.push('본부장');
   if (!isNone && document.getElementById('df-type-buseojang')?.checked) checks.push('부서장');
   if (!isNone && document.getElementById('df-type-teamjang')?.checked) checks.push('팀장');
-  const typeLabel = isNone ? '없음' : checks.join('+');
+  const typeLabel = isNone ? '' : checks.join('+');
 
   if (!deptFundSettings[dept]) deptFundSettings[dept] = { buseojang:true, teamjang:true };
   deptFundSettings[dept].type = typeLabel;
@@ -7284,5 +7284,5 @@ if (!state.kpis.length) {
       </div>
     </div>
   </div>
-</body> 
+</body>
 </html>
