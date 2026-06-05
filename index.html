@@ -5971,7 +5971,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const isTypeBuseojang = (setting.type||'').includes('부서장');
       const isTypeTeamjang = (setting.type||'').includes('팀장');
       const hasSubTeams = deptHasSubTeams[dept] || false;
-      const teamMembers = empList; // 부서장 포함 전체 인원
+      const teamMembers = empList.filter(e=>e.uid !== (deptHead?.uid));
 
       // 추가 인원 (extra)
       const extraList = (deptFundSettings[dept]||{}).extra || [];
@@ -6014,7 +6014,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
         // 기본 팀원 월수 계산
         let t = 0;
+        // 이름행 팀원 (부서장 제외)
         teamMembers.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
+        // 부서장도 금액에 포함
+        if (deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) t += 40000;
         // 추가 인원(extra) - 날짜 변동 없는 경우
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += 3 * 40000; });
         // nameData 추가 인원 - dateData로 월수 계산
