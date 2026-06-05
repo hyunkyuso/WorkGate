@@ -5877,7 +5877,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (dept === bonbu) return;
       const empList = depts[dept];
       const setting = deptFundSettings[dept] || { buseojang:true, teamjang:true };
-      const deptHead = empList.find(e=>e.dept===dept&&((e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장')));
+      // 부서장: 주소속이 이 dept이거나, 겸직으로 이 dept의 부서장인 경우
+      const deptHead = empList.find(e=>
+        (e.dept===dept || (e.concurrent||[]).some(c=>c.dept===dept&&((c.title||'').includes('부서장')||(c.title||'').includes('부장')))) &&
+        ((e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장')||
+         (e.concurrent||[]).some(c=>c.dept===dept&&((c.title||'').includes('부서장')||(c.title||'').includes('부장'))))
+      );
 
       // 부서장/본부장 금액 (type에 따라)
       const deptType = setting.type || '';  // 'bonbu','buseojang','teamjang','buseojang+teamjang'
@@ -5954,13 +5959,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center">${dept}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center">${dept}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center">${dept}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center">${dept}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
             <td style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center">계</td>
             ${noteCellT}
