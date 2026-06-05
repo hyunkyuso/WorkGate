@@ -5770,10 +5770,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
   // 색상 상수
   const BORDER = '1px solid #b0bec5';
   const BORDER_STRONG = '1px solid #78909c';  // 굵기 통일
-  const BG_BONBU = '#3b82f6';    // 본부: 조금 옅은 파랑
-  const BG_BONBU_TEXT = '#ffffff'; // 본부 텍스트: 흰색
-  const BG_DEPT  = '#f8fafc';    // 부서(소속행 제외): 옅은 회색
-  const BG_DEPT_HEADER = '#86efac'; // 소속 들어간 줄: 옅은 초록(진한녹색보다 옅게)
+  const BG_BONBU = '#93c5fd';    // 본부: 더 옅은 파랑
+  const BG_BONBU_TEXT = '#1e3a5f'; // 본부 텍스트: 짙은 남색
+  const BG_DEPT  = '#e8edf2';    // 부서(소속행 제외): 옅은 회색(더 보이게)
+  const BG_DEPT_HEADER = '#bbf7d0'; // 소속 들어간 줄: 더 옅은 초록
   const BG_TEAM_AMT = '#dbeafe';  // 팀장 금액 행: 옅은 파랑
   const BG_HEAD  = '#f1f5f9';    // 헤더
   const thStyle = `border:${BORDER};padding:5px 8px;text-align:center;background:${BG_HEAD};font-size:11px;white-space:nowrap;`;
@@ -5841,15 +5841,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">${bonbu}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}</td>
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">${bonbu}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[1]===null?'-':fmtMoney(qAmts[1])}</td>
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">${bonbu}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[2]===null?'-':fmtMoney(qAmts[2])}</td>
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">${bonbu}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[3]===null?'-':fmtMoney(qAmts[3])}</td>
-        <td style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">계</td>
+        <td style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">계</td>
         <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:#fff" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel}</td>
       </tr>
       <tr>
@@ -6070,12 +6070,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<span style=\'color:#ef4444;font-size:9px\'> ('+deptHead.status+')</span>':''):''}</td>
           <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
-        <tr>
-          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[0]===null?'-':fmtMoney(tAmts[0])}</td>
-          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[1]===null?'-':fmtMoney(tAmts[1])}</td>
-          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[2]===null?'-':fmtMoney(tAmts[2])}</td>
-          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[3]===null?'-':fmtMoney(tAmts[3])}</td>
-          <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
+        <tr style="background:${BG_TEAM_AMT}">
+          <td colspan="16" style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-size:11px">
+            ${quarters.map(([qs,qe],qi)=>tAmts[qi]===null?'':('<span style="margin-right:20px">'+['01~03월','04~06월','07~09월','10~12월'][qi]+' <b>'+fmtMoney(tAmts[qi])+'</b></span>')).join('')}
+          </td>
+          <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;font-weight:600">${tTotal?fmtMoney(tTotal):'-'}</td>
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
@@ -6083,14 +6082,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ${rowByQ[1].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
           ${rowByQ[2].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
           ${rowByQ[3].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
-          <td style="${nameNs}text-align:right;font-weight:600">${rowIdx===0?fmtMoney(tTotal):''}</td>
+          <td colspan="2" style="${nameNs}text-align:right;font-weight:600">${rowIdx===0?fmtMoney(tTotal):''}</td>
         </tr>
         <tr>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
-          <td style="${nameNs}"></td>
+          <td colspan="2" style="${nameNs}"></td>
         </tr>`).join('')}
         <tr><td colspan="17" style="height:8px;border:none"></td></tr>
         <tr><td colspan="10" style="height:10px;border:none"></td></tr>
