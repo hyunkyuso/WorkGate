@@ -5831,10 +5831,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     // 분기별 금액 계산 (Q1=대기)
     const qAmts = quarters.map(([qs,qe],qi) => {
       if (qi===0) return null; // 1~3월 대기
-      let t=0; const dbList=[];
-      allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0){t+=50000;dbList.push(e.name+'('+e.dept+')');}});
-      if(bonbu==='경영관리본부') console.log(`경영관리본부 ${['1~3월','4~6월','7~9월','10~12월'][qi]}(${qi}) 인원:`, dbList);
-      return t;
+      let t=0; allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;}); return t;
     });
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
     // 겸직으로 이 본부의 본부장인 사람 (전체 직원에서 탐색)
@@ -5943,7 +5940,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const qNamesT = quarters.map((_,qi) => {
           if (qi===0) return [];
           const [qs,qe] = quarters[qi];
-          return empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).sort(sortEmp||((a,b)=>0)).map(e => e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name);
+          return empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0&&e.dept===dept).sort(sortEmp||((a,b)=>0)).map(e => e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name);
         });
         const maxET = Math.max(0, ...qNamesT.map(n=>n.length));
         const pairT = maxET <= 4 ? 1 : 2;
@@ -5970,14 +5967,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           </tr>
           ${nameRowsT.map((rowByQ,ri) => `
           <tr>
-            ${rowByQ[0].map(n=>`<td style="${nameNsT}background:${BG_TEAM_AMT};text-align:center">${n}</td>`).join('')}
-            ${rowByQ[1].map(n=>`<td style="${nameNsT}background:${BG_TEAM_AMT};text-align:center">${n}</td>`).join('')}
-            ${rowByQ[2].map(n=>`<td style="${nameNsT}background:${BG_TEAM_AMT};text-align:center">${n}</td>`).join('')}
-            ${rowByQ[3].map(n=>`<td style="${nameNsT}background:${BG_TEAM_AMT};text-align:center">${n}</td>`).join('')}
-            <td rowspan="${pairT*2}" style="${nameNsT}background:${BG_TEAM_AMT};text-align:right;font-weight:600;vertical-align:middle">${ri===0?fmtMoney(tTotal):''}</td>
+            ${rowByQ[0].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
+            ${rowByQ[1].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
+            ${rowByQ[2].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
+            ${rowByQ[3].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
+            <td rowspan="${pairT*2}" style="${nameNsT}text-align:right;font-weight:600;vertical-align:middle">${ri===0?fmtMoney(tTotal):''}</td>
           </tr>
           <tr>
-            ${('<td style="'+nameNsT+'background:'+BG_TEAM_AMT+';"></td>').repeat(16)}
+            ${('<td style="'+nameNsT+'"></td>').repeat(16)}
           </tr>`).join('')}
           <tr><td colspan="17" style="height:8px;border:none"></td></tr>
           </tbody></table>`;
