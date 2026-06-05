@@ -5827,6 +5827,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     });
     // bonbu 이름과 같은 key도 포함 (겸직 본부장이 있는 경우)
     const allEmpInBonbu = Object.values(depts).flat();
+    // 겸직 본부장 찾기 (주직책이 본부장이 아니어도 겸직 직책이 본부장인 경우)
+    const getBonbuHeadTitle = (e) => {
+      if ((e.title||'').includes('본부장')) return e.title;
+      const cc = (e.concurrent||[]).find(c=>c.dept===bonbu && (c.title||'').includes('본부장'));
+      return cc ? cc.title : '';
+    };
 
     // 분기별 금액 계산 (Q1=대기)
     const qAmts = quarters.map(([qs,qe],qi) => {
@@ -5834,7 +5840,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       let t=0; allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;}); return t;
     });
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
-    const bonbuHead = allEmpInBonbu.find(e=>(e.title||'').includes('본부장'));
+    const bonbuHead = allEmpInBonbu.find(e=>getBonbuHeadTitle(e)!=='');
     const headName = bonbuHead ? bonbuHead.name : '';
 
     // ── 본부장 테이블 ──
@@ -5964,7 +5970,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             ${rowByQ[1].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
             ${rowByQ[2].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
             ${rowByQ[3].map(n=>`<td style="${nameNsT}text-align:center">${n}</td>`).join('')}
-            <td rowspan="2" style="${nameNsT}text-align:right;font-weight:600;vertical-align:middle">${ri===0?fmtMoney(tTotal):''}</td>
+            <td rowspan="${pairT*2}" style="${nameNsT}text-align:right;font-weight:600;vertical-align:middle">${ri===0?fmtMoney(tTotal):''}</td>
           </tr>
           <tr>
             ${('<td style="'+nameNsT+'"></td>').repeat(16)}
@@ -6087,7 +6093,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ${rowByQ[1].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
           ${rowByQ[2].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
           ${rowByQ[3].map(n=>`<td style="${nameNs}text-align:center">${n}</td>`).join('')}
-          <td rowspan="2" style="${nameNs}text-align:right;font-weight:600;vertical-align:middle">${rowIdx===0?fmtMoney(tTotal):''}</td>
+          <td rowspan="${pairCount*2}" style="${nameNs}text-align:right;font-weight:600;vertical-align:middle">${rowIdx===0?fmtMoney(tTotal):''}</td>
         </tr>
         <tr>
           <td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td><td style="${nameNs}"></td>
