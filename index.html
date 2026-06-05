@@ -5825,7 +5825,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const hasChildren = departments.some(d => d.parent === deptObj.id);
       deptHasSubTeams[dept] = hasChildren;
     });
-    const allEmpInBonbu = deptNames.flatMap(d => depts[d]);
+    // bonbu 이름과 같은 key도 포함 (겸직 본부장이 있는 경우)
+    const allEmpInBonbu = Object.values(depts).flat();
 
     // 분기별 금액 계산 (Q1=대기)
     const qAmts = quarters.map(([qs,qe],qi) => {
