@@ -5877,7 +5877,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (dept === bonbu) return;
       const empList = depts[dept];
       const setting = deptFundSettings[dept] || { buseojang:true, teamjang:true };
-      const deptHead = empList.find(e=>(e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장'));
+      const deptHead = empList.find(e=>e.dept===dept&&((e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장')));
 
       // 부서장/본부장 금액 (type에 따라)
       const deptType = setting.type || '';  // 'bonbu','buseojang','teamjang','buseojang+teamjang'
@@ -5936,6 +5936,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // 팀 단위 조직 (부서장 없고 하위팀 없음) → 이름만 표시
       if (!deptHead && !hasSubTeams) {
         const nameNsT = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
+        const nameNsTAmt = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;background:${BG_TEAM_AMT};`;
         const qNamesT = quarters.map((_,qi) => {
           if (qi===0) return [];
           const [qs,qe] = quarters[qi];
@@ -5954,14 +5955,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
-            <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
+            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
+            <td style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center">계</td>
             ${noteCellT}
           </tr>
           ${nameRowsT.map((rowByQ,ri) => `
