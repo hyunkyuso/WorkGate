@@ -5983,10 +5983,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
         const qMonths = qe - qs + 1;
         let t = 0;
-        // 이름행 팀원 수 기준 (부서장 제외)
-        const nameCount = getQNames(qi).length;
-        // 부서장 1명 고정
-        const headCount = deptHead ? 1 : 0;
+        // 이름행 기준: 실제 재직 팀원 수 + 부서장
+        const nameCount = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
+        const headCount = deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0 ? 1 : 0;
         t += (nameCount + headCount) * 50000;
         // extra 추가 인원 (날짜 없음 → 분기 전체)
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
@@ -6017,8 +6016,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         let t = 0;
         const qMonths = qe - qs + 1; // 분기 월수 (3)
 
-        // 이름행 팀원 수 기준 (부서장 포함)
-        const tNameCount = getQNames(qi).length + (deptHead ? 1 : 0);
+        // 이름행 기준: 실제 재직 팀원 수 + 부서장
+        const tNameCount = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length
+                         + (deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0 ? 1 : 0);
         t += tNameCount * 40000;
 
         // extra 추가 인원 (날짜 없음 → 분기 전체)
