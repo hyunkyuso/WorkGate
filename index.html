@@ -5831,7 +5831,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     // 분기별 금액 계산 (Q1=대기)
     const qAmts = quarters.map(([qs,qe],qi) => {
       if (qi===0) return null; // 1~3월 대기
-      let t=0; allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;}); return t;
+      let t=0; const dbList=[];
+      allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0){t+=50000;dbList.push(e.name+'('+e.dept+')');}});
+      if(bonbu==='경영관리본부') console.log(`경영관리본부 ${['1~3월','4~6월','7~9월','10~12월'][qi]}(${qi}) 인원:`, dbList);
+      return t;
     });
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
     // 겸직으로 이 본부의 본부장인 사람 (전체 직원에서 탐색)
