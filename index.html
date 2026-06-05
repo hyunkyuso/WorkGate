@@ -5915,14 +5915,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const qAmts = quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
       let t=0;
-      // 각 하위 부서 이름행 인원 합산
-      deptNames.forEach(deptKey => {
-        // 팀원 이름행 인원수
-        const deptTeamMembers = (depts[deptKey]||[]).filter(e=>e.uid !== ((depts[deptKey]||[]).find(e2=>(e2.title||'').includes('부서장'))?.uid));
-        const deptDeptHead = (depts[deptKey]||[]).find(e=>(e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장'));
-        const deptNamesList = deptTeamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0);
-        const cnt = deptNamesList.length + (deptDeptHead && getEmpMonthsInQuarter(deptDeptHead,year,qs,qe)>0 ? 1 : 0);
-        t += cnt * 50000;
+      // 각 하위 부서 이름행 인원 합산 (본부명과 동일한 dept 제외)
+      deptNames.filter(dk=>dk!==bonbu).forEach(deptKey => {
+        const deptEmpList = depts[deptKey] || [];
+        deptEmpList.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000; });
         // nameData 추가 인원
         ((deptFundSettings[deptKey]||{}).nameData||[]).filter(d=>d.qi===qi).forEach(() => { t += 50000; });
       });
@@ -6029,9 +6025,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         const qMonths = qe - qs + 1;
         let t = 0;
-        // 이름행 인원수 기준 (부서장 포함)
-        const bNameCount = getQNames(qi).length + (deptHead ? 1 : 0);
-        t += bNameCount * 50000;
+        empList.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000; });
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
         // nameData 추가 인원
@@ -6046,9 +6040,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
         const qMonths = qe - qs + 1;
         let t = 0;
-        // 이름행 인원수 기준 (부서장 포함)
-        const tNameCount = getQNames(qi).length + (deptHead ? 1 : 0);
-        t += tNameCount * 40000;
+        empList.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
         // nameData 추가 인원 - dateData 있으면 월수 계산
