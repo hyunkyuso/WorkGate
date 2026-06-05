@@ -6035,16 +6035,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       const hasLeavers = leaversByQ.some(q => q.some(n=>n));
       const noteRowspan = 3 + maxChunks + (hasLeavers ? 1 : 0);
-      const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;color:#374151;font-size:11px;vertical-align:middle;background:#fff" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
+      const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;background:#fff" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
 
       const nameNs = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
       const deptHeadNote = qi => {
         if (!deptHead) return `<td colspan="2" style="${nameNs}">-</td>`;
         const [qs,qe] = quarters[qi];
         const active = qi===0 ? false : getEmpMonthsInQuarter(deptHead,year,qs,qe)>0;
-        const isLeave = deptHead.status==='휴직'||deptHead.status==='육아휴직';
-        const leaveNote = isLeave ? `<br><span style="color:#ef4444;font-size:9px">(${deptHead.status})</span>` : '';
-        return `<td colspan="2" style="${nameNs}text-align:center">${active?deptHead.name+'<span style="color:#3b82f6;font-weight:500"> (부서장)</span>'+leaveNote:''}</td>`;
+        return `<td colspan="2" style="${nameNs}text-align:center">${deptHead.name}<span style="color:#3b82f6;font-weight:500"> (부서장)</span></td>`;
       };
 
       // 설정에서 구분 타입 가져오기
@@ -6065,10 +6063,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ${noteCellHtml}
         </tr>
         <tr>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[0])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<span style=\'color:#ef4444;font-size:9px\'> ('+deptHead.status+')</span>':''):''}</td>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[1])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<span style=\'color:#ef4444;font-size:9px\'> ('+deptHead.status+')</span>':''):''}</td>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[2])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<span style=\'color:#ef4444;font-size:9px\'> ('+deptHead.status+')</span>':''):''}</td>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+((deptHead.status==='휴직'||deptHead.status==='육아휴직')?'<span style=\'color:#ef4444;font-size:9px\'> ('+deptHead.status+')</span>':''):''}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
           <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
         <tr>
@@ -6119,6 +6117,9 @@ function openDeptFundTypeModal(dept, cell) {
       <div style="font-size:14px;font-weight:700;margin-bottom:14px">구분 선택 — ${dept}</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="df-type-none" ${cur===''||cur==='없음'?'checked':''} style="accent-color:var(--ac);width:15px;height:15px"> 없음
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
           <input type="checkbox" id="df-type-bonbu" ${cur.includes('본부장')?'checked':''} style="accent-color:var(--ac);width:15px;height:15px"> 본부장
         </label>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
@@ -6138,11 +6139,12 @@ function openDeptFundTypeModal(dept, cell) {
 }
 
 async function saveDeptFundType(dept, btn) {
+  const isNone = document.getElementById('df-type-none')?.checked;
   const checks = [];
-  if (document.getElementById('df-type-bonbu')?.checked) checks.push('본부장');
-  if (document.getElementById('df-type-buseojang')?.checked) checks.push('부서장');
-  if (document.getElementById('df-type-teamjang')?.checked) checks.push('팀장');
-  const typeLabel = checks.join('+');
+  if (!isNone && document.getElementById('df-type-bonbu')?.checked) checks.push('본부장');
+  if (!isNone && document.getElementById('df-type-buseojang')?.checked) checks.push('부서장');
+  if (!isNone && document.getElementById('df-type-teamjang')?.checked) checks.push('팀장');
+  const typeLabel = isNone ? '없음' : checks.join('+');
 
   if (!deptFundSettings[dept]) deptFundSettings[dept] = { buseojang:true, teamjang:true };
   deptFundSettings[dept].type = typeLabel;
