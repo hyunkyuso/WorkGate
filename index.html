@@ -6045,9 +6045,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         });
       });
       const hasLeavers = leaversByQ.some(q => q.some(n=>n));
-      const showHeadRow = (isTypeBuseojang||isTypeBonbu) ? 1 : 0;
       const showTeamRow = isTypeTeamjang ? 1 : 0;
-      const noteRowspan = 1 + showHeadRow + showTeamRow + maxChunks + (hasLeavers ? 1 : 0);
+      const noteRowspan = 2 + showTeamRow + maxChunks + (hasLeavers ? 1 : 0);
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
 
       const nameNs = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
@@ -6075,13 +6074,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
           ${noteCellHtml}
         </tr>
-        ${(isTypeBuseojang||isTypeBonbu)?`<tr>
+        <tr>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead?deptHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
-          <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
-        </tr>`:''}
+          <td style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&bTotal?fmtMoney(bTotal):'-'}</td>
+        </tr>
         ${isTypeTeamjang?`<tr>
           <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[0]===null?'-':fmtMoney(tAmts[0])}</td>
           <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[1]===null?'-':fmtMoney(tAmts[1])}</td>
