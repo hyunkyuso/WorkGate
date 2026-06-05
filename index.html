@@ -5903,9 +5903,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     // 분기별 금액 계산 (Q1=대기)
     const bonbuSetting = deptFundSettings[bonbu] || {};
     const bonbuIsNone = bonbuSetting.type === '' || bonbuSetting.type === '없음';
+    const bonbuExtraList = (deptFundSettings[bonbu]||{}).extra || [];
     const qAmts = quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
-      let t=0; allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;}); return t;
+      let t=0;
+      allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;});
+      const extraCount = bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').length;
+      t += extraCount * 50000;
+      return t;
     });
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
     // 겸직으로 이 본부의 본부장인 사람 (전체 직원에서 탐색)
@@ -5923,13 +5928,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
         <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)'>${qAmts[0]===null?'-':fmtMoney(qAmts[0])}</td>
         <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[1]===null?'-':fmtMoney(qAmts[1])}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="1" data-type="buseojang" ondblclick='openAmtModal(this)'>${qAmts[1]===null?'-':fmtMoney(qAmts[1])}</td>
         <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[2]===null?'-':fmtMoney(qAmts[2])}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="2" data-type="buseojang" ondblclick='openAmtModal(this)'>${qAmts[2]===null?'-':fmtMoney(qAmts[2])}</td>
         <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae">${qAmts[3]===null?'-':fmtMoney(qAmts[3])}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="3" data-type="buseojang" ondblclick='openAmtModal(this)'>${qAmts[3]===null?'-':fmtMoney(qAmts[3])}</td>
         <td style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">계</td>
         <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:#fff" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel}</td>
       </tr>
