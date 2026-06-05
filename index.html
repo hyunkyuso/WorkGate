@@ -5903,6 +5903,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const bonbuSetting = deptFundSettings[bonbu] || {};
     const bonbuIsNone = bonbuSetting.type === '' || bonbuSetting.type === '없음';
     const bonbuExtraList = (deptFundSettings[bonbu]||{}).extra || [];
+    // 겸직으로 이 본부의 본부장인 사람 (전체 직원에서 탐색)
+    const bonbuHeadConc = employees.find(e=>
+      (e.concurrent||[]).some(c=>c.dept===bonbu&&(c.title||'').includes('본부장'))
+    );
+    // 주소속 본부장
+    const bonbuHeadMain = allEmpInBonbu.find(e=>(e.title||'').includes('본부장'));
+    const bonbuHead = bonbuHeadConc || bonbuHeadMain;
+    const headName = bonbuHead ? bonbuHead.name : '';
     const bonbuNameDataList = (deptFundSettings[bonbu]||{}).nameData || [];
     const qAmts = quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
