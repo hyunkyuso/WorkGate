@@ -5769,9 +5769,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
   // 색상 상수
   const BORDER = '1px solid #b0bec5';
-  const BORDER_STRONG = '2px solid #78909c';
-  const BG_BONBU = '#dce8f5';    // 본부: 옅은 파랑
-  const BG_DEPT  = '#e8f0e0';    // 부서: 옅은 초록
+  const BORDER_STRONG = '1px solid #78909c';  // 굵기 통일
+  const BG_BONBU = '#1e40af';    // 본부: 진한 파랑
+  const BG_BONBU_TEXT = '#ffffff'; // 본부 텍스트: 흰색
+  const BG_DEPT  = '#f1f5f9';    // 부서(소속행 제외): 옅은 회색
+  const BG_DEPT_HEADER = '#4ade80'; // 소속 들어간 줄: 약간 진한 녹색
+  const BG_TEAM_AMT = '#dbeafe';  // 팀장 금액 행: 옅은 파랑
   const BG_HEAD  = '#f1f5f9';    // 헤더
   const thStyle = `border:${BORDER};padding:5px 8px;text-align:center;background:${BG_HEAD};font-size:11px;white-space:nowrap;`;
   const tdStyle = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
@@ -5791,7 +5794,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     <col style="${CW}"><col style="${CW}"><col style="${CW}"><col style="${CW}">
     <col style="width:7%"><col style="width:5%">
   </colgroup>`;
-  const QBORDER = 'border-right:2px solid #90a4ae;';
+  const QBORDER = 'border-right:1px solid #78909c;';
   const headerRow = () => colgroup + `<tr>
     <th colspan="2" style="${thStyle}">소속</th><th colspan="2" style="${thStyle}${QBORDER}">01월~03월</th>
     <th colspan="2" style="${thStyle}">소속</th><th colspan="2" style="${thStyle}${QBORDER}">04월~06월</th>
@@ -5838,15 +5841,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};border-right:1px solid #90a4ae">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}</td>
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};border-right:1px solid #90a4ae">${qAmts[1]===null?'-':fmtMoney(qAmts[1])}</td>
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};border-right:1px solid #90a4ae">${qAmts[2]===null?'-':fmtMoney(qAmts[2])}</td>
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};text-align:center">${bonbu}</td>
-        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};border-right:1px solid #90a4ae">${qAmts[3]===null?'-':fmtMoney(qAmts[3])}</td>
-        <td style="${tdStyle}font-weight:700;background:${BG_BONBU};text-align:center">계</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};color:#fff;border-right:1px solid #90a4ae">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};color:#fff;border-right:1px solid #90a4ae">${qAmts[1]===null?'-':fmtMoney(qAmts[1])}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};color:#fff;border-right:1px solid #90a4ae">${qAmts[2]===null?'-':fmtMoney(qAmts[2])}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">${bonbu}</td>
+        <td style="${tdStyle}text-align:right;font-weight:600;background:${BG_BONBU};color:#fff;border-right:1px solid #90a4ae">${qAmts[3]===null?'-':fmtMoney(qAmts[3])}</td>
+        <td style="${tdStyle}font-weight:700;background:${BG_BONBU};color:#fff;text-align:center">계</td>
         <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:${BG_BONBU}" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel}</td>
       </tr>
       <tr>
@@ -5854,7 +5857,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
         <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
         <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
-        <td style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
+        <td style="${tdStyle}text-align:right;font-weight:700;background:${BG_BONBU};color:#fff">${fmtMoney(bonbuTotal)}</td>
       </tr>
       <tr><td colspan="10" style="height:8px;border:none"></td></tr>
       </tbody></table>`;
@@ -5938,19 +5941,19 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             return Array.from({length:4}, (_,i) => chunk[i]||'');
           })
         );
-        const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;background:#fafafa" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
+        const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;background:#fff" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
-          <tr style="background:${BG_DEPT}">
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
-            <td style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">계</td>
+          <tr style="background:${BG_DEPT_HEADER}">
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
+            <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
             ${noteCellT}
           </tr>
           ${nameRowsT.map((rowByQ,ri) => `
@@ -5973,17 +5976,17 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (hasSubTeams) {
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
-          <tr style="background:${BG_DEPT}">
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
-            <td style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">계</td>
-            <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;background:#fafafa" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>
+          <tr style="background:${BG_DEPT_HEADER}">
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
+            <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
+            <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;background:#fff" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>
           </tr>
           <tr>
             <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[0])>0?deptHead.name+'<br><span style=\'font-size:9px;color:#64748b\'>(부서장)</span>':''}</td>
@@ -6031,7 +6034,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       const hasLeavers = leaversByQ.some(q => q.some(n=>n));
       const noteRowspan = 3 + maxChunks + (hasLeavers ? 1 : 0);
-      const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;color:#374151;font-size:11px;vertical-align:middle;background:#fafafa" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
+      const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;color:#374151;font-size:11px;vertical-align:middle;background:#fff" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel||'<span style=\"color:#cbd5e1;font-size:10px\">더블클릭</span>'}</td>`;
 
       const nameNs = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
       const deptHeadNote = qi => {
@@ -6049,15 +6052,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         ${colgroup}
         <tbody>
         <tr style="background:${BG_DEPT}">
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
-          <td style="${tdStyle}font-weight:600;background:${BG_DEPT};text-align:center">계</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
+          <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
           ${noteCellHtml}
         </tr>
         <tr>
@@ -6068,11 +6071,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
         <tr>
-          <td colspan="4" style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[0]===null?'-':fmtMoney(tAmts[0])}</td>
-          <td colspan="4" style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[1]===null?'-':fmtMoney(tAmts[1])}</td>
-          <td colspan="4" style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[2]===null?'-':fmtMoney(tAmts[2])}</td>
-          <td colspan="4" style="${tdStyle}text-align:right;border-right:1px solid #90a4ae">${tAmts[3]===null?'-':fmtMoney(tAmts[3])}</td>
-          <td style="${tdStyle}text-align:center;font-weight:600">계</td>
+          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[0]===null?'-':fmtMoney(tAmts[0])}</td>
+          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[1]===null?'-':fmtMoney(tAmts[1])}</td>
+          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[2]===null?'-':fmtMoney(tAmts[2])}</td>
+          <td colspan="4" style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #90a4ae">${tAmts[3]===null?'-':fmtMoney(tAmts[3])}</td>
+          <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
