@@ -5711,14 +5711,15 @@ function _renderDeptFund() {
   const Q1_PENDING = true; // 1~3월 대기
   const colSpan = 10; // 소속x4 + 금액x4 + 합계 + 구분 + 비고
 
+const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계부", "글로벌사업본부", "해외사업부", "해외사업팀", "글로벌기획본부", "AI전략기획본부", "AI기획팀", "디자인팀", "AI GIS연구본부", "SW지원부", "SW지원팀", "AI GIS연구부", "연구1팀", "연구2팀", "R&D기획부", "R&D기획팀", "SW기술연구소", "응용개발연구부", "제품개발연구부", "SW영업본부", "GIS SW영업부", "GIS SW영업팀", "도시계획 SW영업부", "도시계획 SW영업팀", "GIS사업본부", "GIS사업1부", "GIS1부 사업1팀", "GIS1부 사업2팀", "GIS사업2부", "GIS2부 사업팀", "도시계획사업본부", "도시계획사업부", "도시계획사업1팀", "도시계획사업2팀"];
   const getDeptSortOrder = (name) => {
-    if (!name) return 999;
-    // 정확한 이름 매칭
-    let d = departments.find(x => x.name === name);
-    if (d) return d.sortOrder || 999;
-    // 부분 매칭 (본부명이 departments.name과 약간 다를 경우)
-    d = departments.find(x => x.name && (x.name.includes(name) || name.includes(x.name)));
-    return d ? (d.sortOrder || 999) : 999;
+    if (!name) return 9999;
+    // 정확한 매칭
+    let idx = FIXED_DEPT_ORDER.indexOf(name);
+    if (idx >= 0) return idx;
+    // 부분 매칭
+    idx = FIXED_DEPT_ORDER.findIndex(n => name.includes(n) || n.includes(name));
+    return idx >= 0 ? idx : 9999;
   };
 
   // 조직 구조: departments sortOrder 기준으로 본부 정렬
