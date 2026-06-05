@@ -5901,7 +5901,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const allEmpInBonbu = deptNames.flatMap(d => depts[d]);
 
     // 분기별 금액 계산 (Q1=대기)
+    const bonbuSetting = deptFundSettings[bonbu] || {};
+    const bonbuIsNone = bonbuSetting.type === '' || bonbuSetting.type === '없음';
     const qAmts = quarters.map(([qs,qe],qi) => {
+      if (bonbuIsNone) return null;
       let t=0; allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;}); return t;
     });
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
@@ -5915,7 +5918,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const headName = bonbuHead ? bonbuHead.name : '';
 
     // ── 본부장 테이블 ──
-    const bonbuTypeLabel = (deptFundSettings[bonbu]||{}).type || '본부장';
+    const bonbuTypeLabel = bonbuIsNone ? '' : ((deptFundSettings[bonbu]||{}).type || '본부장');
     html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
@@ -5969,8 +5972,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const extraList = (deptFundSettings[dept]||{}).extra || [];
 
       // 부서장 금액: 부서장 또는 본부장 체크 시에만
+      const deptIsNone = (setting.type === '' || setting.type === '없음');
       const bAmts = quarters.map(([qs,qe],qi) => {
-        if (!isTypeBonbu && !isTypeBuseojang) return null;
+        if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         const activeCount = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
         const extraCount = extraList.filter(e=>e.qi===qi && e.type==='buseojang').length;
         if (activeCount === 0 && extraCount === 0) return null;
@@ -5983,7 +5987,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       // 팀원 금액: 팀장 체크 시에만, 하위팀 없을 때만
       const tAmts = quarters.map(([qs,qe],qi) => {
-        if (!isTypeTeamjang) return null;
+        if (deptIsNone || !isTypeTeamjang) return null;
         if (hasSubTeams) return null;
         const activeCount = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
         const extraCount = extraList.filter(e=>e.qi===qi && e.type==='teamjang').length;
