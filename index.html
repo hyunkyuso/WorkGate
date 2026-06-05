@@ -5980,12 +5980,28 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const deptIsNone = (setting.type === '' || setting.type === '없음');
       const bAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
-        const activeCount = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
-        const extraCount = extraList.filter(e=>e.qi===qi && e.type==='buseojang').length;
-        if (activeCount === 0 && extraCount === 0) return null;
-        let t=0;
-        empList.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;});
-        t += extraCount * 50000;
+        const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
+        let t = 0;
+        empList.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000; });
+        extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 3 * 50000; });
+        const ndList = (nameDataList||[]).filter(d=>d.qi===qi);
+        ndList.forEach(nd => {
+          const dd = dateDataList.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
+          let months = 3;
+          if (dd && dd.fullDate) {
+            const dt = new Date(dd.fullDate);
+            const dtMonth = dt.getMonth();
+            if (dd.type === 'leave' || dd.type === 'to') {
+              months = Math.min(dtMonth, qe) - qs + 1;
+              months = Math.max(0, months);
+            } else if (dd.type === 'join' || dd.type === 'from') {
+              months = qe - Math.max(dtMonth, qs) + 1;
+              months = Math.max(0, months);
+            }
+          }
+          t += months * 50000;
+        });
+        if (t === 0) return null;
         return t;
       });
       const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
@@ -5994,12 +6010,33 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const tAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || !isTypeTeamjang) return null;
         if (hasSubTeams) return null;
-        const activeCount = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
-        const extraCount = extraList.filter(e=>e.qi===qi && e.type==='teamjang').length;
-        if (activeCount === 0 && extraCount === 0) return null;
-        let t=0;
-        teamMembers.forEach(e=>{t+=getEmpMonthsInQuarter(e,year,qs,qe)*40000;});
-        t += extraCount * 40000;
+        const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
+        // 기본 팀원 월수 계산
+        let t = 0;
+        teamMembers.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
+        // 추가 인원(extra) - 날짜 변동 없는 경우
+        extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += 3 * 40000; });
+        // nameData 추가 인원 - dateData로 월수 계산
+        const ndList = (nameDataList||[]).filter(d=>d.qi===qi);
+        ndList.forEach(nd => {
+          const dd = dateDataList.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
+          let months = 3; // 기본 3개월
+          if (dd && dd.fullDate) {
+            const dt = new Date(dd.fullDate);
+            const dtMonth = dt.getMonth(); // 0-based
+            if (dd.type === 'leave' || dd.type === 'to') {
+              // 퇴사/까지: qs월부터 퇴사월까지
+              months = Math.min(dtMonth, qe) - qs + 1;
+              months = Math.max(0, months);
+            } else if (dd.type === 'join' || dd.type === 'from') {
+              // 입사/부터: 입사월부터 qe월까지
+              months = qe - Math.max(dtMonth, qs) + 1;
+              months = Math.max(0, months);
+            }
+          }
+          t += months * 40000;
+        });
+        if (t === 0) return null;
         return t;
       });
       const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
@@ -6217,13 +6254,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
 function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
   const dd = getDateData(dept, qi, rowIdx, col);
-  const nm = (qNamesArr && qNamesArr[rowIdx*4+col]) || 
-             ((nameDataList||[]).find(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col)||{}).name || '';
   const typeMap = {join:'입사', leave:'퇴사', from:'부터', to:'까지'};
-  const content = dd && dd.date 
-    ? `<span style="color:#ef4444;font-size:10px">${nm?nm+' ':''}${dd.date} ${typeMap[dd.type]||dd.type}</span>` 
+  const cellContent = dd && dd.date 
+    ? `<span style="color:#ef4444;font-size:10px">${dd.date} ${typeMap[dd.type]||dd.type}</span>` 
     : '';
-  return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi}" data-rowidx="${rowIdx}" data-col="${col}" ondblclick='openDateCell(this)'>${content}</td>`;
+  return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi}" data-rowidx="${rowIdx}" data-col="${col}" ondblclick='openDateCell(this)'>${cellContent}</td>`;
 }
 
 // ── 이름셀/날짜셀 헬퍼 함수 ──
