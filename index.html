@@ -5912,12 +5912,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
 
-      // 부서장+팀장 같은 줄일 때 합산 금액
-      const mergedAmts = quarters.map(([qs,qe],qi) => {
-        const b = bAmts[qi]||0;
-        const t = tAmts[qi]||0;
-        return (b||t) ? b+t : null;
-      });
+
       const teamHead = empList.find(e=>(e.title||'')==='팀장');
 
       // 직책 정렬 순서
@@ -6070,13 +6065,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <tbody>
         <tr style="background:${BG_DEPT}">
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${(isTypeBuseojang||isTypeBonbu)&&!isTypeTeamjang?bAmts[0]===null?'-':fmtMoney(bAmts[0]):isTypeTeamjang&&!isTypeBuseojang&&!isTypeBonbu?tAmts[0]===null?'-':fmtMoney(tAmts[0]):mergedAmts[0]===null?'-':fmtMoney(mergedAmts[0]||0)}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">-</td>
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${(isTypeBuseojang||isTypeBonbu)&&!isTypeTeamjang?bAmts[1]===null?'-':fmtMoney(bAmts[1]):isTypeTeamjang&&!isTypeBuseojang&&!isTypeBonbu?tAmts[1]===null?'-':fmtMoney(tAmts[1]):mergedAmts[1]===null?'-':fmtMoney(mergedAmts[1]||0)}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">-</td>
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${(isTypeBuseojang||isTypeBonbu)&&!isTypeTeamjang?bAmts[2]===null?'-':fmtMoney(bAmts[2]):isTypeTeamjang&&!isTypeBuseojang&&!isTypeBonbu?tAmts[2]===null?'-':fmtMoney(tAmts[2]):mergedAmts[2]===null?'-':fmtMoney(mergedAmts[2]||0)}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">-</td>
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">${(isTypeBuseojang||isTypeBonbu)&&!isTypeTeamjang?bAmts[3]===null?'-':fmtMoney(bAmts[3]):isTypeTeamjang&&!isTypeBuseojang&&!isTypeBonbu?tAmts[3]===null?'-':fmtMoney(tAmts[3]):mergedAmts[3]===null?'-':fmtMoney(mergedAmts[3]||0)}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae">-</td>
           <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
           ${noteCellHtml}
         </tr>
