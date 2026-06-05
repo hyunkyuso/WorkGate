@@ -5825,14 +5825,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const hasChildren = departments.some(d => d.parent === deptObj.id);
       deptHasSubTeams[dept] = hasChildren;
     });
-    // bonbu 이름과 같은 key도 포함 (겸직 본부장이 있는 경우)
-    const allEmpInBonbu = Object.values(depts).flat();
-    // 겸직 본부장 찾기 (주직책이 본부장이 아니어도 겸직 직책이 본부장인 경우)
-    const getBonbuHeadTitle = (e) => {
-      if ((e.title||'').includes('본부장')) return e.title;
-      const cc = (e.concurrent||[]).find(c=>c.dept===bonbu && (c.title||'').includes('본부장'));
-      return cc ? cc.title : '';
-    };
+    // 해당 본부 직원 (주소속)
+    const allEmpInBonbu = deptNames.flatMap(d => depts[d]);
 
     // 분기별 금액 계산 (Q1=대기)
     const qAmts = quarters.map(([qs,qe],qi) => {
@@ -5840,7 +5834,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       let t=0; allEmpInBonbu.forEach(e=>{if(getEmpMonthsInQuarter(e,year,qs,qe)>0)t+=50000;}); return t;
     });
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
-    const bonbuHead = allEmpInBonbu.find(e=>getBonbuHeadTitle(e)!=='');
+    // 겸직으로 이 본부의 본부장인 사람 (전체 직원에서 탐색)
+    const bonbuHeadConc = employees.find(e=>
+      (e.concurrent||[]).some(c=>c.dept===bonbu&&(c.title||'').includes('본부장'))
+    );
+    // 주소속 본부장
+    const bonbuHeadMain = allEmpInBonbu.find(e=>(e.title||'').includes('본부장'));
+    const bonbuHead = bonbuHeadConc || bonbuHeadMain;
     const headName = bonbuHead ? bonbuHead.name : '';
 
     // ── 본부장 테이블 ──
