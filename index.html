@@ -5922,7 +5922,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const deptEmpList = depts[deptKey] || [];
         deptEmpList.forEach(e => { 
           if(e.uid===bonbuHead?.uid) return;
-          if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000;
+          if(getEmpMonthsInQuarter(e,year,qs,qe)>0) { t += 50000; if(bonbu==='경영관리본부') console.log('경영관리 Q'+qi+' ['+deptKey+']', e.name, getEmpMonthsInQuarter(e,year,qs,qe)+'개월'); }
         });
         ((deptFundSettings[deptKey]||{}).nameData||[]).filter(d=>d.qi===qi&&!d.acting).forEach(() => { t += 50000; });
       });
