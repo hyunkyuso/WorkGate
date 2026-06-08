@@ -6023,17 +6023,23 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           .filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0)
           .sort(sortEmp)
           .map(e => e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name);
-        // 대행자: 해당 col 위치의 이름을 대행자 표시로 교체 후 맨 앞 정렬
+        // 대행자: acting 항목에 표시 추가 후 맨 앞 정렬 (origCol 정보 포함)
         const actingItems = nameDataList.filter(d=>d.qi===qi&&d.acting);
         if (actingItems.length > 0) {
-          // acting 있는 항목의 이름들을 앞으로, 나머지는 뒤로
           const actingNames = new Set(actingItems.map(d=>d.name));
-          const actingDisplays = actingItems.map(d=>d.name+'<span style="color:#3b82f6;font-size:10px"> ('+d.acting+')</span>');
-          // 기존 names에서 acting 해당자 제거 (Firebase 직원 중 대행자)
-          const filtered = names.filter(n=>{ const base=n.replace(/<[^>]*>/g,'').trim(); return !actingNames.has(base); });
-          return [...actingDisplays, ...filtered];
+          // names를 {display, origCol} 객체로 변환
+          const nameObjs = names.map((n,i) => {
+            const base = n.replace(/<[^>]*>/g,'').trim();
+            const act = actingItems.find(d=>d.name===base);
+            const display = act ? n+'<span style="color:#3b82f6;font-size:10px"> ('+act.acting+')</span>' : n;
+            return { display, origCol: i, isActing: !!act };
+          });
+          // acting 항목 앞으로 정렬
+          nameObjs.sort((a,b) => (b.isActing?1:0) - (a.isActing?1:0));
+          // origCol 정보를 name에 인코딩 (data-origcol attribute로)
+          return nameObjs.map(o => ({display: o.display, origCol: o.origCol}));
         }
-        return names;
+        return names.map((n,i) => ({display: n, origCol: i}));
       }
       // 금액 계산용: 전체 분기 통합 이름행 인원 (가장 많은 분기 기준)
       const baseMembers = teamMembers.filter(e=>quarters.some(([qs,qe])=>getEmpMonthsInQuarter(e,year,qs,qe)>0));
@@ -6245,10 +6251,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
-          ${rowByQ[0].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
-          ${rowByQ[1].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
-          ${rowByQ[2].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
-          ${rowByQ[3].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
+          ${rowByQ[0].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN0=typeof nm==='object'?nm.display:nm; const colN0=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${colN0}" ondblclick='openNameCell(this)'>${dispN0}</td>`}).join('')}
+          ${rowByQ[1].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN1=typeof nm==='object'?nm.display:nm; const colN1=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${colN1}" ondblclick='openNameCell(this)'>${dispN1}</td>`}).join('')}
+          ${rowByQ[2].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN2=typeof nm==='object'?nm.display:nm; const colN2=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${colN2}" ondblclick='openNameCell(this)'>${dispN2}</td>`}).join('')}
+          ${rowByQ[3].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN3=typeof nm==='object'?nm.display:nm; const colN3=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${colN3}" ondblclick='openNameCell(this)'>${dispN3}</td>`}).join('')}
           <td rowspan="${pairCount*2}" style="${nameNs}text-align:right;font-weight:600;vertical-align:middle">${rowIdx===0&&isTypeTeamjang?fmtMoney(tTotal):''}</td>
         </tr>
         <tr>
@@ -6315,10 +6321,12 @@ function openNameCell(cell) {
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   const actingRoles = ['팀장대행','부서장대행','본부장대행'];
   const curActing = cur ? (cur.acting||'') : '';
+  // 셀의 텍스트에서 괄호 내용 제거하여 이름만 추출
+  const cellBaseName = cell.textContent.replace(/\s*\([^)]*\)\s*/g,'').trim();
   modal.innerHTML = `
     <div style="background:#fff;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
       <div style="font-size:14px;font-weight:700;margin-bottom:14px">이름 수정</div>
-      <input id="nc-name" value="${cur?cur.name:cell.textContent.replace(/\(.*\)/,'').trim()}" placeholder="이름 입력" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
+      <input id="nc-name" value="${cur?cur.name:cellBaseName}" placeholder="이름 입력" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
       <div style="font-size:12px;color:#64748b;margin-bottom:6px">직책 (대행)</div>
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
         ${actingRoles.map(r=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${curActing===r?'background:#dbeafe;border-color:#3b82f6':''}">
@@ -6348,7 +6356,7 @@ function saveNameCell(dept, qi, rowIdx, col) {
   if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
   if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
   const idx = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
-  if (name) {
+  if (name || acting) {
     if (idx >= 0) deptFundSettings[dept].nameData[idx] = {qi,rowIdx,col,name,memo,acting};
     else deptFundSettings[dept].nameData.push({qi,rowIdx,col,name,memo,acting});
   } else if (idx >= 0) {
