@@ -5660,10 +5660,10 @@ function getEmpMonthsInQuarter(emp, year, qStart, qEnd) {
 
     // 휴직/육아휴직 체크: 휴직 다음달부터 제외, 복귀 다음달부터 반영
     if (leaveStart && (emp.status === '휴직' || emp.status === '육아휴직')) {
-      if(emp.name==='조억래') console.log('조억래 month='+m+' leaveStart='+leaveStart+' leaveEnd='+leaveEnd);
       const leaveNextMonth = new Date(leaveStart.getFullYear(), leaveStart.getMonth() + 1, 1);
       // 복귀 다음달부터 반영 (복귀월 제외)
       const returnNextMonth = leaveEnd ? new Date(leaveEnd.getFullYear(), leaveEnd.getMonth() + 1, 1) : null;
+      if(emp.name==='조억래') console.log('조억래 m='+m+' year='+year+' monthStart='+monthStart+' returnNextMonth='+returnNextMonth+' included='+(!(monthStart >= leaveNextMonth && (!returnNextMonth || monthStart < returnNextMonth))));
       if (monthStart >= leaveNextMonth) {
         if (!returnNextMonth || monthStart < returnNextMonth) continue;
       }
