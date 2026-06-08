@@ -5971,10 +5971,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:#fff" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel}</td>
       </tr>
       <tr>
-        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${bonbu}","bonbuHead")' style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative">${headName}<span class="name-ins-btn" onclick="event.stopPropagation();openHeadNameModal('${bonbu}','bonbuHead')" style="position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none">수정</span></td>
-        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${bonbu}","bonbuHead")' style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative">${headName}<span class="name-ins-btn" onclick="event.stopPropagation();openHeadNameModal('${bonbu}','bonbuHead')" style="position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none">수정</span></td>
-        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${bonbu}","bonbuHead")' style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative">${headName}<span class="name-ins-btn" onclick="event.stopPropagation();openHeadNameModal('${bonbu}','bonbuHead')" style="position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none">수정</span></td>
-        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${bonbu}","bonbuHead")' style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative">${headName}<span class="name-ins-btn" onclick="event.stopPropagation();openHeadNameModal('${bonbu}','bonbuHead')" style="position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none">수정</span></td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${bonbu}","bonbuHead")'>${headName}<span class="name-ins-btn" onclick="event.stopPropagation();openHeadNameModal('${bonbu}','bonbuHead')" style="position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none">수정</span></td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${bonbu}","bonbuHead")'>${headName}<span class="name-ins-btn" onclick="event.stopPropagation();openHeadNameModal('${bonbu}','bonbuHead')" style="position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none">수정</span></td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${bonbu}","bonbuHead")'>${headName}<span class="name-ins-btn" onclick="event.stopPropagation();openHeadNameModal('${bonbu}','bonbuHead')" style="position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none">수정</span></td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${bonbu}","bonbuHead")'>${headName}<span class="name-ins-btn" onclick="event.stopPropagation();openHeadNameModal('${bonbu}','bonbuHead')" style="position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none">수정</span></td>
         <td style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
       </tr>
       <tr><td colspan="10" style="height:8px;border:none"></td></tr>
@@ -6038,27 +6038,27 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // 각 분기별 이름 배열 - 4명씩 청크로 나누어 여러 행 생성
       function getQNames(qi) {
         const [qs,qe] = quarters[qi];
-        const names = teamMembers
-          .filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0)
-          .sort(sortEmp)
-          .map(e => e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name);
-        // 대행자: acting 항목에 표시 추가 후 맨 앞 정렬 (origCol 정보 포함)
-        const actingItems = nameDataList.filter(d=>d.qi===qi&&d.acting);
-        if (actingItems.length > 0) {
-          const actingNames = new Set(actingItems.map(d=>d.name));
-          // names를 {display, origCol} 객체로 변환
-          const nameObjs = names.map((n,i) => {
-            const base = n.replace(/<[^>]*>/g,'').trim();
-            const act = actingItems.find(d=>d.name===base);
-            const display = act ? n+'<span style="color:#3b82f6;font-size:10px"> ('+act.acting+')</span>' : n;
-            return { display, origCol: i, isActing: !!act };
-          });
-          // acting 항목 앞으로 정렬
-          nameObjs.sort((a,b) => (b.isActing?1:0) - (a.isActing?1:0));
-          // origCol 정보를 name에 인코딩 (data-origcol attribute로)
-          return nameObjs.map(o => ({display: o.display, origCol: o.origCol}));
-        }
-        return names.map((n,i) => ({display: n, origCol: i}));
+        const empNames = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).sort(sortEmp);
+        // Firebase 직원 → {display, origCol, isEmp:true}
+        let nameObjs = empNames.map((e,i) => ({
+          display: e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name,
+          origCol: i, isEmp: true, name: e.name
+        }));
+        // 대행자(acting) 처리
+        const actingItems = nameDataList.filter(d=>d.qi===qi&&d.acting&&d.rowIdx>=0);
+        actingItems.forEach(act => {
+          const obj = nameObjs.find(o=>o.name===act.name);
+          if (obj) { obj.display += '<span style="color:#3b82f6;font-size:10px"> ('+act.acting+')</span>'; obj.isActing=true; }
+          else nameObjs.push({display:act.name+'<span style="color:#3b82f6;font-size:10px"> ('+act.acting+')</span>', origCol:nameObjs.length, isEmp:false, name:act.name, isActing:true});
+        });
+        // acting 항목 앞으로 정렬
+        nameObjs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
+        // nameData 추가 인원(acting 없고 Firebase 직원 아닌 것) → 뒤에 추가
+        const empNameSet = new Set(empNames.map(e=>e.name));
+        nameDataList.filter(d=>d.qi===qi&&!d.acting&&d.rowIdx>=0&&!empNameSet.has(d.name)).forEach((nd,i) => {
+          nameObjs.push({display:nd.name, origCol:nameObjs.length, isEmp:false, name:nd.name, ndRef:nd});
+        });
+        return nameObjs;
       }
       // 금액 계산용: 전체 분기 통합 이름행 인원 (가장 많은 분기 기준)
       const baseMembers = teamMembers.filter(e=>quarters.some(([qs,qe])=>getEmpMonthsInQuarter(e,year,qs,qe)>0));
@@ -6290,10 +6290,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
-          ${rowByQ[0].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci);const baseN=typeof n==='object'?n.display:n; const ndName=nd&&!nd.acting?nd.name:null; const dispN0=ndName||baseN; const actTag=nd&&nd.acting?'<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>':''; const colN0=typeof n==='object'?n.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${colN0}" ondblclick='openNameCell(this)'>${dispN0}${actTag}<span class="name-ins-btn" onclick="event.stopPropagation();openInsertNameModal('${dept}',0,${rowIdx},${colN0})" style="position:absolute;right:1px;top:1px;width:13px;height:13px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;line-height:13px;text-align:center;cursor:pointer;display:none">+</span></td>`}).join('')}
-          ${rowByQ[1].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci);const baseN=typeof n==='object'?n.display:n; const ndName=nd&&!nd.acting?nd.name:null; const dispN1=ndName||baseN; const actTag=nd&&nd.acting?'<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>':''; const colN1=typeof n==='object'?n.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${colN1}" ondblclick='openNameCell(this)'>${dispN1}${actTag}<span class="name-ins-btn" onclick="event.stopPropagation();openInsertNameModal('${dept}',1,${rowIdx},${colN1})" style="position:absolute;right:1px;top:1px;width:13px;height:13px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;line-height:13px;text-align:center;cursor:pointer;display:none">+</span></td>`}).join('')}
-          ${rowByQ[2].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci);const baseN=typeof n==='object'?n.display:n; const ndName=nd&&!nd.acting?nd.name:null; const dispN2=ndName||baseN; const actTag=nd&&nd.acting?'<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>':''; const colN2=typeof n==='object'?n.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${colN2}" ondblclick='openNameCell(this)'>${dispN2}${actTag}<span class="name-ins-btn" onclick="event.stopPropagation();openInsertNameModal('${dept}',2,${rowIdx},${colN2})" style="position:absolute;right:1px;top:1px;width:13px;height:13px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;line-height:13px;text-align:center;cursor:pointer;display:none">+</span></td>`}).join('')}
-          ${rowByQ[3].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci);const baseN=typeof n==='object'?n.display:n; const ndName=nd&&!nd.acting?nd.name:null; const dispN3=ndName||baseN; const actTag=nd&&nd.acting?'<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>':''; const colN3=typeof n==='object'?n.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${colN3}" ondblclick='openNameCell(this)'>${dispN3}${actTag}<span class="name-ins-btn" onclick="event.stopPropagation();openInsertNameModal('${dept}',3,${rowIdx},${colN3})" style="position:absolute;right:1px;top:1px;width:13px;height:13px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;line-height:13px;text-align:center;cursor:pointer;display:none">+</span></td>`}).join('')}
+          ${rowByQ[0].map((n,ci)=>{const obj0=typeof n==='object'?n:{display:n,origCol:ci}; return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${obj0.origCol}" ondblclick='openNameCell(this)'>${obj0.display}<span class="name-ins-btn" onclick="event.stopPropagation();openInsertNameModal('${dept}',0,${rowIdx})" style="position:absolute;right:1px;top:1px;width:13px;height:13px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;line-height:13px;text-align:center;cursor:pointer;display:none">+</span></td>`}).join('')}
+          ${rowByQ[1].map((n,ci)=>{const obj1=typeof n==='object'?n:{display:n,origCol:ci}; return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${obj1.origCol}" ondblclick='openNameCell(this)'>${obj1.display}<span class="name-ins-btn" onclick="event.stopPropagation();openInsertNameModal('${dept}',1,${rowIdx})" style="position:absolute;right:1px;top:1px;width:13px;height:13px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;line-height:13px;text-align:center;cursor:pointer;display:none">+</span></td>`}).join('')}
+          ${rowByQ[2].map((n,ci)=>{const obj2=typeof n==='object'?n:{display:n,origCol:ci}; return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${obj2.origCol}" ondblclick='openNameCell(this)'>${obj2.display}<span class="name-ins-btn" onclick="event.stopPropagation();openInsertNameModal('${dept}',2,${rowIdx})" style="position:absolute;right:1px;top:1px;width:13px;height:13px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;line-height:13px;text-align:center;cursor:pointer;display:none">+</span></td>`}).join('')}
+          ${rowByQ[3].map((n,ci)=>{const obj3=typeof n==='object'?n:{display:n,origCol:ci}; return `<td style="${nameNs}text-align:center;cursor:pointer;position:relative" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${obj3.origCol}" ondblclick='openNameCell(this)'>${obj3.display}<span class="name-ins-btn" onclick="event.stopPropagation();openInsertNameModal('${dept}',3,${rowIdx})" style="position:absolute;right:1px;top:1px;width:13px;height:13px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;line-height:13px;text-align:center;cursor:pointer;display:none">+</span></td>`}).join('')}
           <td rowspan="${pairCount*2}" style="${nameNs}text-align:right;font-weight:600;vertical-align:middle">${rowIdx===0&&isTypeTeamjang?fmtMoney(tTotal):''}</td>
         </tr>
         <tr>
@@ -6478,11 +6478,8 @@ function deleteDateCell(dept, qi, rowIdx, col) {
 
 
 // ── 이름 삽입 모달 (기존 이름 옆칸으로 밀기) ──
-function openInsertNameModal(dept, qi, rowIdx, col) {
-  // col: Firebase 직원 배열상 인덱스 (origCol)
-  // nameData 추가 시: 기존 nameData에서 같은 qi/rowIdx이고 col>=현재인 항목 밀기
-  // Firebase 직원은 getQNames가 담당 → nameData는 Firebase 없는 빈칸 채우기
-  // 삽입 = 새 nameData 항목을 col 위치에 추가 (같은 위치 이후 밀기)
+function openInsertNameModal(dept, qi, rowIdx) {
+  // getQNames에 포함되어 렌더링됨 - nameData에 추가하면 자동 표시
   const modal = document.createElement('div');
   modal.id = 'insert-name-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
@@ -6511,10 +6508,9 @@ function openInsertNameModal(dept, qi, rowIdx, col) {
     if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
     if (!deptFundSettings[dept].dateData) deptFundSettings[dept].dateData = [];
-    // 새 col: 같은 qi/rowIdx의 nameData 중 최대 col+1 (Firebase 직원 뒤에 추가)
-    const existingCols = deptFundSettings[dept].nameData
-      .filter(d=>d.qi===qi&&d.rowIdx===rowIdx).map(d=>d.col);
-    const newCol = existingCols.length > 0 ? Math.max(...existingCols)+1 : col;
+    // nameData에 추가 → getQNames에서 자동으로 이름행에 표시
+    const existingNd = deptFundSettings[dept].nameData.filter(d=>d.qi===qi&&d.rowIdx===rowIdx&&!d.acting);
+    const newCol = existingNd.length;
     deptFundSettings[dept].nameData.push({qi, rowIdx, col:newCol, name, memo, acting});
     saveDeptFundSettings();
     modal.remove();
