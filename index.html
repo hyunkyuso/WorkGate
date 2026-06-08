@@ -6019,7 +6019,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // 각 분기별 이름 배열 - 4명씩 청크로 나누어 여러 행 생성
       function getQNames(qi) {
         const [qs,qe] = quarters[qi];
-        return teamMembers
+        const names = teamMembers
           .filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0)
           .sort(sortEmp)
           .map(e => e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name);
@@ -6030,6 +6030,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const filtered = names.filter(n=>{ const base=n.replace(/<[^>]*>/g,'').trim(); return !actingItems.some(d=>d.name===base); });
           return [...actingDisplays, ...filtered];
         }
+        return names;
       }
       // 금액 계산용: 전체 분기 통합 이름행 인원 (가장 많은 분기 기준)
       const baseMembers = teamMembers.filter(e=>quarters.some(([qs,qe])=>getEmpMonthsInQuarter(e,year,qs,qe)>0));
