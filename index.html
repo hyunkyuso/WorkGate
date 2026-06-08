@@ -222,6 +222,9 @@ select.form-input{cursor:pointer}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* 이름셀 호버 시 + 버튼 표시 */
+td:hover .name-add-btn { display: block !important; }
 </style>
 </head>
 <body>
@@ -5968,10 +5971,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:#fff" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel}</td>
       </tr>
       <tr>
-        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
-        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
-        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
-        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae">${headName}</td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openDeptHeadModal("${bonbu}","bonbuHead")'>${headName}</td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openDeptHeadModal("${bonbu}","bonbuHead")'>${headName}</td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openDeptHeadModal("${bonbu}","bonbuHead")'>${headName}</td>
+        <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openDeptHeadModal("${bonbu}","bonbuHead")'>${headName}</td>
         <td style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
       </tr>
       <tr><td colspan="10" style="height:8px;border:none"></td></tr>
@@ -6183,13 +6186,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}")'>${dept}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae;position:relative" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[0]!==null?fmtMoney(bAmts[0]):'-'}${((extraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}")'>${dept}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae;position:relative" data-dept="${dept}" data-qi="1" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==1&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[1]!==null?fmtMoney(bAmts[1]):'-'}${((extraList||[]).some(e=>e.qi==1&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}")'>${dept}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae;position:relative" data-dept="${dept}" data-qi="2" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[2]!==null?fmtMoney(bAmts[2]):'-'}${((extraList||[]).some(e=>e.qi==2&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}")'>${dept}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae;position:relative" data-dept="${dept}" data-qi="3" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==3&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[3]!==null?fmtMoney(bAmts[3]):'-'}${((extraList||[]).some(e=>e.qi==3&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
             <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
             <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel}</td>
@@ -6247,7 +6250,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (!deptHead) return `<td colspan="2" style="${nameNs}">-</td>`;
         const [qs,qe] = quarters[qi];
         const active = qi===0 ? false : getEmpMonthsInQuarter(deptHead,year,qs,qe)>0;
-        return `<td colspan="2" style="${nameNs}text-align:center">${deptHead.name}<span style="color:#3b82f6;font-weight:500"> (부서장)</span></td>`;
+        return `<td colspan="2" style="${nameNs}text-align:center;cursor:pointer" ondblclick='openDeptHeadModal("${dept}","deptHead")'>${deptHead.name}<span style="color:#3b82f6;font-weight:500"> (부서장)</span></td>`;
       };
 
       // 설정에서 구분 타입 가져오기
@@ -6256,13 +6259,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         ${colgroup}
         <tbody>
         <tr style="background:${BG_DEPT}">
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}")'>${dept}</td>
           <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae;position:relative" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[0]!==null?fmtMoney(bAmts[0]):'-'}${((extraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}")'>${dept}</td>
           <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae;position:relative" data-dept="${dept}" data-qi="1" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==1&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[1]!==null?fmtMoney(bAmts[1]):'-'}${((extraList||[]).some(e=>e.qi==1&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}")'>${dept}</td>
           <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae;position:relative" data-dept="${dept}" data-qi="2" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[2]!==null?fmtMoney(bAmts[2]):'-'}${((extraList||[]).some(e=>e.qi==2&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">${dept}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}")'>${dept}</td>
           <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae;position:relative" data-dept="${dept}" data-qi="3" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==3&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[3]!==null?fmtMoney(bAmts[3]):'-'}${((extraList||[]).some(e=>e.qi==3&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
           <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
           ${noteCellHtml}
@@ -6287,10 +6290,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
-          ${rowByQ[0].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN0=typeof nm==='object'?nm.display:nm; const colN0=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${colN0}" ondblclick='openNameCell(this)'>${dispN0}</td>`}).join('')}
-          ${rowByQ[1].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN1=typeof nm==='object'?nm.display:nm; const colN1=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${colN1}" ondblclick='openNameCell(this)'>${dispN1}</td>`}).join('')}
-          ${rowByQ[2].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN2=typeof nm==='object'?nm.display:nm; const colN2=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${colN2}" ondblclick='openNameCell(this)'>${dispN2}</td>`}).join('')}
-          ${rowByQ[3].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN3=typeof nm==='object'?nm.display:nm; const colN3=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${colN3}" ondblclick='openNameCell(this)'>${dispN3}</td>`}).join('')}
+          ${rowByQ[0].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN0=typeof nm==='object'?nm.display:nm; const colN0=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${colN0}" ondblclick='openNameCell(this)' style="${nameNs}text-align:center;cursor:pointer;position:relative">${dispN0}${dispN0?'<span onclick="event.stopPropagation();insertNameCell(this)" style="position:absolute;right:1px;top:1px;width:14px;height:14px;background:#3b82f6;color:#fff;border-radius:3px;font-size:11px;line-height:14px;cursor:pointer;display:none" class="name-add-btn">+</span>':''}</td>`}).join('')}
+          ${rowByQ[1].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN1=typeof nm==='object'?nm.display:nm; const colN1=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${colN1}" ondblclick='openNameCell(this)' style="${nameNs}text-align:center;cursor:pointer;position:relative">${dispN1}${dispN1?'<span onclick="event.stopPropagation();insertNameCell(this)" style="position:absolute;right:1px;top:1px;width:14px;height:14px;background:#3b82f6;color:#fff;border-radius:3px;font-size:11px;line-height:14px;cursor:pointer;display:none" class="name-add-btn">+</span>':''}</td>`}).join('')}
+          ${rowByQ[2].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN2=typeof nm==='object'?nm.display:nm; const colN2=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${colN2}" ondblclick='openNameCell(this)' style="${nameNs}text-align:center;cursor:pointer;position:relative">${dispN2}${dispN2?'<span onclick="event.stopPropagation();insertNameCell(this)" style="position:absolute;right:1px;top:1px;width:14px;height:14px;background:#3b82f6;color:#fff;border-radius:3px;font-size:11px;line-height:14px;cursor:pointer;display:none" class="name-add-btn">+</span>':''}</td>`}).join('')}
+          ${rowByQ[3].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const dispN3=typeof nm==='object'?nm.display:nm; const colN3=typeof nm==='object'?nm.origCol:ci; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${colN3}" ondblclick='openNameCell(this)' style="${nameNs}text-align:center;cursor:pointer;position:relative">${dispN3}${dispN3?'<span onclick="event.stopPropagation();insertNameCell(this)" style="position:absolute;right:1px;top:1px;width:14px;height:14px;background:#3b82f6;color:#fff;border-radius:3px;font-size:11px;line-height:14px;cursor:pointer;display:none" class="name-add-btn">+</span>':''}</td>`}).join('')}
           <td rowspan="${pairCount*2}" style="${nameNs}text-align:right;font-weight:600;vertical-align:middle">${rowIdx===0&&isTypeTeamjang?fmtMoney(tTotal):''}</td>
         </tr>
         <tr>
@@ -6471,6 +6474,114 @@ function deleteDateCell(dept, qi, rowIdx, col) {
   saveDeptFundSettings();
   document.getElementById('date-cell-modal').remove();
   _renderDeptFund();
+}
+
+
+// ── 이름칸 삽입 (옆칸으로 밀기) ──
+function insertNameCell(btn) {
+  const td = btn.parentElement;
+  const dept = td.getAttribute('data-dept');
+  const qi = parseInt(td.getAttribute('data-qi'));
+  const rowIdx = parseInt(td.getAttribute('data-rowidx'));
+  const col = parseInt(td.getAttribute('data-col'));
+
+  // 새 이름 입력 모달
+  const modal = document.createElement('div');
+  modal.id = 'insert-name-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:20px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">이름 삽입 (이 칸 앞에)</div>
+      <input id="in-name" placeholder="이름 입력" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
+      <input id="in-memo" placeholder="메모 (선택)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:14px;outline:none">
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('insert-name-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+        <button id="in-submit" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">삽입</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  document.getElementById('in-name').focus();
+  // data attribute로 저장
+  modal.querySelector('#in-submit').onclick = () => doInsertName(dept, qi, rowIdx, col);
+}
+
+function doInsertName(dept, qi, rowIdx, col) {
+  const name = document.getElementById('in-name').value.trim();
+  const memo = document.getElementById('in-memo').value.trim();
+  if (!name) { alert('이름을 입력하세요'); return; }
+  if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+  if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
+  // 같은 qi, rowIdx에서 col >= 삽입위치인 항목들 col+1로 밀기
+  deptFundSettings[dept].nameData.forEach(d => {
+    if (d.qi===qi && d.rowIdx===rowIdx && d.col>=col) d.col++;
+  });
+  // dateData도 밀기
+  if (!deptFundSettings[dept].dateData) deptFundSettings[dept].dateData = [];
+  deptFundSettings[dept].dateData.forEach(d => {
+    if (d.qi===qi && d.rowIdx===rowIdx && d.col>=col) d.col++;
+  });
+  deptFundSettings[dept].nameData.push({qi, rowIdx, col, name, memo, acting:''});
+  saveDeptFundSettings();
+  document.getElementById('insert-name-modal').remove();
+  _renderDeptFund();
+}
+
+
+// ── 부서장/본부장 이름 수정 모달 ──
+function openDeptHeadModal(dept, type) {
+  const cur = (deptFundSettings[dept]||{}).headOverride || {};
+  const modal = document.createElement('div');
+  modal.id = 'depthead-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:20px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">직책자 메모</div>
+      <input id="hd-memo" value="${cur.memo||''}" placeholder="메모 (선택)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:14px;outline:none">
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('depthead-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+        <button id="hd-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#hd-save').onclick = () => {
+    const memo = document.getElementById('hd-memo').value.trim();
+    if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+    deptFundSettings[dept].headOverride = {memo};
+    saveDeptFundSettings();
+    modal.remove();
+    _renderDeptFund();
+  };
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+}
+
+// ── 조직명 수정 모달 ──
+function openDeptNameModal(dept) {
+  const cur = (deptFundSettings[dept]||{}).deptMemo || '';
+  const modal = document.createElement('div');
+  modal.id = 'deptname-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:20px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">조직명 메모</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:12px">${dept}</div>
+      <input id="dn-memo" value="${cur}" placeholder="메모 (조직명 옆에 표시)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:14px;outline:none">
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('deptname-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+        <button id="dn-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#dn-save').onclick = () => {
+    const memo = document.getElementById('dn-memo').value.trim();
+    if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+    deptFundSettings[dept].deptMemo = memo;
+    saveDeptFundSettings();
+    modal.remove();
+    _renderDeptFund();
+  };
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  document.getElementById('dn-memo').focus();
 }
 
 function openDeptFundTypeModal(dept, cell) {
