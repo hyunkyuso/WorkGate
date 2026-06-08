@@ -6023,11 +6023,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           .filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0)
           .sort(sortEmp)
           .map(e => e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name);
-        // 대행자 맨 앞으로 정렬
+        // 대행자: 해당 col 위치의 이름을 대행자 표시로 교체 후 맨 앞 정렬
         const actingItems = nameDataList.filter(d=>d.qi===qi&&d.acting);
         if (actingItems.length > 0) {
+          // acting 있는 항목의 이름들을 앞으로, 나머지는 뒤로
+          const actingNames = new Set(actingItems.map(d=>d.name));
           const actingDisplays = actingItems.map(d=>d.name+'<span style="color:#3b82f6;font-size:10px"> ('+d.acting+')</span>');
-          const filtered = names.filter(n=>{ const base=n.replace(/<[^>]*>/g,'').trim(); return !actingItems.some(d=>d.name===base); });
+          // 기존 names에서 acting 해당자 제거 (Firebase 직원 중 대행자)
+          const filtered = names.filter(n=>{ const base=n.replace(/<[^>]*>/g,'').trim(); return !actingNames.has(base); });
           return [...actingDisplays, ...filtered];
         }
         return names;
@@ -6242,10 +6245,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
-          ${rowByQ[0].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const nd0=nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci);const actDisp0=nd0&&nd0.acting?`<span style="color:#3b82f6;font-size:10px"> (${nd0.acting})</span>`:'';return `<td style="${nameNs}text-align:center;cursor:pointer${nd0&&nd0.acting?';font-weight:600':''}" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${actDisp0}</td>`}).join('')}
-          ${rowByQ[1].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const nd1=nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci);const actDisp1=nd1&&nd1.acting?`<span style="color:#3b82f6;font-size:10px"> (${nd1.acting})</span>`:'';return `<td style="${nameNs}text-align:center;cursor:pointer${nd1&&nd1.acting?';font-weight:600':''}" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${actDisp1}</td>`}).join('')}
-          ${rowByQ[2].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const nd2=nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci);const actDisp2=nd2&&nd2.acting?`<span style="color:#3b82f6;font-size:10px"> (${nd2.acting})</span>`:'';return `<td style="${nameNs}text-align:center;cursor:pointer${nd2&&nd2.acting?';font-weight:600':''}" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${actDisp2}</td>`}).join('')}
-          ${rowByQ[3].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');const nd3=nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci);const actDisp3=nd3&&nd3.acting?`<span style="color:#3b82f6;font-size:10px"> (${nd3.acting})</span>`:'';return `<td style="${nameNs}text-align:center;cursor:pointer${nd3&&nd3.acting?';font-weight:600':''}" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}${actDisp3}</td>`}).join('')}
+          ${rowByQ[0].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===0&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
+          ${rowByQ[1].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===1&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
+          ${rowByQ[2].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===2&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
+          ${rowByQ[3].map((n,ci)=>{const nd=nameDataList.find(d=>d.qi===3&&d.rowIdx===rowIdx&&d.col===ci);const nm=n||(nd?nd.name:'');return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${nm}</td>`}).join('')}
           <td rowspan="${pairCount*2}" style="${nameNs}text-align:right;font-weight:600;vertical-align:middle">${rowIdx===0&&isTypeTeamjang?fmtMoney(tTotal):''}</td>
         </tr>
         <tr>
