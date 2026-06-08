@@ -6063,7 +6063,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
         // nameData 추가 인원
-        nameDataList.filter(d=>d.qi===qi&&!d.acting).forEach(() => { t += 50000; });
+        const empNamesB = empList.map(e=>e.name);
+        nameDataList.filter(d=>d.qi===qi&&!d.acting&&!empNamesB.includes(d.name)).forEach(() => { t += 50000; });
         return t || null;
       });
       const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
@@ -6082,8 +6083,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
         // nameData 추가 인원 - dateData 있으면 월수 계산
-        if(dept==='인사총무부') console.log('인사총무부 Q'+qi+' nameData(비acting):', nameDataList.filter(d=>d.qi===qi&&!d.acting).map(d=>d.name));
-        nameDataList.filter(d=>d.qi===qi&&!d.acting).forEach(nd => {
+        // nameData 중 Firebase 직원 제외 (중복 방지)
+        const empNames = empList.map(e=>e.name);
+        nameDataList.filter(d=>d.qi===qi&&!d.acting&&!empNames.includes(d.name)).forEach(nd => {
           const dd = dateDataList.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
           let months = qMonths;
           if (dd && dd.fullDate) {
