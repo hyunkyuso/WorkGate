@@ -6057,10 +6057,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         const qMonths = qe - qs + 1;
         let t = 0;
-        // 이름행 표시 인원 × 50,000 (부서장 육아휴직 제외)
-        const bNames = qNames[qi];
-        const bDeptHeadActive = deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0 ? 1 : 0;
-        const bCount = bNames.length + bDeptHeadActive;
+        // 재직 인원(육아휴직 제외) × 50,000
+        const bCount = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
         t = bCount * 50000;
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
@@ -6076,10 +6074,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
         const qMonths = qe - qs + 1;
         let t = 0;
-        // 이름행 표시 인원 × 3개월 × 40,000 (부서장 육아휴직 제외)
-        const tNames = qNames[qi];
-        const deptHeadActive = deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0 ? 1 : 0;
-        const tCount = tNames.length + deptHeadActive;
+        // 재직 인원(육아휴직 제외) × 3개월 × 40,000
+        const tCount = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
         t = tCount * qMonths * 40000;
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
