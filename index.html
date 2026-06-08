@@ -6075,8 +6075,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const qMonths = qe - qs + 1;
         let t = 0;
         // 재직 인원(육아휴직 제외) × 3개월 × 40,000
-        const tCount = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
+        const tActive = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0);
+        const tCount = tActive.length;
         t = tCount * qMonths * 40000;
+        if(dept==='인사총무부'&&qi===0) console.log('인사총무부 Q0 재직:',tActive.map(e=>e.name+'/'+e.status));
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
         // nameData 추가 인원 - dateData 있으면 월수 계산
