@@ -6078,10 +6078,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const tActive = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0);
         const tCount = tActive.length;
         t = tCount * qMonths * 40000;
-        if(dept==='인사총무부'&&qi===0) console.log('인사총무부 Q0: 인원'+tCount+'명 qMonths'+qMonths+' t='+t);
+
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
         // nameData 추가 인원 - dateData 있으면 월수 계산
+        if(dept==='인사총무부') console.log('인사총무부 Q'+qi+' nameData(비acting):', nameDataList.filter(d=>d.qi===qi&&!d.acting).map(d=>d.name));
         nameDataList.filter(d=>d.qi===qi&&!d.acting).forEach(nd => {
           const dd = dateDataList.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
           let months = qMonths;
