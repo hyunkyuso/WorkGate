@@ -5922,9 +5922,25 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const deptEmpList = depts[deptKey] || [];
         deptEmpList.forEach(e => { 
           if(e.uid===bonbuHead?.uid) return;
-          if(getEmpMonthsInQuarter(e,year,qs,qe)>0) { t += 50000; if(bonbu==='경영관리본부') console.log('경영관리 Q'+qi+' ['+deptKey+']', e.name, getEmpMonthsInQuarter(e,year,qs,qe)+'개월'); }
+          if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000;
         });
-        ((deptFundSettings[deptKey]||{}).nameData||[]).filter(d=>d.qi===qi&&!d.acting).forEach(() => { t += 50000; });
+        const deptEmpNamesForBonbu = (depts[deptKey]||[]).map(e=>e.name);
+        const deptDateDataForBonbu = (deptFundSettings[deptKey]||{}).dateData || [];
+        ((deptFundSettings[deptKey]||{}).nameData||[]).filter(d=>d.qi===qi&&!d.acting&&!deptEmpNamesForBonbu.includes(d.name)).forEach(nd => {
+          const dd = deptDateDataForBonbu.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
+          if (dd && dd.fullDate) {
+            const dtMonth = new Date(dd.fullDate).getMonth();
+            if (dd.type==='leave'||dd.type==='to') {
+              const months = Math.max(0, Math.min(dtMonth,qe)-qs+1);
+              if (months > 0) t += 50000; // 부서장은 재직시 월수 무관 50,000
+            } else if (dd.type==='join'||dd.type==='from') {
+              const months = Math.max(0, qe-Math.max(dtMonth,qs)+1);
+              if (months > 0) t += 50000;
+            }
+          } else {
+            t += 50000;
+          }
+        });
       });
       // 본부 extra 추가 인원
       bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 50000; });
@@ -6064,7 +6080,20 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
         // nameData 추가 인원
         const empNamesB = empList.map(e=>e.name);
-        nameDataList.filter(d=>d.qi===qi&&!d.acting&&!empNamesB.includes(d.name)).forEach(() => { t += 50000; });
+        const dateDataListB = (deptFundSettings[dept]||{}).dateData || [];
+        nameDataList.filter(d=>d.qi===qi&&!d.acting&&!empNamesB.includes(d.name)).forEach(nd => {
+          const dd = dateDataListB.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
+          if (dd && dd.fullDate) {
+            const dtMonth = new Date(dd.fullDate).getMonth();
+            if (dd.type==='leave'||dd.type==='to') {
+              if (Math.max(0, Math.min(dtMonth,qe)-qs+1) > 0) t += 50000;
+            } else if (dd.type==='join'||dd.type==='from') {
+              if (Math.max(0, qe-Math.max(dtMonth,qs)+1) > 0) t += 50000;
+            }
+          } else {
+            t += 50000;
+          }
+        });
         return t || null;
       });
       const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
