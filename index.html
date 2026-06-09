@@ -6101,7 +6101,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // 각 분기별 이름 배열 - 4명씩 청크로 나누어 여러 행 생성
       function getQNames(qi) {
         const [qs,qe] = quarters[qi];
-        const empNames = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).sort(sortEmp);
+        // 부서장 타입이면 하위팀 직원도 포함
+        const baseMembers = isTypeBuseojang
+          ? [...teamMembers, ...subTeamEmps].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i)
+          : teamMembers;
+        const empNames = baseMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).sort(sortEmp);
         const empNameSet = new Set(empNames.map(e=>e.name));
         // Firebase 직원 배열 (hidden/acting 처리)
         let nameObjs = empNames.map(e => {
