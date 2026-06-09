@@ -6402,8 +6402,8 @@ function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
   // hiddenDates 체크
   const hiddenDates = (deptFundSettings[dept]||{}).hiddenDates||[];
   if (hiddenDates.includes(qi+'_'+col)) return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi}" data-rowidx="${rowIdx}" data-col="${col}" ondblclick='openDateCell(this)'></td>`;
-  // dateData 없으면 Firebase 직원 입사/퇴사 자동 표기
-  if (!dd) {
+  // dateData 없으면 Firebase 직원 입사/퇴사 자동 표기 (rowIdx=0 행에서만)
+  if (!dd && rowIdx === 0) {
     const year2 = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
     const qRanges = [[0,2],[3,5],[6,8],[9,11]];
     const [qs2,qe2] = qRanges[qi];
