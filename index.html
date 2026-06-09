@@ -6072,7 +6072,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const isTypeBuseojang = (setting.type||'').includes('부서장');
       const isTypeTeamjang = (setting.type||'').includes('팀장');
       const hasSubTeams = deptHasSubTeams[dept] || false;
-      const teamMembers = empList.filter(e=>e.uid !== (deptHead?.uid));
+      // 하위팀 직원도 teamMembers에 포함 (부서장 타입에서 이름칸에 표시)
+      const subTeamEmps = hasSubTeams ? deptNames.filter(d=>departments.some(dep=>dep.name===d&&dep.parent===(departments.find(dep2=>dep2.name===dept)||{}).id)).flatMap(subDept=>depts[subDept]||[]).filter(e=>!empList.find(e2=>e2.uid===e.uid)) : [];
+      const teamMembers = [...empList, ...subTeamEmps].filter(e=>e.uid !== (deptHead?.uid));
 
       // 추가 인원 (extra)
       const extraList = (deptFundSettings[dept]||{}).extra || [];
@@ -6156,18 +6158,18 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         const qMonths = qe - qs + 1;
         let t = 0;
-        // 부서장: 하위팀 포함 fullEmpList 기반 (Firebase 직원) + nameData(이름칸 추가인원)
+        // 이름칸 표시 직원만 × 50,000 (qNames 기반 - 하위팀 포함)
         const dateDataListB = (deptFundSettings[dept]||{}).dateData||[];
-        // Firebase 직원: fullEmpList 전체 (하위팀 포함)
-        fullEmpList.forEach(e => {
-          if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t+=50000;
-        });
-        // nameData 추가 인원 (이름칸에 수동 추가된 인원)
-        qNames[qi].filter(obj=>obj&&!obj.isEmp&&obj.name).forEach((obj,i) => {
-          const colIdx = qNames[qi].indexOf(obj);
-          const dd = dateDataListB.find(d=>d.qi===qi&&d.name===obj.name)||dateDataListB.find(d=>d.qi===qi&&d.col===colIdx);
-          if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to'){if(Math.max(0,Math.min(dtM,qe)-qs+1)>0)t+=50000;}else if(dd.type==='join'||dd.type==='from'){if(Math.max(0,qe-Math.max(dtM,qs)+1)>0)t+=50000;}}
-          else t+=50000;
+        qNames[qi].forEach((obj,colIdx) => {
+          if(!obj||!obj.name) return;
+          if(obj.isEmp) {
+            const e = [...empList,...subTeamEmps].find(emp=>emp.name===obj.name);
+            if(e&&getEmpMonthsInQuarter(e,year,qs,qe)>0) t+=50000;
+          } else {
+            const dd = dateDataListB.find(d=>d.qi===qi&&d.name===obj.name)||dateDataListB.find(d=>d.qi===qi&&d.col===colIdx);
+            if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to'){if(Math.max(0,Math.min(dtM,qe)-qs+1)>0)t+=50000;}else if(dd.type==='join'||dd.type==='from'){if(Math.max(0,qe-Math.max(dtM,qs)+1)>0)t+=50000;}}
+            else t+=50000;
+          }
         });
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 50000; });
