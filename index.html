@@ -6520,9 +6520,18 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="3" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==3&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[3]!==null?fmtMoney(tAmts[3]):'-'}${((extraList||[]).some(e=>e.qi==3&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
         </tr>
-        ${nameRows.map((rowByQ, rowIdx) => `
+        ${rowIdx===0&&hasSubTeams?`
+        <tr style="background:${BG_TEAM_AMT}">
+          ${[0,1,2,3].map(qi2=>{
+            const subDeptName = deptNames.find(d=>departments.some(dep=>dep.name===d&&dep.parent===(departments.find(dep2=>dep2.name===dept)||{}).id))||'';
+            return `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${subDeptName||dept}",${qi2})'>${getDeptDisplayName(subDeptName||dept,qi2)}</td>
+                    <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${isTypeTeamjang&&tAmts[qi2]!==null?fmtMoney(tAmts[qi2]):'-'}</td>`;
+          }).join('')}
+          <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
+        </tr>`:''}
+${nameRows.map((rowByQ, rowIdx) => `
         <tr>
-          <td colspan="2" style="${nameNs}text-align:center;font-weight:600;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${rowIdx===0&&hasSubTeams?getDeptDisplayName(deptNames.find(d=>departments.some(dep=>dep.name===d&&dep.parent===(departments.find(dep2=>dep2.name===dept)||{}).id))||dept,0):getDeptDisplayName(dept,0)}</td>
+          <td colspan="2" style="${nameNs}text-align:center;font-weight:600;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${!hasSubTeams?getDeptDisplayName(dept,0):''}</td>
           ${Array.from({length:4},(_,ci)=>{
             const n=rowByQ[0][ci];
             const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):({display:'',isEmp:false});
