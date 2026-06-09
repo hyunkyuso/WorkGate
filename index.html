@@ -6135,8 +6135,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         const qMonths = qe - qs + 1;
         let t = 0;
-        // 재직 인원(육아휴직 제외) × 50,000
-        const bCount = fullEmpList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
+        // 재직 인원(육아휴직 제외) × 50,000 - 겸직 직원은 주소속 본부에서만 계산
+        const bCount = fullEmpList.filter(e=>{
+          if(getEmpMonthsInQuarter(e,year,qs,qe)===0) return false;
+          const eBonbu = getBonbu({dept:e.dept,title:e.title,role:e.role});
+          return eBonbu === bonbu; // 주소속 본부만
+        }).length;
         t = bCount * 50000;
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 50000; });
@@ -6166,15 +6170,19 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
         const qMonths = qe - qs + 1;
         let t = 0;
-        // 각 인원 재직 월수 × 40,000 (육아휴직 기간 제외)
-        fullEmpList.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
+        // 각 인원 재직 월수 × 40,000 - 겸직 직원은 주소속 본부에서만 계산
+        fullEmpList.filter(e=>getBonbu({dept:e.dept,title:e.title,role:e.role})===bonbu).forEach(e => {
+          t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000;
+        });
 
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
         // nameData 추가 인원 - dateData 있으면 월수 계산
         const empNamesSet = new Set(empList.map(e=>e.name));
         nameDataList.filter(d=>d.qi===qi&&!d.acting&&d.name&&!empNamesSet.has(d.name)).forEach(nd => {
-          const dd = dateDataList.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
+          // nameData 인원의 qNames 위치(col)로 dateData 매칭
+          const ndColIdx = qNames[qi].findIndex(o=>typeof o==='object'?o.name===nd.name:o===nd.name);
+          const dd = ndColIdx>=0 ? dateDataList.find(d=>d.qi===qi&&d.rowIdx===0&&d.col===ndColIdx) : null;
           let months = qMonths;
           if (dd && dd.fullDate) {
             const dtMonth = new Date(dd.fullDate).getMonth();
