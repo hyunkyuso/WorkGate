@@ -6230,10 +6230,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             <td rowspan="${pairT*2}" style="${nameNsT}text-align:right;font-weight:600;vertical-align:middle">${ri===0?fmtMoney(tTotal):''}</td>
           </tr>
           <tr>
-            ${[0,1,2,3].map(ci=>renderDateTd(dept,0,ri,ci,nameNsT,null,nameDataList)).join('')}
-            ${[0,1,2,3].map(ci=>renderDateTd(dept,1,ri,ci,nameNsT,null,nameDataList)).join('')}
-            ${[0,1,2,3].map(ci=>renderDateTd(dept,2,ri,ci,nameNsT,null,nameDataList)).join('')}
-            ${[0,1,2,3].map(ci=>renderDateTd(dept,3,ri,ci,nameNsT,null,nameDataList)).join('')}
+            ${[0,1,2,3].map(ci=>renderDateTd(dept,0,ri,ci,nameNsT,qNamesT[0],nameDataList)).join('')}
+            ${[0,1,2,3].map(ci=>renderDateTd(dept,1,ri,ci,nameNsT,qNamesT[1],nameDataList)).join('')}
+            ${[0,1,2,3].map(ci=>renderDateTd(dept,2,ri,ci,nameNsT,qNamesT[2],nameDataList)).join('')}
+            ${[0,1,2,3].map(ci=>renderDateTd(dept,3,ri,ci,nameNsT,qNamesT[3],nameDataList)).join('')}
           </tr>`).join('')}
           <tr><td colspan="17" style="height:8px;border:none"></td></tr>
           </tbody></table>`;
@@ -6401,7 +6401,6 @@ function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
     : '';
   // dateData 없으면 Firebase 직원 입사/퇴사 자동 표기
   if (!dd && qNamesArr && qNamesArr[col]) {
-    if(dept==='디자인팀'||dept==='AI기획팀') console.log('[renderDateTd]', dept, qi, col, typeof qNamesArr[col], qNamesArr[col]?.name||qNamesArr[col], '_depts:', !!(window._depts&&window._depts[dept]), 'emp:', window._depts&&window._depts[dept]&&window._depts[dept].find(e=>e.name===(qNamesArr[col]?.name||qNamesArr[col]))?.joindate);
     const obj = typeof qNamesArr[col] === 'object' ? qNamesArr[col] : null;
     const empName = obj ? obj.name : (typeof qNamesArr[col] === 'string' ? qNamesArr[col].replace(/<[^>]*>/g,'').trim() : '');
     if (empName && obj && obj.isEmp) {
