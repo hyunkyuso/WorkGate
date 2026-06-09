@@ -6183,6 +6183,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         }).filter(Boolean);
       };
 
+      const useSimpleFormat = hasSubTeams && !['SW지원부','GIS SW영업부'].includes(dept);
+
       const bAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         const dateDataListB = (deptFundSettings[dept]||{}).dateData||[];
@@ -6330,7 +6332,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       }
 
       // 하위팀 있는 부서 → 이름행 미표시 (단, 재무회계부 서식 지정 부서 제외)
-      const useSimpleFormat = hasSubTeams && !['SW지원부','GIS SW영업부'].includes(dept);
       if (useSimpleFormat) {
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
