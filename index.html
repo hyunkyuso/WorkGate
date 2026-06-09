@@ -6040,6 +6040,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <td style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
       </tr>
       <tr><td colspan="10" style="height:8px;border:none"></td></tr>
+          ${renderExtraRows()}
       </tbody></table>`;
 
     // ── 부서별 테이블 (헤더 없이, 본부 이름 중복 제거) ──
@@ -6140,6 +6141,67 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (!window._lastQNames[dept]) window._lastQNames[dept] = {};
       qNames.forEach((names, qi) => { window._lastQNames[dept][qi] = names; });
       // 부서장/팀원 금액 계산 (이름행 인원수 기준)
+
+      // ── 사용안함 처리 ──
+      const disabledQi = (deptFundSettings[dept]||{}).disabledQi || [];
+      const renderDisabledCell = (qi) => {
+        if (!disabledQi.includes(qi)) return null;
+        return `<td colspan="4" style="border:1px solid #b0bec5;background:#64748b;color:#fff;text-align:center;font-size:11px;cursor:pointer" onclick="toggleDisabledQi('${dept}',${qi})">사용안함</td>`;
+      };
+      const wrapQCells = (qi, normalHtml) => {
+        const disabled = renderDisabledCell(qi);
+        return disabled || normalHtml;
+      };
+
+
+      // ── extraRows 렌더링 ──
+      const renderExtraRows = () => {
+        const rows = (deptFundSettings[dept]||{}).extraRows || [];
+        if (!rows.length) return '';
+        const BORDER = '1px solid #b0bec5';
+        const tdS = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
+        return rows.map((row, ri) => {
+          if (row.type === 'dept') {
+            // 부서행: 조직명+부서장
+            return `
+              <tr>
+                ${[0,1,2,3].map(qi=>`
+                  <td colspan="3" style="${tdS}font-weight:600;background:#bbf7d0;cursor:pointer" ondblclick="openExtraRowEdit('${dept}',${ri},${qi})">${row.name||''}</td>
+                  <td style="${tdS}text-align:right;background:#bbf7d0;border-right:1px solid #90a4ae">-</td>
+                `).join('')}
+                <td style="${tdS}text-align:right;font-weight:600">-</td>
+              </tr>
+              <tr>
+                ${[0,1,2,3].map(qi=>`
+                  <td colspan="4" style="${tdS}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraRowEdit('${dept}',${ri},${qi})">${row.headName?row.headName+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':''}</td>
+                `).join('')}
+                <td style="${tdS}text-align:right;font-weight:600">-</td>
+              </tr>`;
+          } else {
+            // 팀행: 조직명+이름칸+날짜칸
+            const ndList = (row.nameData||[]);
+            return `
+              <tr>
+                ${[0,1,2,3].map(qi=>`
+                  <td colspan="3" style="${tdS}font-weight:600;background:#dbeafe;cursor:pointer" ondblclick="openExtraRowEdit('${dept}',${ri},${qi})">${row.name||''}</td>
+                  <td style="${tdS}text-align:right;background:#dbeafe;border-right:1px solid #90a4ae">-</td>
+                `).join('')}
+                <td style="${tdS}text-align:right;font-weight:600">-</td>
+              </tr>
+              <tr>
+                ${[0,1,2,3].map(qi=>`
+                  <td colspan="4" style="${tdS}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraRowEdit('${dept}',${ri},${qi})">${(ndList.filter(d=>d.qi===qi&&d.name).map(d=>d.name)).join(', ')||''}</td>
+                `).join('')}
+                <td style="${tdS}text-align:right;font-weight:600">-</td>
+              </tr>
+              <tr>
+                ${[0,1,2,3].map(qi=>`<td colspan="4" style="${tdS}text-align:center;border-right:1px solid #90a4ae"></td>`).join('')}
+                <td style="${tdS}"></td>
+              </tr>`;
+          }
+        }).join('') + `<tr><td colspan="17" style="padding:2px;border:none;text-align:right"><button onclick="deleteExtraRow('${dept}',${rows.length-1})" style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer">마지막 행 삭제</button></td></tr>`;
+      };
+
       const deptIsNone = (setting.type === '' || setting.type === '없음');
 
       // 하위팀 직원 포함한 전체 직원 목록
@@ -6297,7 +6359,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             return Array.from({length:4}, (_,i) => chunk[i]||'');
           })
         );
-        const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel}</td>`;
+        const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">
+              ${typeLabel}
+              <div style="display:flex;gap:4px;margin-top:4px;justify-content:center;flex-wrap:wrap">
+                <button onclick="event.stopPropagation();openAddRowModal('${dept.replace(/'/g,"\'")}',this)" style="padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer">+ 줄추가</button>
+                ${[0,1,2,3].map(qi=>`<button onclick="event.stopPropagation();toggleDisabledQi('${dept.replace(/'/g,"\'")}',${qi})" style="padding:2px 5px;font-size:10px;border-radius:4px;border:1px solid ${((deptFundSettings[dept]||{}).disabledQi||[]).includes(qi)?'#ef4444':'#94a3b8'};background:${((deptFundSettings[dept]||{}).disabledQi||[]).includes(qi)?'#fee2e2':'#f1f5f9'};cursor:pointer">${['1Q','2Q','3Q','4Q'][qi]}미사용</button>`).join('')}
+              </div>
+            </td>`;
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
@@ -6327,6 +6395,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             ${[0,1,2,3].map(ci=>renderDateTd(dept,3,ri,ci,nameNsT,qNamesT[3],nameDataList)).join('')}
           </tr>`).join('')}
           <tr><td colspan="17" style="height:8px;border:none"></td></tr>
+          ${renderExtraRows()}
           </tbody></table>`;
         return;
       }
@@ -6345,7 +6414,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",3)'>${getDeptDisplayName(dept,3)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="3" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==3&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[3]!==null?fmtMoney(bAmts[3]):'-'}${((extraList||[]).some(e=>e.qi==3&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
             <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
-            <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel}</td>
+            <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">
+              ${typeLabel}
+              <div style="display:flex;gap:4px;margin-top:4px;justify-content:center;flex-wrap:wrap">
+                <button onclick="event.stopPropagation();openAddRowModal('${dept.replace(/'/g,"\'")}',this)" style="padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer">+ 줄추가</button>
+                ${[0,1,2,3].map(qi=>`<button onclick="event.stopPropagation();toggleDisabledQi('${dept.replace(/'/g,"\'")}',${qi})" style="padding:2px 5px;font-size:10px;border-radius:4px;border:1px solid ${((deptFundSettings[dept]||{}).disabledQi||[]).includes(qi)?'#ef4444':'#94a3b8'};background:${((deptFundSettings[dept]||{}).disabledQi||[]).includes(qi)?'#fee2e2':'#f1f5f9'};cursor:pointer">${['1Q','2Q','3Q','4Q'][qi]}미사용</button>`).join('')}
+              </div>
+            </td>
           </tr>
           <tr>
             <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[0])>0?deptHead.name:'');return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':'';})()} </td>
@@ -6355,6 +6430,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
           </tr>
           <tr><td colspan="17" style="height:8px;border:none"></td></tr>
+          ${renderExtraRows()}
           </tbody></table>`;
         return;
       }
@@ -6393,7 +6469,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       const hasLeavers = leaversByQ.some(q => q.some(n=>n));
       const noteRowspan = 3 + maxChunks + (hasLeavers ? 1 : 0);
-      const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel}</td>`;
+      const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">
+              ${typeLabel}
+              <div style="display:flex;gap:4px;margin-top:4px;justify-content:center;flex-wrap:wrap">
+                <button onclick="event.stopPropagation();openAddRowModal('${dept.replace(/'/g,"\\'")}',this)" style="padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer">+ 줄추가</button>
+                ${[0,1,2,3].map(qi=>`<button onclick="event.stopPropagation();toggleDisabledQi('${dept.replace(/'/g,"\\'")}',${qi})" style="padding:2px 5px;font-size:10px;border-radius:4px;border:1px solid ${((deptFundSettings[dept]||{}).disabledQi||[]).includes(qi)?'#ef4444':'#94a3b8'};background:${((deptFundSettings[dept]||{}).disabledQi||[]).includes(qi)?'#fee2e2':'#f1f5f9'};cursor:pointer">${['1Q','2Q','3Q','4Q'][qi]}미사용</button>`).join('')}
+              </div>
+            </td>`;
 
       const nameNs = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
       const deptHeadNote = qi => {
@@ -6881,6 +6963,107 @@ function openDeptNameModal(dept, qi) {
   };
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
   setTimeout(() => { const el=document.getElementById('dn-name'); if(el){el.focus();el.select();} }, 50);
+}
+
+
+// ── 줄 추가 모달 ──
+function openAddRowModal(dept) {
+  const modal = document.createElement('div');
+  modal.id = 'add-row-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">줄 추가</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button id="ar-dept-btn" onclick="setAddRowType('dept')" style="flex:1;padding:8px;border-radius:8px;border:2px solid #3b82f6;background:#dbeafe;cursor:pointer;font-size:13px;font-weight:600">부서 행<br><span style="font-size:11px;color:#64748b">조직명+부서장</span></button>
+        <button id="ar-team-btn" onclick="setAddRowType('team')" style="flex:1;padding:8px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px;font-weight:600">팀 행<br><span style="font-size:11px;color:#64748b">조직명+이름칸</span></button>
+      </div>
+      <input id="ar-name" placeholder="조직명" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:8px;outline:none">
+      <div id="ar-head-wrap">
+        <input id="ar-head" placeholder="부서장 이름 (선택)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:8px;outline:none">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('add-row-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+        <button id="ar-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">추가</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  window._addRowDept = dept;
+  window._addRowType = 'dept';
+  modal.querySelector('#ar-save').onclick = () => {
+    const name = document.getElementById('ar-name').value.trim();
+    const head = document.getElementById('ar-head').value.trim();
+    if (!name) { alert('조직명을 입력하세요'); return; }
+    if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+    if (!deptFundSettings[dept].extraRows) deptFundSettings[dept].extraRows = [];
+    deptFundSettings[dept].extraRows.push({type: window._addRowType, name, headName: head});
+    saveDeptFundSettings();
+    modal.remove();
+    _renderDeptFund();
+  };
+  setTimeout(()=>document.getElementById('ar-name')?.focus(), 50);
+}
+
+function setAddRowType(type) {
+  window._addRowType = type;
+  document.getElementById('ar-dept-btn').style.border = type==='dept'?'2px solid #3b82f6':'1px solid #e2e8f0';
+  document.getElementById('ar-dept-btn').style.background = type==='dept'?'#dbeafe':'#fff';
+  document.getElementById('ar-team-btn').style.border = type==='team'?'2px solid #3b82f6':'1px solid #e2e8f0';
+  document.getElementById('ar-team-btn').style.background = type==='team'?'#dbeafe':'#fff';
+  document.getElementById('ar-head-wrap').style.display = type==='dept'?'block':'none';
+}
+
+// ── 사용안함 토글 ──
+function toggleDisabledQi(dept, qi) {
+  if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+  if (!deptFundSettings[dept].disabledQi) deptFundSettings[dept].disabledQi = [];
+  const arr = deptFundSettings[dept].disabledQi;
+  const idx = arr.indexOf(qi);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(qi);
+  saveDeptFundSettings();
+  _renderDeptFund();
+}
+
+// ── extraRow 삭제 ──
+function deleteExtraRow(dept, idx) {
+  if (!deptFundSettings[dept]?.extraRows) return;
+  deptFundSettings[dept].extraRows.splice(idx, 1);
+  saveDeptFundSettings();
+  _renderDeptFund();
+}
+
+
+// ── extraRow 편집 모달 ──
+function openExtraRowEdit(dept, rowIdx, qi) {
+  const rows = (deptFundSettings[dept]||{}).extraRows||[];
+  const row = rows[rowIdx];
+  if (!row) return;
+  const modal = document.createElement('div');
+  modal.id = 'extra-row-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:20px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">행 수정</div>
+      <input id="er-name" value="${row.name||''}" placeholder="조직명" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:8px;outline:none">
+      ${row.type==='dept'?`<input id="er-head" value="${row.headName||''}" placeholder="부서장 이름" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:8px;outline:none">`:''}
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="deleteExtraRow('${dept}',${rowIdx})" style="padding:6px 12px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:13px">삭제</button>
+        <button onclick="document.getElementById('extra-row-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+        <button id="er-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#er-save').onclick = () => {
+    const name = document.getElementById('er-name').value.trim();
+    const head = document.getElementById('er-head')?.value.trim()||'';
+    deptFundSettings[dept].extraRows[rowIdx] = {...row, name, headName: head};
+    saveDeptFundSettings();
+    modal.remove();
+    _renderDeptFund();
+  };
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
 }
 
 function openDeptFundTypeModal(dept, cell) {
