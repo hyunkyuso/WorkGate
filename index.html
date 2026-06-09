@@ -6164,9 +6164,22 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const nameNsTAmt = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;background:${BG_TEAM_AMT};`;
         const qNamesT = quarters.map((_,qi) => {
             const [qs,qe] = quarters[qi];
-          return empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0&&e.dept===dept).sort(sortEmp||((a,b)=>0)).map(e => e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name);
-        });
-        const maxET = Math.max(0, ...qNamesT.map(n=>n.length));
+            const empNamesT = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0&&e.dept===dept).sort(sortEmp||((a,b)=>0));
+            const empNameSetT = new Set(empNamesT.map(e=>e.name));
+            let objs = empNamesT.map(e=>({display: e.title==='팀장'?e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>':e.name, isEmp:true, name:e.name}));
+            // nameData 추가 인원
+            nameDataList.filter(d=>d.qi===qi&&d.name&&!empNameSetT.has(d.name)&&!d.acting).forEach(nd=>{
+              objs.push({display:nd.name, isEmp:false, name:nd.name, nd});
+            });
+            // acting 처리
+            nameDataList.filter(d=>d.qi===qi&&d.acting&&empNameSetT.has(d.name)).forEach(nd=>{
+              const obj=objs.find(o=>o.name===nd.name);
+              if(obj){obj.display+='<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>';obj.isActing=true;}
+            });
+            objs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
+            return objs;
+          });
+        const maxET = Math.max(1, ...qNamesT.map(n=>n.length));
         const pairT = maxET <= 4 ? 1 : 2;
         const nameRowsT = Array.from({length:pairT}, (_,ri) =>
           quarters.map((_,qi) => {
