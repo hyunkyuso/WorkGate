@@ -6294,10 +6294,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         </tr>
         ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
-          ${rowByQ[0].map((n,ci)=>{const obj0=typeof n==='object'?n:{display:n,origCol:ci}; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${obj0.origCol}" ondblclick='openNameCell(this)'>${obj0.display}</td>`}).join('')}
-          ${rowByQ[1].map((n,ci)=>{const obj1=typeof n==='object'?n:{display:n,origCol:ci}; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${obj1.origCol}" ondblclick='openNameCell(this)'>${obj1.display}</td>`}).join('')}
-          ${rowByQ[2].map((n,ci)=>{const obj2=typeof n==='object'?n:{display:n,origCol:ci}; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${obj2.origCol}" ondblclick='openNameCell(this)'>${obj2.display}</td>`}).join('')}
-          ${rowByQ[3].map((n,ci)=>{const obj3=typeof n==='object'?n:{display:n,origCol:ci}; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${obj3.origCol}" ondblclick='openNameCell(this)'>${obj3.display}</td>`}).join('')}
+          ${rowByQ[0].map((n,ci)=>{const obj0=typeof n==='object'?n:{display:n,origCol:ci}; const isEmp0=obj0.isEmp!==false; const ndCol0=obj0.ndRef?obj0.ndRef.col:null; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${rowIdx}" data-col="${obj0.origCol}" data-is-emp="${isEmp0?1:0}" data-nd-col="${ndCol0!==null?ndCol0:''}" ondblclick='openNameCell(this)'>${obj0.display}</td>`}).join('')}
+          ${rowByQ[1].map((n,ci)=>{const obj1=typeof n==='object'?n:{display:n,origCol:ci}; const isEmp1=obj1.isEmp!==false; const ndCol1=obj1.ndRef?obj1.ndRef.col:null; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${rowIdx}" data-col="${obj1.origCol}" data-is-emp="${isEmp1?1:0}" data-nd-col="${ndCol1!==null?ndCol1:''}" ondblclick='openNameCell(this)'>${obj1.display}</td>`}).join('')}
+          ${rowByQ[2].map((n,ci)=>{const obj2=typeof n==='object'?n:{display:n,origCol:ci}; const isEmp2=obj2.isEmp!==false; const ndCol2=obj2.ndRef?obj2.ndRef.col:null; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${rowIdx}" data-col="${obj2.origCol}" data-is-emp="${isEmp2?1:0}" data-nd-col="${ndCol2!==null?ndCol2:''}" ondblclick='openNameCell(this)'>${obj2.display}</td>`}).join('')}
+          ${rowByQ[3].map((n,ci)=>{const obj3=typeof n==='object'?n:{display:n,origCol:ci}; const isEmp3=obj3.isEmp!==false; const ndCol3=obj3.ndRef?obj3.ndRef.col:null; return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${rowIdx}" data-col="${obj3.origCol}" data-is-emp="${isEmp3?1:0}" data-nd-col="${ndCol3!==null?ndCol3:''}" ondblclick='openNameCell(this)'>${obj3.display}</td>`}).join('')}
           <td rowspan="${pairCount*2}" style="${nameNs}text-align:right;font-weight:600;vertical-align:middle">${rowIdx===0&&isTypeTeamjang?fmtMoney(tTotal):''}</td>
         </tr>
         <tr>
@@ -6357,8 +6357,15 @@ function openNameCell(cell) {
   const dept = cell.getAttribute('data-dept');
   const qi = parseInt(cell.getAttribute('data-qi'));
   const rowIdx = parseInt(cell.getAttribute('data-rowidx'));
+  const isEmp = cell.getAttribute('data-is-emp') === '1';
+  const ndColAttr = cell.getAttribute('data-nd-col');
+  // nameData 칸이면 ndCol로, Firebase직원/빈칸이면 col로
+  const ndCol = ndColAttr !== '' && ndColAttr !== null ? parseInt(ndColAttr) : null;
   const col = parseInt(cell.getAttribute('data-col'));
-  const cur = getNameData(dept, qi, rowIdx, col);
+  // cur: nameData 칸이면 해당 col의 nameData, Firebase직원/빈칸이면 null
+  const cur = ndCol !== null ? getNameData(dept, qi, rowIdx, ndCol) : null;
+  const effectiveCol = ndCol !== null ? ndCol : col;
+  console.log('[openNameCell]', dept, qi, col, 'isEmp:', isEmp, 'ndCol:', ndCol, 'cur:', cur, 'effectiveCol:', effectiveCol);
 
   const modal = document.createElement('div');
   modal.id = 'name-cell-modal';
@@ -6382,7 +6389,7 @@ function openNameCell(cell) {
       </div>
       <input id="nc-memo" value="${cur?cur.memo||'':''}" placeholder="메모 (선택)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:14px;outline:none">
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        ${cur?`<button onclick="deleteNameCell('${dept}',${qi},${rowIdx},${col})" style="padding:6px 12px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:13px">삭제</button>`:''}
+        ${cur?'<button id="nc-del-btn" style="padding:6px 12px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:13px">삭제</button>':''}
         <button onclick="document.getElementById('name-cell-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
         ${!cur?`<button onclick="insertBeforeNameCell('${dept}',${qi},${rowIdx},${col})" style="padding:6px 14px;border-radius:8px;border:1px solid #3b82f6;color:#3b82f6;background:#fff;cursor:pointer;font-size:13px">삽입</button>`:''}
         <button id="nc-save-btn" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
@@ -6394,7 +6401,9 @@ function openNameCell(cell) {
   // 삽입/저장 버튼 연결
   const insertBtn = modal.querySelector('#nc-insert-btn');
   if (insertBtn) insertBtn.onclick = () => insertBeforeNameCell(dept, qi, rowIdx, col);
-  modal.querySelector('#nc-save-btn').onclick = () => saveNameCell(dept, qi, rowIdx, col);
+  modal.querySelector('#nc-save-btn').onclick = () => saveNameCell(dept, qi, rowIdx, effectiveCol);
+  const delBtn = modal.querySelector('#nc-del-btn');
+  if (delBtn) delBtn.onclick = () => deleteNameCell(dept, qi, rowIdx, effectiveCol);
 }
 
 
