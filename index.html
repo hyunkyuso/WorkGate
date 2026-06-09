@@ -223,7 +223,6 @@ select.form-input{cursor:pointer}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
-td:hover .name-ins-btn { display: block !important; }
 </style>
 </head>
 <body>
@@ -5887,7 +5886,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     if (!bonbuMap[bonbu]) return;
     if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원') || bonbu.includes('베트남')) return;
     if (Object.keys(bonbuMap[bonbu]).length === 0) return;
-    const depts = bonbuMap[bonbu];
+    const depts = bonbuMap[bonbu]; window._depts = Object.assign(window._depts||{}, depts);
     const deptNames = Object.keys(depts).sort((a,b) => getDeptSortOrder(a) - getDeptSortOrder(b));
 
     // 각 부서에 하위 팀이 있는지 확인
@@ -6053,10 +6052,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         });
         // acting 항목 앞으로 정렬
         nameObjs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
-        // nameData 추가 인원(acting 없고 Firebase 직원 아닌 것) → 뒤에 추가
+        // nameData 추가 인원(acting 없고 Firebase 직원 아닌 것)
         const empNameSet = new Set(empNames.map(e=>e.name));
-        nameDataList.filter(d=>d.qi===qi&&!d.acting&&d.rowIdx===0&&!empNameSet.has(d.name)).forEach((nd,i) => {
-          nameObjs.push({display:nd.name, origCol:nameObjs.length, isEmp:false, name:nd.name, ndRef:nd});
+        const insertItems = nameDataList.filter(d=>d.qi===qi&&!d.acting&&d.rowIdx===0&&!empNameSet.has(d.name));
+        // col 기준으로 정렬 후 해당 위치에 삽입
+        insertItems.sort((a,b)=>a.col-b.col).forEach(nd => {
+          const insertPos = Math.min(nd.col, nameObjs.length);
+          nameObjs.splice(insertPos, 0, {display:nd.name, origCol:insertPos, isEmp:false, name:nd.name, ndRef:nd});
+          // 삽입 후 이후 항목들 origCol 재조정
+          nameObjs.forEach((o,i)=>o.origCol=i);
         });
         return nameObjs;
       }
@@ -6271,10 +6275,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ${noteCellHtml}
         </tr>
         <tr>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'<span class=\'name-ins-btn\' onclick=\'event.stopPropagation();openHeadNameModal("${dept}","deptHead")\' style=\'position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none\'>수정</span>':'';})()}</td>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'<span class=\'name-ins-btn\' onclick=\'event.stopPropagation();openHeadNameModal("${dept}","deptHead")\' style=\'position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none\'>수정</span>':'';})()}</td>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'<span class=\'name-ins-btn\' onclick=\'event.stopPropagation();openHeadNameModal("${dept}","deptHead")\' style=\'position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none\'>수정</span>':'';})()}</td>
-          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'<span class=\'name-ins-btn\' onclick=\'event.stopPropagation();openHeadNameModal("${dept}","deptHead")\' style=\'position:absolute;right:2px;top:2px;background:#3b82f6;color:#fff;border-radius:3px;font-size:10px;padding:1px 4px;cursor:pointer;display:none\'>수정</span>':'';})()}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'':'';})()}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'':'';})()}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'':'';})()}</td>
+          <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer;position:relative" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'':'';})()}</td>
           <td style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
         <tr>
@@ -6394,12 +6398,18 @@ function saveNameCell(dept, qi, rowIdx, col) {
   const acting = actingEl ? actingEl.value : '';
   if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
   if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
-  const idx = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
+  const empNames = (window._depts && window._depts[dept]) ? window._depts[dept].map(e=>e.name) : [];
+  const curNd = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
   if (name || acting) {
-    if (idx >= 0) deptFundSettings[dept].nameData[idx] = {qi,rowIdx,col,name,memo,acting};
-    else deptFundSettings[dept].nameData.push({qi,rowIdx,col,name,memo,acting});
-  } else if (idx >= 0) {
-    deptFundSettings[dept].nameData.splice(idx,1);
+    if (curNd >= 0) {
+      deptFundSettings[dept].nameData[curNd] = {qi,rowIdx,col,name,memo,acting};
+    } else {
+      // Firebase 직원 칸에 삽입 → col 위치에 추가, 이후 nameData col+1씩 밀기
+      deptFundSettings[dept].nameData.forEach(d=>{if(d.qi===qi&&d.rowIdx===rowIdx&&d.col>=col)d.col++;});
+      deptFundSettings[dept].nameData.push({qi,rowIdx:0,col,name,memo,acting});
+    }
+  } else if (curNd >= 0) {
+    deptFundSettings[dept].nameData.splice(curNd,1);
   }
   saveDeptFundSettings();
   document.getElementById('name-cell-modal').remove();
