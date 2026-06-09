@@ -6187,7 +6187,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         const dateDataListB = (deptFundSettings[dept]||{}).dateData||[];
         let t = 0;
-        if (hasSubTeams && isTypeBuseojang) {
+        if (hasSubTeams) {  // 하위팀 있으면 Firebase 직원 기준
           // 부서장 + 하위팀 직원 포함 (Firebase 직원 기준)
           const allEmps = [...empList, ...subTeamEmps].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i);
           allEmps.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t+=50000; });
@@ -6216,12 +6216,20 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || !isTypeTeamjang) return null;
         const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
         // 이름칸 기반: 재직월수 × 40,000
-        const items = calcNameMonths(qNames[qi], qi, dateDataList);
-        let t = items.reduce((s,x)=>s+x.months*40000, 0);
-        // 팀장 비고이고 부서장이 있으면 항상 부서장도 포함
-        if (deptHead) {
-          const deptHeadMonths = getEmpMonthsInQuarter(deptHead, year, qs, qe);
-          t += deptHeadMonths * 40000;
+        let t = 0;
+        if (hasSubTeams) {
+          // 하위팀 직원 포함
+          const allEmpsT = [...empList, ...subTeamEmps].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i);
+          allEmpsT.forEach(e=>{ t += getEmpMonthsInQuarter(e,year,qs,qe)*40000; });
+          if (deptHead) t += getEmpMonthsInQuarter(deptHead,year,qs,qe)*40000;
+        } else {
+          const items = calcNameMonths(qNames[qi], qi, dateDataList);
+          t = items.reduce((s,x)=>s+x.months*40000, 0);
+          // 팀장 비고이고 부서장이 있으면 부서장도 포함
+          if (deptHead) {
+            const deptHeadMonths = getEmpMonthsInQuarter(deptHead, year, qs, qe);
+            t += deptHeadMonths * 40000;
+          }
         }
         // extra
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=(qe-qs+1)*40000; });
@@ -6314,8 +6322,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         return;
       }
 
-      // 부서장 비고 + 하위팀 있는 부서 → 이름행 미표시, 하위팀 포함 계산
-      if (hasSubTeams && isTypeBuseojang) {
+      // 하위팀 있는 부서 → 이름행 미표시 (팀장/부서장 무관)
+      if (hasSubTeams) {
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
