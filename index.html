@@ -5785,7 +5785,8 @@ function cleanupNameData() {
     if (!deptFundSettings[dept].nameData) return;
     const before = deptFundSettings[dept].nameData.length;
     // name 없는 항목, col/rowIdx 있는 구 버전 항목 제거
-    deptFundSettings[dept].nameData = deptFundSettings[dept].nameData.filter(d => d.name && d.name.trim());
+    // name 없거나 구버전(col 필드 있는 것) 제거
+    deptFundSettings[dept].nameData = deptFundSettings[dept].nameData.filter(d => d.name && d.name.trim() && d.col === undefined);
     if (deptFundSettings[dept].nameData.length !== before) changed = true;
   });
   if (changed) {
@@ -6190,10 +6191,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           </tr>
           ${nameRowsT.map((rowByQ,ri) => `
           <tr>
-            ${rowByQ[0].map((n,ci)=>`<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${ri}" data-col="${ci}" ondblclick='openNameCell(this)'>${typeof n==='object'?n.display:n}</td>`).join('')}
-            ${rowByQ[1].map((n,ci)=>`<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${ri}" data-col="${ci}" ondblclick='openNameCell(this)'>${typeof n==='object'?n.display:n}</td>`).join('')}
-            ${rowByQ[2].map((n,ci)=>`<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${ri}" data-col="${ci}" ondblclick='openNameCell(this)'>${typeof n==='object'?n.display:n}</td>`).join('')}
-            ${rowByQ[3].map((n,ci)=>`<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${ri}" data-col="${ci}" ondblclick='openNameCell(this)'>${typeof n==='object'?n.display:n}</td>`).join('')}
+            ${Array.from({length:4},(_,ci)=>{const n=rowByQ[0][ci];const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):{display:'',isEmp:false};const ndIdx=obj.nd?nameDataList.findIndex(d=>d.qi===0&&d.name===obj.name&&!d.acting):-1;return `<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;}).join('')}
+            ${Array.from({length:4},(_,ci)=>{const n=rowByQ[1][ci];const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):{display:'',isEmp:false};const ndIdx=obj.nd?nameDataList.findIndex(d=>d.qi===1&&d.name===obj.name&&!d.acting):-1;return `<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;}).join('')}
+            ${Array.from({length:4},(_,ci)=>{const n=rowByQ[2][ci];const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):{display:'',isEmp:false};const ndIdx=obj.nd?nameDataList.findIndex(d=>d.qi===2&&d.name===obj.name&&!d.acting):-1;return `<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;}).join('')}
+            ${Array.from({length:4},(_,ci)=>{const n=rowByQ[3][ci];const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):{display:'',isEmp:false};const ndIdx=obj.nd?nameDataList.findIndex(d=>d.qi===3&&d.name===obj.name&&!d.acting):-1;return `<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;}).join('')}
             <td rowspan="${pairT*2}" style="${nameNsT}text-align:right;font-weight:600;vertical-align:middle">${ri===0?fmtMoney(tTotal):''}</td>
           </tr>
           <tr>
@@ -6396,7 +6397,6 @@ function getDateCell(dept, qi, rowIdx, col) {
 
 // ── 이름셀 더블클릭 모달 ──
 function openNameCell(cell) {
-  console.log('[click]', cell.getAttribute('data-dept'), 'is-emp:'+cell.getAttribute('data-is-emp'), 'nd-idx:'+cell.getAttribute('data-nd-idx'));
   const dept = cell.getAttribute('data-dept');
   const qi = parseInt(cell.getAttribute('data-qi'));
   const isEmp = cell.getAttribute('data-is-emp') === '1';
