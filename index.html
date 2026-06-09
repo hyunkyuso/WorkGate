@@ -6439,15 +6439,31 @@ function openNameCell(cell) {
         <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${!curActing?'background:#f1f5f9':''}"><input type="radio" name="nc-acting" value="" ${!curActing?'checked':''} style="accent-color:#3b82f6"> 없음</label>
       </div>
       <input id="nc-memo" value="${nd?nd.memo||'':''}" placeholder="메모 (선택)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:14px;outline:none">
-      <div style="display:flex;gap:8px;justify-content:flex-end">
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
         ${nd?'<button id="nc-del-btn" style="padding:6px 12px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:13px">삭제</button>':''}
         <button onclick="document.getElementById('name-cell-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
-        <button id="nc-save-btn" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
+        <button id="nc-insert-btn" style="padding:6px 14px;border-radius:8px;border:1px solid #3b82f6;color:#3b82f6;background:#fff;cursor:pointer;font-size:13px">앞에 삽입</button>
+        <button id="nc-save-btn" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">수정</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
   document.getElementById('nc-name').focus();
+  // 삽입 버튼: 현재 칸 앞에 새 이름 끼워넣기
+  modal.querySelector('#nc-insert-btn').onclick = () => {
+    const name = document.getElementById('nc-name').value.trim();
+    const memo = document.getElementById('nc-memo').value.trim();
+    const acting = document.querySelector('input[name="nc-acting"]:checked')?.value || '';
+    if (!name) { alert('이름을 입력하세요'); return; }
+    if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+    if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
+    // 현재 칸(cellBaseName 또는 nd.name) 앞에 삽입
+    const insertBeforeName = nd ? nd.name : cellBaseName;
+    deptFundSettings[dept].nameData.push({qi, name, memo, acting, insertBefore: insertBeforeName});
+    saveDeptFundSettings();
+    modal.remove();
+    _renderDeptFund();
+  };
   modal.querySelector('#nc-save-btn').onclick = () => {
     const name = document.getElementById('nc-name').value.trim();
     const memo = document.getElementById('nc-memo').value.trim();
