@@ -6329,7 +6329,7 @@ function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
 
 // ── 이름셀/날짜셀 헬퍼 함수 ──
 function getNameData(dept, qi, rowIdx, col) {
-  return ((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
+  return ((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.qi===qi&&d.col===col&&(d.rowIdx===rowIdx||d.rowIdx===0));
 }
 function getDateData(dept, qi, rowIdx, col) {
   return ((deptFundSettings[dept]||{}).dateData||[]).find(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
@@ -6427,14 +6427,12 @@ function saveNameCell(dept, qi, rowIdx, col) {
   const acting = actingEl ? actingEl.value : '';
   if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
   if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
-  const empNames = (window._depts && window._depts[dept]) ? window._depts[dept].map(e=>e.name) : [];
-  const curNd = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
+  // rowIdx 무관하게 qi/col로 찾기 (rowIdx:0으로 통일)
+  const curNd = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.col===col&&d.rowIdx===0);
   if (name || acting) {
     if (curNd >= 0) {
-      deptFundSettings[dept].nameData[curNd] = {qi,rowIdx,col,name,memo,acting};
+      deptFundSettings[dept].nameData[curNd] = {qi,rowIdx:0,col,name,memo,acting};
     } else {
-      // Firebase 직원 칸에 삽입 → col 위치에 추가, 이후 nameData col+1씩 밀기
-      deptFundSettings[dept].nameData.forEach(d=>{if(d.qi===qi&&d.rowIdx===rowIdx&&d.col>=col)d.col++;});
       deptFundSettings[dept].nameData.push({qi,rowIdx:0,col,name,memo,acting});
     }
   } else if (curNd >= 0) {
