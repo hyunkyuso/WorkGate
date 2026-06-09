@@ -6061,7 +6061,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         nameObjs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
         // nameData 추가 인원(acting 없고 Firebase 직원 아닌 것)
         const empNameSet = new Set(empNames.map(e=>e.name));
-        const insertItems = nameDataList.filter(d=>d.qi===qi&&!d.acting&&!empNameSet.has(d.name));
+        const insertItems = nameDataList.filter(d=>d.qi===qi&&!d.acting&&d.name&&!empNameSet.has(d.name));
         // col 기준으로 정렬 후 해당 위치에 삽입
         insertItems.sort((a,b)=>a.col-b.col).forEach(nd => {
           const insertPos = Math.min(nd.col, nameObjs.length);
