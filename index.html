@@ -6162,7 +6162,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           // 날짜칸 찾기
           const dd = dateDataArr.find(d=>d.qi===qi&&d.name===obj.name)
                   || dateDataArr.find(d=>d.qi===qi&&d.col===colIdx);
-          let months = qe - qs + 1; // 기본: 분기 전체
+          let months = qe - qs + 1;
           let active = true;
           if (dd && dd.fullDate) {
             const dtM = new Date(dd.fullDate).getMonth();
@@ -6174,15 +6174,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               active = months > 0;
             }
           }
-          // Firebase 직원이면 getEmpMonthsInQuarter로 재직 여부 확인
-          if (obj.isEmp) {
-            const e = empList.find(emp=>emp.name===obj.name)
-                   || fullEmpList.find(emp=>emp.name===obj.name);
-            if (e) {
-              const empMonths = getEmpMonthsInQuarter(e, year, qs, qe);
-              months = Math.min(months, empMonths);
-              active = months > 0;
-            }
+          // Firebase 직원: getEmpMonthsInQuarter로 육아휴직/입퇴사 반영
+          const empData = employees.find(emp=>emp.name===obj.name);
+          if (empData) {
+            const empMonths = getEmpMonthsInQuarter(empData, year, qs, qe);
+            months = Math.min(months, empMonths);
+            active = months > 0;
           }
           return {name: obj.name, months, active};
         }).filter(Boolean);
@@ -6206,6 +6203,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // 이름칸 기반: 재직월수 × 40,000
         const items = calcNameMonths(qNames[qi], qi, dateDataList);
         let t = items.reduce((s,x)=>s+x.months*40000, 0);
+        // 팀장 비고인데 이름칸에 팀원 없고 부서장만 있는 경우 → 부서장 계산에 포함
+        if (t === 0 && deptHead) {
+          const deptHeadMonths = getEmpMonthsInQuarter(deptHead, year, qs, qe);
+          t = deptHeadMonths * 40000;
+        }
         // extra
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=(qe-qs+1)*40000; });
         return t || null;
