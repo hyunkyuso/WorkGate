@@ -5989,13 +5989,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}")'>${((deptFundSettings[bonbu]||{}).deptDisplayNames||{})[0]||(deptFundSettings[bonbu]||{}).deptDisplayName||bonbu}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",0)'>${getBonbuDisplayName(bonbu,0)}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}${((bonbuExtraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}")'>${((deptFundSettings[bonbu]||{}).deptDisplayNames||{})[1]||(deptFundSettings[bonbu]||{}).deptDisplayName||bonbu}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",1)'>${getBonbuDisplayName(bonbu,1)}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="1" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==1&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[1]===null?'-':fmtMoney(qAmts[1])}${((bonbuExtraList||[]).some(e=>e.qi==1&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}")'>${((deptFundSettings[bonbu]||{}).deptDisplayNames||{})[2]||(deptFundSettings[bonbu]||{}).deptDisplayName||bonbu}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",2)'>${getBonbuDisplayName(bonbu,2)}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="2" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[2]===null?'-':fmtMoney(qAmts[2])}${((bonbuExtraList||[]).some(e=>e.qi==2&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}")'>${((deptFundSettings[bonbu]||{}).deptDisplayNames||{})[3]||(deptFundSettings[bonbu]||{}).deptDisplayName||bonbu}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",3)'>${getBonbuDisplayName(bonbu,3)}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="3" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==3&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[3]===null?'-':fmtMoney(qAmts[3])}${((bonbuExtraList||[]).some(e=>e.qi==3&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
         <td style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">계</td>
         <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:#fff" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel}</td>
@@ -6210,13 +6210,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[0]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${getDeptDisplayName(dept,0)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",1)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[1]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",1)'>${getDeptDisplayName(dept,1)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",2)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[2]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",2)'>${getDeptDisplayName(dept,2)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",3)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[3]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",3)'>${getDeptDisplayName(dept,3)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
             <td style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center">계</td>
             ${noteCellT}
@@ -6245,13 +6245,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[0]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${getDeptDisplayName(dept,0)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[0]!==null?fmtMoney(bAmts[0]):'-'}${((extraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[1]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${getDeptDisplayName(dept,1)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="1" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==1&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[1]!==null?fmtMoney(bAmts[1]):'-'}${((extraList||[]).some(e=>e.qi==1&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",2)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[2]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",2)'>${getDeptDisplayName(dept,2)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="2" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[2]!==null?fmtMoney(bAmts[2]):'-'}${((extraList||[]).some(e=>e.qi==2&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",3)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[3]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",3)'>${getDeptDisplayName(dept,3)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="3" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==3&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[3]!==null?fmtMoney(bAmts[3]):'-'}${((extraList||[]).some(e=>e.qi==3&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
             <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
             <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel}</td>
@@ -6318,13 +6318,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         ${colgroup}
         <tbody>
         <tr style="background:${BG_DEPT}">
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[0]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${getDeptDisplayName(dept,0)}</td>
           <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[0]!==null?fmtMoney(bAmts[0]):'-'}${((extraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",1)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[1]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",1)'>${getDeptDisplayName(dept,1)}</td>
           <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="1" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==1&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[1]!==null?fmtMoney(bAmts[1]):'-'}${((extraList||[]).some(e=>e.qi==1&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",2)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[2]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",2)'>${getDeptDisplayName(dept,2)}</td>
           <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="2" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[2]!==null?fmtMoney(bAmts[2]):'-'}${((extraList||[]).some(e=>e.qi==2&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",3)'>${((deptFundSettings[dept]||{}).deptDisplayNames||{})[3]||(deptFundSettings[dept]||{}).deptDisplayName||dept}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",3)'>${getDeptDisplayName(dept,3)}</td>
           <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="3" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==3&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[3]!==null?fmtMoney(bAmts[3]):'-'}${((extraList||[]).some(e=>e.qi==3&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
           <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
           ${noteCellHtml}
@@ -6737,8 +6737,20 @@ function deleteHeadNameData(dept) {
 }
 
 // ── 조직명 수정 모달 ──
+
+function getDeptDisplayName(dept, qi) {
+  const names = (deptFundSettings[dept]||{}).deptDisplayNames||{};
+  const v = names[qi];
+  if (v === '__HIDDEN__') return '';
+  return v || (deptFundSettings[dept]||{}).deptDisplayName || dept;
+}
+function getBonbuDisplayName(bonbu, qi) {
+  const names = (deptFundSettings[bonbu]||{}).deptDisplayNames||{};
+  const v = names[qi];
+  if (v === '__HIDDEN__') return '';
+  return v || (deptFundSettings[bonbu]||{}).deptDisplayName || bonbu;
+}
 function openDeptNameModal(dept, qi) {
-  console.log('[openDeptNameModal]', dept, qi, typeof qi);
   if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
   if (!deptFundSettings[dept].deptDisplayNames) deptFundSettings[dept].deptDisplayNames = {};
   const curName = deptFundSettings[dept].deptDisplayNames[qi] || '';
@@ -6767,7 +6779,7 @@ function openDeptNameModal(dept, qi) {
   };
   const delBtn = modal.querySelector('#dn-del');
   if (delBtn) delBtn.onclick = () => {
-    deptFundSettings[dept].deptDisplayNames[qi] = '';
+    deptFundSettings[dept].deptDisplayNames[qi] = '__HIDDEN__';
     saveDeptFundSettings();
     modal.remove();
     _renderDeptFund();
