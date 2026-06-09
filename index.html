@@ -6107,12 +6107,18 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // 부서장/팀원 금액 계산 (이름행 인원수 기준)
       const deptIsNone = (setting.type === '' || setting.type === '없음');
 
+      // 하위팀 직원 포함한 전체 직원 목록
+      const allSubEmps = hasSubTeams
+        ? deptNames.filter(d=>departments.some(dep=>dep.name===d&&dep.parent===(departments.find(dep2=>dep2.name===dept)||{}).id)).flatMap(subDept=>depts[subDept]||[])
+        : [];
+      const fullEmpList = [...empList, ...allSubEmps.filter(e=>!empList.find(e2=>e2.uid===e.uid))];
+
       const bAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         const qMonths = qe - qs + 1;
         let t = 0;
         // 재직 인원(육아휴직 제외) × 50,000
-        const bCount = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
+        const bCount = fullEmpList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
         t = bCount * 50000;
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
@@ -6142,7 +6148,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const qMonths = qe - qs + 1;
         let t = 0;
         // 각 인원 재직 월수 × 40,000 (육아휴직 기간 제외)
-        empList.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
+        fullEmpList.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
 
         // extra 추가 인원
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
@@ -6165,6 +6171,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
       // 팀 단위 조직 (부서장 없고 하위팀 없음) → 이름만 표시
+      if (dept==='해외사업팀') console.log('[해외사업팀]', 'deptHead:', !!deptHead, 'hasSubTeams:', hasSubTeams, 'isTypeTeamjang:', isTypeTeamjang, 'deptIsNone:', deptIsNone);
       if (!deptHead && !hasSubTeams) {
         const nameNsT = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
         const nameNsTAmt = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;background:${BG_TEAM_AMT};`;
