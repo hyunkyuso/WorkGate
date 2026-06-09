@@ -5954,11 +5954,26 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       let t=0;
       if (bonbuIsTeamjang) {
         // 팀장 타입: 전체 직원 재직 월수 × 40,000 (겸직은 주소속 본부에서만)
+        const bonbuEmpNameSet = new Set(allEmpInBonbu.map(e=>e.name));
         allEmpInBonbu.filter(e=>getBonbu({dept:e.dept,title:e.title,role:e.role})===bonbu).forEach(e => {
           t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000;
         });
-        ((deptFundSettings[bonbu]||{}).nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden).forEach(()=>{ t += 3*40000; });
-        bonbuExtraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t += 3*40000; });
+        // nameData 수동 추가 인원 (날짜 반영)
+        const bonbuDateData = (deptFundSettings[bonbu]||{}).dateData||[];
+        const bonbuNameData = (deptFundSettings[bonbu]||{}).nameData||[];
+        bonbuNameData.filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden&&!bonbuEmpNameSet.has(d.name)).forEach(nd=>{
+          const ndOrderIdx = bonbuNameData.filter(n=>n.qi===qi&&!n.acting&&!n.hidden&&!bonbuEmpNameSet.has(n.name)).findIndex(n=>n.name===nd.name);
+          const dd = bonbuDateData.find(d=>d.qi===qi&&d.name===nd.name) ||
+            (ndOrderIdx>=0 ? bonbuDateData.find(d=>d.qi===qi&&d.col===ndOrderIdx) : null);
+          let months = qe-qs+1;
+          if(dd&&dd.fullDate){
+            const dtM=new Date(dd.fullDate).getMonth();
+            if(dd.type==='leave'||dd.type==='to') months=Math.max(0,Math.min(dtM,qe)-qs+1);
+            else if(dd.type==='join'||dd.type==='from') months=Math.max(0,qe-Math.max(dtM,qs)+1);
+          }
+          t += months * 40000;
+        });
+        bonbuExtraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t += (qe-qs+1)*40000; });
         return t || null;
       } else if (bonbuIsBuseojang) {
         // 부서장 타입: 재직 인원 수 × 50,000 (겸직은 주소속 본부에서만)
@@ -6193,7 +6208,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               // rowIdx 무관하게 찾기
               return dateDataList.find(d=>d.qi===qi&&d.col===colIdx);
             })();
-          if(dept==='미래전략기획본부') console.log('[날짜매칭]', nd.name, qi, 'dd:', dd, 'dateDataList:', JSON.stringify(dateDataList));
           let months = qMonths;
           if (dd && dd.fullDate) {
             const dtMonth = new Date(dd.fullDate).getMonth();
