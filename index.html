@@ -5945,9 +5945,25 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const hdDataBonbu = ((deptFundSettings[bonbu]||{}).nameData||[]).find(d=>d.rowIdx===-1);
     const headName = hdDataBonbu&&hdDataBonbu.name ? hdDataBonbu.name+(hdDataBonbu.acting?` (${hdDataBonbu.acting})`:'') : (bonbuHead ? bonbuHead.name : '');
     const bonbuNameDataList = (deptFundSettings[bonbu]||{}).nameData || [];
+    const bonbuIsTeamjang = (bonbuSetting.type||'').includes('팀장');
+    const bonbuIsBuseojang = (bonbuSetting.type||'').includes('부서장');
     const qAmts = quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
       let t=0;
+      if (bonbuIsTeamjang) {
+        // 팀장 타입: 전체 직원 재직 월수 × 40,000
+        allEmpInBonbu.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
+        ((deptFundSettings[bonbu]||{}).nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden).forEach(()=>{ t += 3*40000; });
+        bonbuExtraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t += 3*40000; });
+        return t || null;
+      } else if (bonbuIsBuseojang) {
+        // 부서장 타입: 재직 인원 수 × 50,000
+        allEmpInBonbu.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000; });
+        bonbuNameDataList.filter(d=>d.qi===qi&&!d.acting&&!d.hidden).forEach(()=>{ t += 50000; });
+        bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t += 50000; });
+        return t || null;
+      }
+      // 본부장 타입 (기본)
       // 본부장 포함
       if (bonbuHead && getEmpMonthsInQuarter(bonbuHead,year,qs,qe)>0) t += 50000;
       // 각 하위 부서 이름행 인원 합산 (수석전문위원/베트남 제외)
@@ -6228,13 +6244,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${getDeptDisplayName(dept,0)}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[0]===null?'-':fmtMoney(bAmts[0])}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[0]===null?'-':fmtMoney(tAmtsT[0])}</td>
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",1)'>${getDeptDisplayName(dept,1)}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[1]===null?'-':fmtMoney(bAmts[1])}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[1]===null?'-':fmtMoney(tAmtsT[1])}</td>
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",2)'>${getDeptDisplayName(dept,2)}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[2]===null?'-':fmtMoney(bAmts[2])}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[2]===null?'-':fmtMoney(tAmtsT[2])}</td>
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",3)'>${getDeptDisplayName(dept,3)}</td>
-            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${bAmts[3]===null?'-':fmtMoney(bAmts[3])}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[3]===null?'-':fmtMoney(tAmtsT[3])}</td>
             <td style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center">계</td>
             ${noteCellT}
           </tr>
