@@ -6187,7 +6187,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         const dateDataListB = (deptFundSettings[dept]||{}).dateData||[];
         let t = 0;
-        if (hasSubTeams) {  // 하위팀 있으면 Firebase 직원 기준
+        if (useSimpleFormat) {  // 하위팀 있으면 Firebase 직원 기준
           // 부서장 + 하위팀 직원 포함 (Firebase 직원 기준)
           const allEmps = [...empList, ...subTeamEmps].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i);
           allEmps.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t+=50000; });
@@ -6217,7 +6217,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
         // 이름칸 기반: 재직월수 × 40,000
         let t = 0;
-        if (hasSubTeams) {
+        if (useSimpleFormat) {
           // 하위팀 직원 포함
           const allEmpsT = [...empList, ...subTeamEmps].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i);
           allEmpsT.forEach(e=>{ t += getEmpMonthsInQuarter(e,year,qs,qe)*40000; });
@@ -6243,7 +6243,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // 팀단위 금액 계산
         const qNamesT = quarters.map((_,qi) => {
             const [qs,qe] = quarters[qi];
-            const empNamesT = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0&&e.dept===dept).sort(sortEmp||((a,b)=>0));
+            // 상위 부서의 직책 없는 직원도 포함 (GIS SW영업팀, SW지원팀)
+            const parentDept = departments.find(d=>d.name===dept);
+            const parentId = parentDept ? parentDept.parent : null;
+            const parentDeptName = parentId ? (departments.find(d=>d.id===parentId)||{}).name : null;
+            const parentNoTitleEmps = parentDeptName
+              ? (depts[parentDeptName]||[]).filter(e=>!e.title&&getEmpMonthsInQuarter(e,year,qs,qe)>0)
+              : [];
+            const empNamesT = [...empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0&&e.dept===dept), ...parentNoTitleEmps.filter(e=>!empList.find(x=>x.uid===e.uid))].sort(sortEmp||((a,b)=>0));
             const empNameSetT = new Set(empNamesT.map(e=>e.name));
             let objs = empNamesT.map(e=>{
               if(nameDataList.some(d=>d.qi===qi&&d.name===e.name&&d.hidden)) return null;
@@ -6322,8 +6329,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         return;
       }
 
-      // 하위팀 있는 부서 → 이름행 미표시 (팀장/부서장 무관)
-      if (hasSubTeams) {
+      // 하위팀 있는 부서 → 이름행 미표시 (단, 재무회계부 서식 지정 부서 제외)
+      const useSimpleFormat = hasSubTeams && !['SW지원부','GIS SW영업부'].includes(dept);
+      if (useSimpleFormat) {
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
