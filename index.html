@@ -6399,34 +6399,27 @@ function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
   let cellContent = dd && dd.date
     ? `<span style="color:#ef4444;font-size:10px">${dd.date} ${typeMap[dd.type]||dd.type}</span>`
     : '';
+  // hiddenDates 체크
+  const hiddenDates = (deptFundSettings[dept]||{}).hiddenDates||[];
+  if (hiddenDates.includes(qi+'_'+col)) return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi}" data-rowidx="${rowIdx}" data-col="${col}" ondblclick='openDateCell(this)'></td>`;
   // dateData 없으면 Firebase 직원 입사/퇴사 자동 표기
-  if (!dd && qNamesArr && qNamesArr[col]) {
-    if(dept==='AI기획팀') console.log('[auto]', qi, col, JSON.stringify(qNamesArr[col]).substring(0,50));
-    const obj = typeof qNamesArr[col] === 'object' ? qNamesArr[col] : null;
-    const empName = obj ? obj.name : (typeof qNamesArr[col] === 'string' ? qNamesArr[col].replace(/<[^>]*>/g,'').trim() : '');
-    if (empName && obj && obj.isEmp) {
-      // depts에서 해당 직원 찾기
-      const emp = (window._depts && window._depts[dept] || []).find(e=>e.name===empName);
+  if (!dd) {
+    const year2 = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
+    const qRanges = [[0,2],[3,5],[6,8],[9,11]];
+    const [qs2,qe2] = qRanges[qi];
+    // col 위치 직원 이름
+    const nameObj = qNamesArr && qNamesArr[col];
+    const empName = nameObj ? (typeof nameObj==='object'?nameObj.name:String(nameObj).replace(/<[^>]*>/g,'').trim()) : null;
+    if (empName) {
+      // 해당 직원의 입사/퇴사일이 이 분기에 해당하는지만 체크
+      const emp = (employees||[]).find(e=>e.name===empName&&e.dept===dept);
       if (emp) {
-        const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
-        const quarters = [[0,2],[3,5],[6,8],[9,11]];
-        const [qs, qe] = quarters[qi];
-        // 입사일 체크: 해당 분기 내 입사
-        if (emp.joindate) {
-          const jd = parseLocalDate(emp.joindate);
-          if (jd && jd.getFullYear()===year && jd.getMonth()>=qs && jd.getMonth()<=qe) {
-            const m = jd.getMonth()+1, d = jd.getDate();
-            cellContent = `<span style="color:#3b82f6;font-size:10px">${m}/${d} 입사</span>`;
-          }
-        }
-        // 퇴사일 체크: 해당 분기 내 퇴사
-        if (emp.leavedate) {
-          const ld = parseLocalDate(emp.leavedate);
-          if (ld && ld.getFullYear()===year && ld.getMonth()>=qs && ld.getMonth()<=qe) {
-            const m = ld.getMonth()+1, d = ld.getDate();
-            cellContent = `<span style="color:#ef4444;font-size:10px">${m}/${d} 퇴사</span>`;
-          }
-        }
+        const jd=parseLocalDate(emp.joindate);
+        if (jd&&jd.getFullYear()===year2&&jd.getMonth()>=qs2&&jd.getMonth()<=qe2)
+          cellContent=`<span class="auto-date" style="color:#3b82f6;font-size:10px">${jd.getMonth()+1}/${jd.getDate()} 입사</span>`;
+        const ld=parseLocalDate(emp.leavedate);
+        if (ld&&ld.getFullYear()===year2&&ld.getMonth()>=qs2&&ld.getMonth()<=qe2)
+          cellContent=`<span class="auto-date" style="color:#ef4444;font-size:10px">${ld.getMonth()+1}/${ld.getDate()} 퇴사</span>`;
       }
     }
   }
@@ -6570,6 +6563,20 @@ function openDateCell(cell) {
   const rowIdx = parseInt(cell.getAttribute('data-rowidx'));
   const col = parseInt(cell.getAttribute('data-col'));
   const cur = getDateData(dept, qi, rowIdx, col);
+  const isAutoDate = !cur && cell.querySelector('.auto-date');
+  // 자동표기 칸이면 숨기기 모달
+  if (isAutoDate) {
+    if (confirm('자동 표기를 숨기겠습니까?')) {
+      if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+      if (!deptFundSettings[dept].hiddenDates) deptFundSettings[dept].hiddenDates = [];
+      const key = qi+'_'+col;
+      if (!deptFundSettings[dept].hiddenDates.includes(key))
+        deptFundSettings[dept].hiddenDates.push(key);
+      saveDeptFundSettings();
+      _renderDeptFund();
+    }
+    return;
+  }
 
   const modal = document.createElement('div');
   modal.id = 'date-cell-modal';
