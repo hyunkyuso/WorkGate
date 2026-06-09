@@ -6424,17 +6424,15 @@ function saveNameCell(dept, qi, rowIdx, col) {
   const acting = actingEl ? actingEl.value : '';
   if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
   if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
-  const curNd = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.col===col);
+  // 같은 qi+col 또는 같은 qi+name 중복 제거 후 저장
   if (name || acting) {
-    if (curNd >= 0) {
-      deptFundSettings[dept].nameData[curNd] = {qi,col,name,memo,acting};
-    } else {
-      deptFundSettings[dept].nameData.push({qi,col,name,memo,acting});
-    }
-  } else if (curNd >= 0) {
-    deptFundSettings[dept].nameData.splice(curNd,1);
+    // 기존 동일 col 항목 제거
+    deptFundSettings[dept].nameData = deptFundSettings[dept].nameData.filter(d=>!(d.qi===qi&&d.col===col));
+    deptFundSettings[dept].nameData.push({qi,col,name,memo,acting});
+  } else {
+    // 이름 비우면 삭제
+    deptFundSettings[dept].nameData = deptFundSettings[dept].nameData.filter(d=>!(d.qi===qi&&d.col===col));
   }
-  console.log('[save]', dept, qi, col, name, JSON.stringify((deptFundSettings[dept]||{}).nameData));
   saveDeptFundSettings();
   document.getElementById('name-cell-modal').remove();
   _renderDeptFund();
