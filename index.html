@@ -6396,9 +6396,39 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
   const dd = getDateData(dept, qi, rowIdx, col);
   const typeMap = {join:'입사', leave:'퇴사', from:'부터', to:'까지'};
-  const cellContent = dd && dd.date 
-    ? `<span style="color:#ef4444;font-size:10px">${dd.date} ${typeMap[dd.type]||dd.type}</span>` 
+  let cellContent = dd && dd.date
+    ? `<span style="color:#ef4444;font-size:10px">${dd.date} ${typeMap[dd.type]||dd.type}</span>`
     : '';
+  // dateData 없으면 Firebase 직원 입사/퇴사 자동 표기
+  if (!dd && qNamesArr && qNamesArr[col]) {
+    const obj = typeof qNamesArr[col] === 'object' ? qNamesArr[col] : null;
+    const empName = obj ? obj.name : (typeof qNamesArr[col] === 'string' ? qNamesArr[col].replace(/<[^>]*>/g,'').trim() : '');
+    if (empName && obj && obj.isEmp) {
+      // depts에서 해당 직원 찾기
+      const emp = (window._depts && window._depts[dept] || []).find(e=>e.name===empName);
+      if (emp) {
+        const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
+        const quarters = [[0,2],[3,5],[6,8],[9,11]];
+        const [qs, qe] = quarters[qi];
+        // 입사일 체크: 해당 분기 내 입사
+        if (emp.joindate) {
+          const jd = parseLocalDate(emp.joindate);
+          if (jd && jd.getFullYear()===year && jd.getMonth()>=qs && jd.getMonth()<=qe) {
+            const m = jd.getMonth()+1, d = jd.getDate();
+            cellContent = `<span style="color:#3b82f6;font-size:10px">${m}/${d} 입사</span>`;
+          }
+        }
+        // 퇴사일 체크: 해당 분기 내 퇴사
+        if (emp.leavedate) {
+          const ld = parseLocalDate(emp.leavedate);
+          if (ld && ld.getFullYear()===year && ld.getMonth()>=qs && ld.getMonth()<=qe) {
+            const m = ld.getMonth()+1, d = ld.getDate();
+            cellContent = `<span style="color:#ef4444;font-size:10px">${m}/${d} 퇴사</span>`;
+          }
+        }
+      }
+    }
+  }
   return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi}" data-rowidx="${rowIdx}" data-col="${col}" ondblclick='openDateCell(this)'>${cellContent}</td>`;
 }
 
