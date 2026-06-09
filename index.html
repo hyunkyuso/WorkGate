@@ -6070,13 +6070,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const [qs,qe] = quarters[qi];
         const empNames = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).sort(sortEmp);
         const empNameSet = new Set(empNames.map(e=>e.name));
-        // Firebase 직원 배열 (acting 포함)
+        // Firebase 직원 배열 (hidden/acting 처리)
         let nameObjs = empNames.map(e => {
+          if (nameDataList.some(d=>d.qi===qi&&d.name===e.name&&d.hidden)) return null; // hidden 제외
           const actNd = nameDataList.find(d=>d.qi===qi&&d.name===e.name&&d.acting&&!d.insertBefore);
           const display = (e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name)
             + (actNd ? '<span style="color:#3b82f6;font-size:10px"> ('+actNd.acting+')</span>' : '');
           return {display, isEmp:true, name:e.name, isActing:!!actNd, nd:actNd||null};
-        });
+        }).filter(Boolean);
         // acting 있는 Firebase 직원 앞으로 정렬
         nameObjs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
         // insertBefore: Firebase 직원 앞에 끼워넣기
@@ -6172,7 +6173,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             const [qs,qe] = quarters[qi];
             const empNamesT = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0&&e.dept===dept).sort(sortEmp||((a,b)=>0));
             const empNameSetT = new Set(empNamesT.map(e=>e.name));
-            let objs = empNamesT.map(e=>({display: e.title==='팀장'?e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>':e.name, isEmp:true, name:e.name}));
+            let objs = empNamesT.map(e=>{
+              if(nameDataList.some(d=>d.qi===qi&&d.name===e.name&&d.hidden)) return null;
+              return {display: e.title==='팀장'?e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>':e.name, isEmp:true, name:e.name};
+            }).filter(Boolean);
             // acting 있는 Firebase 직원 처리
             nameDataList.filter(d=>d.qi===qi&&d.acting&&empNameSetT.has(d.name)&&!d.insertBefore).forEach(nd=>{
               const obj=objs.find(o=>o.name===nd.name);
@@ -6449,7 +6453,7 @@ function openNameCell(cell) {
       </div>
       <input id="nc-memo" value="${nd?nd.memo||'':''}" placeholder="메모 (선택)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:14px;outline:none">
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-        ${nd?'<button id="nc-del-btn" style="padding:6px 12px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:13px">삭제</button>':''}
+        <button id="nc-del-btn" style="padding:6px 12px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:13px">삭제</button>
         <button onclick="document.getElementById('name-cell-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
         <button id="nc-insert-btn" style="padding:6px 14px;border-radius:8px;border:1px solid #3b82f6;color:#3b82f6;background:#fff;cursor:pointer;font-size:13px">앞에 삽입</button>
         <button id="nc-save-btn" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">수정</button>
@@ -6493,10 +6497,17 @@ function openNameCell(cell) {
     modal.remove();
     _renderDeptFund();
   };
-  const delBtn = modal.querySelector('#nc-del-btn');
-  if (delBtn) delBtn.onclick = () => {
-    if (!deptFundSettings[dept]||!deptFundSettings[dept].nameData) return;
-    deptFundSettings[dept].nameData.splice(ndIdx, 1);
+  modal.querySelector('#nc-del-btn').onclick = () => {
+    if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+    if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
+    if (isEmp) {
+      // Firebase 직원: 해당 qi에서 숨김 처리
+      const hiddenIdx = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.name===cellBaseName&&d.hidden);
+      if (hiddenIdx < 0) deptFundSettings[dept].nameData.push({qi, name:cellBaseName, hidden:true});
+    } else if (ndIdx >= 0) {
+      // nameData 직원: 제거
+      deptFundSettings[dept].nameData.splice(ndIdx, 1);
+    }
     saveDeptFundSettings();
     modal.remove();
     _renderDeptFund();
