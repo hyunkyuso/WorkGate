@@ -6102,9 +6102,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       function getQNames(qi) {
         const [qs,qe] = quarters[qi];
         // 부서장 타입이면 하위팀 직원도 포함
-        const baseMembers = isTypeBuseojang
-          ? [...teamMembers, ...subTeamEmps].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i)
-          : teamMembers;
+        const baseMembers = teamMembers; // 이름칸은 해당 부서 직원만
         const empNames = baseMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).sort(sortEmp);
         const empNameSet = new Set(empNames.map(e=>e.name));
         // Firebase 직원 배열 (hidden/acting 처리)
@@ -6203,10 +6201,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // 이름칸 기반: 재직월수 × 40,000
         const items = calcNameMonths(qNames[qi], qi, dateDataList);
         let t = items.reduce((s,x)=>s+x.months*40000, 0);
-        // 팀장 비고인데 이름칸에 팀원 없고 부서장만 있는 경우 → 부서장 계산에 포함
-        if (t === 0 && deptHead) {
+        // 팀장 비고이고 부서장이 있으면 항상 부서장도 포함
+        if (deptHead) {
           const deptHeadMonths = getEmpMonthsInQuarter(deptHead, year, qs, qe);
-          t = deptHeadMonths * 40000;
+          t += deptHeadMonths * 40000;
         }
         // extra
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=(qe-qs+1)*40000; });
