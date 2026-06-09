@@ -5776,6 +5776,13 @@ function renderDeptFund() {
 function _renderDeptFund() {
   const container = document.getElementById('deptfund-content');
   if (!container) return;
+  // nameData 중복 자동 정리 (qi+col 기준 마지막 값 유지)
+  Object.keys(deptFundSettings).forEach(dept => {
+    if (!deptFundSettings[dept].nameData) return;
+    const seen = new Map();
+    deptFundSettings[dept].nameData.forEach(d => seen.set(d.qi+'_'+d.col, d));
+    deptFundSettings[dept].nameData = [...seen.values()];
+  });
   const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
   // 전체 4분기 (1~3월은 대기로 '-' 표시)
   const quarters = [[0,2],[3,5],[6,8],[9,11]];
@@ -6426,7 +6433,6 @@ function insertBeforeNameCell(dept, qi, rowIdx, col) {
 }
 
 function saveNameCell(dept, qi, rowIdx, col) {
-  console.log('[saveNameCell 호출]', dept, qi, col);
   const name = document.getElementById('nc-name').value.trim();
   const memo = document.getElementById('nc-memo').value.trim();
   const actingEl = document.querySelector('input[name="nc-acting"]:checked');
@@ -6441,7 +6447,6 @@ function saveNameCell(dept, qi, rowIdx, col) {
   } else {
     deptFundSettings[dept].nameData = deptFundSettings[dept].nameData.filter(d=>!(d.qi===qi&&d.col===col));
   }
-  console.log('[저장후 nameData]', JSON.stringify(deptFundSettings[dept].nameData));
   saveDeptFundSettings();
   document.getElementById('name-cell-modal').remove();
   _renderDeptFund();
