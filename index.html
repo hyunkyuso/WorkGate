@@ -6069,23 +6069,29 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       function getQNames(qi) {
         const [qs,qe] = quarters[qi];
         const empNames = teamMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).sort(sortEmp);
-        // Firebase 직원 → {display, isEmp:true, name}
-        let nameObjs = empNames.map((e,i) => ({
-          display: e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name,
-          isEmp: true, name: e.name
-        }));
-        // nameData 추가 인원 (Firebase 직원 아닌 것)
         const empNameSet = new Set(empNames.map(e=>e.name));
-        nameDataList.filter(d=>d.qi===qi&&d.name&&!empNameSet.has(d.name)).forEach(nd => {
-          const actTag = nd.acting ? '<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>' : '';
-          nameObjs.push({display: nd.name+actTag, isEmp:false, name:nd.name, nd});
+        // Firebase 직원 배열 (acting 포함)
+        let nameObjs = empNames.map(e => {
+          const actNd = nameDataList.find(d=>d.qi===qi&&d.name===e.name&&d.acting&&!d.insertBefore);
+          const display = (e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name)
+            + (actNd ? '<span style="color:#3b82f6;font-size:10px"> ('+actNd.acting+')</span>' : '');
+          return {display, isEmp:true, name:e.name, isActing:!!actNd, nd:actNd||null};
         });
-        // acting 있는 Firebase 직원 → 앞으로 정렬
-        nameDataList.filter(d=>d.qi===qi&&d.acting&&empNameSet.has(d.name)).forEach(nd => {
-          const obj = nameObjs.find(o=>o.name===nd.name);
-          if (obj) { obj.display += '<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>'; obj.isActing=true; obj.nd=nd; }
-        });
+        // acting 있는 Firebase 직원 앞으로 정렬
         nameObjs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
+        // insertBefore: Firebase 직원 앞에 끼워넣기
+        nameDataList.filter(d=>d.qi===qi&&d.insertBefore&&d.name).forEach(nd => {
+          const idx = nameObjs.findIndex(o=>o.name===nd.insertBefore);
+          const actTag = nd.acting ? '<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>' : '';
+          const newObj = {display:nd.name+actTag, isEmp:false, name:nd.name, nd};
+          if (idx >= 0) nameObjs.splice(idx, 0, newObj);
+          else nameObjs.push(newObj);
+        });
+        // 일반 추가 인원 (insertBefore 없고 Firebase 직원 아닌 것)
+        nameDataList.filter(d=>d.qi===qi&&d.name&&!d.insertBefore&&!d.acting&&!empNameSet.has(d.name)).forEach(nd => {
+          const actTag = nd.acting ? '<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>' : '';
+          nameObjs.push({display:nd.name+actTag, isEmp:false, name:nd.name, nd});
+        });
         return nameObjs;
       }
       // 금액 계산용: 전체 분기 통합 이름행 인원 (가장 많은 분기 기준)
@@ -6426,7 +6432,7 @@ function openNameCell(cell) {
   modal.innerHTML = `
     <div style="background:#fff;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
       <div style="font-size:14px;font-weight:700;margin-bottom:14px">이름 ${nd?'수정':'추가'}</div>
-      ${isEmp ? `<div style="font-size:12px;color:#64748b;margin-bottom:8px;padding:6px 10px;background:#f8fafc;border-radius:6px">Firebase 직원: <b>${cellBaseName}</b><br><span style="font-size:11px;color:#94a3b8">직책(대행)만 변경 가능합니다</span></div>` : `<input id="nc-name" value="${nd?nd.name:''}" placeholder="이름 입력" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">`}
+      <input id="nc-name" value="${nd?nd.name:''}" placeholder="${isEmp?'새 이름 입력 (기존 직원은 옆으로 이동)':'이름 입력'}" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
       <div style="font-size:12px;color:#64748b;margin-bottom:6px">직책 (대행)</div>
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
         ${actingRoles.map(r=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${curActing===r?'background:#dbeafe;border-color:#3b82f6':''}"><input type="radio" name="nc-acting" value="${r}" ${curActing===r?'checked':''} style="accent-color:#3b82f6"> ${r}</label>`).join('')}
@@ -6450,20 +6456,13 @@ function openNameCell(cell) {
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
     if (nd && ndIdx >= 0) {
       // 기존 nameData 항목 수정
-      deptFundSettings[dept].nameData[ndIdx] = {qi, name: name||nd.name, memo, acting};
+      if (name) deptFundSettings[dept].nameData[ndIdx] = {qi, name, memo, acting, insertBefore: nd.insertBefore};
+    } else if (isEmp && name) {
+      // Firebase 직원 칸: 새 이름 삽입, 기존 직원은 뒤로
+      deptFundSettings[dept].nameData.push({qi, name, memo, acting, insertBefore: cellBaseName});
     } else if (!isEmp && name) {
       // 빈칸에 신규 추가
       deptFundSettings[dept].nameData.push({qi, name, memo, acting});
-    }
-    // Firebase 직원 칸: acting 저장
-    if (isEmp && acting !== undefined) {
-      const existIdx = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.name===cellBaseName&&d.isActingOverride);
-      if (acting) {
-        if (existIdx >= 0) deptFundSettings[dept].nameData[existIdx] = {qi, name:cellBaseName, memo, acting, isActingOverride:true};
-        else deptFundSettings[dept].nameData.push({qi, name:cellBaseName, memo, acting, isActingOverride:true});
-      } else if (existIdx >= 0) {
-        deptFundSettings[dept].nameData.splice(existIdx, 1);
-      }
     }
     saveDeptFundSettings();
     modal.remove();
