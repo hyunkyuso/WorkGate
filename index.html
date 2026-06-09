@@ -6044,7 +6044,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           origCol: i, isEmp: true, name: e.name
         }));
         // 대행자(acting) 처리
-        const actingItems = nameDataList.filter(d=>d.qi===qi&&d.acting&&d.rowIdx>=0);
+        const actingItems = nameDataList.filter(d=>d.qi===qi&&d.acting);
         actingItems.forEach(act => {
           const obj = nameObjs.find(o=>o.name===act.name);
           if (obj) { obj.display += '<span style="color:#3b82f6;font-size:10px"> ('+act.acting+')</span>'; obj.isActing=true; }
@@ -6054,7 +6054,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         nameObjs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
         // nameData 추가 인원(acting 없고 Firebase 직원 아닌 것)
         const empNameSet = new Set(empNames.map(e=>e.name));
-        const insertItems = nameDataList.filter(d=>d.qi===qi&&!d.acting&&d.rowIdx===0&&!empNameSet.has(d.name));
+        const insertItems = nameDataList.filter(d=>d.qi===qi&&!d.acting&&!empNameSet.has(d.name));
         // col 기준으로 정렬 후 해당 위치에 삽입
         insertItems.sort((a,b)=>a.col-b.col).forEach(nd => {
           const insertPos = Math.min(nd.col, nameObjs.length);
@@ -6329,7 +6329,8 @@ function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
 
 // ── 이름셀/날짜셀 헬퍼 함수 ──
 function getNameData(dept, qi, rowIdx, col) {
-  return ((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.qi===qi&&d.col===col&&(d.rowIdx===rowIdx||d.rowIdx===0));
+  // col 기준으로 찾기 (rowIdx 무시)
+  return ((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.qi===qi&&d.col===col);
 }
 function getDateData(dept, qi, rowIdx, col) {
   return ((deptFundSettings[dept]||{}).dateData||[]).find(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
@@ -6407,14 +6408,10 @@ function insertBeforeNameCell(dept, qi, rowIdx, col) {
   if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
   if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
   if (!deptFundSettings[dept].dateData) deptFundSettings[dept].dateData = [];
-  // col 위치부터 기존 nameData 모두 col+1로 밀기
-  deptFundSettings[dept].nameData.forEach(d => {
-    if (d.qi===qi && d.rowIdx===0 && d.col>=col) d.col++;
-  });
-  deptFundSettings[dept].dateData.forEach(d => {
-    if (d.qi===qi && d.rowIdx===0 && d.col>=col) d.col++;
-  });
-  deptFundSettings[dept].nameData.push({qi, rowIdx:0, col, name, memo, acting});
+  // col 위치부터 기존 nameData col+1씩 밀기
+  deptFundSettings[dept].nameData.forEach(d => { if(d.qi===qi&&d.col>=col) d.col++; });
+  deptFundSettings[dept].dateData.forEach(d => { if(d.qi===qi&&d.col>=col) d.col++; });
+  deptFundSettings[dept].nameData.push({qi, col, name, memo, acting});
   saveDeptFundSettings();
   document.getElementById('name-cell-modal').remove();
   _renderDeptFund();
@@ -6427,13 +6424,12 @@ function saveNameCell(dept, qi, rowIdx, col) {
   const acting = actingEl ? actingEl.value : '';
   if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
   if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
-  // rowIdx 무관하게 qi/col로 찾기 (rowIdx:0으로 통일)
-  const curNd = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.col===col&&d.rowIdx===0);
+  const curNd = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.col===col);
   if (name || acting) {
     if (curNd >= 0) {
-      deptFundSettings[dept].nameData[curNd] = {qi,rowIdx:0,col,name,memo,acting};
+      deptFundSettings[dept].nameData[curNd] = {qi,col,name,memo,acting};
     } else {
-      deptFundSettings[dept].nameData.push({qi,rowIdx:0,col,name,memo,acting});
+      deptFundSettings[dept].nameData.push({qi,col,name,memo,acting});
     }
   } else if (curNd >= 0) {
     deptFundSettings[dept].nameData.splice(curNd,1);
@@ -6445,7 +6441,7 @@ function saveNameCell(dept, qi, rowIdx, col) {
 
 function deleteNameCell(dept, qi, rowIdx, col) {
   if (!deptFundSettings[dept]||!deptFundSettings[dept].nameData) return;
-  const idx = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
+  const idx = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.col===col);
   if (idx >= 0) deptFundSettings[dept].nameData.splice(idx,1);
   saveDeptFundSettings();
   document.getElementById('name-cell-modal').remove();
