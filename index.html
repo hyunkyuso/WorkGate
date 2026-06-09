@@ -5933,7 +5933,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
     // 분기별 금액 계산 (Q1=대기)
     const bonbuSetting = deptFundSettings[bonbu] || {type:'본부장'};
-    if(bonbu&&bonbu.includes('AI')) console.log('[AI본부]', JSON.stringify(bonbu), JSON.stringify(deptFundSettings[bonbu]));
     const bonbuIsNone = bonbuSetting.type === '' || bonbuSetting.type === '없음';
     const bonbuExtraList = (deptFundSettings[bonbu]||{}).extra || [];
     // 겸직으로 이 본부의 본부장인 사람 (전체 직원에서 탐색)
@@ -5954,26 +5953,22 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (bonbuIsNone) return null;
       let t=0;
       if (bonbuIsTeamjang) {
-        // 팀장 타입: 각 부서 이름칸 표시 직원만 합산
-        const bonbuDateDataQ = (deptFundSettings[bonbu]||{}).dateData||[];
+        // 팀장 타입: 각 부서 재직 직원 × 40,000 (getEmpMonthsInQuarter 기반)
         deptNames.forEach(d => {
-          const dSetting = deptFundSettings[d]||{};
-          const dQNames = window._lastQNames&&window._lastQNames[d]&&window._lastQNames[d][qi] ? window._lastQNames[d][qi] : [];
           const dEmpList = depts[d]||[];
-          dQNames.forEach(obj => {
-            if(!obj||!obj.name) return;
-            if(obj.isEmp) {
-              const e = dEmpList.find(emp=>emp.name===obj.name);
-              if(e) t += getEmpMonthsInQuarter(e,year,qs,qe)*40000;
-            } else {
-              // nameData 인원 날짜 반영
-              const dDateData = (dSetting).dateData||[];
-              const colIdx = dQNames.indexOf(obj);
-              const dd = dDateData.find(dx=>dx.qi===qi&&dx.name===obj.name)||dDateData.find(dx=>dx.qi===qi&&dx.col===colIdx);
-              let months = qe-qs+1;
-              if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
-              t += months*40000;
-            }
+          const dNameData = (deptFundSettings[d]||{}).nameData||[];
+          const dDateData = (deptFundSettings[d]||{}).dateData||[];
+          const dEmpNameSet = new Set(dEmpList.map(e=>e.name));
+          // Firebase 직원
+          dEmpList.filter(e=>getBonbu({dept:e.dept,title:e.title,role:e.role})===bonbu).forEach(e=>{
+            t += getEmpMonthsInQuarter(e,year,qs,qe)*40000;
+          });
+          // nameData 추가 인원 (날짜 반영)
+          dNameData.filter(nd=>nd.qi===qi&&nd.name&&!nd.acting&&!nd.hidden&&!dEmpNameSet.has(nd.name)).forEach((nd,i)=>{
+            const dd = dDateData.find(d=>d.qi===qi&&d.name===nd.name)||dDateData.find(d=>d.qi===qi&&d.col===i);
+            let months=qe-qs+1;
+            if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
+            t+=months*40000;
           });
         });
         bonbuExtraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t += (qe-qs+1)*40000; });
