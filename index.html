@@ -669,6 +669,10 @@ select.form-input{cursor:pointer}
             <button onclick="exportDeptFundExcel()" style="padding:6px 12px;border-radius:8px;border:1px solid #217346;color:#217346;background:#fff;cursor:pointer;font-size:13px;font-weight:600">📊 Excel</button>
           </div>
         </div>
+        <div style="padding:8px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+          <span style="font-size:12px;color:#856404">⚠️ 이름 데이터가 이상하게 보이면 정리 버튼을 클릭하세요</span>
+          <button onclick="cleanupNameData()" style="padding:4px 12px;background:#ffc107;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">데이터 정리</button>
+        </div>
         <div id="deptfund-content" style="overflow-x:auto;padding:8px">
           <p style="color:#94a3b8">로딩 중...</p>
         </div>
@@ -5771,6 +5775,30 @@ function renderDeptFund() {
     return;
   }
   loadDeptFundSettings().then(() => _renderDeptFund());
+}
+
+
+// ── nameData 정리 (중복/빈이름 제거) ──
+function cleanupNameData() {
+  let changed = false;
+  Object.keys(deptFundSettings).forEach(dept => {
+    if (!deptFundSettings[dept].nameData) return;
+    const before = deptFundSettings[dept].nameData.length;
+    // name 없는 항목 제거
+    deptFundSettings[dept].nameData = deptFundSettings[dept].nameData.filter(d => d.name && d.name.trim());
+    // qi+col 중복 제거 (마지막 값 유지)
+    const seen = new Map();
+    deptFundSettings[dept].nameData.forEach(d => seen.set(d.qi+'_'+d.col, d));
+    deptFundSettings[dept].nameData = [...seen.values()];
+    if (deptFundSettings[dept].nameData.length !== before) changed = true;
+  });
+  if (changed) {
+    saveDeptFundSettings();
+    alert('데이터 정리 완료! 페이지를 새로고침합니다.');
+    location.reload();
+  } else {
+    alert('정리할 데이터가 없습니다.');
+  }
 }
 
 function _renderDeptFund() {
