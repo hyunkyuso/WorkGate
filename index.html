@@ -5941,7 +5941,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     );
     // 주소속 본부장
     const bonbuHeadMain = allEmpInBonbu.find(e=>(e.title||'').includes('본부장'));
-    const bonbuHead = bonbuHeadConc || bonbuHeadMain;
+    // 겸직 본부장은 주소속 본부에서만 계산 (다른 본부에서는 제외)
+    const bonbuHeadConcFiltered = bonbuHeadConc && bonbuHeadConc.dept !== bonbu ? null : bonbuHeadConc;
+    const bonbuHead = bonbuHeadConcFiltered || bonbuHeadMain;
     const hdDataBonbu = ((deptFundSettings[bonbu]||{}).nameData||[]).find(d=>d.rowIdx===-1);
     const headName = hdDataBonbu&&hdDataBonbu.name ? hdDataBonbu.name+(hdDataBonbu.acting?` (${hdDataBonbu.acting})`:'') : (bonbuHead ? bonbuHead.name : '');
     const bonbuNameDataList = (deptFundSettings[bonbu]||{}).nameData || [];
@@ -6137,12 +6139,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const bCount = fullEmpList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).length;
         t = bCount * 50000;
         // extra 추가 인원
-        extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += qMonths * 50000; });
-        // nameData 추가 인원
-        const empNamesB = empList.map(e=>e.name);
+        extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 50000; });
+        // nameData 추가 인원 (fullEmpList 기준으로 중복 제거)
+        const empNamesB = fullEmpList.map(e=>e.name);
         const dateDataListB = (deptFundSettings[dept]||{}).dateData || [];
         nameDataList.filter(d=>d.qi===qi&&!d.acting&&!empNamesB.includes(d.name)).forEach(nd => {
-          const dd = dateDataListB.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
+          const ndColB = qNames[qi].findIndex(o=>o.name===nd.name);
+          const dd = ndColB>=0 ? (deptFundSettings[dept]||{}).dateData?.find(d=>d.qi===qi&&d.rowIdx===0&&d.col===ndColB) : null;
           if (dd && dd.fullDate) {
             const dtMonth = new Date(dd.fullDate).getMonth();
             if (dd.type==='leave'||dd.type==='to') {
