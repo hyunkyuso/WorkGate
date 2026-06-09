@@ -5953,14 +5953,18 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (bonbuIsNone) return null;
       let t=0;
       if (bonbuIsTeamjang) {
-        // 팀장 타입: 전체 직원 재직 월수 × 40,000
-        allEmpInBonbu.forEach(e => { t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000; });
+        // 팀장 타입: 전체 직원 재직 월수 × 40,000 (겸직은 주소속 본부에서만)
+        allEmpInBonbu.filter(e=>getBonbu({dept:e.dept,title:e.title,role:e.role})===bonbu).forEach(e => {
+          t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000;
+        });
         ((deptFundSettings[bonbu]||{}).nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden).forEach(()=>{ t += 3*40000; });
         bonbuExtraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t += 3*40000; });
         return t || null;
       } else if (bonbuIsBuseojang) {
-        // 부서장 타입: 재직 인원 수 × 50,000
-        allEmpInBonbu.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000; });
+        // 부서장 타입: 재직 인원 수 × 50,000 (겸직은 주소속 본부에서만)
+        allEmpInBonbu.filter(e=>getBonbu({dept:e.dept,title:e.title,role:e.role})===bonbu).forEach(e => {
+          if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000;
+        });
         bonbuNameDataList.filter(d=>d.qi===qi&&!d.acting&&!d.hidden).forEach(()=>{ t += 50000; });
         bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t += 50000; });
         return t || null;
@@ -6148,8 +6152,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const empNamesB = fullEmpList.map(e=>e.name);
         const dateDataListB = (deptFundSettings[dept]||{}).dateData || [];
         nameDataList.filter(d=>d.qi===qi&&!d.acting&&!empNamesB.includes(d.name)).forEach(nd => {
-          const ndColB = qNames[qi].findIndex(o=>o.name===nd.name);
-          const dd = ndColB>=0 ? (deptFundSettings[dept]||{}).dateData?.find(d=>d.qi===qi&&d.rowIdx===0&&d.col===ndColB) : null;
+          const ddB = (deptFundSettings[dept]||{}).dateData||[];
+          const dd = ddB.find(d=>d.qi===qi&&d.name===nd.name) ||
+            (() => { const colIdx=qNames[qi].findIndex(o=>typeof o==='object'?o.name===nd.name:false); return colIdx>=0?ddB.find(d=>d.qi===qi&&d.rowIdx===0&&d.col===colIdx):null; })();
           if (dd && dd.fullDate) {
             const dtMonth = new Date(dd.fullDate).getMonth();
             if (dd.type==='leave'||dd.type==='to') {
@@ -6180,9 +6185,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // nameData 추가 인원 - dateData 있으면 월수 계산
         const empNamesSet = new Set(empList.map(e=>e.name));
         nameDataList.filter(d=>d.qi===qi&&!d.acting&&d.name&&!empNamesSet.has(d.name)).forEach(nd => {
-          // nameData 인원의 qNames 위치(col)로 dateData 매칭
-          const ndColIdx = qNames[qi].findIndex(o=>typeof o==='object'?o.name===nd.name:o===nd.name);
-          const dd = ndColIdx>=0 ? dateDataList.find(d=>d.qi===qi&&d.rowIdx===0&&d.col===ndColIdx) : null;
+          // name 기반으로 dateData 매칭 (name 없으면 col 기반)
+          const dd = dateDataList.find(d=>d.qi===qi&&d.name===nd.name) ||
+            (() => {
+              const colIdx=qNames[qi].findIndex(o=>typeof o==='object'?o.name===nd.name:false);
+              if(colIdx<0) return null;
+              // rowIdx 무관하게 찾기
+              return dateDataList.find(d=>d.qi===qi&&d.col===colIdx);
+            })();
+          if(dept==='미래전략기획본부') console.log('[날짜매칭]', nd.name, qi, 'dd:', dd, 'dateDataList:', JSON.stringify(dateDataList));
           let months = qMonths;
           if (dd && dd.fullDate) {
             const dtMonth = new Date(dd.fullDate).getMonth();
@@ -6658,7 +6669,10 @@ function saveDateCell(dept, qi, rowIdx, col) {
   if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
   if (!deptFundSettings[dept].dateData) deptFundSettings[dept].dateData = [];
   const idx = deptFundSettings[dept].dateData.findIndex(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
-  const obj = {qi,rowIdx,col,date,fullDate,type};
+  // col 위치의 직원 이름 저장 (금액 계산 시 매칭용)
+  const nameCell = document.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-rowidx="${rowIdx}"][data-col="${col}"]`);
+  const cellName = nameCell ? nameCell.textContent.replace(/\s*\([^)]*\)\s*/g,'').trim() : '';
+  const obj = {qi,rowIdx,col,date,fullDate,type,name:cellName};
   if (idx >= 0) deptFundSettings[dept].dateData[idx] = obj;
   else deptFundSettings[dept].dateData.push(obj);
   saveDeptFundSettings();
