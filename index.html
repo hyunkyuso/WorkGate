@@ -6397,7 +6397,7 @@ function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
   const dd = getDateData(dept, qi, rowIdx, col);
   const typeMap = {join:'입사', leave:'퇴사', from:'부터', to:'까지'};
   let cellContent = dd && dd.date
-    ? `<span style="color:#ef4444;font-size:10px">${dd.date} ${typeMap[dd.type]||dd.type}</span>`
+    ? `<span style="color:${(dd.type==='join'||dd.type==='from')?'#3b82f6':'#ef4444'};font-size:10px">${dd.date} ${typeMap[dd.type]||dd.type}</span>`
     : '';
   // hiddenDates 체크
   const hiddenDates = (deptFundSettings[dept]||{}).hiddenDates||[];
@@ -6438,7 +6438,7 @@ function getDateNote(dept, qi, rowIdx, col) {
   const d = getDateData(dept, qi, rowIdx, col);
   if (!d || !d.date) return '';
   const typeMap = {join:'입사', leave:'퇴사', from:'부터', to:'까지'};
-  return ` <span style="color:#ef4444;font-size:10px">${d.date} ${typeMap[d.type]||d.type}</span>`;
+  return ` <span style="color:${(d.type==='join'||d.type==='from')?'#3b82f6':'#ef4444'};font-size:10px">${d.date} ${typeMap[d.type]||d.type}</span>`;
 }
 function getDateCell(dept, qi, rowIdx, col) {
   const d = getDateData(dept, qi, rowIdx, col);
