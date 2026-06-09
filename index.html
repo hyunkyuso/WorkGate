@@ -5953,25 +5953,27 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (bonbuIsNone) return null;
       let t=0;
       if (bonbuIsTeamjang) {
-        // 팀장 타입: 전체 직원 재직 월수 × 40,000 (겸직은 주소속 본부에서만)
-        const bonbuEmpNameSet = new Set(allEmpInBonbu.map(e=>e.name));
-        allEmpInBonbu.filter(e=>getBonbu({dept:e.dept,title:e.title,role:e.role})===bonbu).forEach(e => {
-          t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000;
-        });
-        // nameData 수동 추가 인원 (날짜 반영)
-        const bonbuDateData = (deptFundSettings[bonbu]||{}).dateData||[];
-        const bonbuNameData = (deptFundSettings[bonbu]||{}).nameData||[];
-        bonbuNameData.filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden&&!bonbuEmpNameSet.has(d.name)).forEach(nd=>{
-          const ndOrderIdx = bonbuNameData.filter(n=>n.qi===qi&&!n.acting&&!n.hidden&&!bonbuEmpNameSet.has(n.name)).findIndex(n=>n.name===nd.name);
-          const dd = bonbuDateData.find(d=>d.qi===qi&&d.name===nd.name) ||
-            (ndOrderIdx>=0 ? bonbuDateData.find(d=>d.qi===qi&&d.col===ndOrderIdx) : null);
-          let months = qe-qs+1;
-          if(dd&&dd.fullDate){
-            const dtM=new Date(dd.fullDate).getMonth();
-            if(dd.type==='leave'||dd.type==='to') months=Math.max(0,Math.min(dtM,qe)-qs+1);
-            else if(dd.type==='join'||dd.type==='from') months=Math.max(0,qe-Math.max(dtM,qs)+1);
-          }
-          t += months * 40000;
+        // 팀장 타입: 각 부서 이름칸 표시 직원만 합산
+        const bonbuDateDataQ = (deptFundSettings[bonbu]||{}).dateData||[];
+        deptNames.forEach(d => {
+          const dSetting = deptFundSettings[d]||{};
+          const dQNames = window._lastQNames&&window._lastQNames[d]&&window._lastQNames[d][qi] ? window._lastQNames[d][qi] : [];
+          const dEmpList = depts[d]||[];
+          dQNames.forEach(obj => {
+            if(!obj||!obj.name) return;
+            if(obj.isEmp) {
+              const e = dEmpList.find(emp=>emp.name===obj.name);
+              if(e) t += getEmpMonthsInQuarter(e,year,qs,qe)*40000;
+            } else {
+              // nameData 인원 날짜 반영
+              const dDateData = (dSetting).dateData||[];
+              const colIdx = dQNames.indexOf(obj);
+              const dd = dDateData.find(dx=>dx.qi===qi&&dx.name===obj.name)||dDateData.find(dx=>dx.qi===qi&&dx.col===colIdx);
+              let months = qe-qs+1;
+              if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
+              t += months*40000;
+            }
+          });
         });
         bonbuExtraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t += (qe-qs+1)*40000; });
         return t || null;
@@ -6154,33 +6156,21 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         const qMonths = qe - qs + 1;
         let t = 0;
-        // 재직 인원(육아휴직 제외) × 50,000 - 겸직 직원은 주소속 본부에서만 계산
-        const bCount = fullEmpList.filter(e=>{
-          if(getEmpMonthsInQuarter(e,year,qs,qe)===0) return false;
-          const eBonbu = getBonbu({dept:e.dept,title:e.title,role:e.role});
-          return eBonbu === bonbu; // 주소속 본부만
-        }).length;
-        t = bCount * 50000;
-        // extra 추가 인원
-        extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 50000; });
-        // nameData 추가 인원 (fullEmpList 기준으로 중복 제거)
-        const empNamesB = fullEmpList.map(e=>e.name);
-        const dateDataListB = (deptFundSettings[dept]||{}).dateData || [];
-        nameDataList.filter(d=>d.qi===qi&&!d.acting&&!empNamesB.includes(d.name)).forEach(nd => {
-          const ddB = (deptFundSettings[dept]||{}).dateData||[];
-          const dd = ddB.find(d=>d.qi===qi&&d.name===nd.name) ||
-            (() => { const colIdx=qNames[qi].findIndex(o=>typeof o==='object'?o.name===nd.name:false); return colIdx>=0?ddB.find(d=>d.qi===qi&&d.rowIdx===0&&d.col===colIdx):null; })();
-          if (dd && dd.fullDate) {
-            const dtMonth = new Date(dd.fullDate).getMonth();
-            if (dd.type==='leave'||dd.type==='to') {
-              if (Math.max(0, Math.min(dtMonth,qe)-qs+1) > 0) t += 50000;
-            } else if (dd.type==='join'||dd.type==='from') {
-              if (Math.max(0, qe-Math.max(dtMonth,qs)+1) > 0) t += 50000;
-            }
+        // 이름칸 표시 직원만 계산 (qNames[qi] 기반)
+        const dateDataListB = (deptFundSettings[dept]||{}).dateData||[];
+        qNames[qi].forEach((obj,colIdx) => {
+          if(!obj||!obj.name) return;
+          if(obj.isEmp) {
+            const e = empList.find(emp=>emp.name===obj.name)||fullEmpList.find(emp=>emp.name===obj.name);
+            if(e&&getEmpMonthsInQuarter(e,year,qs,qe)>0) t+=50000;
           } else {
-            t += 50000;
+            const dd = dateDataListB.find(d=>d.qi===qi&&d.name===obj.name)||dateDataListB.find(d=>d.qi===qi&&d.col===colIdx);
+            if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to'){if(Math.max(0,Math.min(dtM,qe)-qs+1)>0)t+=50000;}else if(dd.type==='join'||dd.type==='from'){if(Math.max(0,qe-Math.max(dtM,qs)+1)>0)t+=50000;}}
+            else t+=50000;
           }
         });
+        // extra 추가 인원
+        extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 50000; });
         return t || null;
       });
       const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
@@ -6190,35 +6180,22 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const dateDataList = (deptFundSettings[dept]||{}).dateData || [];
         const qMonths = qe - qs + 1;
         let t = 0;
-        // 각 인원 재직 월수 × 40,000 - 겸직 직원은 주소속 본부에서만 계산
-        fullEmpList.filter(e=>getBonbu({dept:e.dept,title:e.title,role:e.role})===bonbu).forEach(e => {
-          t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000;
-        });
-
-        // extra 추가 인원
-        extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += qMonths * 40000; });
-        // nameData 추가 인원 - dateData 있으면 월수 계산
-        const empNamesSet = new Set(empList.map(e=>e.name));
-        nameDataList.filter(d=>d.qi===qi&&!d.acting&&d.name&&!empNamesSet.has(d.name)).forEach(nd => {
-          // name 기반으로 dateData 매칭 (name 없으면 col 기반)
-          const dd = dateDataList.find(d=>d.qi===qi&&d.name===nd.name) ||
-            (() => {
-              const colIdx=qNames[qi].findIndex(o=>typeof o==='object'?o.name===nd.name:false);
-              if(colIdx<0) return null;
-              // rowIdx 무관하게 찾기
-              return dateDataList.find(d=>d.qi===qi&&d.col===colIdx);
-            })();
-          let months = qMonths;
-          if (dd && dd.fullDate) {
-            const dtMonth = new Date(dd.fullDate).getMonth();
-            if (dd.type === 'leave' || dd.type === 'to') {
-              months = Math.max(0, Math.min(dtMonth, qe) - qs + 1);
-            } else if (dd.type === 'join' || dd.type === 'from') {
-              months = Math.max(0, qe - Math.max(dtMonth, qs) + 1);
-            }
+        // 이름칸에 표시된 직원만 계산 (qNames[qi] 기반)
+        qNames[qi].forEach((obj,colIdx) => {
+          if (!obj || !obj.name) return;
+          if (obj.isEmp) {
+            const e = empList.find(emp=>emp.name===obj.name)||fullEmpList.find(emp=>emp.name===obj.name);
+            if (e) t += getEmpMonthsInQuarter(e,year,qs,qe) * 40000;
+          } else {
+            // nameData 인원 - dateData 날짜 반영
+            const dd = dateDataList.find(d=>d.qi===qi&&d.name===obj.name)||dateDataList.find(d=>d.qi===qi&&d.col===colIdx);
+            let months = qe-qs+1;
+            if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
+            t += months * 40000;
           }
-          t += months * 40000;
         });
+        // extra 추가 인원
+        extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(() => { t += (qe-qs+1) * 40000; });
         return t || null;
       });
       const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
