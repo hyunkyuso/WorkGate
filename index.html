@@ -6205,28 +6205,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const nameNsT = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
         const nameNsTAmt = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;background:${BG_TEAM_AMT};`;
         // 팀단위 금액 계산
-        if(dept==='해외사업팀') console.log('[해외사업팀]', 'deptIsNone:', deptIsNone, 'isTypeTeamjang:', isTypeTeamjang, 'setting.type:', setting.type);
-        const tAmtsT = quarters.map(([qs,qe],qi) => {
-          if (deptIsNone || !isTypeTeamjang) return null;
-          let t = 0;
-          const dateDataT = (deptFundSettings[dept]||{}).dateData||[];
-          // 이름칸 표시 직원만 계산 (qNamesT[qi] 기반)
-          qNamesT[qi].forEach((obj,colIdx) => {
-            if(!obj||!obj.name) return;
-            if(obj.isEmp) {
-              const e = empList.find(emp=>emp.name===obj.name);
-              if(e) t += getEmpMonthsInQuarter(e,year,qs,qe)*40000;
-            } else {
-              const dd = dateDataT.find(d=>d.qi===qi&&d.name===obj.name)||dateDataT.find(d=>d.qi===qi&&d.col===colIdx);
-              let months = qe-qs+1;
-              if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
-              t += months*40000;
-            }
-          });
-          extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t += (qe-qs+1)*40000; });
-          return t || null;
-        });
-        const tTotal = tAmtsT.reduce((s,v)=>s+(v||0),0);
         const qNamesT = quarters.map((_,qi) => {
             const [qs,qe] = quarters[qi];
             const empNamesT = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0&&e.dept===dept).sort(sortEmp||((a,b)=>0));
@@ -6256,6 +6234,28 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             });
             return objs;
           });
+
+        const tAmtsT = quarters.map(([qs,qe],qi) => {
+          if (deptIsNone || !isTypeTeamjang) return null;
+          let t = 0;
+          const dateDataT = (deptFundSettings[dept]||{}).dateData||[];
+          // 이름칸 표시 직원만 계산 (qNamesT[qi] 기반)
+          qNamesT[qi].forEach((obj,colIdx) => {
+            if(!obj||!obj.name) return;
+            if(obj.isEmp) {
+              const e = empList.find(emp=>emp.name===obj.name);
+              if(e) t += getEmpMonthsInQuarter(e,year,qs,qe)*40000;
+            } else {
+              const dd = dateDataT.find(d=>d.qi===qi&&d.name===obj.name)||dateDataT.find(d=>d.qi===qi&&d.col===colIdx);
+              let months = qe-qs+1;
+              if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
+              t += months*40000;
+            }
+          });
+          extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t += (qe-qs+1)*40000; });
+          return t || null;
+        });
+        const tTotal = tAmtsT.reduce((s,v)=>s+(v||0),0);
         const maxET = Math.max(1, ...qNamesT.map(n=>n.length));
         const pairT = maxET <= 4 ? 1 : 2;
         const nameRowsT = Array.from({length:pairT}, (_,ri) =>
