@@ -6083,7 +6083,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // acting 있는 Firebase 직원 → 앞으로 정렬
         nameDataList.filter(d=>d.qi===qi&&d.acting&&empNameSet.has(d.name)).forEach(nd => {
           const obj = nameObjs.find(o=>o.name===nd.name);
-          if (obj) { obj.display += '<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>'; obj.isActing=true; }
+          if (obj) { obj.display += '<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>'; obj.isActing=true; obj.nd=nd; }
         });
         nameObjs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
         return nameObjs;
@@ -6417,7 +6417,7 @@ function openNameCell(cell) {
   // nameData 항목 (nd가 있으면 수정, 없으면 신규)
   const nd = ndIdx >= 0 ? ((deptFundSettings[dept]||{}).nameData||[])[ndIdx] : null;
   const cellClone = cell.cloneNode(true);
-  const cellBaseName = cellClone.textContent.replace(/\s*\([^)]*\)\s*/g,'').trim();
+  const cellBaseName = cellClone.textContent.replace(/\s*\([^)]*\)\s*/g,'').replace(/\+/g,'').trim();
   const actingRoles = ['팀장대행','부서장대행','본부장대행'];
   const curActing = nd ? (nd.acting||'') : '';
   const modal = document.createElement('div');
@@ -6426,7 +6426,7 @@ function openNameCell(cell) {
   modal.innerHTML = `
     <div style="background:#fff;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
       <div style="font-size:14px;font-weight:700;margin-bottom:14px">이름 ${nd?'수정':'추가'}</div>
-      <input id="nc-name" value="${nd?nd.name:(isEmp?'':cellBaseName)}" placeholder="이름 입력" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
+      ${isEmp ? `<div style="font-size:12px;color:#64748b;margin-bottom:8px;padding:6px 10px;background:#f8fafc;border-radius:6px">Firebase 직원: <b>${cellBaseName}</b><br><span style="font-size:11px;color:#94a3b8">직책(대행)만 변경 가능합니다</span></div>` : `<input id="nc-name" value="${nd?nd.name:''}" placeholder="이름 입력" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">`}
       <div style="font-size:12px;color:#64748b;margin-bottom:6px">직책 (대행)</div>
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
         ${actingRoles.map(r=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${curActing===r?'background:#dbeafe;border-color:#3b82f6':''}"><input type="radio" name="nc-acting" value="${r}" ${curActing===r?'checked':''} style="accent-color:#3b82f6"> ${r}</label>`).join('')}
@@ -6449,12 +6449,20 @@ function openNameCell(cell) {
     if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
     if (nd && ndIdx >= 0) {
-      // 기존 항목 수정
+      // 기존 nameData 항목 수정
       deptFundSettings[dept].nameData[ndIdx] = {qi, name: name||nd.name, memo, acting};
-    } else {
-      // 신규 추가 (Firebase 직원 아닌 빈칸에만)
-      if (!isEmp && name) {
-        deptFundSettings[dept].nameData.push({qi, name, memo, acting});
+    } else if (!isEmp && name) {
+      // 빈칸에 신규 추가
+      deptFundSettings[dept].nameData.push({qi, name, memo, acting});
+    }
+    // Firebase 직원 칸: acting 저장
+    if (isEmp && acting !== undefined) {
+      const existIdx = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.name===cellBaseName&&d.isActingOverride);
+      if (acting) {
+        if (existIdx >= 0) deptFundSettings[dept].nameData[existIdx] = {qi, name:cellBaseName, memo, acting, isActingOverride:true};
+        else deptFundSettings[dept].nameData.push({qi, name:cellBaseName, memo, acting, isActingOverride:true});
+      } else if (existIdx >= 0) {
+        deptFundSettings[dept].nameData.splice(existIdx, 1);
       }
     }
     saveDeptFundSettings();
