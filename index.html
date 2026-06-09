@@ -6173,16 +6173,25 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             const empNamesT = empList.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0&&e.dept===dept).sort(sortEmp||((a,b)=>0));
             const empNameSetT = new Set(empNamesT.map(e=>e.name));
             let objs = empNamesT.map(e=>({display: e.title==='팀장'?e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>':e.name, isEmp:true, name:e.name}));
-            // nameData 추가 인원
-            nameDataList.filter(d=>d.qi===qi&&d.name&&!empNameSetT.has(d.name)&&!d.acting).forEach(nd=>{
-              objs.push({display:nd.name, isEmp:false, name:nd.name, nd});
-            });
-            // acting 처리
-            nameDataList.filter(d=>d.qi===qi&&d.acting&&empNameSetT.has(d.name)).forEach(nd=>{
+            // acting 있는 Firebase 직원 처리
+            nameDataList.filter(d=>d.qi===qi&&d.acting&&empNameSetT.has(d.name)&&!d.insertBefore).forEach(nd=>{
               const obj=objs.find(o=>o.name===nd.name);
-              if(obj){obj.display+='<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>';obj.isActing=true;}
+              if(obj){obj.display+='<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>';obj.isActing=true;obj.nd=nd;}
             });
             objs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
+            // insertBefore: Firebase 직원 앞에 끼워넣기
+            nameDataList.filter(d=>d.qi===qi&&d.insertBefore&&d.name).forEach(nd=>{
+              const idx2=objs.findIndex(o=>o.name===nd.insertBefore);
+              const actTag=nd.acting?'<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>':'';
+              const newObj={display:nd.name+actTag, isEmp:false, name:nd.name, nd};
+              if(idx2>=0) objs.splice(idx2,0,newObj);
+              else objs.push(newObj);
+            });
+            // 일반 추가 인원 (insertBefore 없고 Firebase 직원 아닌 것)
+            nameDataList.filter(d=>d.qi===qi&&d.name&&!d.insertBefore&&!d.acting&&!empNameSetT.has(d.name)).forEach(nd=>{
+              const actTag=nd.acting?'<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>':'';
+              objs.push({display:nd.name+actTag, isEmp:false, name:nd.name, nd});
+            });
             return objs;
           });
         const maxET = Math.max(1, ...qNamesT.map(n=>n.length));
@@ -6459,7 +6468,6 @@ function openNameCell(cell) {
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
     // 현재 칸(cellBaseName 또는 nd.name) 앞에 삽입
     const insertBeforeName = nd ? nd.name : cellBaseName;
-    console.log('[삽입]', dept, qi, 'name:', name, 'insertBefore:', insertBeforeName, 'isEmp:', isEmp, 'cellBaseName:', cellBaseName);
     deptFundSettings[dept].nameData.push({qi, name, memo, acting, insertBefore: insertBeforeName});
     saveDeptFundSettings();
     modal.remove();
