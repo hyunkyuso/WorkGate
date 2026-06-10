@@ -6482,9 +6482,6 @@ ${typeLabel}</td>
         });
       });
       const hasLeavers = leaversByQ.some(q => q.some(n=>n));
-      const noteRowspan = 1 + (deptHead?1:0) + (isSWStyle ? (swSubDept ? 1 + swSubPair*2 : 1 + Math.max(2,maxChunks)) : 1 + Math.max(2, maxChunks)) + (hasLeavers?1:0);
-      const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">
-${typeLabel}</td>`;
 
       const nameNs = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
       const deptHeadNote = qi => {
@@ -6536,7 +6533,9 @@ ${typeLabel}</td>`;
         return (b+s)||null;
       });
       const mergedTotal = mergedAmts.reduce((s,v)=>s+(v||0),0);
-      // noteRowspan: 부서칸1 + 부서장칸1 + 팀칸1 + (이름+날짜)*swSubPair
+      // noteRowspan: isSWStyle 계산 이후에 확정
+      const noteRowspan = 1 + (deptHead?1:0) + (isSWStyle ? (swSubDept ? 1 + swSubPair*2 : 1 + Math.max(2,maxChunks)) : 1 + Math.max(2, maxChunks)) + (hasLeavers?1:0);
+      const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">${typeLabel}</td>`;
       const swNoteRowspan = isSWStyle && swSubDept
         ? 1 + 1 + 1 + swSubPair*2
         : noteRowspan;
