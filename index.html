@@ -6046,6 +6046,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     deptNames.forEach(dept => {
       if (dept.includes('수석전문위원')) return;
       if (dept.includes('베트남')) return;
+      // SW지원부/GIS SW영업부의 하위팀은 부모 테이블에 포함되므로 skip
+      const deptObj = departments.find(d=>d.name===dept);
+      const parentDept = deptObj ? departments.find(d=>d.id===deptObj.parent) : null;
+      if (parentDept && ['SW지원부','GIS SW영업부'].includes(parentDept.name)) return;
       // 부서명이 본부명과 같으면 (본부장 행에서 이미 처리) 제외
       if (dept === bonbu) return;
       const empList = depts[dept];
@@ -6543,6 +6547,52 @@ ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
           ${[0,1,2,3].map(qi2=>disabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(dept,qi2,rowIdx,ci,nameNs,qNames[qi2],nameDataList)).join('')).join('')}
         </tr>`).join('')}
+        ${(['SW지원부','GIS SW영업부'].includes(dept) && subTeamEmps.length > 0) ? (() => {
+          // 하위팀 행 삽입
+          const subDept = deptNames.find(d=>{const o=departments.find(x=>x.name===d);return o&&(departments.find(x=>x.name===dept)||{}).id&&o.parent===(departments.find(x=>x.name===dept)||{}).id;});
+          if (!subDept) return '';
+          const subSetting = deptFundSettings[subDept]||{};
+          const subNameDataList = subSetting.nameData||[];
+          const subDateDataList = subSetting.dateData||[];
+          const subExtraList = subSetting.extra||[];
+          const subDisabledQi = subSetting.disabledQi||[];
+          const subQNames = quarters.map((_,qi2)=>{
+            const [qs2,qe2]=quarters[qi2];
+            const parentNoTitle = empList.filter(e=>!e.title&&getEmpMonthsInQuarter(e,year,qs2,qe2)>0);
+            const subEmps = subTeamEmps.filter(e=>getEmpMonthsInQuarter(e,year,qs2,qe2)>0);
+            return [...subEmps,...parentNoTitle.filter(e=>!subEmps.find(x=>x.uid===e.uid))].map(e=>({display:e.name,isEmp:true,name:e.name}));
+          });
+          const subTAmts = quarters.map(([qs2,qe2],qi2)=>{
+            if ((subSetting.type||'').includes('없음')) return null;
+            let t=0;
+            subQNames[qi2].forEach(o=>{const e=subTeamEmps.find(x=>x.name===o.name)||empList.find(x=>x.name===o.name);if(e)t+=getEmpMonthsInQuarter(e,year,qs2,qe2)*40000;});
+            return t||null;
+          });
+          const subTTotal = subTAmts.reduce((s,v)=>s+(v||0),0);
+          const subMaxEmp = Math.max(0,...subQNames.map(n=>n.length));
+          const subPair = subMaxEmp<=4?1:2;
+          const subNameRows = Array.from({length:subPair},(_,ri)=>quarters.map((_,qi2)=>subQNames[qi2].slice(ri*4,(ri+1)*4)));
+          const subNs = nameNs;
+          return `
+          <tr style="background:${BG_TEAM_AMT}">
+            ${[0,1,2,3].map(qi2=>`
+              <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${subDept}",${qi2})'>${getDeptDisplayName(subDept,qi2)}</td>
+              <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${subTAmts[qi2]!==null?fmtMoney(subTAmts[qi2]):'-'}</td>
+            `).join('')}
+            <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;font-weight:700">${subTTotal?fmtMoney(subTTotal):'-'}</td>
+          </tr>
+          ${subNameRows.map((rowByQ,rowIdx)=>`
+          <tr>
+            ${[0,1,2,3].map(qi2=>{
+              if(subDisabledQi.includes(qi2)) return rowIdx===0?`<td colspan="4" rowspan="${subPair*2}" style="${subNs}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle" onclick="toggleDisabledQi('${subDept}',${qi2})">미사용</td>`:'';
+              return Array.from({length:4},(_,ci)=>{const o=rowByQ[qi2][ci];const obj=o||{display:'',isEmp:false};return `<td style="${subNs}text-align:center;cursor:pointer" data-dept="${subDept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${obj.display||''}</td>`;}).join('');
+            }).join('')}
+            ${rowIdx===0?`<td rowspan="${subPair*2}" style="${subNs}text-align:right;font-weight:700;vertical-align:middle">${subTTotal?fmtMoney(subTTotal):''}</td>`:''}
+          </tr>
+          <tr>
+            ${[0,1,2,3].map(qi2=>subDisabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(subDept,qi2,rowIdx,ci,subNs,subQNames[qi2],subNameDataList)).join('')).join('')}
+          </tr>`).join('')}`;
+        })() : ''}
         <tr><td colspan="17" style="height:8px;border:none"></td></tr>
         <tr><td colspan="10" style="height:10px;border:none"></td></tr>
         </tbody></table>`;
