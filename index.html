@@ -6478,7 +6478,7 @@ ${typeLabel}</td>
         });
       });
       const hasLeavers = leaversByQ.some(q => q.some(n=>n));
-      const noteRowspan = 3 + maxChunks + (hasLeavers ? 1 : 0);
+      const noteRowspan = (deptHead ? 3 : 2) + maxChunks + (hasLeavers ? 1 : 0);
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">
 ${typeLabel}</td>`;
 
@@ -6527,7 +6527,6 @@ ${typeLabel}</td>`;
         </tr>
 ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
-
           ${[0,1,2,3].map(qi2=>{
             if(disabledQi.includes(qi2)){
               return rowIdx===0 ? `<td colspan="4" rowspan="${pairCount*2}" style="${nameNs}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle" onclick="toggleDisabledQi('${dept}',${qi2})">미사용</td>` : '';
@@ -6560,7 +6559,6 @@ ${nameRows.map((rowByQ, rowIdx) => `
           <td rowspan="${pairCount*2}" style="${nameNs}text-align:right;font-weight:600;vertical-align:middle">${rowIdx===0&&isTypeTeamjang?fmtMoney(tTotal):''}</td>
         </tr>
         <tr>
-          <td colspan="2" style="${nameNs}"></td>
           ${[0,1,2,3].map(qi2=>disabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(dept,qi2,rowIdx,ci,nameNs,qNames[qi2],nameDataList)).join('')).join('')}
         </tr>`).join('')}
         <tr><td colspan="17" style="height:8px;border:none"></td></tr>
