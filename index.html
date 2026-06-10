@@ -6496,20 +6496,62 @@ ${typeLabel}</td>`;
 
       // 설정에서 구분 타입 가져오기
 
+      // SW지원부/GIS SW영업부: 하위팀 먼저 계산해서 부서칸 합산금액에 포함
+      const isSWStyle = ['SW지원부','GIS SW영업부'].includes(dept);
+      let swSubDept = null, swSubSetting = null, swSubNameDataList = [], swSubDisabledQi = [], swSubQNames = [], swSubTAmts = [], swSubTTotal = 0, swSubPair = 1, swSubNameRows = [];
+      if (isSWStyle && subTeamEmps.length > 0) {
+        swSubDept = deptNames.find(d=>{const o=departments.find(x=>x.name===d);return o&&(departments.find(x=>x.name===dept)||{}).id&&o.parent===(departments.find(x=>x.name===dept)||{}).id;});
+        if (swSubDept) {
+          swSubSetting = deptFundSettings[swSubDept]||{};
+          swSubNameDataList = swSubSetting.nameData||[];
+          swSubDisabledQi = swSubSetting.disabledQi||[];
+          swSubQNames = quarters.map((_,qi2)=>{
+            const [qs2,qe2]=quarters[qi2];
+            const parentNoTitle = empList.filter(e=>!e.title&&getEmpMonthsInQuarter(e,year,qs2,qe2)>0);
+            const subEmps = subTeamEmps.filter(e=>getEmpMonthsInQuarter(e,year,qs2,qe2)>0);
+            return [...subEmps,...parentNoTitle.filter(e=>!subEmps.find(x=>x.uid===e.uid))].map(e=>({display:e.name,isEmp:true,name:e.name}));
+          });
+          swSubTAmts = quarters.map(([qs2,qe2],qi2)=>{
+            if ((swSubSetting.type||'').includes('없음')) return null;
+            let t=0;
+            swSubQNames[qi2].forEach(o=>{const e=subTeamEmps.find(x=>x.name===o.name)||empList.find(x=>x.name===o.name);if(e)t+=getEmpMonthsInQuarter(e,year,qs2,qe2)*40000;});
+            return t||null;
+          });
+          swSubTTotal = swSubTAmts.reduce((s,v)=>s+(v||0),0);
+          const swSubMaxEmp = Math.max(0,...swSubQNames.map(n=>n.length));
+          swSubPair = swSubMaxEmp<=4?1:2;
+          swSubNameRows = Array.from({length:swSubPair},(_,ri)=>quarters.map((_,qi2)=>swSubQNames[qi2].slice(ri*4,(ri+1)*4)));
+        }
+      }
+      // 부서칸 합산금액 (부서장 + 팀 합산)
+      const mergedAmts = quarters.map((_,qi)=>{
+        const b = bAmts[qi]||0;
+        const s = (isSWStyle && swSubTAmts[qi])||0;
+        return (b+s)||null;
+      });
+      const mergedTotal = mergedAmts.reduce((s,v)=>s+(v||0),0);
+      // noteRowspan: 부서칸1 + 부서장칸1 + 팀칸1 + (이름+날짜)*swSubPair
+      const swNoteRowspan = isSWStyle && swSubDept
+        ? 1 + 1 + 1 + swSubPair*2
+        : noteRowspan;
+      const swNoteCellHtml = isSWStyle && swSubDept
+        ? `<td rowspan="${swNoteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">${typeLabel}</td>`
+        : noteCellHtml;
+
       html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
         ${colgroup}
         <tbody>
         <tr style="background:${BG_DEPT}">
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[0]!==null?fmtMoney(bAmts[0]):'-'}${((extraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[0]!==null?fmtMoney(mergedAmts[0]):'-'}</td>
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",1)'>${getDeptDisplayName(dept,1)}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="1" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==1&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[1]!==null?fmtMoney(bAmts[1]):'-'}${((extraList||[]).some(e=>e.qi==1&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="1" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==1&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[1]!==null?fmtMoney(mergedAmts[1]):'-'}</td>
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",2)'>${getDeptDisplayName(dept,2)}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="2" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[2]!==null?fmtMoney(bAmts[2]):'-'}${((extraList||[]).some(e=>e.qi==2&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="2" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[2]!==null?fmtMoney(mergedAmts[2]):'-'}</td>
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",3)'>${getDeptDisplayName(dept,3)}</td>
-          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="3" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==3&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[3]!==null?fmtMoney(bAmts[3]):'-'}${((extraList||[]).some(e=>e.qi==3&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
+          <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="3" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==3&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[3]!==null?fmtMoney(mergedAmts[3]):'-'}</td>
           <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
-          ${noteCellHtml}
+          ${swNoteCellHtml}
         </tr>
         <tr>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'':'';})()}</td>
@@ -6518,6 +6560,26 @@ ${typeLabel}</td>`;
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'':'';})()}</td>
           <td style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
+        ${isSWStyle && swSubDept ? `
+        <tr style="background:${BG_TEAM_AMT}">
+          ${[0,1,2,3].map(qi2=>`
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${swSubDept}",${qi2})'>${getDeptDisplayName(swSubDept,qi2)}</td>
+            <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae" data-dept="${swSubDept}" data-qi="${qi2}" data-type="teamjang" ondblclick='openAmtModal(this)'>${swSubTAmts[qi2]!==null?fmtMoney(swSubTAmts[qi2]):'-'}</td>
+          `).join('')}
+          <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;font-weight:700">${swSubTTotal?fmtMoney(swSubTTotal):'-'}</td>
+        </tr>
+        ${swSubNameRows.map((rowByQ,rowIdx)=>`
+        <tr>
+          ${[0,1,2,3].map(qi2=>{
+            if(swSubDisabledQi.includes(qi2)) return rowIdx===0?`<td colspan="4" rowspan="${swSubPair*2}" style="${nameNs}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle" onclick="toggleDisabledQi('${swSubDept}',${qi2})">미사용</td>`:'';
+            return Array.from({length:4},(_,ci)=>{const o=rowByQ[qi2][ci];const obj=o||{display:'',isEmp:false};return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${swSubDept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${obj.display||''}</td>`;}).join('');
+          }).join('')}
+          ${rowIdx===0?`<td rowspan="${swSubPair*2}" style="${nameNs}text-align:right;font-weight:700;vertical-align:middle">${swSubTTotal?fmtMoney(swSubTTotal):''}</td>`:''}
+        </tr>
+        <tr>
+          ${[0,1,2,3].map(qi2=>swSubDisabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(swSubDept,qi2,rowIdx,ci,nameNs,swSubQNames[qi2],swSubNameDataList)).join('')).join('')}
+        </tr>`).join('')}
+        ` : `
         <tr>
           <td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td>
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="0" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[0]!==null?fmtMoney(tAmts[0]):'-'}${((extraList||[]).some(e=>e.qi==0&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
@@ -6547,52 +6609,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
           ${[0,1,2,3].map(qi2=>disabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(dept,qi2,rowIdx,ci,nameNs,qNames[qi2],nameDataList)).join('')).join('')}
         </tr>`).join('')}
-        ${(['SW지원부','GIS SW영업부'].includes(dept) && subTeamEmps.length > 0) ? (() => {
-          // 하위팀 행 삽입
-          const subDept = deptNames.find(d=>{const o=departments.find(x=>x.name===d);return o&&(departments.find(x=>x.name===dept)||{}).id&&o.parent===(departments.find(x=>x.name===dept)||{}).id;});
-          if (!subDept) return '';
-          const subSetting = deptFundSettings[subDept]||{};
-          const subNameDataList = subSetting.nameData||[];
-          const subDateDataList = subSetting.dateData||[];
-          const subExtraList = subSetting.extra||[];
-          const subDisabledQi = subSetting.disabledQi||[];
-          const subQNames = quarters.map((_,qi2)=>{
-            const [qs2,qe2]=quarters[qi2];
-            const parentNoTitle = empList.filter(e=>!e.title&&getEmpMonthsInQuarter(e,year,qs2,qe2)>0);
-            const subEmps = subTeamEmps.filter(e=>getEmpMonthsInQuarter(e,year,qs2,qe2)>0);
-            return [...subEmps,...parentNoTitle.filter(e=>!subEmps.find(x=>x.uid===e.uid))].map(e=>({display:e.name,isEmp:true,name:e.name}));
-          });
-          const subTAmts = quarters.map(([qs2,qe2],qi2)=>{
-            if ((subSetting.type||'').includes('없음')) return null;
-            let t=0;
-            subQNames[qi2].forEach(o=>{const e=subTeamEmps.find(x=>x.name===o.name)||empList.find(x=>x.name===o.name);if(e)t+=getEmpMonthsInQuarter(e,year,qs2,qe2)*40000;});
-            return t||null;
-          });
-          const subTTotal = subTAmts.reduce((s,v)=>s+(v||0),0);
-          const subMaxEmp = Math.max(0,...subQNames.map(n=>n.length));
-          const subPair = subMaxEmp<=4?1:2;
-          const subNameRows = Array.from({length:subPair},(_,ri)=>quarters.map((_,qi2)=>subQNames[qi2].slice(ri*4,(ri+1)*4)));
-          const subNs = nameNs;
-          return `
-          <tr style="background:${BG_TEAM_AMT}">
-            ${[0,1,2,3].map(qi2=>`
-              <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${subDept}",${qi2})'>${getDeptDisplayName(subDept,qi2)}</td>
-              <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${subTAmts[qi2]!==null?fmtMoney(subTAmts[qi2]):'-'}</td>
-            `).join('')}
-            <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;font-weight:700">${subTTotal?fmtMoney(subTTotal):'-'}</td>
-          </tr>
-          ${subNameRows.map((rowByQ,rowIdx)=>`
-          <tr>
-            ${[0,1,2,3].map(qi2=>{
-              if(subDisabledQi.includes(qi2)) return rowIdx===0?`<td colspan="4" rowspan="${subPair*2}" style="${subNs}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle" onclick="toggleDisabledQi('${subDept}',${qi2})">미사용</td>`:'';
-              return Array.from({length:4},(_,ci)=>{const o=rowByQ[qi2][ci];const obj=o||{display:'',isEmp:false};return `<td style="${subNs}text-align:center;cursor:pointer" data-dept="${subDept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${obj.display||''}</td>`;}).join('');
-            }).join('')}
-            ${rowIdx===0?`<td rowspan="${subPair*2}" style="${subNs}text-align:right;font-weight:700;vertical-align:middle">${subTTotal?fmtMoney(subTTotal):''}</td>`:''}
-          </tr>
-          <tr>
-            ${[0,1,2,3].map(qi2=>subDisabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(subDept,qi2,rowIdx,ci,subNs,subQNames[qi2],subNameDataList)).join('')).join('')}
-          </tr>`).join('')}`;
-        })() : ''}
+        `}
         <tr><td colspan="17" style="height:8px;border:none"></td></tr>
         <tr><td colspan="10" style="height:10px;border:none"></td></tr>
         </tbody></table>`;
