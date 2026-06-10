@@ -7218,16 +7218,11 @@ function openDeptMenu(dept, event) {
     html += '<button onclick="'+toggleFn+';document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();})" style="padding:5px 8px;border-radius:6px;border:1px solid ' + (on?'#ef4444':'#e2e8f0') + ';background:' + (on?'#fee2e2':'#f8fafc') + ';color:' + (on?'#dc2626':'#475569') + ';cursor:pointer;font-size:11px;font-weight:600">' + label + (on?' ✓':'') + ' 미사용</button>';
   });
   html += '</div>'
-  html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;display:flex;gap:4px">';
   if (isExtra) {
-    html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});moveExtraRow(decodeURIComponent(\'' + denc + '\'),' + extraRiNum + ',-1)" style="flex:1;padding:5px 4px;border-radius:6px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;font-size:11px">▲ 위로</button>';
-    html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});moveExtraRow(decodeURIComponent(\'' + denc + '\'),' + extraRiNum + ',1)" style="flex:1;padding:5px 4px;border-radius:6px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;font-size:11px">▼ 아래로</button>';
-    html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});deleteExtraRow(decodeURIComponent(\'' + denc + '\'),' + extraRiNum + ')" style="flex:1;padding:5px 4px;border-radius:6px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:11px">삭제</button>';
-  } else {
-    html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});moveDeptOrder(decodeURIComponent(\'' + denc + '\'),-1)" style="flex:1;padding:5px 4px;border-radius:6px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;font-size:11px">▲ 위로</button>';
-    html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});moveDeptOrder(decodeURIComponent(\'' + denc + '\'),1)" style="flex:1;padding:5px 4px;border-radius:6px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;font-size:11px">▼ 아래로</button>';
+    html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0">';
+    html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});deleteExtraRow(decodeURIComponent(\'' + denc + '\'),' + extraRiNum + ')" style="width:100%;padding:5px 4px;border-radius:6px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:11px">삭제</button>';
+    html += '</div>';
   }
-  html += '</div>';
   popup.innerHTML = html;
   document.body.appendChild(popup);
   const close = function(e) { if(!popup.contains(e.target)&&e.target!==btn){popup.remove();document.removeEventListener('click',close);}};
@@ -7385,9 +7380,8 @@ function openExtraTypeModal(dept, ri) {
 
 // ── 조직 순서 이동 ──
 function moveDeptOrder(deptName, dir) {
-  console.log('[moveDeptOrder] 호출됨:', deptName, dir);
   const d = departments.find(function(x){return x.name===deptName;});
-  if (!d) { console.log('[moveDeptOrder] 부서 못찾음:', deptName); return; }
+  if (!d) return;
   // 같은 parent를 가진 형제 조직들을 sortOrder 순으로 정렬
   const siblings = departments
     .filter(function(x){return x.parent===d.parent;})
@@ -7420,16 +7414,13 @@ function deleteExtraRow(dept, idx) {
 
 // ── extraRow 이동 ──
 function moveExtraRow(dept, idx, dir) {
-  console.log('[moveExtraRow] 호출됨:', dept, idx, dir);
   const rows = deptFundSettings[dept]?.extraRows;
-  if (!rows) { console.log('[moveExtraRow] extraRows 없음'); return; }
+  if (!rows) return;
   const newIdx = idx + dir;
-  console.log('[moveExtraRow] rows.length:', rows.length, 'newIdx:', newIdx);
-  if (newIdx < 0 || newIdx >= rows.length) { console.log('[moveExtraRow] 범위 초과'); return; }
+  if (newIdx < 0 || newIdx >= rows.length) return;
   const tmp = rows[idx];
   rows[idx] = rows[newIdx];
   rows[newIdx] = tmp;
-  console.log('[moveExtraRow] swap 완료, 저장 시작');
   saveDeptFundSettings();
   _renderDeptFund();
 }
