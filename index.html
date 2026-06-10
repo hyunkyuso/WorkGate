@@ -6179,44 +6179,45 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const BG_H = '#bbf7d0';
         const BG_T = '#dbeafe';
         const result = [];
-        const totalRows = rows.reduce((sum,row)=>{
+        const totalRows = rows.reduce(function(sum,row){
           const c=row.cols||(row.type==='dept'?['dept','deptjang']:['team','name','date']);
-          return sum+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
-        },0)+rows.length; // 줄별 버튼행 포함
+          return sum+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return c.includes(k);}).length;
+        },0)+rows.length;
         let noteRendered = false;
-        rows.forEach((row, ri) => {
+        const deptQ = dept.replace(/'/g, '%27');
+        rows.forEach(function(row, ri) {
           const cols = row.cols || (row.type==='dept'?['dept','deptjang']:['team','name','date']);
-          const rowTypes = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>cols.includes(k));
-          rowTypes.forEach((colType) => {
+          const rowTypes = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return cols.includes(k);});
+          rowTypes.forEach(function(colType) {
             const isFirst = !noteRendered;
             const noteTd = isFirst
-              ? '<td rowspan="'+totalRows+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer" ondblclick="openDeptFundTypeModal(''+dept.replace(/'/g,"\'")+'',[].slice.call(document.querySelectorAll('td[data-dept]'))[0])">'+typeLabel+'</td>'
+              ? '<td rowspan="'+totalRows+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer" ondblclick="openDeptFundTypeModal(decodeURIComponent(\'' + encodeURIComponent(dept) + '\'),this)">'+typeLabel+'</td>'
               : '';
             if (isFirst) noteRendered = true;
 
             if (colType==='bonbu') {
-              result.push('<tr>' + [0,1,2,3].map(function(qi2){return (
-                '<td colspan="3" style="'+tS+'font-weight:600;background:'+BG_H+';cursor:pointer" ondblclick="openExtraRowEdit(''+dept+'','+ri+','+qi2+')">'+(row.name||'')+'</td>'+
-                '<td style="'+tS+'background:'+BG_H+';border-right:1px solid #90a4ae">-</td>'
-              );}).join('')+'<td style="'+tS+'">-</td>'+noteTd+'</tr>');
+              result.push('<tr>' + [0,1,2,3].map(function(qi2){
+                return '<td colspan="3" style="'+tS+'font-weight:600;background:'+BG_H+';cursor:pointer" ondblclick="openExtraRowEdit(decodeURIComponent(\'' + encodeURIComponent(dept) + '\'),'+ri+','+qi2+')">'+(row.name||'')+'</td>'+
+                '<td style="'+tS+'background:'+BG_H+';border-right:1px solid #90a4ae">-</td>';
+              }).join('')+'<td style="'+tS+'">-</td>'+noteTd+'</tr>');
             } else if (colType==='bonbujang') {
-              result.push('<tr>' + [0,1,2,3].map(function(qi2){return (
-                '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraRowEdit(''+dept+'','+ri+','+qi2+')">'+(row.headName?row.headName+' <span style="color:#3b82f6;font-weight:500">(본부장)</span>':'')+'</td>'
-              );}).join('')+'<td style="'+tS+'">-</td>'+noteTd+'</tr>');
+              result.push('<tr>' + [0,1,2,3].map(function(qi2){
+                return '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraRowEdit(decodeURIComponent(\'' + encodeURIComponent(dept) + '\'),'+ri+','+qi2+')">'+(row.headName?row.headName+' <span style="color:#3b82f6;font-weight:500">(본부장)</span>':'')+'</td>';
+              }).join('')+'<td style="'+tS+'">-</td>'+noteTd+'</tr>');
             } else if (colType==='dept') {
-              result.push('<tr>' + [0,1,2,3].map(function(qi2){return (
-                '<td colspan="3" style="'+tS+'font-weight:600;background:'+BG_H+';cursor:pointer" ondblclick="openExtraRowEdit(''+dept+'','+ri+','+qi2+')">'+(row.name||'')+'</td>'+
-                '<td style="'+tS+'background:'+BG_H+';border-right:1px solid #90a4ae">-</td>'
-              );}).join('')+'<td style="'+tS+'">-</td>'+noteTd+'</tr>');
+              result.push('<tr>' + [0,1,2,3].map(function(qi2){
+                return '<td colspan="3" style="'+tS+'font-weight:600;background:'+BG_H+';cursor:pointer" ondblclick="openExtraRowEdit(decodeURIComponent(\'' + encodeURIComponent(dept) + '\'),'+ri+','+qi2+')">'+(row.name||'')+'</td>'+
+                '<td style="'+tS+'background:'+BG_H+';border-right:1px solid #90a4ae">-</td>';
+              }).join('')+'<td style="'+tS+'">-</td>'+noteTd+'</tr>');
             } else if (colType==='deptjang') {
-              result.push('<tr>' + [0,1,2,3].map(function(qi2){return (
-                '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraRowEdit(''+dept+'','+ri+','+qi2+')">'+(row.headName?row.headName+' <span style="color:#3b82f6;font-weight:500">(부서장)</span>':'')+'</td>'
-              );}).join('')+'<td style="'+tS+'">-</td>'+noteTd+'</tr>');
+              result.push('<tr>' + [0,1,2,3].map(function(qi2){
+                return '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraRowEdit(decodeURIComponent(\'' + encodeURIComponent(dept) + '\'),'+ri+','+qi2+')">'+(row.headName?row.headName+' <span style="color:#3b82f6;font-weight:500">(부서장)</span>':'')+'</td>';
+              }).join('')+'<td style="'+tS+'">-</td>'+noteTd+'</tr>');
             } else if (colType==='team') {
-              result.push('<tr>' + [0,1,2,3].map(function(qi2){return (
-                '<td colspan="3" style="'+tS+'font-weight:600;background:'+BG_T+';cursor:pointer" ondblclick="openExtraRowEdit(''+dept+'','+ri+','+qi2+')">'+(row.name||'')+'</td>'+
-                '<td style="'+tS+'background:'+BG_T+';border-right:1px solid #90a4ae">-</td>'
-              );}).join('')+'<td style="'+tS+'">-</td>'+noteTd+'</tr>');
+              result.push('<tr>' + [0,1,2,3].map(function(qi2){
+                return '<td colspan="3" style="'+tS+'font-weight:600;background:'+BG_T+';cursor:pointer" ondblclick="openExtraRowEdit(decodeURIComponent(\'' + encodeURIComponent(dept) + '\'),'+ri+','+qi2+')">'+(row.name||'')+'</td>'+
+                '<td style="'+tS+'background:'+BG_T+';border-right:1px solid #90a4ae">-</td>';
+              }).join('')+'<td style="'+tS+'">-</td>'+noteTd+'</tr>');
             } else if (colType==='name') {
               const ndList = row.nameData||[];
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
@@ -6239,11 +6240,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               }).join('')+'<td style="'+tS+'"></td>'+noteTd+'</tr>');
             }
           });
-          // 줄별 이동/삭제 버튼행
           result.push('<tr><td colspan="17" style="padding:1px 4px;border:none;text-align:right">'+
-            '<button onclick="moveExtraRow(''+dept+'','+ri+',-1)" style="font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;margin-right:2px">▲</button>'+
-            '<button onclick="moveExtraRow(''+dept+'','+ri+',1)" style="font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;margin-right:4px">▼</button>'+
-            '<button onclick="deleteExtraRow(''+dept+'','+ri+')" style="font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer">삭제</button>'+
+            '<button onclick="moveExtraRow(decodeURIComponent(\'' + encodeURIComponent(dept) + '\'),'+ri+',-1)" style="font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;margin-right:2px">&#9650;</button>'+
+            '<button onclick="moveExtraRow(decodeURIComponent(\'' + encodeURIComponent(dept) + '\'),'+ri+',1)" style="font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;margin-right:4px">&#9660;</button>'+
+            '<button onclick="deleteExtraRow(decodeURIComponent(\'' + encodeURIComponent(dept) + '\'),'+ri+')" style="font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer">삭제</button>'+
           '</td></tr>');
         });
         return result.join('');
