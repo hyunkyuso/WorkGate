@@ -5916,6 +5916,27 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
 
 
+  // _lastQNames 사전 채우기: 본부 금액(팀장 타입) 계산에 필요
+  window._lastQNames = {};
+  bonbuNames.forEach(bonbu => {
+    if (!bonbuMap[bonbu]) return;
+    const _preDepts = bonbuMap[bonbu];
+    Object.keys(_preDepts).forEach(dept => {
+      const empList = _preDepts[dept] || [];
+      const setting = deptFundSettings[dept] || {};
+      const nameDataList = setting.nameData || [];
+      const _preQNames = quarters.map((_,qi) => {
+        const [qs,qe] = quarters[qi];
+        const active = empList.filter(e => getEmpMonthsInQuarter(e,year,qs,qe)>0);
+        const fromName = active.map(e => ({display:e.name,isEmp:true,name:e.name}));
+        const fromNd = nameDataList.filter(d=>d.qi===qi&&!d.acting&&!d.hidden&&!active.find(e=>e.name===d.name)).map(d=>({display:d.name,isEmp:false,name:d.name,nd:true}));
+        return [...fromName,...fromNd];
+      });
+      if (!window._lastQNames[dept]) window._lastQNames[dept] = {};
+      _preQNames.forEach((names,qi) => { window._lastQNames[dept][qi] = names; });
+    });
+  });
+
   bonbuNames.forEach(bonbu => {
     if (!bonbuMap[bonbu]) return;
     if (bonbu.includes('정도유아이티') || bonbu.includes('수석전문위원') || bonbu.includes('베트남')) return;
