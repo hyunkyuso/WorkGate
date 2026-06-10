@@ -6263,7 +6263,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                 return [0,1,2,3].map(function(ci){
                   const nd = ndList.find(function(d){return d.qi===qi2&&d.col===ci;});
                   const br = ci===3?'border-right:1px solid #90a4ae;':'';
-                  const disp = nd&&nd.name ? nd.name+(nd.acting?' <span style="color:#3b82f6;font-size:10px">('+nd.acting+')</span>':'') : '';
+                  const disp = nd&&nd.name ? nd.name+(nd.title?' <span style="color:#3b82f6;font-weight:500">('+nd.title+')</span>':'')+(nd.acting?' <span style="color:#3b82f6;font-size:10px">('+nd.acting+')</span>':'') : '';
                   return '<td style="'+nameNsE+br+'cursor:pointer" data-dept="'+dept+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraNameCell(this)">'+disp+'</td>';
                 }).join('');
               }).join('')+'<td style="'+nameNsE+'text-align:right;font-weight:700;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'')+'</td>'+noteTd+'</tr>');
@@ -6281,6 +6281,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             }
           });
         });
+        if (result.length) result.push('<tr><td colspan="17" style="height:8px;border:none"></td></tr>');
         return result.join('');
       };
 
@@ -7128,7 +7129,7 @@ function openDeptNameModal(dept, qi) {
 function openDeptMenu(dept, event) {
   event.stopPropagation();
   document.querySelectorAll('.dept-menu-popup').forEach(function(el){el.remove();});
-  const btn = event.currentTarget;
+  const btn = event.target.closest('button')||event.currentTarget;
   const rect = btn.getBoundingClientRect();
   const popup = document.createElement('div');
   popup.className = 'dept-menu-popup';
@@ -7355,13 +7356,20 @@ function openExtraNameCell(cell) {
   const curName = existing ? existing.name : '';
   const curActing = existing ? (existing.acting||'') : '';
   const curMemo = existing ? (existing.memo||'') : '';
+  const titleRoles = ['팀장','부서장','본부장'];
   const actingRoles = ['팀장대행','부서장대행','본부장대행'];
+  const curTitle = existing ? (existing.title||'') : '';
   const modal = document.createElement('div');
   modal.id = 'name-cell-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
     <div style="font-size:14px;font-weight:700;margin-bottom:14px">이름 ${existing?'수정':'추가'}</div>
     <input id="en-name" value="${curName}" placeholder="이름 입력" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
+    <div style="font-size:12px;color:#64748b;margin-bottom:6px">직책</div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+      ${titleRoles.map(r=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${curTitle===r?'background:#dbeafe;border-color:#3b82f6':''}"><input type="radio" name="en-title" value="${r}" ${curTitle===r?'checked':''} style="accent-color:#3b82f6"> ${r}</label>`).join('')}
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${!curTitle?'background:#f1f5f9':''}"><input type="radio" name="en-title" value="" ${!curTitle?'checked':''} style="accent-color:#3b82f6"> 없음</label>
+    </div>
     <div style="font-size:12px;color:#64748b;margin-bottom:6px">직책 (대행)</div>
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
       ${actingRoles.map(r=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${curActing===r?'background:#dbeafe;border-color:#3b82f6':''}"><input type="radio" name="en-acting" value="${r}" ${curActing===r?'checked':''} style="accent-color:#3b82f6"> ${r}</label>`).join('')}
@@ -7381,10 +7389,11 @@ function openExtraNameCell(cell) {
     const name = document.getElementById('en-name').value.trim();
     const memo = document.getElementById('en-memo').value.trim();
     const acting = document.querySelector('input[name="en-acting"]:checked')?.value||'';
+    const title = document.querySelector('input[name="en-title"]:checked')?.value||'';
     if (!deptFundSettings[dept].extraRows[ri].nameData) deptFundSettings[dept].extraRows[ri].nameData = [];
     const arr = deptFundSettings[dept].extraRows[ri].nameData;
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
-    if (name) { if(idx2>=0) arr[idx2]={qi,col:ci,name,memo,acting}; else arr.push({qi,col:ci,name,memo,acting}); }
+    if (name) { if(idx2>=0) arr[idx2]={qi,col:ci,name,memo,acting,title}; else arr.push({qi,col:ci,name,memo,acting,title}); }
     else { if(idx2>=0) arr.splice(idx2,1); }
     saveDeptFundSettings(); modal.remove(); _renderDeptFund();
   };
