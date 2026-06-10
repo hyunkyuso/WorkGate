@@ -6388,30 +6388,30 @@ ${typeLabel}</td>`;
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button></td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[0]===null?'-':fmtMoney(tAmtsT[0])}</td>
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",1)'>${getDeptDisplayName(dept,1)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[1]===null?'-':fmtMoney(tAmtsT[1])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",2)'></td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",2)'>${getDeptDisplayName(dept,2)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[2]===null?'-':fmtMoney(tAmtsT[2])}</td>
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",3)'></td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",3)'>${getDeptDisplayName(dept,3)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[3]===null?'-':fmtMoney(tAmtsT[3])}</td>
             <td style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center">계</td>
             ${noteCellT}
           </tr>
           ${nameRowsT.map((rowByQ,ri) => `
           <tr>
-            ${Array.from({length:4},(_,ci)=>`<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${ri}" data-col="${ci}" data-is-emp="0" data-nd-idx="-1" ondblclick='openNameCell(this)'></td>`).join('')}
+            ${Array.from({length:4},(_,ci)=>{const n=rowByQ[0][ci];const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):{display:'',isEmp:false};const ndIdx=obj.nd?nameDataList.findIndex(d=>d.qi===0&&d.name===obj.name&&!d.acting):-1;return `<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;}).join('')}
             ${Array.from({length:4},(_,ci)=>{const n=rowByQ[1][ci];const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):{display:'',isEmp:false};const ndIdx=obj.nd?nameDataList.findIndex(d=>d.qi===1&&d.name===obj.name&&!d.acting):-1;return `<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="1" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;}).join('')}
-            ${Array.from({length:4},(_,ci)=>`<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${ri}" data-col="${ci}" data-is-emp="0" data-nd-idx="-1" ondblclick='openNameCell(this)'></td>`).join('')}
-            ${Array.from({length:4},(_,ci)=>`<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${ri}" data-col="${ci}" data-is-emp="0" data-nd-idx="-1" ondblclick='openNameCell(this)'></td>`).join('')}
+            ${Array.from({length:4},(_,ci)=>{const n=rowByQ[2][ci];const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):{display:'',isEmp:false};const ndIdx=obj.nd?nameDataList.findIndex(d=>d.qi===2&&d.name===obj.name&&!d.acting):-1;return `<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;}).join('')}
+            ${Array.from({length:4},(_,ci)=>{const n=rowByQ[3][ci];const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):{display:'',isEmp:false};const ndIdx=obj.nd?nameDataList.findIndex(d=>d.qi===3&&d.name===obj.name&&!d.acting):-1;return `<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;}).join('')}
             <td rowspan="${pairT*2}" style="${nameNsT}text-align:right;font-weight:600;vertical-align:middle">${ri===0?fmtMoney(tTotal):''}</td>
           </tr>
           <tr>
-            ${Array.from({length:4},(_,ci)=>`<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="0" data-rowidx="${ri}" data-col="${ci}" ondblclick='openDateCell(this)'></td>`).join('')}
+            ${[0,1,2,3].map(ci=>renderDateTd(dept,0,ri,ci,nameNsT,qNamesT[0],nameDataList)).join('')}
             ${[0,1,2,3].map(ci=>renderDateTd(dept,1,ri,ci,nameNsT,qNamesT[1],nameDataList)).join('')}
-            ${Array.from({length:4},(_,ci)=>`<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="2" data-rowidx="${ri}" data-col="${ci}" ondblclick='openDateCell(this)'></td>`).join('')}
-            ${Array.from({length:4},(_,ci)=>`<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="3" data-rowidx="${ri}" data-col="${ci}" ondblclick='openDateCell(this)'></td>`).join('')}
+            ${[0,1,2,3].map(ci=>renderDateTd(dept,2,ri,ci,nameNsT,qNamesT[2],nameDataList)).join('')}
+            ${[0,1,2,3].map(ci=>renderDateTd(dept,3,ri,ci,nameNsT,qNamesT[3],nameDataList)).join('')}
           </tr>`).join('')}
           <tr><td colspan="17" style="height:8px;border:none"></td></tr>
           ${renderExtraRows()}
@@ -6519,13 +6519,13 @@ ${typeLabel}</td>`;
           <td style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&bTotal?fmtMoney(bTotal):'-'}</td>
         </tr>
         <tr>
-          <td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center"></td>
+          <td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td>
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="0" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[0]!==null?fmtMoney(tAmts[0]):'-'}${((extraList||[]).some(e=>e.qi==0&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
           <td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td>
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="1" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==1&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[1]!==null?fmtMoney(tAmts[1]):'-'}${((extraList||[]).some(e=>e.qi==1&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-          <td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center"></td>
+          <td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td>
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="2" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==2&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[2]!==null?fmtMoney(tAmts[2]):'-'}${((extraList||[]).some(e=>e.qi==2&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-          <td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center"></td>
+          <td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td>
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="3" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==3&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[3]!==null?fmtMoney(tAmts[3]):'-'}${((extraList||[]).some(e=>e.qi==3&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
         </tr>
@@ -6534,10 +6534,6 @@ ${nameRows.map((rowByQ, rowIdx) => `
           ${[0,1,2,3].map(qi2=>{
             if(disabledQi.includes(qi2)){
               return rowIdx===0 ? `<td colspan="4" rowspan="${pairCount*2}" style="${nameNs}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle" onclick="toggleDisabledQi('${dept}',${qi2})">미사용</td>` : '';
-            }
-            // qi=1(2분기)에만 이름 표시, 나머지는 빈칸
-            if(qi2 !== 1){
-              return Array.from({length:4},(_,ci)=>`<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" data-is-emp="0" data-nd-idx="-1" ondblclick='openNameCell(this)'></td>`).join('');
             }
             return Array.from({length:4},(_,ci)=>{
               const n=rowByQ[qi2][ci];
@@ -6549,7 +6545,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
           ${rowIdx===0 ? `<td rowspan="${pairCount*2}" style="${nameNs}text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">${isTypeTeamjang&&tTotal?fmtMoney(tTotal):''}</td>` : ''}
         </tr>
         <tr>
-          ${[0,1,2,3].map(qi2=>disabledQi.includes(qi2)?'':qi2!==1?Array.from({length:4},(_,ci)=>`<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openDateCell(this)'></td>`).join(''):[0,1,2,3].map(ci=>renderDateTd(dept,qi2,rowIdx,ci,nameNs,qNames[qi2],nameDataList)).join('')).join('')}
+          ${[0,1,2,3].map(qi2=>disabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(dept,qi2,rowIdx,ci,nameNs,qNames[qi2],nameDataList)).join('')).join('')}
         </tr>`).join('')}
         ${(['SW지원부','GIS SW영업부'].includes(dept) && subTeamEmps.length > 0) ? (() => {
           // 하위팀 행 삽입
@@ -6580,7 +6576,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
           return `
           <tr style="background:${BG_TEAM_AMT}">
             ${[0,1,2,3].map(qi2=>`
-              <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${subDept}",${qi2})'>${qi2===1?getDeptDisplayName(subDept,qi2):''}</td>
+              <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${subDept}",${qi2})'>${getDeptDisplayName(subDept,qi2)}</td>
               <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${subTAmts[qi2]!==null?fmtMoney(subTAmts[qi2]):'-'}</td>
             `).join('')}
             <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;font-weight:700">${subTTotal?fmtMoney(subTTotal):'-'}</td>
@@ -6589,13 +6585,12 @@ ${nameRows.map((rowByQ, rowIdx) => `
           <tr>
             ${[0,1,2,3].map(qi2=>{
               if(subDisabledQi.includes(qi2)) return rowIdx===0?`<td colspan="4" rowspan="${subPair*2}" style="${subNs}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle" onclick="toggleDisabledQi('${subDept}',${qi2})">미사용</td>`:'';
-              if(qi2!==1) return Array.from({length:4},(_,ci)=>`<td style="${subNs}text-align:center;cursor:pointer" data-dept="${subDept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'></td>`).join('');
               return Array.from({length:4},(_,ci)=>{const o=rowByQ[qi2][ci];const obj=o||{display:'',isEmp:false};return `<td style="${subNs}text-align:center;cursor:pointer" data-dept="${subDept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${obj.display||''}</td>`;}).join('');
             }).join('')}
             ${rowIdx===0?`<td rowspan="${subPair*2}" style="${subNs}text-align:right;font-weight:700;vertical-align:middle">${subTTotal?fmtMoney(subTTotal):''}</td>`:''}
           </tr>
           <tr>
-            ${[0,1,2,3].map(qi2=>subDisabledQi.includes(qi2)?'':qi2!==1?Array.from({length:4},(_,ci)=>`<td style="${subNs}text-align:center;cursor:pointer" data-dept="${subDept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openDateCell(this)'></td>`).join(''):[0,1,2,3].map(ci=>renderDateTd(subDept,qi2,rowIdx,ci,subNs,subQNames[qi2],subNameDataList)).join('')).join('')}
+            ${[0,1,2,3].map(qi2=>subDisabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(subDept,qi2,rowIdx,ci,subNs,subQNames[qi2],subNameDataList)).join('')).join('')}
           </tr>`).join('')}`;
         })() : ''}
         <tr><td colspan="17" style="height:8px;border:none"></td></tr>
@@ -8321,5 +8316,5 @@ if (!state.kpis.length) {
     </div>
   </div>
 </body>
-</html> 
+</html>
  
