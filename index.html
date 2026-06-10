@@ -6536,8 +6536,8 @@ ${typeLabel}</td>`;
             ${[0,1,2,3].map(ci=>renderDateTd(dept,2,ri,ci,nameNsT,qNamesT[2],nameDataList)).join('')}
             ${[0,1,2,3].map(ci=>renderDateTd(dept,3,ri,ci,nameNsT,qNamesT[3],nameDataList)).join('')}
           </tr>`).join('')}
-          <tr><td colspan="17" style="height:8px;border:none"></td></tr>
           ${renderExtraRows()}
+          <tr><td colspan="17" style="height:8px;border:none"></td></tr>
           </tbody></table>`;
         return;
       }
@@ -6566,8 +6566,8 @@ ${typeLabel}</td>
             <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[3])>0?deptHead.name:'');const ttl2=hd&&hd.title?'<span style=\'color:#3b82f6;font-weight:500\'> ('+hd.title+')</span>':'';return nm?nm+ttl2+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':'';})()} </td>
             <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
           </tr>
-          <tr><td colspan="17" style="height:8px;border:none"></td></tr>
           ${renderExtraRows()}
+          <tr><td colspan="17" style="height:8px;border:none"></td></tr>
           </tbody></table>`;
         return;
       }
@@ -6858,6 +6858,7 @@ function openNameCell(cell) {
   const actingRoles = ['팀장대행','부서장대행','본부장대행'];
   const curActing = nd ? (nd.acting||'') : '';
   const modal = document.createElement('div');
+  document.getElementById('name-cell-modal')?.remove();
   modal.id = 'name-cell-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `
@@ -6973,6 +6974,7 @@ function openDateCell(cell) {
   }
 
   const modal = document.createElement('div');
+  document.getElementById('date-cell-modal')?.remove();
   modal.id = 'date-cell-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   const types = [{v:'join',l:'입사'},{v:'leave',l:'퇴사'},{v:'from',l:'부터'},{v:'to',l:'까지'}];
@@ -7085,6 +7087,7 @@ function openHeadNameModal(dept, type) {
   const actingRoles = ['팀장대행','부서장대행','본부장대행'];
   const curTitle = headData ? (headData.title||'') : '';
   const modal = document.createElement('div');
+  document.getElementById('head-name-modal')?.remove();
   modal.id = 'head-name-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `
@@ -7162,6 +7165,7 @@ function openDeptNameModal(dept, qi) {
   const curName = deptFundSettings[dept].deptDisplayNames[qi] || '';
   const qLabel = ['1~3월','4~6월','7~9월','10~12월'][qi] || '';
   const modal = document.createElement('div');
+  document.getElementById('dept-name-modal')?.remove();
   modal.id = 'dept-name-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `
@@ -7250,6 +7254,7 @@ function openAddRowModal(dept) {
     {id:'ck-date', label:'날짜칸', key:'date'},
   ];
   const modal = document.createElement('div');
+  document.getElementById('add-row-modal')?.remove();
   modal.id = 'add-row-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `
@@ -7453,6 +7458,7 @@ function openExtraNameCell(cell) {
   const actingRoles = ['팀장대행','부서장대행','본부장대행'];
   const curTitle = existing ? (existing.title||'') : '';
   const modal = document.createElement('div');
+  document.getElementById('name-cell-modal')?.remove();
   modal.id = 'name-cell-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
@@ -7510,6 +7516,7 @@ function openExtraDateCell(cell) {
   if (!row.dateData) row.dateData = [];
   const cur = row.dateData.find(d=>d.qi===qi&&d.col===ci);
   const modal = document.createElement('div');
+  document.getElementById('date-cell-modal')?.remove();
   modal.id = 'date-cell-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   const types = [{v:'join',l:'입사'},{v:'leave',l:'퇴사'},{v:'from',l:'부터'},{v:'to',l:'까지'}];
@@ -7561,6 +7568,7 @@ function openExtraRowEdit(dept, rowIdx, qi) {
   const row = rows[rowIdx];
   if (!row) return;
   const modal = document.createElement('div');
+  document.getElementById('extra-row-modal')?.remove();
   modal.id = 'extra-row-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `
@@ -7591,6 +7599,7 @@ function openDeptFundTypeModal(dept, cell) {
   const cur = setting.type || '';
 
   const modal = document.createElement('div');
+  document.getElementById('deptfund-type-modal')?.remove();
   modal.id = 'deptfund-type-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `
