@@ -7385,8 +7385,9 @@ function openExtraTypeModal(dept, ri) {
 
 // ── 조직 순서 이동 ──
 function moveDeptOrder(deptName, dir) {
+  console.log('[moveDeptOrder] 호출됨:', deptName, dir);
   const d = departments.find(function(x){return x.name===deptName;});
-  if (!d) return;
+  if (!d) { console.log('[moveDeptOrder] 부서 못찾음:', deptName); return; }
   // 같은 parent를 가진 형제 조직들을 sortOrder 순으로 정렬
   const siblings = departments
     .filter(function(x){return x.parent===d.parent;})
