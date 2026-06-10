@@ -7218,13 +7218,16 @@ function openDeptMenu(dept, event) {
     html += '<button onclick="'+toggleFn+';document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();})" style="padding:5px 8px;border-radius:6px;border:1px solid ' + (on?'#ef4444':'#e2e8f0') + ';background:' + (on?'#fee2e2':'#f8fafc') + ';color:' + (on?'#dc2626':'#475569') + ';cursor:pointer;font-size:11px;font-weight:600">' + label + (on?' ✓':'') + ' 미사용</button>';
   });
   html += '</div>'
+  html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;display:flex;gap:4px">';
   if (isExtra) {
-    html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;display:flex;gap:4px">';
     html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});moveExtraRow(decodeURIComponent(\'' + denc + '\'),' + extraRiNum + ',-1)" style="flex:1;padding:5px 4px;border-radius:6px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;font-size:11px">▲ 위로</button>';
     html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});moveExtraRow(decodeURIComponent(\'' + denc + '\'),' + extraRiNum + ',1)" style="flex:1;padding:5px 4px;border-radius:6px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;font-size:11px">▼ 아래로</button>';
     html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});deleteExtraRow(decodeURIComponent(\'' + denc + '\'),' + extraRiNum + ')" style="flex:1;padding:5px 4px;border-radius:6px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:11px">삭제</button>';
-    html += '</div>';
+  } else {
+    html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});moveDeptOrder(decodeURIComponent(\'' + denc + '\'),-1)" style="flex:1;padding:5px 4px;border-radius:6px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;font-size:11px">▲ 위로</button>';
+    html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});moveDeptOrder(decodeURIComponent(\'' + denc + '\'),1)" style="flex:1;padding:5px 4px;border-radius:6px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;font-size:11px">▼ 아래로</button>';
   }
+  html += '</div>';
   popup.innerHTML = html;
   document.body.appendChild(popup);
   const close = function(e) { if(!popup.contains(e.target)&&e.target!==btn){popup.remove();document.removeEventListener('click',close);}};
@@ -7378,6 +7381,31 @@ function openExtraTypeModal(dept, ri) {
     deptFundSettings[dept].extraRows[ri].type = t;
     saveDeptFundSettings(); modal.remove(); _renderDeptFund();
   };
+}
+
+// ── 조직 순서 이동 ──
+function moveDeptOrder(deptName, dir) {
+  const d = departments.find(function(x){return x.name===deptName;});
+  if (!d) return;
+  // 같은 parent를 가진 형제 조직들을 sortOrder 순으로 정렬
+  const siblings = departments
+    .filter(function(x){return x.parent===d.parent;})
+    .sort(function(a,b){return (a.sortOrder||99)-(b.sortOrder||99);});
+  // sortOrder 없는 항목에 자동 부여 (현재 순서 기준 10단위)
+  let hasEmpty = siblings.some(function(x){return x.sortOrder==null||x.sortOrder===undefined;});
+  if (hasEmpty) {
+    siblings.forEach(function(x, i){ if (x.sortOrder==null||x.sortOrder===undefined) x.sortOrder = (i+1)*10; });
+  }
+  const idx = siblings.findIndex(function(x){return x.id===d.id;});
+  const swapIdx = idx + dir;
+  if (swapIdx < 0 || swapIdx >= siblings.length) return;
+  // sortOrder swap
+  const curOrder = d.sortOrder;
+  const swapDept = siblings[swapIdx];
+  d.sortOrder = swapDept.sortOrder;
+  swapDept.sortOrder = curOrder;
+  saveDepartments();
+  _renderDeptFund();
 }
 
 // ── extraRow 삭제 ──
