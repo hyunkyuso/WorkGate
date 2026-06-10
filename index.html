@@ -7424,10 +7424,12 @@ function moveExtraRow(dept, idx, dir) {
   const rows = deptFundSettings[dept]?.extraRows;
   if (!rows) { console.log('[moveExtraRow] extraRows 없음'); return; }
   const newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= rows.length) return;
+  console.log('[moveExtraRow] rows.length:', rows.length, 'newIdx:', newIdx);
+  if (newIdx < 0 || newIdx >= rows.length) { console.log('[moveExtraRow] 범위 초과'); return; }
   const tmp = rows[idx];
   rows[idx] = rows[newIdx];
   rows[newIdx] = tmp;
+  console.log('[moveExtraRow] swap 완료, 저장 시작');
   saveDeptFundSettings();
   _renderDeptFund();
 }
