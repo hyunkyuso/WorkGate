@@ -6021,7 +6021,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
-        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",0)'>${getBonbuDisplayName(bonbu,0)}</td>
+        <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${bonbu}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getBonbuDisplayName(bonbu,0)}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}${((bonbuExtraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
         <td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",1)'>${getBonbuDisplayName(bonbu,1)}</td>
         <td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="1" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==1&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[1]===null?'-':fmtMoney(qAmts[1])}${((bonbuExtraList||[]).some(e=>e.qi==1&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
@@ -6380,16 +6380,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           })
         );
         const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">
-              ${typeLabel}
-              <div style="display:flex;gap:4px;margin-top:4px;justify-content:center;flex-wrap:wrap">
-                <button onclick="event.stopPropagation();openAddRowModal('${dept.replace(/'/g,"\'")}',this)" style="padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer">+ 줄추가</button>
-                ${[0,1,2,3].map(qi=>`<button onclick="event.stopPropagation();toggleDisabledQi('${dept.replace(/'/g,"\'")}',${qi})" style="padding:2px 5px;font-size:10px;border-radius:4px;border:1px solid ${((deptFundSettings[dept]||{}).disabledQi||[]).includes(qi)?'#ef4444':'#94a3b8'};background:${((deptFundSettings[dept]||{}).disabledQi||[]).includes(qi)?'#fee2e2':'#f1f5f9'};cursor:pointer">${['1Q','2Q','3Q','4Q'][qi]}미사용</button>`).join('')}
-              </div>
-            </td>`;
+${typeLabel}</td>`;
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${getDeptDisplayName(dept,0)}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[0]===null?'-':fmtMoney(tAmtsT[0])}</td>
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",1)'>${getDeptDisplayName(dept,1)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[1]===null?'-':fmtMoney(tAmtsT[1])}</td>
@@ -6425,7 +6420,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
-            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${getDeptDisplayName(dept,0)}</td>
+            <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[0]!==null?fmtMoney(bAmts[0]):'-'}${((extraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
             <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${getDeptDisplayName(dept,1)}</td>
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="1" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==1&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[1]!==null?fmtMoney(bAmts[1]):'-'}${((extraList||[]).some(e=>e.qi==1&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
@@ -6435,12 +6430,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="3" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==3&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[3]!==null?fmtMoney(bAmts[3]):'-'}${((extraList||[]).some(e=>e.qi==3&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
             <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
             <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\'")}',this)">
-              ${typeLabel}
-              <div style="display:flex;gap:4px;margin-top:4px;justify-content:center;flex-wrap:wrap">
-                <button onclick="event.stopPropagation();openAddRowModal('${dept.replace(/'/g,"\'")}',this)" style="padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer">+ 줄추가</button>
-                ${[0,1,2,3].map(qi=>`<button onclick="event.stopPropagation();toggleDisabledQi('${dept.replace(/'/g,"\'")}',${qi})" style="padding:2px 5px;font-size:10px;border-radius:4px;border:1px solid ${((deptFundSettings[dept]||{}).disabledQi||[]).includes(qi)?'#ef4444':'#94a3b8'};background:${((deptFundSettings[dept]||{}).disabledQi||[]).includes(qi)?'#fee2e2':'#f1f5f9'};cursor:pointer">${['1Q','2Q','3Q','4Q'][qi]}미사용</button>`).join('')}
-              </div>
-            </td>
+${typeLabel}</td>
           </tr>
           <tr>
             <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead&&getEmpMonthsInQuarter(deptHead,year,...quarters[0])>0?deptHead.name:'');return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>':'';})()} </td>
@@ -6511,7 +6501,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         ${colgroup}
         <tbody>
         <tr style="background:${BG_DEPT}">
-          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'>${getDeptDisplayName(dept,0)}</td>
+          <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td>
           <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[0]!==null?fmtMoney(bAmts[0]):'-'}${((extraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
           <td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",1)'>${getDeptDisplayName(dept,1)}</td>
           <td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="1" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==1&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[1]!==null?fmtMoney(bAmts[1]):'-'}${((extraList||[]).some(e=>e.qi==1&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
@@ -6989,6 +6979,36 @@ function openDeptNameModal(dept, qi) {
 
 
 // ── 줄 추가 모달 ──
+
+// ── 조직 메뉴 ──
+function openDeptMenu(dept, event) {
+  event.stopPropagation();
+  document.querySelectorAll('.dept-menu-popup').forEach(function(el){el.remove();});
+  const btn = event.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const popup = document.createElement('div');
+  popup.className = 'dept-menu-popup';
+  popup.style.cssText = 'position:fixed;z-index:9999;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.18);padding:12px;min-width:200px;';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  popup.style.left = rect.left + 'px';
+  const dqi = (deptFundSettings[dept]||{}).disabledQi||[];
+  const deptEsc = dept.replace(/'/g, "\'");
+  let html = '<div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e2e8f0">' + dept + '</div>';
+  html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});openAddRowModal(\'' + deptEsc + '\')" style="width:100%;padding:6px 10px;margin-bottom:8px;border-radius:6px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer;font-size:12px;font-weight:600;text-align:left">+ 줄 추가</button>';
+  html += '<div style="font-size:11px;color:#64748b;margin-bottom:4px">미사용 분기</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
+  [0,1,2,3].forEach(function(qi) {
+    const on = dqi.includes(qi);
+    const label = ['1Q','2Q','3Q','4Q'][qi];
+    html += '<button onclick="toggleDisabledQi(\'' + deptEsc + '\',' + qi + ');document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();})" style="padding:5px 8px;border-radius:6px;border:1px solid ' + (on?'#ef4444':'#e2e8f0') + ';background:' + (on?'#fee2e2':'#f8fafc') + ';color:' + (on?'#dc2626':'#475569') + ';cursor:pointer;font-size:11px;font-weight:600">' + label + (on?' ✓':'') + ' 미사용</button>';
+  });
+  html += '</div>';
+  popup.innerHTML = html;
+  document.body.appendChild(popup);
+  const close = function(e) { if(!popup.contains(e.target)&&e.target!==btn){popup.remove();document.removeEventListener('click',close);}};
+  setTimeout(function(){document.addEventListener('click',close);},10);
+}
+
 function openAddRowModal(dept) {
   const checks = [
     {id:'ck-bonbu', label:'본부칸', key:'bonbu'},
