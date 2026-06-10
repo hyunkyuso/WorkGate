@@ -5681,11 +5681,14 @@ function getEmpMonthsInQuarter(emp, year, qStart, qEnd) {
 const DEPTFUND_SETTINGS_KEY = 'deptfund_settings';
 let deptFundSettings = {}; // { deptId: { mode: 'buseojang'|'teamjang'|'both' } }
 
-async function loadDeptFundSettings() {
+let deptFundSettingsLoaded = false;
+async function loadDeptFundSettings(force=false) {
+  if (deptFundSettingsLoaded && !force) return;
   try {
     const snap = await db.collection('settings').doc(DEPTFUND_SETTINGS_KEY).get();
     deptFundSettings = snap.exists ? snap.data() : {};
-  } catch(e) { deptFundSettings = {}; }
+    deptFundSettingsLoaded = true;
+  } catch(e) { console.error('loadDeptFundSettings error:', e); }
 }
 
 
@@ -7205,6 +7208,8 @@ async function saveDeptFundType(dept, btn) {
   deptFundSettings[dept].teamjang = !isNone && checks.includes('팀장');
 
   await saveDeptFundSettings();
+  deptFundSettingsLoaded = false;
+  await loadDeptFundSettings();
   const modal = document.getElementById('deptfund-type-modal'); if(modal) modal.remove();
   _renderDeptFund();
 }
