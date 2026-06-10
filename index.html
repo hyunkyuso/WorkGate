@@ -6482,7 +6482,7 @@ ${typeLabel}</td>
         });
       });
       const hasLeavers = leaversByQ.some(q => q.some(n=>n));
-      const noteRowspan = 1 + (deptHead?1:0) + (isTypeTeamjang?1:0) + maxChunks + (hasLeavers?1:0);
+      const noteRowspan = 1 + (deptHead?1:0) + (isTypeTeamjang?1:0) + Math.max(2, maxChunks) + (hasLeavers?1:0);
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">
 ${typeLabel}</td>`;
 
@@ -6523,8 +6523,9 @@ ${typeLabel}</td>`;
           swSubNameRows = Array.from({length:swSubPair},(_,ri)=>quarters.map((_,qi2)=>swSubQNames[qi2].slice(ri*4,(ri+1)*4)));
         }
       }
-      // 부서칸 합산금액 (부서장 + 팀 합산)
+      // 부서칸 합산금액 (비고 팀장이면 - , 아니면 부서장+팀 합산)
       const mergedAmts = quarters.map((_,qi)=>{
+        if (isTypeTeamjang && !isTypeBuseojang && !isTypeBonbu) return null;
         const b = bAmts[qi]||0;
         const s = (isSWStyle && swSubTAmts[qi])||0;
         return (b+s)||null;
