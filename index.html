@@ -6098,14 +6098,17 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCell2(qi2);const amt=(isBuseojang||isTeamjang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(orgNames[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+BG_DEPT_HEADER+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='bonbujang'||colType==='deptjang'){
             const label2=colType==='bonbujang'?'(본부장)':'(부서장)';
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae"></td>';return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+(hNames2[qi2]?hNames2[qi2]+' <span style="color:#3b82f6;font-weight:500">'+label2+'</span>':'')+'</td>';}).join('')+'<td style="'+tS2+'text-align:right;font-weight:700">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae"></td>';const hT2=(row.headTitles||[])[qi2];const hA2=(row.headActing||[])[qi2];const hD2=hNames2[qi2]?(hNames2[qi2]+(hT2?' <span style="color:#3b82f6;font-weight:500">('+hT2+')</span>':'')+(hA2?' <span style="color:#3b82f6;font-size:10px">('+hA2+')</span>':'')):'';return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+hD2+'</td>';}).join('')+'<td style="'+tS2+'text-align:right;font-weight:700">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
           } else if(colType==='team'){
             const bg2=BG_TEAM_AMT;
             html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCell2(qi2);const amt=isTeamjang&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(orgNames[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='name'){
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'<td colspan="4" style="'+nameNsE2+'background:#94a3b8;border-right:1px solid #90a4ae"></td>';return[0,1,2,3].map(function(ci){const nd=ndList.find(function(d){return d.qi===qi2&&d.col===ci;});const br=ci===3?'border-right:1px solid #90a4ae;':'';const disp=nd&&nd.name?nd.name+(nd.title?' <span style="color:#3b82f6;font-weight:500">('+nd.title+')</span>':'')+(nd.acting?' <span style="color:#3b82f6;font-size:10px">('+nd.acting+')</span>':''):'';return'<td style="'+nameNsE2+br+'cursor:pointer" data-dept="'+bonbu+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraNameCell(this)">'+disp+'</td>';}).join('');}).join('')+'<td style="'+nameNsE2+'text-align:right;font-weight:700;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'')+'</td>'+noteTd2+'</tr>';
+            const hasDate2 = rowTypes.includes('date');
+            const totalRowspan2 = hasDate2 ? 2 : 1;
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'<td colspan="4" style="'+nameNsE2+'background:#94a3b8;border-right:1px solid #90a4ae"></td>';return[0,1,2,3].map(function(ci){const nd=ndList.find(function(d){return d.qi===qi2&&d.col===ci;});const br=ci===3?'border-right:1px solid #90a4ae;':'';const disp=nd&&nd.name?nd.name+(nd.title?' <span style="color:#3b82f6;font-weight:500">('+nd.title+')</span>':'')+(nd.acting?' <span style="color:#3b82f6;font-size:10px">('+nd.acting+')</span>':''):'';return'<td style="'+nameNsE2+br+'cursor:pointer" data-dept="'+bonbu+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraNameCell(this)">'+disp+'</td>';}).join('');}).join('')+'<td rowspan="'+totalRowspan2+'" style="'+nameNsE2+'text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'')+'</td>'+noteTd2+'</tr>';
           } else if(colType==='date'){
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'<td colspan="4" style="'+nameNsE2+'background:#94a3b8;border-right:1px solid #90a4ae"></td>';return[0,1,2,3].map(function(ci){const dd=ddList.find(function(d){return d.qi===qi2&&d.col===ci;});const br=ci===3?'border-right:1px solid #90a4ae;':'';const cc=dd&&dd.date?'<span style="color:'+(dd.type==='join'||dd.type==='from'?'#3b82f6':'#ef4444')+';font-size:10px">'+dd.date+' '+(typeMap2[dd.type]||dd.type)+'</span>':'';return'<td style="'+nameNsE2+br+'cursor:pointer" data-dept="'+bonbu+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraDateCell(this)">'+cc+'</td>';}).join('');}).join('')+'<td style="'+nameNsE2+'"></td>'+noteTd2+'</tr>';
+            const hasName2 = rowTypes.includes('name');
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';return[0,1,2,3].map(function(ci){const dd=ddList.find(function(d){return d.qi===qi2&&d.col===ci;});const br=ci===3?'border-right:1px solid #90a4ae;':'';const cc=dd&&dd.date?'<span style="color:'+(dd.type==='join'||dd.type==='from'?'#3b82f6':'#ef4444')+';font-size:10px">'+dd.date+' '+(typeMap2[dd.type]||dd.type)+'</span>':'';return'<td style="'+nameNsE2+br+'cursor:pointer" data-dept="'+bonbu+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraDateCell(this)">'+cc+'</td>';}).join('');}).join('')+(hasName2?'':'<td style="'+nameNsE2+'"></td>')+noteTd2+'</tr>';
           }
         });
       });
@@ -6309,7 +6312,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               const label = colType==='bonbujang'?'(본부장)':'(부서장)';
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
                 if (exDisabledQi.includes(qi2)) return '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae"></td>';
-                return '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+(hNames[qi2]?hNames[qi2]+' <span style="color:#3b82f6;font-weight:500">'+label+'</span>':'')+'</td>';
+                const hTitle = (row.headTitles||[])[qi2];
+              const hActing = (row.headActing||[])[qi2];
+              const hDisp = hNames[qi2]?(hNames[qi2]+(hTitle?' <span style="color:#3b82f6;font-weight:500">('+hTitle+')</span>':'')+(hActing?' <span style="color:#3b82f6;font-size:10px">('+hActing+')</span>':'')):'';
+              return '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+hDisp+'</td>';
               }).join('')+'<td style="'+tS+'text-align:right;font-weight:700">-</td>'+noteTd+'</tr>');
             } else if (colType==='team') {
               const bg = BG_TEAM_AMT;
@@ -6748,7 +6754,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
         </tr>`).join('')}
         `}
         ${renderExtraRows()}
-        <tr><td colspan="17" style="height:8px;border:none"></td></tr>
+        <tr><td colspan="17" style="height:8px;border:none;padding:0"></td></tr>
         </tbody></table>`;
     });
   });
@@ -7321,6 +7327,63 @@ function toggleDisabledQi(dept, qi) {
   _renderDeptFund();
 }
 
+// ── extraRow 부서장/본부장 이름 편집 (openHeadNameModal과 동일) ──
+function openExtraHeadEdit(dept, ri, qi) {
+  const rows = (deptFundSettings[dept]||{}).extraRows||[];
+  const row = rows[ri];
+  if (!row) return;
+  if (!row.headNames) row.headNames = [row.headName||'',row.headName||'',row.headName||'',row.headName||''];
+  const curName = row.headNames[qi]||'';
+  const curActing = row.headActing?.[qi]||'';
+  const curTitle = row.headTitles?.[qi]||'';
+  const curMemo = row.headMemos?.[qi]||'';
+  const qLabel = ['1분기(1~3월)','2분기(4~6월)','3분기(7~9월)','4분기(10~12월)'][qi];
+  const titleRolesH = ['팀장','부서장','본부장'];
+  const actingRoles = ['팀장대행','부서장대행','본부장대행'];
+  const modal = document.createElement('div');
+  document.getElementById('head-name-modal')?.remove();
+  modal.id = 'head-name-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">부서장/본부장 이름 수정</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:12px">${qLabel}</div>
+    <input id="hn-name" value="${curName}" placeholder="이름 입력" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
+    <div style="font-size:12px;color:#64748b;margin-bottom:6px">직책</div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+      ${titleRolesH.map(r=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${curTitle===r?'background:#dbeafe;border-color:#3b82f6':''}"><input type="radio" name="hn-title" value="${r}" ${curTitle===r?'checked':''} style="accent-color:#3b82f6"> ${r}</label>`).join('')}
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${!curTitle?'background:#f1f5f9;border-color:#94a3b8':''}"><input type="radio" name="hn-title" value="" ${!curTitle?'checked':''} style="accent-color:#3b82f6"> 없음</label>
+    </div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:6px">직책 (대행)</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      ${actingRoles.map(r=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${curActing===r?'background:#dbeafe;border-color:#3b82f6':''}"><input type="radio" name="hn-acting" value="${r}" ${curActing===r?'checked':''} style="accent-color:#3b82f6"> ${r}</label>`).join('')}
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${!curActing?'background:#f1f5f9;border-color:#94a3b8':''}"><input type="radio" name="hn-acting" value="" ${!curActing?'checked':''} style="accent-color:#3b82f6"> 없음</label>
+    </div>
+    <input id="hn-memo" value="${curMemo}" placeholder="메모 (선택)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:14px;outline:none">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="document.getElementById('head-name-modal')?.remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+      <button id="hn-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  setTimeout(() => document.getElementById('hn-name')?.focus(), 50);
+  modal.querySelector('#hn-save').onclick = () => {
+    const name = document.getElementById('hn-name').value.trim();
+    const memo = document.getElementById('hn-memo').value.trim();
+    const acting = document.querySelector('input[name="hn-acting"]:checked')?.value||'';
+    const title = document.querySelector('input[name="hn-title"]:checked')?.value||'';
+    if (!deptFundSettings[dept].extraRows[ri].headNames) deptFundSettings[dept].extraRows[ri].headNames = ['','','',''];
+    if (!deptFundSettings[dept].extraRows[ri].headActing) deptFundSettings[dept].extraRows[ri].headActing = ['','','',''];
+    if (!deptFundSettings[dept].extraRows[ri].headTitles) deptFundSettings[dept].extraRows[ri].headTitles = ['','','',''];
+    if (!deptFundSettings[dept].extraRows[ri].headMemos) deptFundSettings[dept].extraRows[ri].headMemos = ['','','',''];
+    deptFundSettings[dept].extraRows[ri].headNames[qi] = name;
+    deptFundSettings[dept].extraRows[ri].headActing[qi] = acting;
+    deptFundSettings[dept].extraRows[ri].headTitles[qi] = title;
+    deptFundSettings[dept].extraRows[ri].headMemos[qi] = memo;
+    saveDeptFundSettings(); modal.remove(); _renderDeptFund();
+  };
+}
+
 // ── extraRow 조직명/부서장 편집 (분기별 독립) ──
 function openExtraOrgEdit(dept, ri, qi) {
   const rows = (deptFundSettings[dept]||{}).extraRows||[];
@@ -7337,7 +7400,7 @@ function openExtraOrgEdit(dept, ri, qi) {
     <input id="eo-name" value="${row.orgNames[qi]||''}" placeholder="조직명" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:8px;outline:none">
     <input id="eo-head" value="${row.headNames[qi]||''}" placeholder="부서장/본부장 이름" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:14px;outline:none">
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button onclick="this.closest('div').parentElement.remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+      <button onclick="this.closest('[id]')?.remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
       <button id="eo-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
     </div>
   </div>`;
@@ -7380,7 +7443,7 @@ function openExtraTypeModal(dept, ri) {
         </label>`).join('')}
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button onclick="this.closest('div').parentElement.remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+      <button onclick="this.closest('[id]')?.remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
       <button id="et-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
     </div>
   </div>`;
