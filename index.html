@@ -6534,9 +6534,18 @@ ${typeLabel}</td>
         }
       }
       // 부서칸 합산금액
-      const mergedAmts = quarters.map((_,qi)=>{
+      const mergedAmts = quarters.map(([qs,qe],qi)=>{
         if (isTypeTeamjang && !isTypeBuseojang && !isTypeBonbu) return null; // 팀장: 녹색줄 -
-        if (isTypeBuseojang || isTypeBonbu) return bAmts[qi]||null; // 부서장: 부서장 금액만
+        if (isTypeBuseojang || isTypeBonbu) {
+          // SW스타일 부서장: Firebase 직원 기준으로 직접 계산
+          if (isSWStyle) {
+            let t = 0;
+            const allEmps = [...empList, ...subTeamEmps].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i);
+            allEmps.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t+=50000; });
+            return t||null;
+          }
+          return bAmts[qi]||null;
+        }
         const b = bAmts[qi]||0;
         const s = (isSWStyle && swSubTAmts[qi])||0;
         return (b+s)||null;
@@ -6572,7 +6581,7 @@ ${typeLabel}</td>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'':'';})()}</td>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'':'';})()}</td>
           <td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${(()=>{const hd=((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);const nm=hd&&hd.name?hd.name:(deptHead?deptHead.name:'');const act=hd&&hd.acting?'<span style=\'color:#3b82f6;font-size:10px\'> ('+hd.acting+')</span>':'';return nm?nm+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act+'':'';})()}</td>
-          <td style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&bTotal?fmtMoney(bTotal):'-'}</td>
+          <td style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&(isSWStyle?mergedTotal:bTotal)?fmtMoney(isSWStyle?mergedTotal:bTotal):'-'}</td>
         </tr>
         ${isSWStyle && swSubDept ? `
         <tr style="background:${BG_TEAM_AMT}">
