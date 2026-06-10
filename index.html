@@ -6478,7 +6478,7 @@ ${typeLabel}</td>
         });
       });
       const hasLeavers = leaversByQ.some(q => q.some(n=>n));
-      const noteRowspan = 1 + (deptHead?1:0) + (isTypeTeamjang?1:0) + maxChunks + (hasLeavers?1:0);
+      const noteRowspan = 1 + (deptHead?1:0) + (isTypeTeamjang?1:0) + maxChunks + (hasLeavers?1:0) + (isTypeTeamjang?1:0);
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick="openDeptFundTypeModal('${dept.replace(/'/g,"\\'")}',this)">
 ${typeLabel}</td>`;
 
@@ -6523,7 +6523,7 @@ ${typeLabel}</td>`;
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="2" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==2&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[2]!==null?fmtMoney(tAmts[2]):'-'}${((extraList||[]).some(e=>e.qi==2&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
           <td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td>
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="3" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==3&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[3]!==null?fmtMoney(tAmts[3]):'-'}${((extraList||[]).some(e=>e.qi==3&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>
-          <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;font-weight:700">${isTypeTeamjang&&tTotal?fmtMoney(tTotal):'-'}</td>
+          <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
         </tr>
 ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
@@ -6539,10 +6539,13 @@ ${nameRows.map((rowByQ, rowIdx) => `
             }).join('');
           }).join('')}
         </tr>
-        <tr>
+        <tr style="height:20px">
           ${[0,1,2,3].map(qi2=>disabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(dept,qi2,rowIdx,ci,nameNs,qNames[qi2],nameDataList)).join('')).join('')}
         </tr>`).join('')}
-
+        <tr>
+          <td colspan="16" style="${nameNs}border-right:1px solid #90a4ae"></td>
+          <td style="${nameNs}text-align:right;font-weight:700">${isTypeTeamjang&&tTotal?fmtMoney(tTotal):''}</td>
+        </tr>
         <tr><td colspan="17" style="height:8px;border:none"></td></tr>
         <tr><td colspan="10" style="height:10px;border:none"></td></tr>
         </tbody></table>`;
