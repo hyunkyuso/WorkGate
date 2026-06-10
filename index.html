@@ -6176,8 +6176,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (!rows.length) return '';
         const B = '1px solid #b0bec5';
         const tS = 'border:'+B+';padding:4px 6px;text-align:center;font-size:11px;height:28px;position:relative;';
-        const BG_H = BG_DEPT_HEADER;
-        const BG_T = BG_TEAM_AMT;
+        const nameNsE = 'border:'+B+';padding:4px 6px;text-align:center;font-size:11px;height:28px;';
         const result = [];
 
         rows.forEach(function(row, ri) {
@@ -6188,9 +6187,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const isBuseojang = rowTypeLabel==='부서장'||rowTypeLabel==='본부장';
           const deptEnc = encodeURIComponent(dept);
           const exDisabledQi = row.disabledQi||[];
-
-          // 분기별 조직명 (독립적)
           const orgNames = row.orgNames || [row.name||'',row.name||'',row.name||'',row.name||''];
+          const hNames = row.headNames || [row.headName||'',row.headName||'',row.headName||'',row.headName||''];
 
           // 금액 계산
           const ndList = row.nameData||[];
@@ -6208,9 +6206,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                 if (dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
                 t += months*40000;
               } else {
-                let active = true;
+                let active=true;
                 if (dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')active=Math.max(0,Math.min(dtM,qe)-qs+1)>0;else if(dd.type==='join'||dd.type==='from')active=Math.max(0,qe-Math.max(dtM,qs)+1)>0;}
-                if (active) t += 50000;
+                if(active) t += 50000;
               }
             });
             return t||null;
@@ -6228,57 +6226,65 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               : '';
             if (isFirst) noteRendered = true;
 
+            const disabledCell = function(qi2) {
+              return '<td colspan="4" style="'+tS+'background:#94a3b8;color:#fff;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle" onclick="toggleExtraDisabledQi(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">미사용</td>';
+            };
+
             if (colType==='bonbu'||colType==='dept') {
-              const bg = BG_H;
+              const bg = BG_DEPT_HEADER;
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
-                if (exDisabledQi.includes(qi2)) return '<td colspan="4" style="'+tS+'background:#94a3b8;color:#fff;border-right:1px solid #90a4ae;cursor:pointer" onclick="toggleExtraDisabledQi(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">미사용</td>';
+                if (exDisabledQi.includes(qi2)) return disabledCell(qi2);
                 const amt = (isBuseojang||isTeamjang) && rowAmts[qi2]!==null ? rowAmts[qi2].toLocaleString() : '-';
                 return '<td colspan="3" style="'+tS+'font-weight:600;background:'+bg+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+(orgNames[qi2]||'')+'</td>'+
                   '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';
-              }).join('')+'<td style="'+tS+'background:'+bg+';text-align:right;font-weight:700">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd+'</tr>');
+              }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">계</td>'+noteTd+'</tr>');
             } else if (colType==='bonbujang'||colType==='deptjang') {
               const label = colType==='bonbujang'?'(본부장)':'(부서장)';
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
                 if (exDisabledQi.includes(qi2)) return '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae"></td>';
-                const hNames = row.headNames||[row.headName||'',row.headName||'',row.headName||'',row.headName||''];
                 return '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+(hNames[qi2]?hNames[qi2]+' <span style="color:#3b82f6;font-weight:500">'+label+'</span>':'')+'</td>';
-              }).join('')+'<td style="'+tS+'text-align:right;font-weight:700">-</td>'+noteTd+'</tr>');
+              }).join('')+'<td style="'+tS+'text-align:right;font-weight:700">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd+'</tr>');
             } else if (colType==='team') {
+              const bg = BG_TEAM_AMT;
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
-                if (exDisabledQi.includes(qi2)) return '<td colspan="4" style="'+tS+'background:#94a3b8;color:#fff;border-right:1px solid #90a4ae;cursor:pointer" onclick="toggleExtraDisabledQi(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">미사용</td>';
+                if (exDisabledQi.includes(qi2)) return disabledCell(qi2);
                 const amt = isTeamjang && rowAmts[qi2]!==null ? rowAmts[qi2].toLocaleString() : '-';
-                return '<td colspan="3" style="'+tS+'font-weight:600;background:'+BG_T+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+(orgNames[qi2]||'')+'</td>'+
-                  '<td style="'+tS+'background:'+BG_T+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';
-              }).join('')+'<td style="'+tS+'background:'+BG_T+';text-align:right;font-weight:700">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd+'</tr>');
+                return '<td colspan="3" style="'+tS+'font-weight:600;background:'+bg+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+(orgNames[qi2]||'')+'</td>'+
+                  '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';
+              }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">계</td>'+noteTd+'</tr>');
             } else if (colType==='name') {
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
-                if (exDisabledQi.includes(qi2)) return '<td colspan="4" style="'+tS+'background:#94a3b8;border-right:1px solid #90a4ae"></td>';
+                if (exDisabledQi.includes(qi2)) return '<td colspan="4" style="'+nameNsE+'background:#94a3b8;border-right:1px solid #90a4ae"></td>';
                 return [0,1,2,3].map(function(ci){
                   const nd = ndList.find(function(d){return d.qi===qi2&&d.col===ci;});
                   const br = ci===3?'border-right:1px solid #90a4ae;':'';
-                  return '<td style="'+tS+br+'cursor:pointer" data-dept="'+dept+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraNameCell(this)">'+(nd&&nd.name?nd.name:'')+'</td>';
+                  const disp = nd&&nd.name ? nd.name+(nd.acting?' <span style="color:#3b82f6;font-size:10px">('+nd.acting+')</span>':'') : '';
+                  return '<td style="'+nameNsE+br+'cursor:pointer" data-dept="'+dept+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraNameCell(this)">'+disp+'</td>';
                 }).join('');
-              }).join('')+'<td style="'+tS+'text-align:center;font-weight:600">계</td>'+noteTd+'</tr>');
+              }).join('')+'<td style="'+nameNsE+'text-align:right;font-weight:700;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'')+'</td>'+noteTd+'</tr>');
             } else if (colType==='date') {
               const typeMap = {join:'입사',leave:'퇴사',from:'부터',to:'까지'};
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
-                if (exDisabledQi.includes(qi2)) return '<td colspan="4" style="'+tS+'background:#94a3b8;border-right:1px solid #90a4ae"></td>';
+                if (exDisabledQi.includes(qi2)) return '<td colspan="4" style="'+nameNsE+'background:#94a3b8;border-right:1px solid #90a4ae"></td>';
                 return [0,1,2,3].map(function(ci){
                   const dd = ddList.find(function(d){return d.qi===qi2&&d.col===ci;});
                   const br = ci===3?'border-right:1px solid #90a4ae;':'';
                   const cellContent = dd&&dd.date?'<span style="color:'+(dd.type==='join'||dd.type==='from'?'#3b82f6':'#ef4444')+';font-size:10px">'+dd.date+' '+(typeMap[dd.type]||dd.type)+'</span>':'';
-                  return '<td style="'+tS+br+'cursor:pointer" data-dept="'+dept+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraDateCell(this)">'+cellContent+'</td>';
+                  return '<td style="'+nameNsE+br+'cursor:pointer" data-dept="'+dept+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraDateCell(this)">'+cellContent+'</td>';
                 }).join('');
-              }).join('')+'<td style="'+tS+'"></td>'+noteTd+'</tr>');
+              }).join('')+'<td style="'+nameNsE+'"></td>'+noteTd+'</tr>');
             }
           });
 
-          // 이동/삭제 버튼 — 마지막 칸(계 열) 안에 포함
-          result.push('<tr><td colspan="16" style="border:none;padding:0"></td><td style="'+tS+'padding:2px 4px;text-align:right;border-left:'+B+'">'+
-            '<button onclick="moveExtraRow(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+',-1)" style="font-size:10px;padding:1px 4px;border-radius:3px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;margin-right:1px">&#9650;</button>'+
-            '<button onclick="moveExtraRow(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+',1)" style="font-size:10px;padding:1px 4px;border-radius:3px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;margin-right:2px">&#9660;</button>'+
-            '<button onclick="deleteExtraRow(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')" style="font-size:10px;padding:1px 4px;border-radius:3px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer">삭제</button>'+
-          '</td></tr>');
+          // ▲▼삭제 버튼 — 테이블 안 마지막 열에
+          result.push('<tr>'+
+            '<td colspan="16" style="border:none;padding:0"></td>'+
+            '<td style="'+tS+'padding:2px 4px;text-align:right">'+
+              '<button onclick="moveExtraRow(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+',-1)" style="font-size:10px;padding:1px 4px;border-radius:3px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;margin-right:1px">&#9650;</button>'+
+              '<button onclick="moveExtraRow(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+',1)" style="font-size:10px;padding:1px 4px;border-radius:3px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer;margin-right:2px">&#9660;</button>'+
+              '<button onclick="deleteExtraRow(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')" style="font-size:10px;padding:1px 4px;border-radius:3px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer">삭제</button>'+
+            '</td>'+
+          '</tr>');
         });
         return result.join('');
       };
@@ -7183,7 +7189,14 @@ function openAddRowModal(dept) {
           </label>`).join('')}
       </div>
       <input id="ar-orgname" placeholder="조직명 (선택)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:8px;outline:none">
-      <input id="ar-headname" placeholder="부서장/본부장 이름 (선택)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:14px;outline:none">
+      <input id="ar-headname" placeholder="부서장/본부장 이름 (선택)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
+      <div style="font-size:12px;color:#64748b;margin-bottom:6px">미사용 분기</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:14px">
+        ${['1Q(1~3월)','2Q(4~6월)','3Q(7~9월)','4Q(10~12월)'].map((l,i)=>`
+          <label style="display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;font-size:12px">
+            <input type="checkbox" id="ar-dq-${i}" style="cursor:pointer"> ${l}
+          </label>`).join('')}
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button onclick="document.getElementById('add-row-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
         <button id="ar-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">추가</button>
@@ -7197,9 +7210,10 @@ function openAddRowModal(dept) {
     const orgName = document.getElementById('ar-orgname').value.trim();
     const headName = document.getElementById('ar-headname').value.trim();
     const rowType = document.querySelector('input[name="ar-type"]:checked')?.value || '없음';
+    const disabledQi = [0,1,2,3].filter(i=>document.getElementById('ar-dq-'+i)?.checked);
     if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
     if (!deptFundSettings[dept].extraRows) deptFundSettings[dept].extraRows = [];
-    deptFundSettings[dept].extraRows.push({cols: selected, name: orgName, headName, type: rowType});
+    deptFundSettings[dept].extraRows.push({cols: selected, name: orgName, headName, type: rowType, disabledQi});
     saveDeptFundSettings();
     modal.remove();
     _renderDeptFund();
@@ -7370,7 +7384,7 @@ function openExtraNameCell(cell) {
   };
 }
 
-// ── extraRow 날짜칸 편집 ──
+// ── extraRow 날짜칸 편집 (openDateCell과 동일) ──
 function openExtraDateCell(cell) {
   const dept = cell.dataset.dept;
   const ri = parseInt(cell.dataset.extraRi);
@@ -7380,38 +7394,45 @@ function openExtraDateCell(cell) {
   const row = rows[ri];
   if (!row) return;
   if (!row.dateData) row.dateData = [];
-  const existing = row.dateData.find(d=>d.qi===qi&&d.col===ci);
+  const cur = row.dateData.find(d=>d.qi===qi&&d.col===ci);
   const modal = document.createElement('div');
+  modal.id = 'date-cell-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  const types = [{v:'join',l:'입사'},{v:'leave',l:'퇴사'},{v:'from',l:'부터'},{v:'to',l:'까지'}];
   modal.innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
-    <div style="font-size:14px;font-weight:700;margin-bottom:12px">날짜 편집</div>
-    <select id="ed-type" style="width:100%;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;margin-bottom:8px">
-      <option value="join" ${existing?.type==='join'?'selected':''}>입사(부터)</option>
-      <option value="leave" ${existing?.type==='leave'?'selected':''}>퇴사(까지)</option>
-    </select>
-    <input id="ed-date" type="date" value="${existing?.fullDate||''}" style="width:100%;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:14px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:14px">날짜 입력</div>
+    <input type="date" id="dc-date" value="${cur&&cur.fullDate?cur.fullDate:new Date().toISOString().slice(0,10)}" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      ${types.map(t=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px"><input type="radio" name="dc-type" value="${t.v}" ${cur&&cur.type===t.v?'checked':''}> ${t.l}</label>`).join('')}
+    </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button onclick="this.closest('div').parentElement.remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
-      <button id="ed-del" style="padding:6px 12px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:13px">삭제</button>
-      <button id="ed-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
+      ${cur?`<button id="dc-del" style="padding:6px 12px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:13px">삭제</button>`:''}
+      <button onclick="document.getElementById('date-cell-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+      <button id="dc-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
     </div>
   </div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
-  modal.querySelector('#ed-save').onclick = () => {
-    const type = document.getElementById('ed-type').value;
-    const fullDate = document.getElementById('ed-date').value;
-    if (!fullDate) return;
-    const d = new Date(fullDate);
-    const date = (d.getMonth()+1)+'/'+(d.getDate());
+  if (!cur) { const r = modal.querySelector('input[name="dc-type"]'); if(r) r.checked=true; }
+  modal.querySelector('#dc-save').onclick = () => {
+    const fullDate = document.getElementById('dc-date').value;
+    const typeEl = modal.querySelector('input[name="dc-type"]:checked');
+    if (!fullDate||!typeEl) { alert('날짜와 구분을 선택하세요'); return; }
+    const type = typeEl.value;
+    const [y,m,d2] = fullDate.split('-');
+    const date = parseInt(m)+'/'+parseInt(d2);
+    // 이름 칸에서 이름 가져오기
+    const nameCell = document.querySelector('td[data-dept="'+dept+'"][data-extra-ri="'+ri+'"][data-qi="'+qi+'"][data-col="'+ci+'"]');
+    const cellName = nameCell ? nameCell.textContent.replace(/\s*\([^)]*\)\s*/g,'').trim() : '';
     if (!deptFundSettings[dept].extraRows[ri].dateData) deptFundSettings[dept].extraRows[ri].dateData = [];
     const arr = deptFundSettings[dept].extraRows[ri].dateData;
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
-    const entry = {qi,col:ci,type,fullDate,date};
+    const entry = {qi,col:ci,type,fullDate,date,name:cellName};
     if(idx2>=0) arr[idx2]=entry; else arr.push(entry);
     saveDeptFundSettings(); modal.remove(); _renderDeptFund();
   };
-  modal.querySelector('#ed-del').onclick = () => {
+  const delBtn = modal.querySelector('#dc-del');
+  if (delBtn) delBtn.onclick = () => {
     const arr = deptFundSettings[dept].extraRows[ri].dateData||[];
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
     if(idx2>=0) arr.splice(idx2,1);
