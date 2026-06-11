@@ -6991,10 +6991,10 @@ function openNameCell(cell) {
     if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
     const ndArr = deptFundSettings[dept].nameData;
+    if (isNaN(qi)) { alert('분기 정보 오류'); return; }
 
     if (isEmp) {
-      // Firebase 직원: acting 처리 (insertBefore 없이 저장해야 맨앞 정렬됨)
-      const ndArr = deptFundSettings[dept].nameData;
+      // Firebase 직원: acting 처리
       const existActingIdx = ndArr.findIndex(d=>d.qi===qi&&d.name===cellBaseName&&d.acting&&!d.insertBefore);
       if (acting) {
         if (existActingIdx >= 0) ndArr[existActingIdx] = {qi, name:cellBaseName, acting, memo};
@@ -7005,8 +7005,8 @@ function openNameCell(cell) {
     } else if (nd && ndIdx >= 0) {
       // nameData 직원 수정
       if (name) ndArr[ndIdx] = {qi, name, memo, acting, insertBefore: nd.insertBefore};
-    } else if (!isEmp && name) {
-      // 빈칸 신규 추가
+    } else if (name) {
+      // 빈칸 신규 추가 (isEmp 여부 무관)
       ndArr.push({qi, name, memo, acting});
     }
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50);
