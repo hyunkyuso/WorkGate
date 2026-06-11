@@ -6938,6 +6938,7 @@ function openNameCell(cell) {
   const qi = parseInt(cell.getAttribute('data-qi'));
   const isEmp = cell.getAttribute('data-is-emp') === '1';
   const ndIdx = parseInt(cell.getAttribute('data-nd-idx'));
+  console.log('[openNameCell] dept=',dept,'qi=',qi,'isEmp=',isEmp,'ndIdx=',ndIdx);
   const ndArr0 = (deptFundSettings[dept]||{}).nameData||[];
   const nd = ndIdx >= 0 ? ndArr0[ndIdx] : null;
   const cellText = cell.innerHTML.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
@@ -6992,6 +6993,7 @@ function openNameCell(cell) {
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
     const ndArr = deptFundSettings[dept].nameData;
     if (isNaN(qi)) { alert('분기 정보 오류'); return; }
+    console.log('[nc-save] dept=',dept,'qi=',qi,'isEmp=',isEmp,'ndIdx=',ndIdx,'name=',name,'nd=',nd);
 
     if (isEmp) {
       // Firebase 직원: acting 처리
