@@ -6939,8 +6939,8 @@ function openNameCell(cell) {
   const isEmp = cell.getAttribute('data-is-emp') === '1';
   const ndIdx = parseInt(cell.getAttribute('data-nd-idx'));
   const nd = ndIdx >= 0 ? ((deptFundSettings[dept]||{}).nameData||[])[ndIdx] : null;
-  const cellClone = cell.cloneNode(true);
-  const cellBaseName = cellClone.textContent.replace(/\s*\([^)]*\)\s*/g,'').replace(/\+/g,'').trim();
+  const cellText = cell.innerHTML.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+  const cellBaseName = cellText.replace(/\s*\([^)]*\)\s*/g,'').replace(/\+/g,'').trim();
   const actingRoles = ['팀장대행','부서장대행','본부장대행'];
   const curActing = nd ? (nd.acting||'') : '';
   const modal = document.createElement('div');
@@ -6975,6 +6975,7 @@ function openNameCell(cell) {
     if (!name) { alert('이름을 입력하세요'); return; }
     if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
+    // 현재 칸의 기준 이름 앞에 삽입
     const insertBeforeName = nd ? nd.name : cellBaseName;
     deptFundSettings[dept].nameData.push({qi, name, memo, acting, insertBefore: insertBeforeName});
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50);
@@ -6986,12 +6987,24 @@ function openNameCell(cell) {
     const acting = document.querySelector('input[name="nc-acting"]:checked')?.value || '';
     if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
-    if (nd && ndIdx >= 0) {
-      if (name) deptFundSettings[dept].nameData[ndIdx] = {qi, name, memo, acting, insertBefore: nd.insertBefore};
-    } else if (isEmp && name) {
-      deptFundSettings[dept].nameData.push({qi, name, memo, acting, insertBefore: cellBaseName});
+    const ndArr = deptFundSettings[dept].nameData;
+
+    if (isEmp) {
+      // Firebase 직원: acting 처리 (insertBefore 없이 저장해야 맨앞 정렬됨)
+      const existActingIdx = ndArr.findIndex(d=>d.qi===qi&&d.name===cellBaseName&&d.acting&&!d.insertBefore);
+      if (acting) {
+        if (existActingIdx >= 0) ndArr[existActingIdx] = {qi, name:cellBaseName, acting, memo};
+        else ndArr.push({qi, name:cellBaseName, acting, memo});
+      } else {
+        // acting 해제
+        if (existActingIdx >= 0) ndArr.splice(existActingIdx, 1);
+      }
+    } else if (nd && ndIdx >= 0) {
+      // nameData 직원 수정
+      if (name) ndArr[ndIdx] = {qi, name, memo, acting, insertBefore: nd.insertBefore};
     } else if (!isEmp && name) {
-      deptFundSettings[dept].nameData.push({qi, name, memo, acting});
+      // 빈칸 신규 추가
+      ndArr.push({qi, name, memo, acting});
     }
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50);
   };
@@ -6999,11 +7012,16 @@ function openNameCell(cell) {
   document.getElementById('nc-del-btn').onclick = () => {
     if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
+    const ndArr = deptFundSettings[dept].nameData;
     if (isEmp) {
-      const hiddenIdx = deptFundSettings[dept].nameData.findIndex(d=>d.qi===qi&&d.name===cellBaseName&&d.hidden);
-      if (hiddenIdx < 0) deptFundSettings[dept].nameData.push({qi, name:cellBaseName, hidden:true});
+      // Firebase 직원 숨김: 이미 hidden 없으면 추가
+      const alreadyHidden = ndArr.findIndex(d=>d.qi===qi&&d.name===cellBaseName&&d.hidden);
+      if (alreadyHidden < 0) ndArr.push({qi, name:cellBaseName, hidden:true});
+      // acting도 같이 제거
+      const actIdx = ndArr.findIndex(d=>d.qi===qi&&d.name===cellBaseName&&d.acting&&!d.insertBefore);
+      if (actIdx >= 0) ndArr.splice(actIdx, 1);
     } else if (ndIdx >= 0) {
-      deptFundSettings[dept].nameData.splice(ndIdx, 1);
+      ndArr.splice(ndIdx, 1);
     }
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50);
   };
