@@ -7014,7 +7014,9 @@ function openNameCell(cell) {
       // nameData 직원 수정
       if (name) ndArr[ndIdx] = {qi, name, memo, acting, insertBefore: nd.insertBefore};
     } else if (name) {
-      // 빈칸 신규 추가 (isEmp 여부 무관)
+      // 신규 추가 - hidden 항목이 있으면 먼저 제거 (삭제 후 재추가 케이스)
+      const hiddenIdx = ndArr.findIndex(d=>d.qi===qi&&d.name===name&&d.hidden);
+      if (hiddenIdx >= 0) ndArr.splice(hiddenIdx, 1);
       ndArr.push({qi, name, memo, acting});
     }
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50);
