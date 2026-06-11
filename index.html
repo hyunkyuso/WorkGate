@@ -6205,7 +6205,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // 부서장 타입이면 하위팀 직원도 포함
         const baseMembers = teamMembers; // 이름칸은 해당 부서 직원만
         const empNames = baseMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).sort(sortEmp);
-        const empNameSet = new Set(empNames.map(e=>e.name));
         // Firebase 직원 배열 (hidden/acting 처리)
         let nameObjs = empNames.map(e => {
           if (nameDataList.some(d=>d.qi===qi&&d.name===e.name&&d.hidden)) return null; // hidden 제외
@@ -6214,6 +6213,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             + (actNd ? '<span style="color:#3b82f6;font-size:10px"> ('+actNd.acting+')</span>' : '');
           return {display, isEmp:true, name:e.name, isActing:!!actNd, nd:actNd||null};
         }).filter(Boolean);
+        // hidden 제외 후 실제 표시되는 Firebase 직원 이름 집합
+        const empNameSet = new Set(nameObjs.map(o=>o.name));
         // acting 있는 Firebase 직원 앞으로 정렬
         nameObjs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
         // insertBefore: Firebase 직원 앞에 끼워넣기
@@ -6938,7 +6939,6 @@ function openNameCell(cell) {
   const qi = parseInt(cell.getAttribute('data-qi'));
   const isEmp = cell.getAttribute('data-is-emp') === '1';
   const ndIdx = parseInt(cell.getAttribute('data-nd-idx'));
-  console.log('[openNameCell] dept=',dept,'qi=',qi,'isEmp=',isEmp,'ndIdx=',ndIdx);
   const ndArr0 = (deptFundSettings[dept]||{}).nameData||[];
   const nd = ndIdx >= 0 ? ndArr0[ndIdx] : null;
   const cellText = cell.innerHTML.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
@@ -6993,7 +6993,6 @@ function openNameCell(cell) {
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
     const ndArr = deptFundSettings[dept].nameData;
     if (isNaN(qi)) { alert('분기 정보 오류'); return; }
-    console.log('[nc-save] dept=',dept,'qi=',qi,'isEmp=',isEmp,'ndIdx=',ndIdx,'name=',name,'nd=',nd);
 
     if (isEmp) {
       // Firebase 직원: acting 처리
@@ -8972,5 +8971,5 @@ if (!state.kpis.length) {
     </div>
   </div>
 </body>
-</html> 
+</html>
  
