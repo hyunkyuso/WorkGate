@@ -6032,7 +6032,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
         ${[0,1,2,3].map(qi2 => bonbuDisabledQi.includes(qi2)
-          ? `<td colspan="4" rowspan="2" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleDisabledQi('${bonbu.replace(/'/g,"\\'")}',${qi2})"></td>`
+          ? `<td colspan="4" rowspan="2" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:2px solid #475569;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreDisabled('${bonbu.replace(/'/g,"\\'")}',${qi2})"></td>`
           : (qi2===0
             ? `<td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${bonbu}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getBonbuDisplayName(bonbu,0)}</td><td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="0" data-type="buseojang" data-bonbu-teamjang="${bonbuIsTeamjang?bonbu:''}" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}${((bonbuExtraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`
             : `<td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",${qi2})'>${getBonbuDisplayName(bonbu,qi2)}</td><td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="${qi2}" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==qi2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[qi2]===null?'-':fmtMoney(qAmts[qi2])}${((bonbuExtraList||[]).some(e=>e.qi==qi2&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`)
@@ -6090,8 +6090,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const hasBonbujang2 = rowTypes.includes('bonbujang')||rowTypes.includes('deptjang');
         const teamDisabledRowspan2 = 1 + (hasName2?1:0) + (hasDate2?1:0);
         const orgDisabledRowspan2 = 1 + (hasBonbujang2?1:0);
-        const disabledCellOrg2 = function(qi2){return '<td colspan="4" rowspan="'+orgDisabledRowspan2+'" style="'+tS2+'background:#94a3b8;color:#fff;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleExtraDisabledQi(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')"></td>';};
-        const disabledCellTeam2 = function(qi2){return '<td colspan="4" rowspan="'+teamDisabledRowspan2+'" style="'+tS2+'background:#94a3b8;color:#fff;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleExtraDisabledQi(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')"></td>';};
+        const disabledCellOrg2 = function(qi2){return '<td colspan="4" rowspan="'+orgDisabledRowspan2+'" style="'+tS2+'background:#94a3b8;color:#fff;border-right:2px solid #475569;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreExtraDisabled(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')"></td>';};
+        const disabledCellTeam2 = function(qi2){return '<td colspan="4" rowspan="'+teamDisabledRowspan2+'" style="'+tS2+'background:#94a3b8;color:#fff;border-right:2px solid #475569;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreExtraDisabled(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')"></td>';};
         const typeMap2 = {join:'입사',leave:'퇴사',from:'부터',to:'까지'};
         rowTypes.forEach(function(colType){
           const isFirst2=!noteRendered2;
@@ -6111,7 +6111,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             html+='<tr>'+[0,1,2,3].map(function(qi2){
               if(exDisabledQi.includes(qi2)){
                 if(hasOrgAbove2) return '';
-                return'<td colspan="4" rowspan="'+totalRowspan2+'" style="'+nameNsE2+'background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleExtraDisabledQi(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')"></td>';
+                return'<td colspan="4" rowspan="'+totalRowspan2+'" style="'+nameNsE2+'background:#94a3b8;color:#fff;text-align:center;border-right:2px solid #475569;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreExtraDisabled(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')"></td>';
               }
               return[0,1,2,3].map(function(ci){const nd=ndList.find(function(d){return d.qi===qi2&&d.col===ci;});const br=ci===3?'border-right:1px solid #90a4ae;':'';const disp=nd&&nd.name?nd.name+(nd.title?' <span style="color:#3b82f6;font-weight:500">('+nd.title+')</span>':'')+(nd.acting?' <span style="color:#3b82f6;font-size:10px">('+nd.acting+')</span>':''):'';return'<td style="'+nameNsE2+br+'cursor:pointer" data-dept="'+bonbu+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraNameCell(this)">'+disp+'</td>';}).join('');
             }).join('')+'<td rowspan="'+totalRowspan2+'" style="'+nameNsE2+'text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
@@ -6232,7 +6232,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const disabledQi = (deptFundSettings[dept]||{}).disabledQi || [];
       const renderDisabledCell = (qi) => {
         if (!disabledQi.includes(qi)) return null;
-        return '<td colspan="4" style="border:1px solid #b0bec5;background:#64748b;color:#fff;text-align:center;font-size:11px;cursor:pointer" onclick="toggleDisabledQi(\'' + dept + '\''+',' + qi + ')">사용안함</td>';
+        return '<td colspan="4" style="border:1px solid #b0bec5;background:#64748b;color:#fff;text-align:center;font-size:11px;cursor:pointer" ondblclick="confirmRestoreDisabled(\'' + dept + '\''+',' + qi + ')">사용안함</td>';
       };
       const wrapQCells = (qi, normalHtml) => {
         const disabled = renderDisabledCell(qi);
@@ -6303,10 +6303,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
           // 미사용 분기별 셀 생성 함수
           const disabledCellOrg = function(qi2) {
-            return '<td colspan="4" rowspan="'+orgDisabledRowspan+'" style="'+tS+'background:#94a3b8;color:#fff;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleExtraDisabledQi(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')"></td>';
+            return '<td colspan="4" rowspan="'+orgDisabledRowspan+'" style="'+tS+'background:#94a3b8;color:#fff;border-right:2px solid #475569;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreExtraDisabled(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')"></td>';
           };
           const disabledCellTeam = function(qi2) {
-            return '<td colspan="4" rowspan="'+teamDisabledRowspan+'" style="'+tS+'background:#94a3b8;color:#fff;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleExtraDisabledQi(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')"></td>';
+            return '<td colspan="4" rowspan="'+teamDisabledRowspan+'" style="'+tS+'background:#94a3b8;color:#fff;border-right:2px solid #475569;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreExtraDisabled(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')"></td>';
           };
 
           const menuBtn = '<button onclick="openDeptMenu(decodeURIComponent(\x27'+deptEnc+'\x27),event)" data-d="'+dept+'" data-extra-ri="'+ri+'" style="'+btnStyle+'">☰</button>';
@@ -6350,7 +6350,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
                 if (exDisabledQi.includes(qi2)) {
                   if (hasOrgAbove) return ''; // 위 행 rowspan으로 커버
-                  return '<td colspan="4" rowspan="'+totalRowspan+'" style="'+nameNsE+'background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleExtraDisabledQi(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')"></td>';
+                  return '<td colspan="4" rowspan="'+totalRowspan+'" style="'+nameNsE+'background:#94a3b8;color:#fff;text-align:center;border-right:2px solid #475569;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreExtraDisabled(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')"></td>';
                 }
                 return [0,1,2,3].map(function(ci){
                   const nd = ndList.find(function(d){return d.qi===qi2&&d.col===ci;});
@@ -6543,7 +6543,7 @@ ${typeLabel}</td>`;
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
             ${[0,1,2,3].map(qi2 => disabledQi.includes(qi2)
-              ? `<td colspan="4" rowspan="${1+pairT*2}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleDisabledQi('${dept.replace(/'/g,"\\'")}',${qi2})"></td>`
+              ? `<td colspan="4" rowspan="${1+pairT*2}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:2px solid #475569;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreDisabled('${dept.replace(/'/g,"\\'")}',${qi2})"></td>`
               : (qi2===0
                 ? `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[0]===null?'-':fmtMoney(tAmtsT[0])}</td>`
                 : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",${qi2})'>${getDeptDisplayName(dept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[qi2]===null?'-':fmtMoney(tAmtsT[qi2])}</td>`)
@@ -6576,7 +6576,7 @@ ${typeLabel}</td>`;
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
             ${[0,1,2,3].map(qi2 => disabledQi.includes(qi2)
-              ? `<td colspan="4" rowspan="2" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleDisabledQi('${dept.replace(/'/g,"\\'")}',${qi2})"></td>`
+              ? `<td colspan="4" rowspan="2" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:2px solid #475569;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreDisabled('${dept.replace(/'/g,"\\'")}',${qi2})"></td>`
               : (qi2===0
                 ? `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[0]!==null?fmtMoney(bAmts[0]):'-'}${((extraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`
                 : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",${qi2})'>${getDeptDisplayName(dept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="${qi2}" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${(isTypeBuseojang||isTypeBonbu)&&bAmts[qi2]!==null?fmtMoney(bAmts[qi2]):'-'}${((extraList||[]).some(e=>e.qi==qi2&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`)
@@ -6708,7 +6708,7 @@ ${typeLabel}</td>`;
         <tbody>
         <tr style="background:${BG_DEPT}">
           ${[0,1,2,3].map(qi2 => disabledQi.includes(qi2)
-            ? `<td colspan="4" rowspan="2" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleDisabledQi('${dept.replace(/'/g,"\\'")}',${qi2})"></td>`
+            ? `<td colspan="4" rowspan="2" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:2px solid #475569;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreDisabled('${dept.replace(/'/g,"\\'")}',${qi2})"></td>`
             : (qi2===0
               ? `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[0]!==null?fmtMoney(mergedAmts[0]):'-'}</td>`
               : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",${qi2})'>${getDeptDisplayName(dept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="${qi2}" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[qi2]!==null?fmtMoney(mergedAmts[qi2]):'-'}</td>`)
@@ -6739,7 +6739,7 @@ ${typeLabel}</td>`;
         ${swSubNameRows.map((rowByQ,rowIdx)=>`
         <tr>
           ${[0,1,2,3].map(qi2=>{
-            if(swSubDisabledQi.includes(qi2)) return rowIdx===0?`<td colspan="4" rowspan="${swSubPair*2}" style="${nameNs}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle" onclick="toggleDisabledQi('${swSubDept}',${qi2})"></td>`:'';
+            if(swSubDisabledQi.includes(qi2)) return rowIdx===0?`<td colspan="4" rowspan="${swSubPair*2}" style="${nameNs}background:#94a3b8;color:#fff;text-align:center;border-right:2px solid #475569;cursor:pointer;vertical-align:middle" ondblclick="confirmRestoreDisabled('${swSubDept}',${qi2})"></td>`:'';
             return Array.from({length:4},(_,ci)=>{const o=rowByQ[qi2][ci];const obj=o||{display:'',isEmp:false};return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${swSubDept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" ondblclick='openNameCell(this)'>${obj.display||''}</td>`;}).join('');
           }).join('')}
           ${rowIdx===0?`<td rowspan="${swSubPair*2}" style="${nameNs}text-align:right;font-weight:700;vertical-align:middle">${swSubTTotal?fmtMoney(swSubTTotal):''}</td>`:''}
@@ -6750,7 +6750,7 @@ ${typeLabel}</td>`;
         ` : `
         <tr>
           ${[0,1,2,3].map(qi2 => disabledQi.includes(qi2)
-            ? `<td colspan="4" rowspan="${1+pairCount*2}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleDisabledQi('${dept}',${qi2})"></td>`
+            ? `<td colspan="4" rowspan="${1+pairCount*2}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:2px solid #475569;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreDisabled('${dept}',${qi2})"></td>`
             : (qi2===0
               ? `<td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td><td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="0" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[0]!==null?fmtMoney(tAmts[0]):'-'}${((extraList||[]).some(e=>e.qi==0&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`
               : `<td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td><td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="${qi2}" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[qi2]!==null?fmtMoney(tAmts[qi2]):'-'}${((extraList||[]).some(e=>e.qi==qi2&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`)
@@ -7328,6 +7328,50 @@ function openAddRowModal(dept) {
 }
 
 
+
+// ── 미사용 되돌리기 확인 모달 ──
+function confirmRestoreDisabled(dept, qi) {
+  const qLabel = ['1분기(1~3월)','2분기(4~6월)','3분기(7~9월)','4분기(10~12월)'][qi];
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px;width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.2);text-align:center">
+    <div style="font-size:22px;margin-bottom:8px">↩️</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px">${qLabel} 미사용 해제</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:20px">해당 분기를 다시 활성화합니다.</div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button id="crd-cancel" style="padding:7px 18px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+      <button id="crd-confirm" style="padding:7px 18px;border-radius:8px;border:none;background:#ef4444;color:#fff;cursor:pointer;font-size:13px;font-weight:600">해제</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  modal.querySelector('#crd-cancel').onclick = () => modal.remove();
+  modal.querySelector('#crd-confirm').onclick = () => {
+    toggleDisabledQi(dept, qi);
+    modal.remove();
+  };
+}
+
+function confirmRestoreExtraDisabled(dept, ri, qi) {
+  const qLabel = ['1분기(1~3월)','2분기(4~6월)','3분기(7~9월)','4분기(10~12월)'][qi];
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px;width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.2);text-align:center">
+    <div style="font-size:22px;margin-bottom:8px">↩️</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px">${qLabel} 미사용 해제</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:20px">해당 분기를 다시 활성화합니다.</div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:7px 18px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+      <button id="cred-confirm" style="padding:7px 18px;border-radius:8px;border:none;background:#ef4444;color:#fff;cursor:pointer;font-size:13px;font-weight:600">해제</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  modal.querySelector('#cred-confirm').onclick = () => {
+    toggleExtraDisabledQi(dept, ri, qi);
+    modal.remove();
+  };
+}
 
 // ── 사용안함 토글 ──
 function toggleDisabledQi(dept, qi) {
