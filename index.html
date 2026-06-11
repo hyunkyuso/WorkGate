@@ -6419,6 +6419,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
         // 이름칸 기반: 인원수 × 50,000 (분기 고정)
         let t = qNames[qi].filter(o=>o&&o.name).length * 50000;
+        // 부서장 이름행: useSimpleFormat에서는 qNames에 포함 안 되므로 별도 추가
+        if (useSimpleFormat && deptHead) t += 50000;
         // extraRows 중 부서장/본부장 type의 이름 인원 추가
         const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
         extraRows.forEach(row => {
