@@ -6205,15 +6205,16 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // 부서장 타입이면 하위팀 직원도 포함
         const baseMembers = teamMembers; // 이름칸은 해당 부서 직원만
         const empNames = baseMembers.filter(e=>getEmpMonthsInQuarter(e,year,qs,qe)>0).sort(sortEmp);
+        const allEmpNameSet = new Set(empNames.map(e=>e.name)); // 전체 Firebase 직원 (hidden 포함)
         // Firebase 직원 배열 (hidden/acting 처리)
         let nameObjs = empNames.map(e => {
-          if (nameDataList.some(d=>d.qi===qi&&d.name===e.name&&d.hidden)) return null; // hidden 제외
+          if (nameDataList.some(d=>d.qi===qi&&d.name===e.name&&d.hidden)) return null;
           const actNd = nameDataList.find(d=>d.qi===qi&&d.name===e.name&&d.acting&&!d.insertBefore);
           const display = (e.title==='팀장' ? e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>' : e.name)
             + (actNd ? '<span style="color:#3b82f6;font-size:10px"> ('+actNd.acting+')</span>' : '');
           return {display, isEmp:true, name:e.name, isActing:!!actNd, nd:actNd||null};
         }).filter(Boolean);
-        // hidden 제외 후 실제 표시되는 Firebase 직원 이름 집합
+        // hidden 제외 후 실제 표시 Firebase 직원 이름 집합 (추가인원 필터용)
         const empNameSet = new Set(nameObjs.map(o=>o.name));
         // acting 있는 Firebase 직원 앞으로 정렬
         nameObjs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
@@ -6225,8 +6226,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           if (idx >= 0) nameObjs.splice(idx, 0, newObj);
           else nameObjs.push(newObj);
         });
-        // 일반 추가 인원 (insertBefore 없고 Firebase 직원 아닌 것)
-        nameDataList.filter(d=>d.qi===qi&&d.name&&!d.insertBefore&&!d.acting&&!empNameSet.has(d.name)).forEach(nd => {
+        // 일반 추가 인원 (insertBefore 없고 Firebase 직원 아닌 것 또는 hidden된 Firebase 직원 이름)
+        nameDataList.filter(d=>d.qi===qi&&d.name&&!d.insertBefore&&!d.acting&&!d.hidden&&!empNameSet.has(d.name)).forEach(nd => {
           const actTag = nd.acting ? '<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>' : '';
           nameObjs.push({display:nd.name+actTag, isEmp:false, name:nd.name, nd});
         });
@@ -8970,6 +8971,6 @@ if (!state.kpis.length) {
       </div>
     </div>
   </div>
-</body> 
+</body>
 </html>
  
