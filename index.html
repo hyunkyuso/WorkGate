@@ -6870,8 +6870,7 @@ function getDateCell(dept, qi, rowIdx, col) {
 // ── 이름셀 더블클릭 모달 ──
 function openNameCell(cell) {
   if (document.getElementById('name-cell-modal')) return;
-  if (window._nameCellCooldown) return;
-  const dept = cell.getAttribute('data-dept');
+    const dept = cell.getAttribute('data-dept');
   const qi = parseInt(cell.getAttribute('data-qi'));
   const isEmp = cell.getAttribute('data-is-emp') === '1';
   const ndIdx = parseInt(cell.getAttribute('data-nd-idx'));
@@ -6917,7 +6916,7 @@ function openNameCell(cell) {
     // 현재 칸(cellBaseName 또는 nd.name) 앞에 삽입
     const insertBeforeName = nd ? nd.name : cellBaseName;
     deptFundSettings[dept].nameData.push({qi, name, memo, acting, insertBefore: insertBeforeName});
-    saveDeptFundSettings(); window._nameCellCooldown=true; modal.remove(); setTimeout(()=>{window._nameCellCooldown=false;},300); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   modal.querySelector('#nc-save-btn').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#nc-save-btn').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('nc-name').value.trim();
@@ -6935,7 +6934,7 @@ function openNameCell(cell) {
       // 빈칸에 신규 추가
       deptFundSettings[dept].nameData.push({qi, name, memo, acting});
     }
-    saveDeptFundSettings(); window._nameCellCooldown=true; modal.remove(); setTimeout(()=>{window._nameCellCooldown=false;},300); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   modal.querySelector('#nc-del-btn').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#nc-del-btn').addEventListener('click', e=>{ e.stopPropagation(); if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
@@ -6948,7 +6947,7 @@ function openNameCell(cell) {
       // nameData 직원: 제거
       deptFundSettings[dept].nameData.splice(ndIdx, 1);
     }
-    saveDeptFundSettings(); window._nameCellCooldown=true; modal.remove(); setTimeout(()=>{window._nameCellCooldown=false;},300); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
 }
 
@@ -6973,8 +6972,7 @@ function insertBeforeNameCell(dept, qi, rowIdx, col) {
 
 function openDateCell(cell) {
   if (document.getElementById('date-cell-modal')) return;
-  if (window._dateCellCooldown) return;
-  const dept = cell.getAttribute('data-dept');
+    const dept = cell.getAttribute('data-dept');
   const qi = parseInt(cell.getAttribute('data-qi'));
   const rowIdx = parseInt(cell.getAttribute('data-rowidx'));
   const col = parseInt(cell.getAttribute('data-col'));
@@ -7088,7 +7086,7 @@ function openInsertNameModal(dept, qi, rowIdx) {
     const existingNd = deptFundSettings[dept].nameData.filter(d=>d.qi===qi&&d.rowIdx===rowIdx&&!d.acting);
     const newCol = existingNd.length;
     deptFundSettings[dept].nameData.push({qi, rowIdx:0, col:newCol, name, memo, acting});
-    saveDeptFundSettings(); window._nameCellCooldown=true; modal.remove(); setTimeout(()=>{window._nameCellCooldown=false;},300); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#in-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#in-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
@@ -7098,8 +7096,7 @@ function openInsertNameModal(dept, qi, rowIdx) {
 // ── 부서장/본부장 이름칸 수정 모달 ──
 function openHeadNameModal(dept, type) {
   if (document.getElementById('head-name-modal')) return;
-  if (window._headNameCooldown) return;
-  // 부서장/본부장 이름칸: nameData qi=0~3, rowIdx=-1(부서장 전용)로 저장
+    // 부서장/본부장 이름칸: nameData qi=0~3, rowIdx=-1(부서장 전용)로 저장
   // 이름 수정은 모든 분기에 동일하게 적용
   const headData = ((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.rowIdx===-1);
   const curName = headData ? headData.name : '';
@@ -7151,7 +7148,7 @@ function openHeadNameModal(dept, type) {
     } else if (idx>=0) {
       deptFundSettings[dept].nameData.splice(idx,1);
     }
-    saveDeptFundSettings(); window._nameCellCooldown=true; modal.remove(); setTimeout(()=>{window._nameCellCooldown=false;},300); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#hn-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#hn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
@@ -7183,8 +7180,7 @@ function getBonbuDisplayName(bonbu, qi) {
 }
 function openDeptNameModal(dept, qi) {
   if (document.getElementById('dept-name-modal')) return;
-  if (window._deptNameCooldown) return;
-  if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+    if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
   if (!deptFundSettings[dept].deptDisplayNames) deptFundSettings[dept].deptDisplayNames = {};
   const curName = deptFundSettings[dept].deptDisplayNames[qi] || '';
   const qLabel = ['1~3월','4~6월','7~9월','10~12월'][qi] || '';
@@ -7207,11 +7203,11 @@ function openDeptNameModal(dept, qi) {
   modal.querySelector('#dn-save').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#dn-save').addEventListener('click', e=>{ e.stopPropagation(); const newName = document.getElementById('dn-name').value.trim();
     deptFundSettings[dept].deptDisplayNames[qi] = newName;
-    saveDeptFundSettings(); window._nameCellCooldown=true; modal.remove(); setTimeout(()=>{window._nameCellCooldown=false;},300); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   const delBtn = modal.querySelector('#dn-del');
   if (delBtn) { delBtn.addEventListener('mousedown', e=>e.preventDefault()); delBtn.addEventListener('click', e=>{ e.stopPropagation(); deptFundSettings[dept].deptDisplayNames[qi] = '__HIDDEN__';
-    saveDeptFundSettings(); window._nameCellCooldown=true; modal.remove(); setTimeout(()=>{window._nameCellCooldown=false;},300); _renderDeptFund(); }); }
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); }); }
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#dn-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#dn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   setTimeout(() => { const el=document.getElementById('dn-name'); if(el){el.focus();el.select();} }, 50);
@@ -7314,7 +7310,7 @@ function openAddRowModal(dept) {
     if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
     if (!deptFundSettings[dept].extraRows) deptFundSettings[dept].extraRows = [];
     deptFundSettings[dept].extraRows.push({cols: selected, name: orgName, headName, type: rowType, disabledQi});
-    saveDeptFundSettings(); window._nameCellCooldown=true; modal.remove(); setTimeout(()=>{window._nameCellCooldown=false;},300); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   setTimeout(()=>document.getElementById('ar-orgname')?.focus(), 50);
 }
@@ -7436,7 +7432,7 @@ function openExtraHeadEdit(dept, ri, qi) {
     deptFundSettings[dept].extraRows[ri].headActing[qi] = acting;
     deptFundSettings[dept].extraRows[ri].headTitles[qi] = title;
     deptFundSettings[dept].extraRows[ri].headMemos[qi] = memo;
-    saveDeptFundSettings(); modal.remove(); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
 }
 
@@ -7473,7 +7469,7 @@ function openExtraOrgEdit(dept, ri, qi) {
     if (!deptFundSettings[dept].extraRows[ri].headNames) deptFundSettings[dept].extraRows[ri].headNames = [row.headName||'',row.headName||'',row.headName||'',row.headName||''];
     deptFundSettings[dept].extraRows[ri].orgNames[qi] = document.getElementById('eo-name').value.trim();
     deptFundSettings[dept].extraRows[ri].headNames[qi] = document.getElementById('eo-head').value.trim();
-    saveDeptFundSettings(); modal.remove(); _renderDeptFund();
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50);
   });
 }
 
@@ -7490,8 +7486,7 @@ function toggleExtraDisabledQi(dept, ri, qi) {
 // ── extraRow 비고 타입 편집 ──
 function openExtraTypeModal(dept, ri) {
   if (document.getElementById('extra-type-modal')) return;
-  if (window._extraTypeModalCooldown) return;
-  const rows = (deptFundSettings[dept]||{}).extraRows||[];
+    const rows = (deptFundSettings[dept]||{}).extraRows||[];
   const row = rows[ri];
   if (!row) return;
   const cur = row.type||'없음';
@@ -7514,7 +7509,7 @@ function openExtraTypeModal(dept, ri) {
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
   modal.addEventListener('dblclick', e => e.stopPropagation());
-  const close = () => { window._extraTypeModalCooldown=true; modal.remove(); setTimeout(()=>{window._extraTypeModalCooldown=false;},300); };
+  const close = () => { modal.remove(); };
   modal.querySelector('#et-cancel').addEventListener('mousedown', e => e.preventDefault());
   modal.querySelector('#et-cancel').addEventListener('click', e => { e.stopPropagation(); close(); });
   modal.querySelector('#et-save').addEventListener('mousedown', e => e.preventDefault());
@@ -7576,8 +7571,7 @@ function moveExtraRow(dept, idx, dir) {
 // ── extraRow 이름칸 편집 (openNameCell과 동일 모달) ──
 function openExtraNameCell(cell) {
   if (document.getElementById('name-cell-modal')) return;
-  if (window._extraNameCooldown) return;
-  const dept = cell.dataset.dept;
+    const dept = cell.dataset.dept;
   const ri = parseInt(cell.dataset.extraRi);
   const qi = parseInt(cell.dataset.qi);
   const ci = parseInt(cell.dataset.col);
@@ -7629,21 +7623,20 @@ function openExtraNameCell(cell) {
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
     if (name) { if(idx2>=0) arr[idx2]={qi,col:ci,name,memo,acting,title}; else arr.push({qi,col:ci,name,memo,acting,title}); }
     else { if(idx2>=0) arr.splice(idx2,1); }
-    saveDeptFundSettings(); modal.remove(); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   modal.querySelector('#en-del').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#en-del').addEventListener('click', e=>{ e.stopPropagation(); const arr = deptFundSettings[dept].extraRows[ri].nameData||[];
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
     if(idx2>=0) arr.splice(idx2,1);
-    saveDeptFundSettings(); modal.remove(); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
 }
 
 // ── extraRow 날짜칸 편집 (openDateCell과 동일) ──
 function openExtraDateCell(cell) {
   if (document.getElementById('date-cell-modal')) return;
-  if (window._extraDateCooldown) return;
-  const dept = cell.dataset.dept;
+    const dept = cell.dataset.dept;
   const ri = parseInt(cell.dataset.extraRi);
   const qi = parseInt(cell.dataset.qi);
   const ci = parseInt(cell.dataset.col);
@@ -7687,13 +7680,13 @@ function openExtraDateCell(cell) {
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
     const entry = {qi,col:ci,type,fullDate,date,name:cellName};
     if(idx2>=0) arr[idx2]=entry; else arr.push(entry);
-    saveDeptFundSettings(); modal.remove(); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   const delBtn = modal.querySelector('#dc-del');
   if (delBtn) { delBtn.addEventListener('mousedown', e=>e.preventDefault()); delBtn.addEventListener('click', e=>{ e.stopPropagation(); const arr = deptFundSettings[dept].extraRows[ri].dateData||[];
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
     if(idx2>=0) arr.splice(idx2,1);
-    saveDeptFundSettings(); modal.remove(); _renderDeptFund(); }); }
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); }); }
 }
 
 
@@ -7722,7 +7715,7 @@ function openExtraRowEdit(dept, rowIdx, qi) {
   modal.querySelector('#er-save').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('er-name').value.trim();
     const head = document.getElementById('er-head')?.value.trim()||'';
     deptFundSettings[dept].extraRows[rowIdx] = {...row, name, headName: head};
-    saveDeptFundSettings(); window._nameCellCooldown=true; modal.remove(); setTimeout(()=>{window._nameCellCooldown=false;},300); _renderDeptFund(); });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#er-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#er-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
@@ -7730,8 +7723,7 @@ function openExtraRowEdit(dept, rowIdx, qi) {
 
 function openDeptFundTypeModal(dept, cell) {
   if (document.getElementById('deptfund-type-modal')) return;
-  if (window._deptFundTypeModalCooldown) return;
-  const setting = deptFundSettings[dept] || {};
+    const setting = deptFundSettings[dept] || {};
   const cur = setting.type || '';
 
   const modal = document.createElement('div');
@@ -7764,9 +7756,9 @@ function openDeptFundTypeModal(dept, cell) {
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
   modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#dftype-cancel').addEventListener('mousedown', e => e.preventDefault());
-  modal.querySelector('#dftype-cancel').addEventListener('click', e => { e.stopPropagation(); window._deptFundTypeModalCooldown=true; modal.remove(); setTimeout(()=>{window._deptFundTypeModalCooldown=false;},300); });
+  modal.querySelector('#dftype-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   modal.querySelector('#dftype-save').addEventListener('mousedown', e => e.preventDefault());
-  modal.querySelector('#dftype-save').addEventListener('click', e => { e.stopPropagation(); window._deptFundTypeModalCooldown=true; setTimeout(()=>{window._deptFundTypeModalCooldown=false;},300); saveDeptFundType(dept); });
+  modal.querySelector('#dftype-save').addEventListener('click', e => { e.stopPropagation(); saveDeptFundType(dept); });
 }
 
 async function saveDeptFundType(dept, btn) {
