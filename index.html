@@ -7346,13 +7346,10 @@ function confirmRestoreDisabled(dept, qi) {
     </div>
   </div>`;
   document.body.appendChild(modal);
-  ['click','dblclick','mousedown','mouseup'].forEach(ev =>
-    modal.addEventListener(ev, e => { if(e.target!==modal) e.stopPropagation(); else if(ev==='click') modal.remove(); })
-  );
-  modal.querySelector('#crd-cancel').addEventListener('mousedown', e => e.stopPropagation());
-  modal.querySelector('#crd-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
-  modal.querySelector('#crd-confirm').addEventListener('mousedown', e => e.stopPropagation());
-  modal.querySelector('#crd-confirm').addEventListener('click', e => { e.stopPropagation(); toggleDisabledQi(dept, qi); modal.remove(); });
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  modal.addEventListener('dblclick', e => e.stopPropagation());
+  modal.querySelector('#crd-cancel').addEventListener('click', () => modal.remove());
+  modal.querySelector('#crd-confirm').addEventListener('click', () => { toggleDisabledQi(dept, qi); modal.remove(); });
 }
 
 function confirmRestoreExtraDisabled(dept, ri, qi) {
@@ -7371,13 +7368,10 @@ function confirmRestoreExtraDisabled(dept, ri, qi) {
     </div>
   </div>`;
   document.body.appendChild(modal);
-  ['click','dblclick','mousedown','mouseup'].forEach(ev =>
-    modal.addEventListener(ev, e => { if(e.target!==modal) e.stopPropagation(); else if(ev==='click') modal.remove(); })
-  );
-  modal.querySelector('#cred-cancel').addEventListener('mousedown', e => e.stopPropagation());
-  modal.querySelector('#cred-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
-  modal.querySelector('#cred-confirm').addEventListener('mousedown', e => e.stopPropagation());
-  modal.querySelector('#cred-confirm').addEventListener('click', e => { e.stopPropagation(); toggleExtraDisabledQi(dept, ri, qi); modal.remove(); });
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  modal.addEventListener('dblclick', e => e.stopPropagation());
+  modal.querySelector('#cred-cancel').addEventListener('click', () => modal.remove());
+  modal.querySelector('#cred-confirm').addEventListener('click', () => { toggleExtraDisabledQi(dept, ri, qi); modal.remove(); });
 }
 
 // ── 사용안함 토글 ──
@@ -7754,13 +7748,10 @@ function openDeptFundTypeModal(dept, cell) {
     </div>`;
   document.body.appendChild(modal);
   // 모달 내 모든 이벤트 버블링 차단
-  ['click','dblclick','mousedown','mouseup'].forEach(ev =>
-    modal.addEventListener(ev, e => { if(e.target!==modal) e.stopPropagation(); else if(ev==='click') modal.remove(); })
-  );
-  modal.querySelector('#dftype-cancel').addEventListener('mousedown', e => e.stopPropagation());
-  modal.querySelector('#dftype-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
-  modal.querySelector('#dftype-save').addEventListener('mousedown', e => e.stopPropagation());
-  modal.querySelector('#dftype-save').addEventListener('click', e => { e.stopPropagation(); saveDeptFundType(dept, e.target); });
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  modal.addEventListener('dblclick', e => e.stopPropagation());
+  modal.querySelector('#dftype-cancel').addEventListener('click', () => modal.remove());
+  modal.querySelector('#dftype-save').addEventListener('click', () => saveDeptFundType(dept));
 }
 
 async function saveDeptFundType(dept, btn) {
