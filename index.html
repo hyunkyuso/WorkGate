@@ -5976,50 +5976,40 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
     const qAmts = quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
-      let t=0;
+      let t = 0;
       if (bonbuIsTeamjang) {
         return null; // 부서 렌더링 후 업데이트
-      } else if (bonbuIsBuseojang) {
-        // 부서장 타입: 재직 인원 수 × 50,000 (겸직은 주소속 본부에서만)
-        allEmpInBonbu.filter(e=>getBonbu({dept:e.dept,title:e.title,role:e.role})===bonbu).forEach(e => {
-          if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000;
-        });
-        bonbuNameDataList.filter(d=>d.qi===qi&&!d.acting&&!d.hidden).forEach(()=>{ t += 50000; });
-        bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t += 50000; });
-        return t || null;
       }
-      // 본부장 타입 (기본)
-      // 본부장 포함
-      if (bonbuHead && getEmpMonthsInQuarter(bonbuHead,year,qs,qe)>0) t += 50000;
-      // 각 하위 부서 이름행 인원 합산 (수석전문위원/베트남 제외)
+
+      // ── 본부 자체 이름행 (bonbuNameDataList) ──
+      bonbuNameDataList.filter(d=>d.qi===qi&&!d.acting&&!d.hidden).forEach(()=>{ t += 50000; });
+
+      // ── 본부 extraRows ──
+      const bonbuExtraRowsSrc = (deptFundSettings[bonbu]||{}).extraRows||[];
+      bonbuExtraRowsSrc.forEach(row => {
+        if ((row.exDisabledQi||[]).includes(qi)) return;
+        (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(()=>{ t += 50000; });
+      });
+
+      // ── 산하 부서 이름칸 전체 합산 ──
       deptNames.filter(dk=>dk!==bonbu && !dk.includes('수석전문위원') && !dk.includes('베트남')).forEach(deptKey => {
-        const deptEmpList = depts[deptKey] || [];
-        deptEmpList.forEach(e => { 
-          if(e.uid===bonbuHead?.uid) return;
-          if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t += 50000;
-        });
-        const deptEmpNamesForBonbu = (depts[deptKey]||[]).map(e=>e.name);
-        const deptDateDataForBonbu = (deptFundSettings[deptKey]||{}).dateData || [];
-        ((deptFundSettings[deptKey]||{}).nameData||[]).filter(d=>d.qi===qi&&!d.acting&&!deptEmpNamesForBonbu.includes(d.name)).forEach(nd => {
-          const dd = deptDateDataForBonbu.find(d=>d.qi===qi&&d.rowIdx===nd.rowIdx&&d.col===nd.col);
-          if (dd && dd.fullDate) {
-            const dtMonth = new Date(dd.fullDate).getMonth();
-            if (dd.type==='leave'||dd.type==='to') {
-              const months = Math.max(0, Math.min(dtMonth,qe)-qs+1);
-              if (months > 0) t += 50000; // 부서장은 재직시 월수 무관 50,000
-            } else if (dd.type==='join'||dd.type==='from') {
-              const months = Math.max(0, qe-Math.max(dtMonth,qs)+1);
-              if (months > 0) t += 50000;
-            }
-          } else {
-            t += 50000;
-          }
+        const setting = deptFundSettings[deptKey]||{};
+        const nd = setting.nameData||[];
+        // 부서 disabledQi 체크
+        const deptDisabledQi = setting.disabledQi||[];
+        if (deptDisabledQi.includes(qi)) return;
+        // 부서장 이름행 포함 (rowIdx===-1 포함)
+        nd.filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden).forEach(()=>{ t += 50000; });
+        // 부서 extraRows
+        (setting.extraRows||[]).forEach(row => {
+          if ((row.exDisabledQi||[]).includes(qi)) return;
+          (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(()=>{ t += 50000; });
         });
       });
-      // 본부 extra 추가 인원
+
+      // ── extra (금액칸 수동추가) ──
       bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 50000; });
-      // 본부 nameData 추가 인원
-      bonbuNameDataList.filter(d=>d.qi===qi&&!d.acting).forEach(() => { t += 50000; });
+
       return t || null;
     });
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
@@ -6427,28 +6417,19 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       const bAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
-        const dateDataListB = (deptFundSettings[dept]||{}).dateData||[];
-        let t = 0;
-        if (useSimpleFormat) {  // 하위팀 있으면 Firebase 직원 기준
-          // 부서장 + 하위팀 직원 포함 (Firebase 직원 기준)
-          const allEmps = [...empList, ...subTeamEmps].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i);
-          allEmps.forEach(e => { if(getEmpMonthsInQuarter(e,year,qs,qe)>0) t+=50000; });
-          // nameData 추가 인원
-          const ndList = (deptFundSettings[dept]||{}).nameData||[];
-          const allEmpNames = new Set(allEmps.map(e=>e.name));
-          const ddList = (deptFundSettings[dept]||{}).dateData||[];
-          ndList.filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden&&!allEmpNames.has(d.name)).forEach((nd,i)=>{
-            const dd = ddList.find(d=>d.qi===qi&&d.name===nd.name)||ddList.find(d=>d.qi===qi&&d.col===i);
-            let active = true;
-            if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')active=Math.max(0,Math.min(dtM,qe)-qs+1)>0;else if(dd.type==='join'||dd.type==='from')active=Math.max(0,qe-Math.max(dtM,qs)+1)>0;}
-            if(active) t+=50000;
-          });
-        } else {
-          // 이름칸 기반: 재직 여부 확인 후 × 50,000
-          const items = calcNameMonths(qNames[qi], qi, dateDataListB);
-          t = items.filter(x=>x.active).length * 50000;
-        }
-        // extra
+        // 이름칸 기반: 인원수 × 50,000 (분기 고정)
+        let t = qNames[qi].filter(o=>o&&o.name).length * 50000;
+        // extraRows 중 부서장/본부장 type의 이름 인원 추가
+        const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
+        extraRows.forEach(row => {
+          const rt = row.type||'없음';
+          if (rt!=='부서장'&&rt!=='본부장') return;
+          const exDq = row.exDisabledQi||[];
+          if (exDq.includes(qi)) return;
+          const nd = (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
+          t += nd.length * 50000;
+        });
+        // extra (금액칸 수동추가)
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t+=50000; });
         return t || null;
       });
@@ -6456,25 +6437,19 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       const tAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || !isTypeTeamjang) return null;
-        const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
-        // 이름칸 기반: 재직월수 × 40,000
-        let t = 0;
-        if (useSimpleFormat) {
-          // 하위팀 직원 포함
-          const allEmpsT = [...empList, ...subTeamEmps].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i);
-          allEmpsT.forEach(e=>{ t += getEmpMonthsInQuarter(e,year,qs,qe)*40000; });
-          if (deptHead) t += getEmpMonthsInQuarter(deptHead,year,qs,qe)*40000;
-        } else {
-          const items = calcNameMonths(qNames[qi], qi, dateDataList);
-          t = items.reduce((s,x)=>s+x.months*40000, 0);
-          // 팀장 비고이고 부서장이 있으면 부서장도 포함
-          if (deptHead) {
-            const deptHeadMonths = getEmpMonthsInQuarter(deptHead, year, qs, qe);
-            t += deptHeadMonths * 40000;
-          }
-        }
+        // 이름칸 기반: 인원수 × 40,000 × 3개월
+        let t = qNames[qi].filter(o=>o&&o.name).length * 120000;
+        // extraRows 중 팀장 type의 이름 인원 추가
+        const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
+        extraRows.forEach(row => {
+          if ((row.type||'없음')!=='팀장') return;
+          const exDq = row.exDisabledQi||[];
+          if (exDq.includes(qi)) return;
+          const nd = (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
+          t += nd.length * 120000;
+        });
         // extra
-        extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=(qe-qs+1)*40000; });
+        extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
         return t || null;
       });
       const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
@@ -6522,10 +6497,16 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
         const tAmtsT = quarters.map(([qs,qe],qi) => {
           if (deptIsNone || !isTypeTeamjang) return null;
-          const dateDataT = (deptFundSettings[dept]||{}).dateData||[];
-          const items = calcNameMonths(qNamesT[qi], qi, dateDataT);
-          let t = items.reduce((s,x)=>s+x.months*40000, 0);
-          extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=(qe-qs+1)*40000; });
+          // 이름칸 기반: 인원수 × 40,000 × 3개월
+          let t = qNamesT[qi].filter(o=>o&&o.name).length * 120000;
+          // extraRows 중 팀장 type
+          const extraRowsT = (deptFundSettings[dept]||{}).extraRows||[];
+          extraRowsT.forEach(row => {
+            if ((row.type||'없음')!=='팀장') return;
+            if ((row.exDisabledQi||[]).includes(qi)) return;
+            t += (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).length * 120000;
+          });
+          extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
           return t || null;
         });
         const tTotal = tAmtsT.reduce((s,v)=>s+(v||0),0);
@@ -6687,12 +6668,16 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           });
           swSubTAmts = quarters.map(([qs2,qe2],qi2)=>{
             if ((swSubSetting.type||'').includes('없음')) return null;
-            // 비고가 부서장이면 하늘색줄 금액 -
             if (isTypeBuseojang || isTypeBonbu) return null;
-            let t=0;
-            swSubQNames[qi2].forEach(o=>{const e=subTeamEmps.find(x=>x.name===o.name)||empList.find(x=>x.name===o.name);if(e)t+=getEmpMonthsInQuarter(e,year,qs2,qe2)*40000;});
-            // 팀장일 때 부서장도 포함
-            if (isTypeTeamjang && deptHead) t += getEmpMonthsInQuarter(deptHead,year,qs2,qe2)*40000;
+            // 이름칸 기반: 인원수 × 40,000 × 3개월
+            let t = swSubQNames[qi2].filter(o=>o&&o.name).length * 120000;
+            // extraRows 중 팀장 type
+            const swSubExtraRows = (swSubSetting||{}).extraRows||[];
+            swSubExtraRows.forEach(row=>{
+              if((row.type||'없음')!=='팀장') return;
+              if((row.exDisabledQi||[]).includes(qi2)) return;
+              t += (row.nameData||[]).filter(d=>d.qi===qi2&&d.name&&!d.hidden).length * 120000;
+            });
             return t||null;
           });
           swSubTTotal = swSubTAmts.reduce((s,v)=>s+(v||0),0);
