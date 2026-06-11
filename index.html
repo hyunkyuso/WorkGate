@@ -6742,9 +6742,7 @@ ${typeLabel}</td>`;
 ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
           ${[0,1,2,3].map(qi2=>{
-            if(disabledQi.includes(qi2)){
-              return rowIdx===0 ? '' : '';
-            }
+            if(disabledQi.includes(qi2)) return '';
             return Array.from({length:4},(_,ci)=>{
               const n=rowByQ[qi2][ci];
               const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):({display:'',isEmp:false});
@@ -6752,11 +6750,11 @@ ${nameRows.map((rowByQ, rowIdx) => `
               return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;
             }).join('');
           }).join('')}
-          ${rowIdx===0 ? `<td rowspan="${pairCount*2}" style="${nameNs}text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">${isTypeTeamjang&&tTotal?fmtMoney(tTotal):''}</td>` : ''}
+          ${rowIdx===0 ? `<td rowspan="${[0,1,2,3].filter(qi2=>!disabledQi.includes(qi2)).length>0?pairCount*2:1}" style="${nameNs}text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">${isTypeTeamjang&&tTotal?fmtMoney(tTotal):''}</td>` : ''}
         </tr>
-        <tr>
+        ${[0,1,2,3].every(qi2=>disabledQi.includes(qi2)) ? '' : `<tr>
           ${[0,1,2,3].map(qi2=>disabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(dept,qi2,rowIdx,ci,nameNs,qNames[qi2],nameDataList)).join('')).join('')}
-        </tr>`).join('')}
+        </tr>`}`).join('')}
         `}
         ${renderExtraRows()}
         </tbody></table><div style='height:12px'></div>`;
