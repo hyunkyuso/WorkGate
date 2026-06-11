@@ -6938,16 +6938,20 @@ function openNameCell(cell) {
   if (document.getElementById('name-cell-modal')) return;
   const dept = cell.getAttribute('data-dept');
   const qi = parseInt(cell.getAttribute('data-qi'));
-  const isEmp = cell.getAttribute('data-is-emp') === '1';
-  const ndIdx = parseInt(cell.getAttribute('data-nd-idx'));
   const ndArr0 = (deptFundSettings[dept]||{}).nameData||[];
-  const nd = ndIdx >= 0 ? ndArr0[ndIdx] : null;
+
   const cellText = cell.innerHTML.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
   const cellBaseName = cellText.replace(/\s*\([^)]*\)\s*/g,'').replace(/\+/g,'').trim();
-  const actingRoles = ['팀장대행','부서장대행','본부장대행'];
-  // Firebase 직원의 acting은 별도로 찾기
+
+  // Firebase 직원 여부: employees에서 직접 확인
+  const isEmp = !!(employees||[]).find(e=>e.name===cellBaseName&&(e.dept===dept||(depts&&depts[dept]&&depts[dept].find(x=>x.name===cellBaseName))));
+  // nameData에서 현재 이름의 acting/insertBefore/일반 항목 찾기
+  const nd = ndArr0.find(d=>d.qi===qi&&d.name===cellBaseName&&!d.hidden&&(d.acting||d.insertBefore||(!d.acting&&!d.insertBefore&&!isEmp)));
+  const ndIdx = nd ? ndArr0.indexOf(nd) : -1;
+  // Firebase 직원 acting
   const actNd = isEmp ? ndArr0.find(d=>d.qi===qi&&d.name===cellBaseName&&d.acting&&!d.insertBefore) : null;
-  const curActing = (actNd&&actNd.acting) || (nd&&nd.acting) || '';
+  const curActing = (actNd&&actNd.acting)||(nd&&nd.acting)||'';
+  const actingRoles = ['팀장대행','부서장대행','본부장대행'];
   const modal = document.createElement('div');
   document.getElementById('name-cell-modal')?.remove();
   modal.id = 'name-cell-modal';
