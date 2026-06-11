@@ -6452,12 +6452,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const dateDataListB = (deptFundSettings[dept]||{}).dateData||[];
         let t = 0;
         if (useSimpleFormat) {
-          // subTeamEmps 기반으로 하위팀별 disabledQi 체크
-          const subTeamNames = deptNames.filter(d=>departments.some(dep=>dep.name===d&&dep.parent===(departments.find(dep2=>dep2.name===dept)||{}).id));
-          const validSubEmps = subTeamNames.flatMap(subDept => {
+          // subTeamEmps에서 팀별 disabledQi 체크
+          const validSubEmps = subTeamEmps.filter(e => {
+            const subDept = e.dept;
             const subDq = (deptFundSettings[subDept]||{}).disabledQi||[];
-            if (subDq.includes(qi)) return [];
-            return (depts[subDept]||[]).filter(e=>!empList.find(e2=>e2.uid===e.uid));
+            return !subDq.includes(qi);
           });
           const allEmps = [...empList, ...validSubEmps].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i&&e.uid!==(deptHead?.uid));
           allEmps.forEach(e => {
@@ -6496,11 +6495,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
         let t = 0;
         if (useSimpleFormat) {
-          const subTeamNamesT = deptNames.filter(d=>departments.some(dep=>dep.name===d&&dep.parent===(departments.find(dep2=>dep2.name===dept)||{}).id));
-          const validSubEmpsT = subTeamNamesT.flatMap(subDept => {
-            const subDq = (deptFundSettings[subDept]||{}).disabledQi||[];
-            if (subDq.includes(qi)) return [];
-            return (depts[subDept]||[]).filter(e=>!empList.find(e2=>e2.uid===e.uid));
+          const validSubEmpsT = subTeamEmps.filter(e => {
+            const subDq = (deptFundSettings[e.dept]||{}).disabledQi||[];
+            return !subDq.includes(qi);
           });
           const allEmpsT = [...empList, ...validSubEmpsT, ...(deptHead?[deptHead]:[])].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i);
           allEmpsT.forEach(e => {
