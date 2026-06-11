@@ -5996,7 +5996,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (hn) t += 50000;
       });
 
-      // ── 산하 부서 이름칸 전체 합산 ──
+      // ── 산하 부서 이름칸 전체 합산 (겸직자 중복 제거) ──
+      const countedUids = new Set();
+      if (bonbuHead) countedUids.add(bonbuHead.uid);
       deptNames.filter(dk=>dk!==bonbu && !dk.includes('수석전문위원') && !dk.includes('베트남')).forEach(deptKey => {
         const setting = deptFundSettings[deptKey]||{};
         const deptDisabledQi = setting.disabledQi||[];
@@ -6005,13 +6007,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const deptNd = setting.nameData||[];
         const empNames = new Set(deptEmps.map(e=>e.name));
 
-        // Firebase 직원 (육아휴직/퇴사/입사 체크 + dateData 날짜칸 반영, hidden 제외)
+        // Firebase 직원 (겸직 중복 제거, 육아휴직/퇴사/입사 체크, hidden 제외)
         const deptDateData = setting.dateData||[];
         deptEmps.forEach(e => {
+          if (countedUids.has(e.uid)) return;
           if (deptNd.some(d=>d.name===e.name&&d.hidden)) return;
-          // Firebase 기본 재직월수 체크
           if (getEmpMonthsInQuarter(e,year,qs,qe)===0) return;
-          // dateData 날짜칸 체크 (이름칸에서 입력한 입사/퇴사일)
           const dd = deptDateData.find(d=>d.name===e.name&&d.qi===qi);
           if (dd&&dd.fullDate) {
             const dtM = new Date(dd.fullDate).getMonth();
@@ -6021,9 +6022,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               if (Math.max(0,qe-Math.max(dtM,qs)+1)===0) return;
             }
           }
+          countedUids.add(e.uid);
           t += 50000;
         });
-        // nameData 추가 인원 (Firebase 직원 아닌 것, acting 아닌 것, 분기별)
+        // nameData 추가 인원 (Firebase 직원 아닌 것, 분기별)
         deptNd.filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden&&!empNames.has(d.name)).forEach(()=>{ t += 50000; });
 
         // 부서 extraRows - nameData + headNames 모두 포함
