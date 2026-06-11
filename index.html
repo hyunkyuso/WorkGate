@@ -6106,8 +6106,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             const bg2=BG_TEAM_AMT;
             html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellTeam2(qi2);const amt=isTeamjang&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(orgNames[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='name'){
+            const hasOrgAbove2 = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
             const totalRowspan2 = hasDate2 ? 2 : 1;
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';return[0,1,2,3].map(function(ci){const nd=ndList.find(function(d){return d.qi===qi2&&d.col===ci;});const br=ci===3?'border-right:1px solid #90a4ae;':'';const disp=nd&&nd.name?nd.name+(nd.title?' <span style="color:#3b82f6;font-weight:500">('+nd.title+')</span>':'')+(nd.acting?' <span style="color:#3b82f6;font-size:10px">('+nd.acting+')</span>':''):'';return'<td style="'+nameNsE2+br+'cursor:pointer" data-dept="'+bonbu+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraNameCell(this)">'+disp+'</td>';}).join('');}).join('')+'<td rowspan="'+totalRowspan2+'" style="'+nameNsE2+'text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){
+              if(exDisabledQi.includes(qi2)){
+                if(hasOrgAbove2) return '';
+                return'<td colspan="4" rowspan="'+totalRowspan2+'" style="'+nameNsE2+'background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleExtraDisabledQi(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">미사용</td>';
+              }
+              return[0,1,2,3].map(function(ci){const nd=ndList.find(function(d){return d.qi===qi2&&d.col===ci;});const br=ci===3?'border-right:1px solid #90a4ae;':'';const disp=nd&&nd.name?nd.name+(nd.title?' <span style="color:#3b82f6;font-weight:500">('+nd.title+')</span>':'')+(nd.acting?' <span style="color:#3b82f6;font-size:10px">('+nd.acting+')</span>':''):'';return'<td style="'+nameNsE2+br+'cursor:pointer" data-dept="'+bonbu+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraNameCell(this)">'+disp+'</td>';}).join('');
+            }).join('')+'<td rowspan="'+totalRowspan2+'" style="'+nameNsE2+'text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
           } else if(colType==='date'){
             const allDisabled2=[0,1,2,3].every(function(qi2){return exDisabledQi.includes(qi2);});
             if(allDisabled2) return;
@@ -6338,9 +6345,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                   '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';
               }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">계</td>'+noteTd+'</tr>');
             } else if (colType==='name') {
+              const hasOrgAbove = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
               const totalRowspan = hasDate ? 2 : 1;
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
-                if (exDisabledQi.includes(qi2)) return ''; // team 행 rowspan으로 커버
+                if (exDisabledQi.includes(qi2)) {
+                  if (hasOrgAbove) return ''; // 위 행 rowspan으로 커버
+                  return '<td colspan="4" rowspan="'+totalRowspan+'" style="'+nameNsE+'background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #90a4ae;cursor:pointer;vertical-align:middle;font-weight:700" onclick="toggleExtraDisabledQi(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">미사용</td>';
+                }
                 return [0,1,2,3].map(function(ci){
                   const nd = ndList.find(function(d){return d.qi===qi2&&d.col===ci;});
                   const br = ci===3?'border-right:1px solid #90a4ae;':'';
@@ -6349,11 +6360,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                 }).join('');
               }).join('')+'<td rowspan="'+totalRowspan+'" style="'+nameNsE+'text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd+'</tr>');
             } else if (colType==='date') {
+              const hasOrgAbove = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
               const allDisabled = [0,1,2,3].every(function(qi2){return exDisabledQi.includes(qi2);});
-              if (allDisabled) return; // tr 자체 생략
+              if (allDisabled && hasOrgAbove) return; // 위 행 rowspan으로 커버, tr 생략
+              if (allDisabled && !hasOrgAbove) return; // name 행에서 rowspan으로 커버, tr 생략
               const typeMap = {join:'입사',leave:'퇴사',from:'부터',to:'까지'};
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
-                if (exDisabledQi.includes(qi2)) return ''; // team 행 rowspan으로 커버
+                if (exDisabledQi.includes(qi2)) return ''; // name 행 또는 team 행 rowspan으로 커버
                 return [0,1,2,3].map(function(ci){
                   const dd = ddList.find(function(d){return d.qi===qi2&&d.col===ci;});
                   const br = ci===3?'border-right:1px solid #90a4ae;':'';
