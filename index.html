@@ -6575,7 +6575,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           <tr>
             ${[0,1,2,3].map(qi2 => {
               if (disabledQi.includes(qi2)) return '';
-              return Array.from({length:4},(_,ci)=>{const n=rowByQ[qi2][ci];const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):{display:'',isEmp:false};const ndIdx=obj.nd?nameDataList.findIndex(d=>d.qi===qi2&&d.name===obj.name&&!d.acting):-1;return `<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi2}" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;}).join('');
+              return Array.from({length:4},(_,ci)=>{const n=rowByQ[qi2][ci];const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):{display:'',isEmp:false};const ndIdx=obj.name?nameDataList.findIndex(d=>d.qi===qi2&&d.name===obj.name&&!d.hidden&&(d.acting||d.insertBefore)):-1;return `<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi2}" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;}).join('');
             }).join('')}
             <td rowspan="${[0,1,2,3].filter(qi2=>!disabledQi.includes(qi2)).length>0?pairT*2:1}" style="${nameNsT}text-align:right;font-weight:600;vertical-align:middle">${ri===0?fmtMoney(tTotal):''}</td>
           </tr>
@@ -6800,7 +6800,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <tr>
           ${[0,1,2,3].map(qi2=>{
             if(swSubDisabledQi.includes(qi2)) return '';
-            return Array.from({length:4},(_,ci)=>{const o=rowByQ[qi2][ci];const obj=o||{display:'',isEmp:false};const ndIdx2=obj.nd?swSubNameDataList.findIndex(d=>d.qi===qi2&&d.name===obj.name&&!d.acting):-1;return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${swSubDept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx2}" ondblclick='openNameCell(this)'>${obj.display||''}</td>`;}).join('');
+            return Array.from({length:4},(_,ci)=>{const o=rowByQ[qi2][ci];const obj=o||{display:'',isEmp:false};const ndIdx2=obj.name?swSubNameDataList.findIndex(d=>d.qi===qi2&&d.name===obj.name&&!d.hidden&&(d.acting||d.insertBefore)):-1;return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${swSubDept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx2}" ondblclick='openNameCell(this)'>${obj.display||''}</td>`;}).join('');
           }).join('')}
           ${rowIdx===0?`<td rowspan="${swSubPair*2}" style="${nameNs}text-align:right;font-weight:700;vertical-align:middle">${[0,1,2,3].filter(qi2=>!swSubDisabledQi.includes(qi2)).length>0?fmtMoney(swSubTTotal):''}</td>`:''}
         </tr>
@@ -6824,7 +6824,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
             return Array.from({length:4},(_,ci)=>{
               const n=rowByQ[qi2][ci];
               const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):({display:'',isEmp:false});
-              const ndIdx=obj.nd?nameDataList.findIndex(d=>d.qi===qi2&&d.name===obj.name&&!d.acting):-1;
+              const ndIdx=obj.name?nameDataList.findIndex(d=>d.qi===qi2&&d.name===obj.name&&!d.hidden&&(d.acting||d.insertBefore)):-1;
               return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;
             }).join('');
           }).join('')}
@@ -6938,11 +6938,14 @@ function openNameCell(cell) {
   const qi = parseInt(cell.getAttribute('data-qi'));
   const isEmp = cell.getAttribute('data-is-emp') === '1';
   const ndIdx = parseInt(cell.getAttribute('data-nd-idx'));
-  const nd = ndIdx >= 0 ? ((deptFundSettings[dept]||{}).nameData||[])[ndIdx] : null;
+  const ndArr0 = (deptFundSettings[dept]||{}).nameData||[];
+  const nd = ndIdx >= 0 ? ndArr0[ndIdx] : null;
   const cellText = cell.innerHTML.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
   const cellBaseName = cellText.replace(/\s*\([^)]*\)\s*/g,'').replace(/\+/g,'').trim();
   const actingRoles = ['팀장대행','부서장대행','본부장대행'];
-  const curActing = nd ? (nd.acting||'') : '';
+  // Firebase 직원의 acting은 별도로 찾기
+  const actNd = isEmp ? ndArr0.find(d=>d.qi===qi&&d.name===cellBaseName&&d.acting&&!d.insertBefore) : null;
+  const curActing = (actNd&&actNd.acting) || (nd&&nd.acting) || '';
   const modal = document.createElement('div');
   document.getElementById('name-cell-modal')?.remove();
   modal.id = 'name-cell-modal';
@@ -6991,12 +6994,12 @@ function openNameCell(cell) {
 
     if (isEmp) {
       // Firebase 직원: acting 처리 (insertBefore 없이 저장해야 맨앞 정렬됨)
+      const ndArr = deptFundSettings[dept].nameData;
       const existActingIdx = ndArr.findIndex(d=>d.qi===qi&&d.name===cellBaseName&&d.acting&&!d.insertBefore);
       if (acting) {
         if (existActingIdx >= 0) ndArr[existActingIdx] = {qi, name:cellBaseName, acting, memo};
         else ndArr.push({qi, name:cellBaseName, acting, memo});
       } else {
-        // acting 해제
         if (existActingIdx >= 0) ndArr.splice(existActingIdx, 1);
       }
     } else if (nd && ndIdx >= 0) {
