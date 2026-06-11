@@ -6903,10 +6903,9 @@ function openNameCell(cell) {
     </div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
-  modal.querySelector('#nc-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#nc-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
+  modal.querySelector('#nc-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   document.getElementById('nc-name').focus();
   // 삽입 버튼: 현재 칸 앞에 새 이름 끼워넣기
-  modal.querySelector('#nc-insert-btn').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#nc-insert-btn').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('nc-name').value.trim();
     const memo = document.getElementById('nc-memo').value.trim();
     const acting = document.querySelector('input[name="nc-acting"]:checked')?.value || '';
@@ -6918,7 +6917,6 @@ function openNameCell(cell) {
     deptFundSettings[dept].nameData.push({qi, name, memo, acting, insertBefore: insertBeforeName});
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
-  modal.querySelector('#nc-save-btn').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#nc-save-btn').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('nc-name').value.trim();
     const memo = document.getElementById('nc-memo').value.trim();
     const acting = document.querySelector('input[name="nc-acting"]:checked')?.value || '';
@@ -6936,7 +6934,6 @@ function openNameCell(cell) {
     }
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
-  modal.querySelector('#nc-del-btn').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#nc-del-btn').addEventListener('click', e=>{ e.stopPropagation(); if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
     if (isEmp) {
@@ -7014,7 +7011,7 @@ function openDateCell(cell) {
     </div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
-  modal.querySelector('#dc-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#dc-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
+  modal.querySelector('#dc-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   // 기본 라디오 선택
   if (!cur) document.querySelector('input[name="dc-type"]').checked = true;
 }
@@ -7073,7 +7070,6 @@ function openInsertNameModal(dept, qi, rowIdx) {
       </div>
     </div>`;
   document.body.appendChild(modal);
-  modal.querySelector('#ins-ok').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#ins-ok').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('ins-name').value.trim();
     const memo = document.getElementById('ins-memo').value.trim();
     const actingEl = document.querySelector('input[name="ins-acting"]:checked');
@@ -7089,7 +7085,7 @@ function openInsertNameModal(dept, qi, rowIdx) {
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
-  modal.querySelector('#in-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#in-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
+  modal.querySelector('#in-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   setTimeout(() => document.getElementById('ins-name')?.focus(), 50);
 }
 
@@ -7132,7 +7128,6 @@ function openHeadNameModal(dept, type) {
       </div>
     </div>`;
   document.body.appendChild(modal);
-  modal.querySelector('#hn-save').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#hn-save').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('hn-name').value.trim();
     const memo = document.getElementById('hn-memo').value.trim();
     const actingEl = document.querySelector('input[name="hn-acting"]:checked');
@@ -7151,7 +7146,7 @@ function openHeadNameModal(dept, type) {
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
-  modal.querySelector('#hn-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#hn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
+  modal.querySelector('#hn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   setTimeout(() => document.getElementById('hn-name')?.focus(), 50);
 }
 
@@ -7200,16 +7195,15 @@ function openDeptNameModal(dept, qi) {
       </div>
     </div>`;
   document.body.appendChild(modal);
-  modal.querySelector('#dn-save').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#dn-save').addEventListener('click', e=>{ e.stopPropagation(); const newName = document.getElementById('dn-name').value.trim();
     deptFundSettings[dept].deptDisplayNames[qi] = newName;
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   const delBtn = modal.querySelector('#dn-del');
-  if (delBtn) { delBtn.addEventListener('mousedown', e=>e.preventDefault()); delBtn.addEventListener('click', e=>{ e.stopPropagation(); deptFundSettings[dept].deptDisplayNames[qi] = '__HIDDEN__';
+  if (delBtn) { delBtn.addEventListener('click', e=>{ e.stopPropagation(); deptFundSettings[dept].deptDisplayNames[qi] = '__HIDDEN__';
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); }); }
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
-  modal.querySelector('#dn-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#dn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
+  modal.querySelector('#dn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   setTimeout(() => { const el=document.getElementById('dn-name'); if(el){el.focus();el.select();} }, 50);
 }
 
@@ -7299,8 +7293,7 @@ function openAddRowModal(dept) {
     </div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
-  modal.querySelector('#ar-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#ar-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
-  modal.querySelector('#ar-save').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#ar-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   modal.querySelector('#ar-save').addEventListener('click', e=>{ e.stopPropagation(); const selected = checks.filter(c=>document.getElementById(c.id)?.checked).map(c=>c.key);
     if (!selected.length) { alert('최소 하나 이상 선택하세요'); return; }
     const orgName = document.getElementById('ar-orgname').value.trim();
@@ -7336,9 +7329,7 @@ function confirmRestoreDisabled(dept, qi) {
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
   modal.addEventListener('dblclick', e => e.stopPropagation());
-  modal.querySelector('#crd-cancel').addEventListener('mousedown', e => e.preventDefault());
   modal.querySelector('#crd-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
-  modal.querySelector('#crd-confirm').addEventListener('mousedown', e => e.preventDefault());
   modal.querySelector('#crd-confirm').addEventListener('click', e => { e.stopPropagation(); toggleDisabledQi(dept, qi); modal.remove(); });
 }
 
@@ -7360,9 +7351,7 @@ function confirmRestoreExtraDisabled(dept, ri, qi) {
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
   modal.addEventListener('dblclick', e => e.stopPropagation());
-  modal.querySelector('#cred-cancel').addEventListener('mousedown', e => e.preventDefault());
   modal.querySelector('#cred-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
-  modal.querySelector('#cred-confirm').addEventListener('mousedown', e => e.preventDefault());
   modal.querySelector('#cred-confirm').addEventListener('click', e => { e.stopPropagation(); toggleExtraDisabledQi(dept, ri, qi); modal.remove(); });
 }
 
@@ -7417,9 +7406,8 @@ function openExtraHeadEdit(dept, ri, qi) {
   </div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
-  modal.querySelector('#hn-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#hn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
+  modal.querySelector('#hn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   setTimeout(() => document.getElementById('hn-name')?.focus(), 50);
-  modal.querySelector('#hn-save').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#hn-save').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('hn-name').value.trim();
     const memo = document.getElementById('hn-memo').value.trim();
     const acting = document.querySelector('input[name="hn-acting"]:checked')?.value||'';
@@ -7460,9 +7448,7 @@ function openExtraOrgEdit(dept, ri, qi) {
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
   modal.addEventListener('dblclick', e => e.stopPropagation());
   setTimeout(()=>document.getElementById('eo-name')?.focus(), 50);
-  modal.querySelector('#eo-cancel').addEventListener('mousedown', e => e.preventDefault());
   modal.querySelector('#eo-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
-  modal.querySelector('#eo-save').addEventListener('mousedown', e => e.preventDefault());
   modal.querySelector('#eo-save').addEventListener('click', e => {
     e.stopPropagation();
     if (!deptFundSettings[dept].extraRows[ri].orgNames) deptFundSettings[dept].extraRows[ri].orgNames = [row.name||'',row.name||'',row.name||'',row.name||''];
@@ -7510,9 +7496,7 @@ function openExtraTypeModal(dept, ri) {
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
   modal.addEventListener('dblclick', e => e.stopPropagation());
   const close = () => { modal.remove(); };
-  modal.querySelector('#et-cancel').addEventListener('mousedown', e => e.preventDefault());
   modal.querySelector('#et-cancel').addEventListener('click', e => { e.stopPropagation(); close(); });
-  modal.querySelector('#et-save').addEventListener('mousedown', e => e.preventDefault());
   modal.querySelector('#et-save').addEventListener('click', e => {
     e.stopPropagation();
     const t = document.querySelector('input[name="et-type"]:checked')?.value||'없음';
@@ -7613,7 +7597,6 @@ function openExtraNameCell(cell) {
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   setTimeout(()=>document.getElementById('en-name')?.focus(), 50);
-  modal.querySelector('#en-save').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#en-save').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('en-name').value.trim();
     const memo = document.getElementById('en-memo').value.trim();
     const acting = document.querySelector('input[name="en-acting"]:checked')?.value||'';
@@ -7625,7 +7608,6 @@ function openExtraNameCell(cell) {
     else { if(idx2>=0) arr.splice(idx2,1); }
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
-  modal.querySelector('#en-del').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#en-del').addEventListener('click', e=>{ e.stopPropagation(); const arr = deptFundSettings[dept].extraRows[ri].nameData||[];
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
     if(idx2>=0) arr.splice(idx2,1);
@@ -7665,7 +7647,6 @@ function openExtraDateCell(cell) {
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   if (!cur) { const r = modal.querySelector('input[name="dc-type"]'); if(r) r.checked=true; }
-  modal.querySelector('#dc-save').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#dc-save').addEventListener('click', e=>{ e.stopPropagation(); const fullDate = document.getElementById('dc-date').value;
     const typeEl = modal.querySelector('input[name="dc-type"]:checked');
     if (!fullDate||!typeEl) { alert('날짜와 구분을 선택하세요'); return; }
@@ -7683,7 +7664,7 @@ function openExtraDateCell(cell) {
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   const delBtn = modal.querySelector('#dc-del');
-  if (delBtn) { delBtn.addEventListener('mousedown', e=>e.preventDefault()); delBtn.addEventListener('click', e=>{ e.stopPropagation(); const arr = deptFundSettings[dept].extraRows[ri].dateData||[];
+  if (delBtn) { delBtn.addEventListener('click', e=>{ e.stopPropagation(); const arr = deptFundSettings[dept].extraRows[ri].dateData||[];
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
     if(idx2>=0) arr.splice(idx2,1);
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); }); }
@@ -7711,14 +7692,13 @@ function openExtraRowEdit(dept, rowIdx, qi) {
       </div>
     </div>`;
   document.body.appendChild(modal);
-  modal.querySelector('#er-save').addEventListener('mousedown', e=>e.preventDefault());
   modal.querySelector('#er-save').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('er-name').value.trim();
     const head = document.getElementById('er-head')?.value.trim()||'';
     deptFundSettings[dept].extraRows[rowIdx] = {...row, name, headName: head};
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
-  modal.querySelector('#er-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#er-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
+  modal.querySelector('#er-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
 }
 
 function openDeptFundTypeModal(dept, cell) {
@@ -7755,9 +7735,7 @@ function openDeptFundTypeModal(dept, cell) {
   // 모달 내 모든 이벤트 버블링 차단
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
   modal.addEventListener('dblclick', e => e.stopPropagation());
-  modal.querySelector('#dftype-cancel').addEventListener('mousedown', e => e.preventDefault());
   modal.querySelector('#dftype-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
-  modal.querySelector('#dftype-save').addEventListener('mousedown', e => e.preventDefault());
   modal.querySelector('#dftype-save').addEventListener('click', e => { e.stopPropagation(); saveDeptFundType(dept); });
 }
 
