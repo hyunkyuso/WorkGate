@@ -5981,6 +5981,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         return null; // 부서 렌더링 후 업데이트
       }
 
+      // ── 본부장 본인 ──
+      if (bonbuHead && getEmpMonthsInQuarter(bonbuHead,year,qs,qe)>0) t += 50000;
+
       // ── 본부 자체 이름행 (bonbuNameDataList) ──
       bonbuNameDataList.filter(d=>d.qi===qi&&!d.acting&&!d.hidden).forEach(()=>{ t += 50000; });
 
@@ -5994,12 +5997,21 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // ── 산하 부서 이름칸 전체 합산 ──
       deptNames.filter(dk=>dk!==bonbu && !dk.includes('수석전문위원') && !dk.includes('베트남')).forEach(deptKey => {
         const setting = deptFundSettings[deptKey]||{};
-        const nd = setting.nameData||[];
-        // 부서 disabledQi 체크
         const deptDisabledQi = setting.disabledQi||[];
         if (deptDisabledQi.includes(qi)) return;
-        // 부서장 이름행 포함 (rowIdx===-1 포함)
-        nd.filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden).forEach(()=>{ t += 50000; });
+        const deptEmps = depts[deptKey]||[];
+        const deptNd = setting.nameData||[];
+        const empNames = new Set(deptEmps.map(e=>e.name));
+
+        // Firebase 직원 (육아휴직자 제외, hidden 제외)
+        deptEmps.forEach(e => {
+          if (deptNd.some(d=>d.name===e.name&&d.hidden)) return;
+          if (getEmpMonthsInQuarter(e,year,qs,qe)===0) return;
+          t += 50000;
+        });
+        // nameData 추가 인원 (Firebase 직원 아닌 것, acting 아닌 것)
+        deptNd.filter(d=>d.name&&!d.acting&&!d.hidden&&!empNames.has(d.name)).forEach(()=>{ t += 50000; });
+
         // 부서 extraRows
         (setting.extraRows||[]).forEach(row => {
           if ((row.exDisabledQi||[]).includes(qi)) return;
@@ -6417,10 +6429,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       const bAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
-        // 이름칸 기반: 인원수 × 50,000 (분기 고정)
-        let t = qNames[qi].filter(o=>o&&o.name).length * 50000;
-        // 부서장 이름행: useSimpleFormat에서는 qNames에 포함 안 되므로 별도 추가
-        if (useSimpleFormat && deptHead) t += 50000;
+        // 이름칸 기반: 육아휴직자 제외하고 인원수 × 50,000
+        let t = qNames[qi].filter(o=>{
+          if (!o||!o.name) return false;
+          const emp = employees.find(e=>e.name===o.name);
+          if (emp && getEmpMonthsInQuarter(emp,year,qs,qe)===0) return false;
+          return true;
+        }).length * 50000;
+        // 부서장: useSimpleFormat에서는 qNames에 포함 안 되므로 별도 추가 (육아휴직 체크)
+        if (useSimpleFormat && deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) t += 50000;
         // extraRows 중 부서장/본부장 type의 이름 인원 추가
         const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
         extraRows.forEach(row => {
@@ -6439,8 +6456,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       const tAmts = quarters.map(([qs,qe],qi) => {
         if (deptIsNone || !isTypeTeamjang) return null;
-        // 이름칸 기반: 인원수 × 40,000 × 3개월
-        let t = qNames[qi].filter(o=>o&&o.name).length * 120000;
+        // 이름칸 기반: 육아휴직자 제외하고 인원수 × 120,000
+        let t = qNames[qi].filter(o=>{
+          if (!o||!o.name) return false;
+          const emp = employees.find(e=>e.name===o.name);
+          if (emp && getEmpMonthsInQuarter(emp,year,qs,qe)===0) return false;
+          return true;
+        }).length * 120000;
+        // 부서장도 포함 (육아휴직 체크)
+        if (deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) t += 120000;
         // extraRows 중 팀장 type의 이름 인원 추가
         const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
         extraRows.forEach(row => {
@@ -6499,8 +6523,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
         const tAmtsT = quarters.map(([qs,qe],qi) => {
           if (deptIsNone || !isTypeTeamjang) return null;
-          // 이름칸 기반: 인원수 × 40,000 × 3개월
-          let t = qNamesT[qi].filter(o=>o&&o.name).length * 120000;
+          // 이름칸 기반: 육아휴직자 제외 × 120,000
+          let t = qNamesT[qi].filter(o=>{
+            if (!o||!o.name) return false;
+            const emp = employees.find(e=>e.name===o.name);
+            if (emp && getEmpMonthsInQuarter(emp,year,qs,qe)===0) return false;
+            return true;
+          }).length * 120000;
           // extraRows 중 팀장 type
           const extraRowsT = (deptFundSettings[dept]||{}).extraRows||[];
           extraRowsT.forEach(row => {
@@ -6671,8 +6700,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           swSubTAmts = quarters.map(([qs2,qe2],qi2)=>{
             if ((swSubSetting.type||'').includes('없음')) return null;
             if (isTypeBuseojang || isTypeBonbu) return null;
-            // 이름칸 기반: 인원수 × 40,000 × 3개월
-            let t = swSubQNames[qi2].filter(o=>o&&o.name).length * 120000;
+            // 이름칸 기반: 육아휴직자 제외 × 120,000
+            let t = swSubQNames[qi2].filter(o=>{
+              if (!o||!o.name) return false;
+              const emp = employees.find(e=>e.name===o.name);
+              if (emp && getEmpMonthsInQuarter(emp,year,qs2,qe2)===0) return false;
+              return true;
+            }).length * 120000;
+            // 부서장도 포함 (육아휴직 체크)
+            if (deptHead && getEmpMonthsInQuarter(deptHead,year,qs2,qe2)>0) t += 120000;
             // extraRows 중 팀장 type
             const swSubExtraRows = (swSubSetting||{}).extraRows||[];
             swSubExtraRows.forEach(row=>{
