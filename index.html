@@ -6653,9 +6653,33 @@ ${typeLabel}</td>`;
           swSubDisabledQi = swSubSetting.disabledQi||[];
           swSubQNames = quarters.map((_,qi2)=>{
             const [qs2,qe2]=quarters[qi2];
-            const parentNoTitle = empList.filter(e=>!e.title&&getEmpMonthsInQuarter(e,year,qs2,qe2)>0);
             const subEmps = subTeamEmps.filter(e=>getEmpMonthsInQuarter(e,year,qs2,qe2)>0);
-            return [...subEmps,...parentNoTitle.filter(e=>!subEmps.find(x=>x.uid===e.uid))].map(e=>({display:e.name,isEmp:true,name:e.name}));
+            const parentNoTitle = empList.filter(e=>!e.title&&getEmpMonthsInQuarter(e,year,qs2,qe2)>0);
+            const baseEmps = [...subEmps,...parentNoTitle.filter(e=>!subEmps.find(x=>x.uid===e.uid))];
+            const ndList2 = swSubNameDataList;
+            // hidden 제외, acting 처리
+            let nameObjs = baseEmps.map(e=>{
+              if(ndList2.some(d=>d.qi===qi2&&d.name===e.name&&d.hidden)) return null;
+              const actNd = ndList2.find(d=>d.qi===qi2&&d.name===e.name&&d.acting&&!d.insertBefore);
+              const display = (e.title==='팀장'?e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>':e.name)
+                +(actNd?'<span style="color:#3b82f6;font-size:10px"> ('+actNd.acting+')</span>':'');
+              return {display, isEmp:true, name:e.name, isActing:!!actNd, nd:actNd||null};
+            }).filter(Boolean);
+            nameObjs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
+            // insertBefore 삽입
+            ndList2.filter(d=>d.qi===qi2&&d.insertBefore&&d.name).forEach(nd=>{
+              const idx=nameObjs.findIndex(o=>o.name===nd.insertBefore);
+              const actTag=nd.acting?'<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>':'';
+              const newObj={display:nd.name+actTag,isEmp:false,name:nd.name,nd};
+              if(idx>=0) nameObjs.splice(idx,0,newObj); else nameObjs.push(newObj);
+            });
+            // 일반 추가 인원
+            const empNameSet2=new Set(baseEmps.map(e=>e.name));
+            ndList2.filter(d=>d.qi===qi2&&d.name&&!d.insertBefore&&!d.acting&&!d.hidden&&!empNameSet2.has(d.name)).forEach(nd=>{
+              const actTag=nd.acting?'<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>':'';
+              nameObjs.push({display:nd.name+actTag,isEmp:false,name:nd.name,nd});
+            });
+            return nameObjs;
           });
           swSubTAmts = quarters.map(([qs2,qe2],qi2)=>{
             if ((swSubSetting.type||'').includes('없음')) return null;
