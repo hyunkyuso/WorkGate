@@ -5987,11 +5987,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // ── 본부 자체 이름행 (bonbuNameDataList) ──
       bonbuNameDataList.filter(d=>d.qi===qi&&!d.acting&&!d.hidden).forEach(()=>{ t += 50000; });
 
-      // ── 본부 extraRows ──
+      // ── 본부 extraRows - nameData + headNames 모두 포함 ──
       const bonbuExtraRowsSrc = (deptFundSettings[bonbu]||{}).extraRows||[];
       bonbuExtraRowsSrc.forEach(row => {
         if ((row.exDisabledQi||[]).includes(qi)) return;
         (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(()=>{ t += 50000; });
+        const hn = (row.headNames||[])[qi];
+        if (hn) t += 50000;
       });
 
       // ── 산하 부서 이름칸 전체 합산 ──
@@ -6024,10 +6026,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // nameData 추가 인원 (Firebase 직원 아닌 것, acting 아닌 것, 분기별)
         deptNd.filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden&&!empNames.has(d.name)).forEach(()=>{ t += 50000; });
 
-        // 부서 extraRows
+        // 부서 extraRows - nameData + headNames 모두 포함
         (setting.extraRows||[]).forEach(row => {
           if ((row.exDisabledQi||[]).includes(qi)) return;
           (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(()=>{ t += 50000; });
+          const hn = (row.headNames||[])[qi];
+          if (hn) t += 50000;
         });
       });
 
@@ -6462,13 +6466,18 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           t = items.filter(x=>x.active).length * 50000;
           if (deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) t += 50000;
         }
-        // extraRows 중 부서장/본부장 type
+        // extraRows 중 부서장/본부장 type - nameData + headNames 모두 포함
         const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
         extraRows.forEach(row => {
           const rt = row.type||'없음';
-          if (rt!=='부서장'&&rt!=='본부장') return;
           if ((row.exDisabledQi||[]).includes(qi)) return;
-          t += (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).length * 50000;
+          if (rt==='부서장'||rt==='본부장') {
+            // 이름칸
+            t += (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).length * 50000;
+            // 부서장/본부장 이름칸 (headNames[qi])
+            const hn = (row.headNames||[])[qi];
+            if (hn) t += 50000;
+          }
         });
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t+=50000; });
         return t || null;
@@ -6506,12 +6515,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             t += headMonths * 40000;
           }
         }
-        // extraRows 중 팀장 type
+        // extraRows 중 팀장 type - nameData + headNames 모두 포함
         const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
         extraRows.forEach(row => {
-          if ((row.type||'없음')!=='팀장') return;
           if ((row.exDisabledQi||[]).includes(qi)) return;
-          t += (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).length * 120000;
+          if ((row.type||'없음')==='팀장') {
+            t += (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).length * 120000;
+            const hn = (row.headNames||[])[qi];
+            if (hn) t += 120000;
+          }
         });
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
         return t || null;
@@ -6570,6 +6582,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             if ((row.type||'없음')!=='팀장') return;
             if ((row.exDisabledQi||[]).includes(qi)) return;
             t += (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).length * 120000;
+            const hn = (row.headNames||[])[qi];
+            if (hn) t += 120000;
           });
           extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
           return t || null;
@@ -6753,6 +6767,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               if((row.type||'없음')!=='팀장') return;
               if((row.exDisabledQi||[]).includes(qi2)) return;
               t += (row.nameData||[]).filter(d=>d.qi===qi2&&d.name&&!d.hidden).length * 120000;
+              const hn = (row.headNames||[])[qi2];
+              if (hn) t += 120000;
             });
             return t||null;
           });
