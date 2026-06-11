@@ -5974,74 +5974,38 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     });
     if (bonbuIsTeamjang) window._bonbuTeamjangCalcs[bonbu] = calcBonbuTeamjangAmts;
 
-    const qAmts = quarters.map(([qs,qe],qi) => {
+    // qAmts: 렌더링 후 _lastQNames 기반으로 재계산
+    const qAmts = [null, null, null, null];
+    if (!window._bonbuAmtCalcs) window._bonbuAmtCalcs = {};
+    const calcBonbuAmts = () => quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
+      if (bonbuIsTeamjang) return null;
       let t = 0;
-      if (bonbuIsTeamjang) {
-        return null; // 부서 렌더링 후 업데이트
-      }
-
-      // ── 본부장 본인 ──
-      if (bonbuHead && getEmpMonthsInQuarter(bonbuHead,year,qs,qe)>0) t += 50000;
-
-      // ── 본부 자체 이름행 (bonbuNameDataList) ──
-      bonbuNameDataList.filter(d=>d.qi===qi&&!d.acting&&!d.hidden).forEach(()=>{ t += 50000; });
-
-      // ── 본부 extraRows - nameData + headNames 모두 포함 ──
-      const bonbuExtraRowsSrc = (deptFundSettings[bonbu]||{}).extraRows||[];
-      bonbuExtraRowsSrc.forEach(row => {
-        if ((row.exDisabledQi||[]).includes(qi)) return;
-        (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(()=>{ t += 50000; });
-        const hn = (row.headNames||[])[qi];
-        if (hn) t += 50000;
-      });
-
-      // ── 산하 부서 이름칸 전체 합산 (겸직자 중복 제거) ──
-      const countedUids = new Set();
-      if (bonbuHead) countedUids.add(bonbuHead.uid);
-      deptNames.filter(dk=>dk!==bonbu && !dk.includes('수석전문위원') && !dk.includes('베트남')).forEach(deptKey => {
-        const setting = deptFundSettings[deptKey]||{};
-        const deptDisabledQi = setting.disabledQi||[];
-        if (deptDisabledQi.includes(qi)) return;
-        const deptEmps = depts[deptKey]||[];
-        const deptNd = setting.nameData||[];
-        const empNames = new Set(deptEmps.map(e=>e.name));
-
-        // Firebase 직원 (겸직 중복 제거, 육아휴직/퇴사/입사 체크, hidden 제외)
-        const deptDateData = setting.dateData||[];
-        deptEmps.forEach(e => {
-          if (countedUids.has(e.uid)) return;
-          if (deptNd.some(d=>d.name===e.name&&d.hidden)) return;
-          if (getEmpMonthsInQuarter(e,year,qs,qe)===0) return;
-          const dd = deptDateData.find(d=>d.name===e.name&&d.qi===qi);
-          if (dd&&dd.fullDate) {
-            const dtM = new Date(dd.fullDate).getMonth();
-            if (dd.type==='leave'||dd.type==='to') {
-              if (Math.max(0,Math.min(dtM,qe)-qs+1)===0) return;
-            } else if (dd.type==='join'||dd.type==='from') {
-              if (Math.max(0,qe-Math.max(dtM,qs)+1)===0) return;
-            }
-          }
-          countedUids.add(e.uid);
+      const countedNames = new Set();
+      deptNames.filter(dk=>!dk.includes('수석전문위원')&&!dk.includes('베트남')).forEach(dk => {
+        const dkDisabledQi = (deptFundSettings[dk]||{}).disabledQi||[];
+        if (dkDisabledQi.includes(qi)) return;
+        const qn = (window._lastQNames&&window._lastQNames[dk]&&window._lastQNames[dk][qi])||[];
+        qn.forEach(obj => {
+          if (!obj||!obj.name) return;
+          if (countedNames.has(obj.name)) return;
+          countedNames.add(obj.name);
           t += 50000;
         });
-        // nameData 추가 인원 (Firebase 직원 아닌 것, 분기별)
-        deptNd.filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden&&!empNames.has(d.name)).forEach(()=>{ t += 50000; });
-
-        // 부서 extraRows - nameData + headNames 모두 포함
-        (setting.extraRows||[]).forEach(row => {
+        // extraRows headNames
+        ((deptFundSettings[dk]||{}).extraRows||[]).forEach(row => {
           if ((row.exDisabledQi||[]).includes(qi)) return;
-          (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(()=>{ t += 50000; });
           const hn = (row.headNames||[])[qi];
-          if (hn) t += 50000;
+          if (hn && !countedNames.has(hn)) { countedNames.add(hn); t += 50000; }
+          (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(d => {
+            if (!countedNames.has(d.name)) { countedNames.add(d.name); t += 50000; }
+          });
         });
       });
-
-      // ── extra (금액칸 수동추가) ──
-      bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(() => { t += 50000; });
-
+      bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t+=50000; });
       return t || null;
     });
+    if (!bonbuIsTeamjang && !bonbuIsNone) window._bonbuAmtCalcs[bonbu] = calcBonbuAmts;
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
 
 
@@ -6447,95 +6411,76 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       const useSimpleFormat = hasSubTeams && !['SW지원부','GIS SW영업부'].includes(dept);
 
-      const bAmts = quarters.map(([qs,qe],qi) => {
+      // bAmts: 렌더링 후 _lastQNames 기반으로 재계산
+      const bAmts = [null, null, null, null];
+      if (!window._deptBuseojangCalcs) window._deptBuseojangCalcs = {};
+      const calcBAmts = () => quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
-        const dateDataListB = (deptFundSettings[dept]||{}).dateData||[];
         let t = 0;
-        if (useSimpleFormat) {
-          // subTeamEmps에서 팀별 disabledQi 체크
-          const validSubEmps = subTeamEmps.filter(e => {
-            const subDept = e.dept;
-            const subDq = (deptFundSettings[subDept]||{}).disabledQi||[];
-            return !subDq.includes(qi);
-          });
-          const allEmps = [...empList, ...validSubEmps].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i&&e.uid!==(deptHead?.uid));
-          allEmps.forEach(e => {
-            if (nameDataList.some(d=>d.qi===qi&&d.name===e.name&&d.hidden)) return;
-            if (getEmpMonthsInQuarter(e,year,qs,qe)===0) return;
+        // 해당 부서(+하위팀) 전체 _lastQNames 합산
+        const deptAndSubs = [dept, ...subTeamEmps.map(e=>e.dept).filter((d,i,a)=>a.indexOf(d)===i)];
+        const countedNames = new Set();
+        deptAndSubs.forEach(dk => {
+          const dkDq = (deptFundSettings[dk]||{}).disabledQi||[];
+          if (dkDq.includes(qi)) return;
+          const qn = (window._lastQNames&&window._lastQNames[dk]&&window._lastQNames[dk][qi])||[];
+          qn.forEach(obj => {
+            if (!obj||!obj.name||countedNames.has(obj.name)) return;
+            countedNames.add(obj.name);
             t += 50000;
           });
-          if (deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) t += 50000;
-          const allEmpNames = new Set([...allEmps.map(e=>e.name), deptHead?.name].filter(Boolean));
-          nameDataList.filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden&&!allEmpNames.has(d.name)).forEach(()=>{ t+=50000; });
-        } else {
-          const items = calcNameMonths(qNames[qi], qi, dateDataListB);
-          t = items.filter(x=>x.active).length * 50000;
-          if (deptHead && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) t += 50000;
-        }
-        // extraRows 중 부서장/본부장 type - nameData + headNames 모두 포함
+        });
+        // extraRows headNames + nameData
         const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
         extraRows.forEach(row => {
-          const rt = row.type||'없음';
           if ((row.exDisabledQi||[]).includes(qi)) return;
+          const rt = row.type||'없음';
           if (rt==='부서장'||rt==='본부장') {
-            // 이름칸
-            t += (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).length * 50000;
-            // 부서장/본부장 이름칸 (headNames[qi])
-            const hn = (row.headNames||[])[qi];
-            if (hn) t += 50000;
+            (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(d=>{ if(!countedNames.has(d.name)){countedNames.add(d.name);t+=50000;} });
+            const hn=(row.headNames||[])[qi];
+            if(hn&&!countedNames.has(hn)){countedNames.add(hn);t+=50000;}
           }
         });
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t+=50000; });
         return t || null;
       });
-      const bTotal = bAmts.reduce((s,v)=>s+(v||0),0);
+      if (isTypeBuseojang||isTypeBonbu) window._deptBuseojangCalcs[dept] = calcBAmts;
+      const bTotal = 0;
 
-      const tAmts = quarters.map(([qs,qe],qi) => {
+      // tAmts: _lastQNames 기반으로 재계산 (렌더링 후 업데이트)
+      const tAmts = [null, null, null, null];
+      if (!window._deptTeamjangCalcs) window._deptTeamjangCalcs = {};
+      const calcTAmts = () => quarters.map(([qs,qe],qi) => {
         if (deptIsNone || !isTypeTeamjang) return null;
-        const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
         let t = 0;
-        if (useSimpleFormat) {
-          const validSubEmpsT = subTeamEmps.filter(e => {
-            const subDq = (deptFundSettings[e.dept]||{}).disabledQi||[];
-            return !subDq.includes(qi);
-          });
-          const allEmpsT = [...empList, ...validSubEmpsT, ...(deptHead?[deptHead]:[])].filter((e,i,a)=>a.findIndex(x=>x.uid===e.uid)===i);
-          allEmpsT.forEach(e => {
-            if (nameDataList.some(d=>d.qi===qi&&d.name===e.name&&d.hidden)) return;
-            const m = getEmpMonthsInQuarter(e,year,qs,qe);
-            if (m===0) return;
+        const deptAndSubs = [dept, ...subTeamEmps.map(e=>e.dept).filter((d,i,a)=>a.indexOf(d)===i)];
+        const countedNames = new Set();
+        deptAndSubs.forEach(dk => {
+          const dkDq = (deptFundSettings[dk]||{}).disabledQi||[];
+          if (dkDq.includes(qi)) return;
+          const qn = (window._lastQNames&&window._lastQNames[dk]&&window._lastQNames[dk][qi])||[];
+          qn.forEach(obj => {
+            if (!obj||!obj.name||countedNames.has(obj.name)) return;
+            countedNames.add(obj.name);
+            const emp = employees.find(e=>e.name===obj.name);
+            const m = emp ? getEmpMonthsInQuarter(emp,year,qs,qe) : 3;
             t += m * 40000;
           });
-          const allEmpNamesT = new Set(allEmpsT.map(e=>e.name));
-          nameDataList.filter(d=>d.qi===qi&&d.name&&!d.acting&&!d.hidden&&!allEmpNamesT.has(d.name)).forEach(()=>{ t+=120000; });
-        } else {
-          const items = calcNameMonths(qNames[qi], qi, dateDataList);
-          t = items.reduce((s,x)=>s+x.months*40000, 0);
-          if (deptHead) {
-            const ddHead = dateDataList.find(d=>d.name===deptHead.name&&d.qi===qi);
-            let headMonths = getEmpMonthsInQuarter(deptHead,year,qs,qe);
-            if (ddHead&&ddHead.fullDate) {
-              const dtM = new Date(ddHead.fullDate).getMonth();
-              if (ddHead.type==='leave'||ddHead.type==='to') headMonths=Math.max(0,Math.min(dtM,qe)-qs+1);
-              else if (ddHead.type==='join'||ddHead.type==='from') headMonths=Math.max(0,qe-Math.max(dtM,qs)+1);
-            }
-            t += headMonths * 40000;
-          }
-        }
-        // extraRows 중 팀장 type - nameData + headNames 모두 포함
+        });
+        // extraRows 팀장 type
         const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
         extraRows.forEach(row => {
           if ((row.exDisabledQi||[]).includes(qi)) return;
           if ((row.type||'없음')==='팀장') {
-            t += (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).length * 120000;
-            const hn = (row.headNames||[])[qi];
-            if (hn) t += 120000;
+            (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(()=>{ t+=120000; });
+            const hn=(row.headNames||[])[qi]; if(hn) t+=120000;
           }
         });
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
         return t || null;
       });
-      const tTotal = tAmts.reduce((s,v)=>s+(v||0),0);
+      if (isTypeTeamjang) window._deptTeamjangCalcs[dept] = calcTAmts;
+      const tTotal = 0;
       // 팀 단위 조직 (부서장 없고 하위팀 없음) → 이름만 표시
       if (!deptHead && !hasSubTeams) {
         const nameNsT = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
@@ -6891,34 +6836,78 @@ ${nameRows.map((rowByQ, rowIdx) => `
 
   container.innerHTML = html;
 
-  // 팀장 타입 본부 금액 업데이트 (_lastQNames가 이제 채워진 상태)
+  // 팀장 타입 본부 금액 업데이트
   if (window._bonbuTeamjangCalcs) {
     Object.entries(window._bonbuTeamjangCalcs).forEach(([bonbu, calcFn]) => {
       const amts = calcFn();
       const total = amts.reduce((s,v)=>s+(v||0),0);
-      // 분기별 금액 셀 업데이트
       [0,1,2,3].forEach(qi => {
         const cell = container.querySelector(`td[data-dept="${bonbu}"][data-qi="${qi}"][data-type="buseojang"]`);
-        if (cell) {
-          const extra = cell.querySelector('span');
-          cell.textContent = amts[qi]===null?'-':amts[qi].toLocaleString();
-          if (extra) cell.appendChild(extra);
-        }
+        if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
       });
-      // 합계 셀 업데이트
-      const totalCell = container.querySelector(`td[data-dept="${bonbu}"][data-qi="0"][data-type="buseojang"]`)
-        ?.closest('tr')?.querySelector('td:last-child');
-      // bonbuTotal 셀은 본부장 행 2번째 tr의 마지막 td
       const bonbuRow = container.querySelector(`td[data-dept="${bonbu}"][data-qi="0"][data-type="buseojang"]`)?.closest('tr');
       const nextRow = bonbuRow?.nextElementSibling;
-      if (nextRow) {
-        const lastTd = nextRow.querySelector('td:last-child');
-        if (lastTd && !lastTd.dataset.dept) lastTd.textContent = total ? total.toLocaleString() : '-';
-      }
+      if (nextRow) { const lastTd=nextRow.querySelector('td:last-child'); if(lastTd&&!lastTd.dataset.dept)lastTd.textContent=total?total.toLocaleString():'-'; }
     });
     window._bonbuTeamjangCalcs = {};
   }
-}
+
+  // 본부장 타입 본부 금액 업데이트 (_lastQNames 기반)
+  if (window._bonbuAmtCalcs) {
+    Object.entries(window._bonbuAmtCalcs).forEach(([bonbu, calcFn]) => {
+      const amts = calcFn();
+      const total = amts.reduce((s,v)=>s+(v||0),0);
+      [0,1,2,3].forEach(qi => {
+        const cell = container.querySelector(`td[data-dept="${bonbu}"][data-qi="${qi}"][data-type="buseojang"]`);
+        if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
+      });
+      const bonbuRow = container.querySelector(`td[data-dept="${bonbu}"][data-qi="0"][data-type="buseojang"]`)?.closest('tr');
+      const nextRow = bonbuRow?.nextElementSibling;
+      if (nextRow) { const lastTd=nextRow.querySelector('td:last-child'); if(lastTd&&!lastTd.dataset.dept)lastTd.textContent=total?total.toLocaleString():'-'; }
+    });
+    window._bonbuAmtCalcs = {};
+  }
+
+  // 부서장 타입 부서 금액 업데이트 (_lastQNames 기반)
+  if (window._deptBuseojangCalcs) {
+    Object.entries(window._deptBuseojangCalcs).forEach(([dept, calcFn]) => {
+      const amts = calcFn();
+      const total = amts.reduce((s,v)=>s+(v||0),0);
+      [0,1,2,3].forEach(qi => {
+        const cell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
+        if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
+      });
+      // 합계 셀
+      const cells = container.querySelectorAll(`td[data-dept="${dept}"][data-type="buseojang"]`);
+      const firstCell = cells[0];
+      if (firstCell) {
+        const row = firstCell.closest('tr');
+        const lastTd = row?.querySelector('td:last-child');
+        if (lastTd && !lastTd.dataset.dept) lastTd.textContent = total ? total.toLocaleString() : '-';
+      }
+    });
+    window._deptBuseojangCalcs = {};
+  }
+
+  // 팀장 타입 부서 금액 업데이트 (_lastQNames 기반)
+  if (window._deptTeamjangCalcs) {
+    Object.entries(window._deptTeamjangCalcs).forEach(([dept, calcFn]) => {
+      const amts = calcFn();
+      const total = amts.reduce((s,v)=>s+(v||0),0);
+      [0,1,2,3].forEach(qi => {
+        const cell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="teamjang"]`);
+        if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
+      });
+      // 합계 셀 업데이트 (팀장 행의 계 셀)
+      const teamCell = container.querySelector(`td[data-dept="${dept}"][data-qi="0"][data-type="teamjang"]`);
+      if (teamCell) {
+        const row = teamCell.closest('tr');
+        const lastTd = row?.querySelector('td:last-child');
+        if (lastTd && !lastTd.dataset.dept) lastTd.textContent = total ? total.toLocaleString() : '-';
+      }
+    });
+    window._deptTeamjangCalcs = {};
+  }
 
 
 
