@@ -6905,8 +6905,8 @@ function openNameCell(cell) {
   modal.querySelector('#nc-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#nc-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   document.getElementById('nc-name').focus();
   // 삽입 버튼: 현재 칸 앞에 새 이름 끼워넣기
-  modal.querySelector('#nc-insert-btn').onclick = () => {
-    const name = document.getElementById('nc-name').value.trim();
+  modal.querySelector('#nc-insert-btn').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#nc-insert-btn').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('nc-name').value.trim();
     const memo = document.getElementById('nc-memo').value.trim();
     const acting = document.querySelector('input[name="nc-acting"]:checked')?.value || '';
     if (!name) { alert('이름을 입력하세요'); return; }
@@ -6917,10 +6917,10 @@ function openNameCell(cell) {
     deptFundSettings[dept].nameData.push({qi, name, memo, acting, insertBefore: insertBeforeName});
     saveDeptFundSettings();
     modal.remove();
-    _renderDeptFund();
-  };
-  modal.querySelector('#nc-save-btn').onclick = () => {
-    const name = document.getElementById('nc-name').value.trim();
+    _renderDeptFund(); });
+
+  modal.querySelector('#nc-save-btn').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#nc-save-btn').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('nc-name').value.trim();
     const memo = document.getElementById('nc-memo').value.trim();
     const acting = document.querySelector('input[name="nc-acting"]:checked')?.value || '';
     if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
@@ -6937,10 +6937,10 @@ function openNameCell(cell) {
     }
     saveDeptFundSettings();
     modal.remove();
-    _renderDeptFund();
-  };
-  modal.querySelector('#nc-del-btn').onclick = () => {
-    if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
+    _renderDeptFund(); });
+
+  modal.querySelector('#nc-del-btn').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#nc-del-btn').addEventListener('click', e=>{ e.stopPropagation(); if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
     if (!deptFundSettings[dept].nameData) deptFundSettings[dept].nameData = [];
     if (isEmp) {
       // Firebase 직원: 해당 qi에서 숨김 처리
@@ -6952,8 +6952,8 @@ function openNameCell(cell) {
     }
     saveDeptFundSettings();
     modal.remove();
-    _renderDeptFund();
-  };
+    _renderDeptFund(); });
+
 }
 
 
@@ -7077,8 +7077,8 @@ function openInsertNameModal(dept, qi, rowIdx) {
       </div>
     </div>`;
   document.body.appendChild(modal);
-  modal.querySelector('#ins-ok').onclick = () => {
-    const name = document.getElementById('ins-name').value.trim();
+  modal.querySelector('#ins-ok').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#ins-ok').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('ins-name').value.trim();
     const memo = document.getElementById('ins-memo').value.trim();
     const actingEl = document.querySelector('input[name="ins-acting"]:checked');
     const acting = actingEl ? actingEl.value : '';
@@ -7092,8 +7092,8 @@ function openInsertNameModal(dept, qi, rowIdx) {
     deptFundSettings[dept].nameData.push({qi, rowIdx:0, col:newCol, name, memo, acting});
     saveDeptFundSettings();
     modal.remove();
-    _renderDeptFund();
-  };
+    _renderDeptFund(); });
+
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#in-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#in-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   setTimeout(() => document.getElementById('ins-name')?.focus(), 50);
@@ -7137,8 +7137,8 @@ function openHeadNameModal(dept, type) {
       </div>
     </div>`;
   document.body.appendChild(modal);
-  modal.querySelector('#hn-save').onclick = () => {
-    const name = document.getElementById('hn-name').value.trim();
+  modal.querySelector('#hn-save').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#hn-save').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('hn-name').value.trim();
     const memo = document.getElementById('hn-memo').value.trim();
     const actingEl = document.querySelector('input[name="hn-acting"]:checked');
     const acting = actingEl ? actingEl.value : '';
@@ -7155,8 +7155,8 @@ function openHeadNameModal(dept, type) {
     }
     saveDeptFundSettings();
     modal.remove();
-    _renderDeptFund();
-  };
+    _renderDeptFund(); });
+
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#hn-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#hn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   setTimeout(() => document.getElementById('hn-name')?.focus(), 50);
@@ -7206,20 +7206,18 @@ function openDeptNameModal(dept, qi) {
       </div>
     </div>`;
   document.body.appendChild(modal);
-  modal.querySelector('#dn-save').onclick = () => {
-    const newName = document.getElementById('dn-name').value.trim();
+  modal.querySelector('#dn-save').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#dn-save').addEventListener('click', e=>{ e.stopPropagation(); const newName = document.getElementById('dn-name').value.trim();
     deptFundSettings[dept].deptDisplayNames[qi] = newName;
     saveDeptFundSettings();
     modal.remove();
-    _renderDeptFund();
-  };
+    _renderDeptFund(); });
+
   const delBtn = modal.querySelector('#dn-del');
-  if (delBtn) delBtn.onclick = () => {
-    deptFundSettings[dept].deptDisplayNames[qi] = '__HIDDEN__';
+  if (delBtn) { delBtn.addEventListener('mousedown', e=>e.preventDefault()); delBtn.addEventListener('click', e=>{ e.stopPropagation(); deptFundSettings[dept].deptDisplayNames[qi] = '__HIDDEN__';
     saveDeptFundSettings();
     modal.remove();
-    _renderDeptFund();
-  };
+    _renderDeptFund(); }); }
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#dn-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#dn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   setTimeout(() => { const el=document.getElementById('dn-name'); if(el){el.focus();el.select();} }, 50);
@@ -7312,8 +7310,8 @@ function openAddRowModal(dept) {
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#ar-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#ar-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
-  modal.querySelector('#ar-save').onclick = () => {
-    const selected = checks.filter(c=>document.getElementById(c.id)?.checked).map(c=>c.key);
+  modal.querySelector('#ar-save').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#ar-save').addEventListener('click', e=>{ e.stopPropagation(); const selected = checks.filter(c=>document.getElementById(c.id)?.checked).map(c=>c.key);
     if (!selected.length) { alert('최소 하나 이상 선택하세요'); return; }
     const orgName = document.getElementById('ar-orgname').value.trim();
     const headName = document.getElementById('ar-headname').value.trim();
@@ -7324,8 +7322,8 @@ function openAddRowModal(dept) {
     deptFundSettings[dept].extraRows.push({cols: selected, name: orgName, headName, type: rowType, disabledQi});
     saveDeptFundSettings();
     modal.remove();
-    _renderDeptFund();
-  };
+    _renderDeptFund(); });
+
   setTimeout(()=>document.getElementById('ar-orgname')?.focus(), 50);
 }
 
@@ -7433,8 +7431,8 @@ function openExtraHeadEdit(dept, ri, qi) {
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#hn-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#hn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
   setTimeout(() => document.getElementById('hn-name')?.focus(), 50);
-  modal.querySelector('#hn-save').onclick = () => {
-    const name = document.getElementById('hn-name').value.trim();
+  modal.querySelector('#hn-save').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#hn-save').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('hn-name').value.trim();
     const memo = document.getElementById('hn-memo').value.trim();
     const acting = document.querySelector('input[name="hn-acting"]:checked')?.value||'';
     const title = document.querySelector('input[name="hn-title"]:checked')?.value||'';
@@ -7446,8 +7444,8 @@ function openExtraHeadEdit(dept, ri, qi) {
     deptFundSettings[dept].extraRows[ri].headActing[qi] = acting;
     deptFundSettings[dept].extraRows[ri].headTitles[qi] = title;
     deptFundSettings[dept].extraRows[ri].headMemos[qi] = memo;
-    saveDeptFundSettings(); modal.remove(); _renderDeptFund();
-  };
+    saveDeptFundSettings(); modal.remove(); _renderDeptFund(); });
+
 }
 
 // ── extraRow 조직명/부서장 편집 (분기별 독립) ──
@@ -7627,8 +7625,8 @@ function openExtraNameCell(cell) {
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   setTimeout(()=>document.getElementById('en-name')?.focus(), 50);
-  modal.querySelector('#en-save').onclick = () => {
-    const name = document.getElementById('en-name').value.trim();
+  modal.querySelector('#en-save').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#en-save').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('en-name').value.trim();
     const memo = document.getElementById('en-memo').value.trim();
     const acting = document.querySelector('input[name="en-acting"]:checked')?.value||'';
     const title = document.querySelector('input[name="en-title"]:checked')?.value||'';
@@ -7637,14 +7635,14 @@ function openExtraNameCell(cell) {
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
     if (name) { if(idx2>=0) arr[idx2]={qi,col:ci,name,memo,acting,title}; else arr.push({qi,col:ci,name,memo,acting,title}); }
     else { if(idx2>=0) arr.splice(idx2,1); }
-    saveDeptFundSettings(); modal.remove(); _renderDeptFund();
-  };
-  modal.querySelector('#en-del').onclick = () => {
-    const arr = deptFundSettings[dept].extraRows[ri].nameData||[];
+    saveDeptFundSettings(); modal.remove(); _renderDeptFund(); });
+
+  modal.querySelector('#en-del').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#en-del').addEventListener('click', e=>{ e.stopPropagation(); const arr = deptFundSettings[dept].extraRows[ri].nameData||[];
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
     if(idx2>=0) arr.splice(idx2,1);
-    saveDeptFundSettings(); modal.remove(); _renderDeptFund();
-  };
+    saveDeptFundSettings(); modal.remove(); _renderDeptFund(); });
+
 }
 
 // ── extraRow 날짜칸 편집 (openDateCell과 동일) ──
@@ -7678,8 +7676,8 @@ function openExtraDateCell(cell) {
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   if (!cur) { const r = modal.querySelector('input[name="dc-type"]'); if(r) r.checked=true; }
-  modal.querySelector('#dc-save').onclick = () => {
-    const fullDate = document.getElementById('dc-date').value;
+  modal.querySelector('#dc-save').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#dc-save').addEventListener('click', e=>{ e.stopPropagation(); const fullDate = document.getElementById('dc-date').value;
     const typeEl = modal.querySelector('input[name="dc-type"]:checked');
     if (!fullDate||!typeEl) { alert('날짜와 구분을 선택하세요'); return; }
     const type = typeEl.value;
@@ -7693,15 +7691,13 @@ function openExtraDateCell(cell) {
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
     const entry = {qi,col:ci,type,fullDate,date,name:cellName};
     if(idx2>=0) arr[idx2]=entry; else arr.push(entry);
-    saveDeptFundSettings(); modal.remove(); _renderDeptFund();
-  };
+    saveDeptFundSettings(); modal.remove(); _renderDeptFund(); });
+
   const delBtn = modal.querySelector('#dc-del');
-  if (delBtn) delBtn.onclick = () => {
-    const arr = deptFundSettings[dept].extraRows[ri].dateData||[];
+  if (delBtn) { delBtn.addEventListener('mousedown', e=>e.preventDefault()); delBtn.addEventListener('click', e=>{ e.stopPropagation(); const arr = deptFundSettings[dept].extraRows[ri].dateData||[];
     const idx2 = arr.findIndex(d=>d.qi===qi&&d.col===ci);
     if(idx2>=0) arr.splice(idx2,1);
-    saveDeptFundSettings(); modal.remove(); _renderDeptFund();
-  };
+    saveDeptFundSettings(); modal.remove(); _renderDeptFund(); }); }
 }
 
 
@@ -7726,14 +7722,14 @@ function openExtraRowEdit(dept, rowIdx, qi) {
       </div>
     </div>`;
   document.body.appendChild(modal);
-  modal.querySelector('#er-save').onclick = () => {
-    const name = document.getElementById('er-name').value.trim();
+  modal.querySelector('#er-save').addEventListener('mousedown', e=>e.preventDefault());
+  modal.querySelector('#er-save').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('er-name').value.trim();
     const head = document.getElementById('er-head')?.value.trim()||'';
     deptFundSettings[dept].extraRows[rowIdx] = {...row, name, headName: head};
     saveDeptFundSettings();
     modal.remove();
-    _renderDeptFund();
-  };
+    _renderDeptFund(); });
+
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#er-cancel').addEventListener('mousedown', e => e.preventDefault()); modal.querySelector('#er-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
 }
