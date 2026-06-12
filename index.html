@@ -6269,7 +6269,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const btnStyle = 'float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4';
         const result = [];
         // DEBUG: extraRows 데이터 확인
-        console.log('[DEBUG renderExtraRows] dept:', dept, 'rows:', rows.length, rows.map(({row})=>({cols:row.cols, type:row.type, headName:row.headName, headNames:row.headNames})));
+        if(!window._dbgExtra) window._dbgExtra=[];
+        rows.forEach(function({row}){window._dbgExtra.push({dept:dept,cols:row.cols,type:row.type,headName:row.headName,headNames:row.headNames,orgNames:row.orgNames});});
         const totalExtraTrs = rows.reduce(function(sum, {row}) {
           if (!(row.headNames||[]).some(function(n){return n;}) && !row.headName) return sum;
           const cols = row.cols||['name','date'];
