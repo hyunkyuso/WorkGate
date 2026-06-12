@@ -7439,6 +7439,7 @@ function openDeptMenu(dept, event) {
   html += '</div>'
   if (isExtra) {
     html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0">';
+    html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});openExtraHeadConnectModal(decodeURIComponent(\'' + denc + '\'),' + extraRiNum + ')" style="width:100%;padding:5px 4px;border-radius:6px;border:1px solid #10b981;color:#065f46;background:#ecfdf5;cursor:pointer;font-size:11px;margin-bottom:4px">직책자 연결</button>';
     html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});openParentOrgModal(decodeURIComponent(\'' + denc + '\'),' + extraRiNum + ')" style="width:100%;padding:5px 4px;border-radius:6px;border:1px solid #3b82f6;color:#1d4ed8;background:#eff6ff;cursor:pointer;font-size:11px;margin-bottom:4px">상위 조직 설정</button>';
     html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});deleteExtraRow(decodeURIComponent(\'' + denc + '\'),' + extraRiNum + ')" style="width:100%;padding:5px 4px;border-radius:6px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:11px">삭제</button>';
     html += '</div>';
@@ -7607,6 +7608,43 @@ function toggleDisabledQi(dept, qi) {
 }
 
 // ── extraRow 부서장/본부장 이름 편집 (openHeadNameModal과 동일) ──
+function openExtraHeadConnectModal(dept, ri) {
+  if (document.getElementById('extra-head-connect-modal')) return;
+  const rows = (deptFundSettings[dept]||{}).extraRows||[];
+  const row = rows[ri];
+  if (!row) return;
+  if (!row.headNames) row.headNames = ['','','',''];
+  const empOptions = employees.filter(e=>e.status!=='퇴직').sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  const modal = document.createElement('div');
+  modal.id = 'extra-head-connect-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.2)" ondblclick="event.stopPropagation()">
+    <div style="font-size:14px;font-weight:700;margin-bottom:14px">직책자 연결</div>
+    ${[0,1,2,3].map(qi=>`
+    <div style="margin-bottom:10px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px">${['1분기(1~3월)','2분기(4~6월)','3분기(7~9월)','4분기(10~12월)'][qi]}</div>
+      <select id="ehc-q${qi}" style="width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
+        <option value="">없음</option>
+        ${empOptions.map(e=>`<option value="${e.name}" ${(row.headNames[qi]||'')=== e.name?'selected':''}>${e.name} (${e.dept||''})</option>`).join('')}
+      </select>
+    </div>`).join('')}
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button id="ehc-cancel" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+      <button id="ehc-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  modal.querySelector('#ehc-cancel').addEventListener('click', () => modal.remove());
+  modal.querySelector('#ehc-save').addEventListener('click', () => {
+    if (!deptFundSettings[dept].extraRows[ri].headNames) deptFundSettings[dept].extraRows[ri].headNames = ['','','',''];
+    [0,1,2,3].forEach(qi => {
+      deptFundSettings[dept].extraRows[ri].headNames[qi] = document.getElementById('ehc-q'+qi)?.value||'';
+    });
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund, 50);
+  });
+}
+
 function openExtraHeadEdit(dept, ri, qi) {
   const rows = (deptFundSettings[dept]||{}).extraRows||[];
   const row = rows[ri];
@@ -7619,14 +7657,19 @@ function openExtraHeadEdit(dept, ri, qi) {
   const qLabel = ['1분기(1~3월)','2분기(4~6월)','3분기(7~9월)','4분기(10~12월)'][qi];
   const titleRolesH = ['팀장','부서장','본부장'];
   const actingRoles = ['팀장대행','부서장대행','본부장대행'];
+  // Firebase 직원 목록 (재직자만)
+  const empOptions = employees.filter(e=>e.status!=='퇴직').sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   const modal = document.createElement('div');
   document.getElementById('head-name-modal')?.remove();
   modal.id = 'head-name-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)" ondblclick="event.stopPropagation()">
-    <div style="font-size:14px;font-weight:700;margin-bottom:4px">부서장/본부장 이름 수정</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">부서장/본부장 연결</div>
     <div style="font-size:12px;color:#64748b;margin-bottom:12px">${qLabel}</div>
-    <input id="hn-name" value="${curName}" placeholder="이름 입력" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
+    <select id="hn-name" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
+      <option value="">없음</option>
+      ${empOptions.map(e=>`<option value="${e.name}" ${curName===e.name?'selected':''}>${e.name} (${e.dept||''})</option>`).join('')}
+    </select>
     <div style="font-size:12px;color:#64748b;margin-bottom:6px">직책</div>
     <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
       ${titleRolesH.map(r=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${curTitle===r?'background:#dbeafe;border-color:#3b82f6':''}"><input type="radio" name="hn-title" value="${r}" ${curTitle===r?'checked':''} style="accent-color:#3b82f6"> ${r}</label>`).join('')}
@@ -7646,7 +7689,6 @@ function openExtraHeadEdit(dept, ri, qi) {
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
   modal.querySelector('#hn-cancel').addEventListener('click', e => { e.stopPropagation(); modal.remove(); });
-  setTimeout(() => document.getElementById('hn-name')?.focus(), 50);
   modal.querySelector('#hn-save').addEventListener('click', e=>{ e.stopPropagation(); const name = document.getElementById('hn-name').value.trim();
     const memo = document.getElementById('hn-memo').value.trim();
     const acting = document.querySelector('input[name="hn-acting"]:checked')?.value||'';
