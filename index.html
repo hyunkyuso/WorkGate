@@ -6252,6 +6252,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const btnStyle = 'float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4';
         const result = [];
 
+        let globalNoteRendered = false;
+
         rows.forEach(function(row, ri) {
           const cols = row.cols || ['team','name','date'];
           const rowTypes = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return cols.includes(k);});
@@ -6310,11 +6312,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const menuBtn = '<button onclick="openDeptMenu(decodeURIComponent(\x27'+deptEnc+'\x27),event)" data-d="'+dept+'" data-extra-ri="'+ri+'" style="'+btnStyle+'">☰</button>';
 
           rowTypes.forEach(function(colType, typeIdx) {
-            const isFirst = !noteRendered;
+            const isFirst = !noteRendered && !globalNoteRendered;
             const noteTd = isFirst
-              ? '<td rowspan="'+totalTrs+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>'
+              ? '<td rowspan="'+extraRowsTotalTrs+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>'
               : '';
-            if (isFirst) noteRendered = true;
+            if (isFirst) { noteRendered = true; globalNoteRendered = true; }
 
             if (colType==='bonbu'||colType==='dept') {
               const bg = BG_DEPT_HEADER;
@@ -6776,8 +6778,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         return (b+s)||null;
       });
       const mergedTotal = mergedAmts.reduce((s,v)=>s+(v||0),0);
+      // extraRows 총 행 수 계산
+      const extraRowsTotalTrs = ((deptFundSettings[dept]||{}).extraRows||[]).reduce((sum, row) => {
+        const cols = row.cols||['name','date'];
+        const rt = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>cols.includes(k));
+        return sum + rt.length;
+      }, 0);
       // noteRowspan: isSWStyle 계산 이후에 확정
-      const noteRowspan = 1 + (deptHead?1:0) + (isSWStyle ? (swSubDept ? 1 + swSubPair*2 : 1 + Math.max(2,maxChunks)) : 1 + Math.max(2, maxChunks)) + (hasLeavers?1:0);
+      const noteRowspan = 1 + (deptHead?1:0) + (isSWStyle ? (swSubDept ? 1 + swSubPair*2 : 1 + Math.max(2,maxChunks)) : 1 + Math.max(2, maxChunks)) + (hasLeavers?1:0) + extraRowsTotalTrs;
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
       const swNoteRowspan = isSWStyle && swSubDept
         ? 1 + 1 + 1 + swSubPair*2
