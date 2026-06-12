@@ -6695,12 +6695,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
             ${sfDeptCells}
-            <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
+            <td data-total-dept="${dept}" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
             <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
           </tr>
           <tr>
             ${sfHeadCells}
-            <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
+            <td data-buseojang-total="${dept}" style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
           </tr>
           </tbody></table><div style='height:24px'></div>
           ${renderExtraRows()}`;
@@ -6878,7 +6878,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               ? `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[0]!==null?fmtMoney(mergedAmts[0]):'-'}</td>`
               : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",${qi2})'>${getDeptDisplayName(dept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="${qi2}" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[qi2]!==null?fmtMoney(mergedAmts[qi2]):'-'}</td>`)
           ).join('')}
-          <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
+          <td data-total-dept="${dept}" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
           ${swNoteCellHtml}
         </tr>
         <tr>
@@ -6892,7 +6892,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             return `<td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${disp}</td>`;
           }).join('')}
           <td style="${tdStyle}"></td>
-          <td style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&(isSWStyle?mergedTotal:bTotal)?fmtMoney(isSWStyle?mergedTotal:bTotal):'-'}</td>
+          <td data-buseojang-total="${dept}" style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&(isSWStyle?mergedTotal:bTotal)?fmtMoney(isSWStyle?mergedTotal:bTotal):'-'}</td>
         </tr>
         ${isSWStyle && swSubDept ? `
         <tr style="background:${BG_TEAM_AMT}">
@@ -6988,13 +6988,10 @@ ${nameRows.map((rowByQ, rowIdx) => `
         const cell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
       });
-      // 합계 셀
-      const cells = container.querySelectorAll(`td[data-dept="${dept}"][data-type="buseojang"]`);
-      const firstCell = cells[0];
-      if (firstCell) {
-        const row = firstCell.closest('tr');
-        const lastTd = row?.querySelector('td:last-child');
-        if (lastTd && !lastTd.dataset.dept) lastTd.textContent = total ? total.toLocaleString() : '-';
+      // 합계 셀 - data-buseojang-total 셀 직접 업데이트
+      const buseojangTotalCell = container.querySelector(`td[data-buseojang-total="${dept}"]`);
+      if (buseojangTotalCell) {
+        buseojangTotalCell.textContent = total ? total.toLocaleString() : '-';
       }
     });
     window._deptBuseojangCalcs = {};
