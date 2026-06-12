@@ -6281,10 +6281,20 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           // 금액 계산
           const ndList = row.nameData||[];
           const ddList = row.dateData||[];
+          const hasDeptCol = rowTypes.includes('dept');
           const rowAmts = quarters.map(function(qArr, qi2) {
             const qs = qArr[0], qe = qArr[1];
             if (rowTypeLabel==='없음' || exDisabledQi.includes(qi2)) return null;
             let t = 0;
+            // deptjang headNames 포함 (dept 포함 조합, 팀장 비고)
+            if (hasDeptCol && isTeamjang) {
+              const hn = hNames[qi2];
+              if (hn) {
+                const emp = employees.find(function(e){return e.name===hn;});
+                const m = emp ? getEmpMonthsInQuarter(emp,year,qs,qe) : 3;
+                t += m * 40000;
+              }
+            }
             [0,1,2,3].forEach(function(ci) {
               const nd = ndList.find(function(d){return d.qi===qi2&&d.col===ci;});
               if (!nd||!nd.name) return;
@@ -6462,7 +6472,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         extraRows.forEach(row => {
           if ((row.exDisabledQi||[]).includes(qi)) return;
           const rt = row.type||'없음';
-          if (rt==='부서장'||rt==='본부장') {
+          const hasDept = (row.cols||[]).includes('dept');
+          if (rt==='부서장'||rt==='본부장'||(hasDept&&rt==='팀장')) {
             (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(d=>{ if(!countedNames.has(d.name)){countedNames.add(d.name);t+=50000;} });
             const hn=(row.headNames||[])[qi];
             if(hn&&!countedNames.has(hn)){countedNames.add(hn);t+=50000;}
@@ -6512,8 +6523,21 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         extraRows.forEach(row => {
           if ((row.exDisabledQi||[]).includes(qi)) return;
           if ((row.type||'없음')==='팀장') {
+            // 이름칸
             (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(()=>{ t+=120000; });
-            const hn=(row.headNames||[])[qi]; if(hn) t+=120000;
+            // team 칸의 headNames (팀장)
+            const hasDept = (row.cols||[]).includes('dept');
+            const hn=(row.headNames||[])[qi];
+            if (hn) {
+              if (hasDept) {
+                // 부서+부서장+팀+이름+날짜 조합: deptjang headNames → 재직월수×4만
+                const emp = employees.find(e=>e.name===hn);
+                const m = emp ? getEmpMonthsInQuarter(emp,year,qs,qe) : 3;
+                t += m * 40000;
+              } else {
+                t += 120000;
+              }
+            }
           }
         });
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
