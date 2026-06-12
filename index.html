@@ -6782,14 +6782,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         return (b+s)||null;
       });
       const mergedTotal = mergedAmts.reduce((s,v)=>s+(v||0),0);
-      // extraRows 총 행 수 계산
-      const extraRowsTotalTrs = ((deptFundSettings[dept]||{}).extraRows||[]).reduce((sum, row) => {
-        const cols = row.cols||['name','date'];
-        const rt = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>cols.includes(k));
-        return sum + rt.length;
-      }, 0);
       // noteRowspan: isSWStyle 계산 이후에 확정
-      const noteRowspan = 1 + (deptHead?1:0) + (isSWStyle ? (swSubDept ? 1 + swSubPair*2 : 1 + Math.max(2,maxChunks)) : 1 + Math.max(2, maxChunks)) + (hasLeavers?1:0) + extraRowsTotalTrs;
+      const extraRowsTotalTrsForNote = ((deptFundSettings[dept]||{}).extraRows||[]).reduce((sum,row)=>{const cols=row.cols||['name','date'];return sum+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>cols.includes(k)).length;},0);
+      const noteRowspan = 1 + (deptHead?1:0) + (isSWStyle ? (swSubDept ? 1 + swSubPair*2 : 1 + Math.max(2,maxChunks)) : 1 + Math.max(2, maxChunks)) + (hasLeavers?1:0) + extraRowsTotalTrsForNote;
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
       const swNoteRowspan = isSWStyle && swSubDept
         ? 1 + 1 + 1 + swSubPair*2
@@ -9059,7 +9054,7 @@ if (!state.kpis.length) {
           <div id="my-welfare-content"></div>
         </div>
       </div>
-    </div> 
+    </div>
   </div>
 </body>
 </html>
