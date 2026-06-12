@@ -6337,11 +6337,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const menuBtn = '<button onclick="openDeptMenu(decodeURIComponent(\x27'+deptEnc+'\x27),event)" data-d="'+dept+'" data-extra-ri="'+ri+'" style="'+btnStyle+'">☰</button>';
 
           rowTypes.forEach(function(colType, typeIdx) {
+            const hasDeptCol = (row.cols||[]).includes('dept');
             const hasHeadLink = (row.headNames||[]).some(function(n){return n;});
-            // 직책자 연결된 행: 비고 셀 없음 (팀장 행 비고 셀이 커버)
-            // 연결 안 된 행: 자체 비고 셀 출력
-            const isFirst = !noteRendered && !hasHeadLink;
-            const noteTd = (!hasHeadLink && typeIdx===0)
+            // dept 포함 조합 또는 직책자 연결: 비고 셀 없음 (상위 noteRowspan이 커버)
+            const shouldMerge = hasDeptCol || hasHeadLink;
+            const isFirst = !noteRendered && !shouldMerge;
+            const noteTd = (!shouldMerge && typeIdx===0)
               ? '<td rowspan="'+rowTypes.length+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>'
               : '';
             if (isFirst) noteRendered = true;
@@ -6607,7 +6608,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             return Array.from({length:4}, (_,i) => chunk[i]||'');
           })
         );
-        
+        window._dbgPath = window._dbgPath||{}; window._dbgPath[dept]='A:nodepthead pairT='+pairT+' extraTrs=0 rowspan='+(1+pairT*2);
         const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
@@ -6642,8 +6643,23 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       // 하위팀 있는 부서 → 이름행 미표시 (단, 재무회계부 서식 지정 부서 제외)
       if (useSimpleFormat) {
+        const sfExtraTrs = (() => {
+          const own = (deptFundSettings[dept]||{}).extraRows||[];
+          const guest = [];
+          Object.keys(deptFundSettings).forEach(od => {
+            if (od===dept) return;
+            ((deptFundSettings[od]||{}).extraRows||[]).forEach(row => {
+              if ((row.orgNames||[]).some(n=>n===dept)||(row.parentOrg||[]).some(p=>p===dept)) guest.push(row);
+            });
+          });
+          return [...own,...guest].reduce((s,r)=>{
+            if (!(r.headNames||[]).some(n=>n)) return s;
+            const c=r.cols||['name','date'];
+            return s+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
+          },0);
+        })();
         const sfDeptCells = [0,1,2,3].map(qi2 => {
-          if (disabledQi.includes(qi2)) return `<td colspan="4" rowspan="2" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`;
+          if (disabledQi.includes(qi2)) return `<td colspan="4" rowspan="${2+sfExtraTrs}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`;
           const amt = (isTypeBuseojang||isTypeBonbu)&&bAmts[qi2]!==null ? fmtMoney(bAmts[qi2]) : '-';
           const menuBtn = qi2===0 ? `<button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>` : '';
           const dblclick = qi2===0 ? `ondblclick='openDeptNameModal("${dept}",0)'` : `ondblclick='openDeptNameModal("${dept}",${qi2})'`;
@@ -6662,8 +6678,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           <tr style="background:${BG_DEPT_HEADER}">
             ${sfDeptCells}
             <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
-            
-            <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
+            window._dbgPath = window._dbgPath||{}; window._dbgPath[dept]='B:simpleformat sfExtraTrs='+sfExtraTrs+' rowspan='+(2+sfExtraTrs);
+            <td rowspan="${2+sfExtraTrs}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
           </tr>
           <tr>
             ${sfHeadCells}
@@ -6809,15 +6825,27 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       const mergedTotal = mergedAmts.reduce((s,v)=>s+(v||0),0);
       // noteRowspan: isSWStyle 계산 이후에 확정
-      // noteRowspan 계산 (설계 기준)
-      // 부서장 비고: 초록줄 + 부서장칸 = 2
-      // 팀장 비고(예외): 초록줄 + 부서장칸 + 하늘줄 + 이름칸 + 날짜칸 = 2 + 1 + pairCount*2
-      const noteRowspan = isTypeTeamjang
-        ? 2 + 1 + pairCount*2
-        : 2;
+      const extraRowsTotalTrsForNote = (() => {
+        const ownRows = (deptFundSettings[dept]||{}).extraRows||[];
+        const guestRows = [];
+        Object.keys(deptFundSettings).forEach(od => {
+          if (od===dept) return;
+          ((deptFundSettings[od]||{}).extraRows||[]).forEach(row => {
+            if ((row.orgNames||[]).some(n=>n===dept)||(row.parentOrg||[]).some(p=>p===dept)) guestRows.push(row);
+          });
+        });
+        return [...ownRows,...guestRows].reduce((s,row)=>{
+          const c=row.cols||['name','date'];
+          // dept 또는 team 칸이 포함된 조합만 비고 합치기
+          const shouldMerge = c.includes('dept') || (row.headNames||[]).some(n=>n);
+          if (!shouldMerge) return s;
+          return s+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
+        },0);
+      })();
+      const noteRowspan = 1 + (deptHead?1:0) + (isSWStyle ? (swSubDept ? 1 + swSubPair*2 : 1 + Math.max(2,maxChunks)) : 1 + Math.max(2, maxChunks)) + (hasLeavers?1:0) + extraRowsTotalTrsForNote;
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
       const swNoteRowspan = isSWStyle && swSubDept
-        ? 1 + 1 + 1 + swSubPair*2
+        ? 1 + 1 + 1 + swSubPair*2 + extraRowsTotalTrsForNote
         : noteRowspan;
       const swNoteCellHtml = isSWStyle && swSubDept
         ? `<td rowspan="${swNoteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`
@@ -6828,13 +6856,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <tbody>
         <tr style="background:${BG_DEPT}">
           ${[0,1,2,3].map(qi2 => disabledQi.includes(qi2)
-            ? `<td colspan="4" rowspan="${noteRowspan}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`
+            ? `<td colspan="4" rowspan="${(deptHead?2:1) + 1 + pairCount*2}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`
             : (qi2===0
               ? `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[0]!==null?fmtMoney(mergedAmts[0]):'-'}</td>`
               : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",${qi2})'>${getDeptDisplayName(dept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="${qi2}" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[qi2]!==null?fmtMoney(mergedAmts[qi2]):'-'}</td>`)
           ).join('')}
           <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
-          ${swNoteCellHtml}
+          ${(()=>{window._dbgPath=window._dbgPath||{};window._dbgPath[dept]='D:main buseojang noteRowspan='+noteRowspan+' isTeamjang='+isTypeTeamjang;return '';})()}${isTypeTeamjang ? '' : swNoteCellHtml}
         </tr>
         <tr>
           ${[0,1,2,3].map(qi2 => {
@@ -6876,6 +6904,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               : `<td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td><td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="${qi2}" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[qi2]!==null?fmtMoney(tAmts[qi2]):'-'}${((extraList||[]).some(e=>e.qi==qi2&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`)
           ).join('')}
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
+          ${(()=>{window._dbgPath=window._dbgPath||{};window._dbgPath[dept]='E:main teamjang rowspan='+(1+pairCount*2+extraRowsTotalTrsForNote);return '';})()}<td rowspan="${1 + pairCount*2 + extraRowsTotalTrsForNote}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
         </tr>
 ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
@@ -7512,6 +7541,11 @@ function openAddRowModal(dept) {
   modal.innerHTML = `
     <div style="background:#fff;border-radius:12px;padding:20px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2)" ondblclick="event.stopPropagation()">
       <div style="font-size:14px;font-weight:700;margin-bottom:12px">줄 추가 — ${dept}</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:6px">빠른 선택</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+        <button type="button" onclick="['ck-dept','ck-deptjang','ck-team','ck-name','ck-date'].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=true;});['ck-bonbu','ck-bonbujang'].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=false;})" style="padding:4px 8px;border-radius:6px;border:1px solid #3b82f6;color:#1d4ed8;background:#eff6ff;cursor:pointer;font-size:11px">부서+부서장+팀+이름+날짜</button>
+        <button type="button" onclick="['ck-team','ck-name','ck-date'].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=true;});['ck-bonbu','ck-bonbujang','ck-dept','ck-deptjang'].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=false;})" style="padding:4px 8px;border-radius:6px;border:1px solid #94a3b8;color:#475569;background:#f8fafc;cursor:pointer;font-size:11px">팀+이름+날짜</button>
+      </div>
       <div style="font-size:12px;color:#64748b;margin-bottom:8px">포함할 칸을 선택하세요</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">
         ${checks.map(c=>`
