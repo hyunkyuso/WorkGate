@@ -6269,6 +6269,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const btnStyle = 'float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4';
         const result = [];
         const totalExtraTrs = rows.reduce(function(sum, {row}) {
+          if (!(row.headNames||[]).some(function(n){return n;})) return sum;
           const cols = row.cols||['name','date'];
           const rt = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return cols.includes(k);});
           return sum + rt.length;
@@ -6333,7 +6334,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const menuBtn = '<button onclick="openDeptMenu(decodeURIComponent(\x27'+deptEnc+'\x27),event)" data-d="'+dept+'" data-extra-ri="'+ri+'" style="'+btnStyle+'">☰</button>';
 
           rowTypes.forEach(function(colType, typeIdx) {
-            const noteTd = '';  // 비고 셀은 noteCellHtml이 커버
+            const hasHeadLink = (row.headNames||[]).some(function(n){return n;});
+            const isFirst = !noteRendered && !globalNoteRendered && hasHeadLink;
+            const noteTd = hasHeadLink
+              ? (isFirst ? '<td rowspan="'+totalExtraTrs+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>' : '')
+              : (typeIdx===0 ? '<td rowspan="'+rowTypes.length+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>' : '');
+            if (isFirst) { noteRendered = true; globalNoteRendered = true; }
 
             if (colType==='bonbu'||colType==='dept') {
               const bg = BG_DEPT_HEADER;
@@ -6630,7 +6636,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       // 하위팀 있는 부서 → 이름행 미표시 (단, 재무회계부 서식 지정 부서 제외)
       if (useSimpleFormat) {
-        const sfExtraTrs = ((deptFundSettings[dept]||{}).extraRows||[]).reduce((s,r)=>{const c=r.cols||['name','date'];return s+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;},0);
+        const sfExtraTrs = ((deptFundSettings[dept]||{}).extraRows||[]).reduce((s,r)=>{
+          if (!(r.headNames||[]).some(n=>n)) return s;
+          const c=r.cols||['name','date'];
+          return s+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
+        },0);
         const sfDeptCells = [0,1,2,3].map(qi2 => {
           if (disabledQi.includes(qi2)) return `<td colspan="4" rowspan="${2+sfExtraTrs}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`;
           const amt = (isTypeBuseojang||isTypeBonbu)&&bAmts[qi2]!==null ? fmtMoney(bAmts[qi2]) : '-';
@@ -6807,6 +6817,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           });
         });
         return [...ownRows,...guestRows].reduce((s,row)=>{
+          // 직책자 연결된 행만 비고 합치기
+          const hasHeadLink = (row.headNames||[]).some(n=>n);
+          if (!hasHeadLink) return s;
           const c=row.cols||['name','date'];
           return s+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
         },0);
