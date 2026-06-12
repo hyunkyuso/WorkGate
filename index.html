@@ -6052,8 +6052,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const tS2 = 'border:'+B2+';padding:4px 6px;text-align:center;font-size:11px;height:28px;position:relative;';
       const nameNsE2 = 'border:'+B2+';padding:4px 6px;text-align:center;font-size:11px;height:28px;';
       const bonbuEnc = encodeURIComponent(bonbu);
-      html += '<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed"><colgroup>' + colgroup.replace(/<colgroup>|<\/colgroup>/g,'') + '</colgroup><tbody>';
       bonbuExtraRowsSetting.forEach(function(row, ri) {
+        html += '<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed"><colgroup>' + colgroup.replace(/<colgroup>|<\/colgroup>/g,'') + '</colgroup><tbody>';
         const cols = row.cols||['team','name','date'];
         const rowTypes = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return cols.includes(k);});
         const rowTypeLabel = row.type||'없음';
@@ -6133,8 +6133,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';return[0,1,2,3].map(function(ci){const dd=ddList.find(function(d){return d.qi===qi2&&d.col===ci;});const br=ci===3?'border-right:1px solid #90a4ae;':'';const cc=dd&&dd.date?'<span style="color:'+(dd.type==='join'||dd.type==='from'?'#3b82f6':'#ef4444')+';font-size:10px">'+dd.date+' '+(typeMap2[dd.type]||dd.type)+'</span>':'';return'<td style="'+nameNsE2+br+'cursor:pointer" data-dept="'+bonbu+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraDateCell(this)">'+cc+'</td>';}).join('');}).join('')+(hasName2?'':'<td style="'+nameNsE2+'"></td>')+noteTd2+'</tr>';
           }
         });
+        html += '</tbody></table><div style="height:24px"></div>';
       });
-      html += '</tbody></table><div style="height:24px"></div>';
     }
 
     // ── 부서별 테이블 ──
