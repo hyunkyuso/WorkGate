@@ -6222,8 +6222,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const qNames = quarters.map((_,qi) => getQNames(qi));
       // getDateCell에서 참조하기 위해 전역 저장
       if (!window._lastQNames) window._lastQNames = {};
+  window._allDeptNames = new Set();
       if (!window._lastQNames[dept]) window._lastQNames[dept] = {};
       qNames.forEach((names, qi) => { window._lastQNames[dept][qi] = names; });
+      if (!window._allDeptNames) window._allDeptNames = new Set();
+      window._allDeptNames.add(dept);
+      // extraRows 조직명도 수집
+      ((deptFundSettings[dept]||{}).extraRows||[]).forEach(row => {
+        (row.orgNames||[]).forEach(n => { if(n) window._allDeptNames.add(n); });
+      });
       // 부서장/팀원 금액 계산 (이름행 인원수 기준)
 
       // ── 사용안함 처리 ──
@@ -7451,7 +7458,7 @@ function openParentOrgModal(dept, ri) {
   const curParent = row.parentOrg || [null,null,null,null];
 
   // 선택 가능한 조직 목록 (본부 및 부서 전체)
-  const allDepts = Object.keys(deptFundSettings).filter(d => d !== dept);
+  const allDepts = [...(window._allDeptNames||new Set())].filter(d => d !== dept).sort();
 
   const modal = document.createElement('div');
   modal.id = 'parent-org-modal';
