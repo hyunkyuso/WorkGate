@@ -6536,6 +6536,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if ((isTypeBuseojang||isTypeBonbu) && !isTypeTeamjang) window._deptBuseojangCalcs[dept] = calcBAmts;
       // extra row 부서장 타입 재계산 등록
       if (!window._extraBuseojangCalcs) window._extraBuseojangCalcs = {};
+      if (!window._dbgExtraRows) window._dbgExtraRows = [];
+      ((deptFundSettings[dept]||{}).extraRows||[]).forEach(function(r2,i2){window._dbgExtraRows.push({dept,ri:i2,type:r2.type,orgNames:r2.orgNames,teamOrgNames:r2.teamOrgNames,name:r2.name,nameData:r2.nameData});});
       ((deptFundSettings[dept]||{}).extraRows||[]).forEach(function(row, ri) {
         if ((row.type||'없음')!=='부서장' && (row.type||'없음')!=='본부장') return;
         const key = dept+'-'+ri;
