@@ -6383,8 +6383,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                 if (exDisabledQi.includes(qi2)) return disabledCellOrg(qi2);
                 const btn = qi2===0 ? menuBtn : '';
                 const deptAmt = (isBuseojang||isTeamjang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';
+                const deptAmtAttr = isBuseojang&&qi2===0?' data-extra-buseojang-total="'+sourceDept+'-'+ri+'"':'';
+                const deptQAttr = isBuseojang?' data-extra-buseojang-qi="'+sourceDept+'-'+ri+'-'+qi2+'"':'';
                 return '<td colspan="3" style="'+tS+'font-weight:600;background:'+bg+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+btn+(orgNames[qi2]||'')+'</td>'+
-                  '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+deptAmt+'</td>';
+                  '<td'+deptQAttr+' style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+deptAmt+'</td>';
               }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">계</td>'+noteTd+'</tr>');
             } else if (colType==='bonbujang'||colType==='deptjang') {
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
@@ -6399,9 +6401,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
                 if (exDisabledQi.includes(qi2)) return disabledCellTeam(qi2);
                 const teamAmt = (isTeamjang||isBuseojang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';
+                const teamQAttr = isBuseojang?' data-extra-buseojang-qi="'+sourceDept+'-'+ri+'-'+qi2+'"':'';
                 const btn = qi2===0 ? menuBtn : '';
                 return '<td colspan="3" style="'+tS+'font-weight:600;background:'+bg+';cursor:pointer" ondblclick="openExtraTeamOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+btn+(teamOrgNames[qi2]||'')+'</td>'+
-                  '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+teamAmt+'</td>';
+                  '<td'+teamQAttr+' style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+teamAmt+'</td>';
               }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">계</td>'+noteTd+'</tr>');
             } else if (colType==='name') {
               const hasOrgAbove = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
@@ -6417,7 +6420,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                   const disp = nd&&nd.name ? nd.name+(nd.title?' <span style="color:#3b82f6;font-weight:500">('+nd.title+')</span>':'')+(nd.acting?' <span style="color:#3b82f6;font-size:10px">('+nd.acting+')</span>':'') : '';
                   return '<td style="'+nameNsE+br+'cursor:pointer" data-dept="'+dept+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraNameCell(this)">'+disp+'</td>';
                 }).join('');
-              }).join('')+'<td rowspan="'+totalRowspan+'" style="'+nameNsE+'text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd+'</tr>');
+              }).join('')+'<td data-extra-buseojang-rowtotal="'+sourceDept+'-'+ri+'" rowspan="'+totalRowspan+'" style="'+nameNsE+'text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd+'</tr>');
             } else if (colType==='date') {
               const hasOrgAbove = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
               const allDisabled = [0,1,2,3].every(function(qi2){return exDisabledQi.includes(qi2);});
@@ -6531,6 +6534,40 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         return t || null;
       });
       if ((isTypeBuseojang||isTypeBonbu) && !isTypeTeamjang) window._deptBuseojangCalcs[dept] = calcBAmts;
+      // extra row 부서장 타입 재계산 등록
+      if (!window._extraBuseojangCalcs) window._extraBuseojangCalcs = {};
+      ((deptFundSettings[dept]||{}).extraRows||[]).forEach(function(row, ri) {
+        if ((row.type||'없음')!=='부서장' && (row.type||'없음')!=='본부장') return;
+        const key = dept+'-'+ri;
+        const rowOrgNames = (row.orgNames||[row.name||'',row.name||'',row.name||'',row.name||'']);
+        const rowTeamOrgNames = row.teamOrgNames||['','','',''];
+        window._extraBuseojangCalcs[key] = function() {
+          return quarters.map(function(qArr, qi2) {
+            var qs=qArr[0], qe=qArr[1];
+            if ((row.disabledQi||[]).includes(qi2)) return null;
+            var t = 0;
+            var countedNames = new Set();
+            // nameData 기반
+            (row.nameData||[]).filter(function(d){return d.qi===qi2&&d.name&&!d.hidden;}).forEach(function(d){
+              if (countedNames.has(d.name)) return;
+              countedNames.add(d.name); t+=50000;
+            });
+            // orgNames/teamOrgNames에 해당하는 팀의 _lastQNames 포함
+            var allOrgs = rowOrgNames.concat(rowTeamOrgNames).filter(function(n){return n;})
+              .filter(function(n,i,a){return a.indexOf(n)===i;});
+            allOrgs.forEach(function(orgName) {
+              var orgDq = (deptFundSettings[orgName]||{}).disabledQi||[];
+              if (orgDq.includes(qi2)) return;
+              var qn = (window._lastQNames&&window._lastQNames[orgName]&&window._lastQNames[orgName][qi2])||[];
+              qn.forEach(function(obj) {
+                if (!obj||!obj.name||countedNames.has(obj.name)) return;
+                countedNames.add(obj.name); t+=50000;
+              });
+            });
+            return t||null;
+          });
+        };
+      });
       const bTotal = 0;
 
       // tAmts: _lastQNames 기반으로 재계산 (렌더링 후 업데이트)
@@ -7030,6 +7067,23 @@ ${nameRows.map((rowByQ, rowIdx) => `
       if (teamjangTotalCell) teamjangTotalCell.textContent = total ? total.toLocaleString() : '';
     });
     window._deptTeamjangCalcs = {};
+  }
+
+  // extra row 부서장 타입 금액 재계산
+  if (window._extraBuseojangCalcs) {
+    Object.entries(window._extraBuseojangCalcs).forEach(([key, calcFn]) => {
+      const amts = calcFn();
+      const total = amts.reduce((s,v)=>s+(v||0),0);
+      // 분기별 셀 업데이트
+      amts.forEach((amt, qi2) => {
+        const cell = container.querySelector(`td[data-extra-buseojang-qi="${key}-${qi2}"]`);
+        if (cell) cell.textContent = amt!==null ? amt.toLocaleString() : '-';
+      });
+      // 합계 셀 업데이트
+      const totalCell = container.querySelector(`td[data-extra-buseojang-rowtotal="${key}"]`);
+      if (totalCell) totalCell.textContent = total ? total.toLocaleString() : '-';
+    });
+    window._extraBuseojangCalcs = {};
   }
 }
 
@@ -9175,7 +9229,7 @@ if (!state.kpis.length) {
         </div>
       </div>
     </div>
-  </div> 
+  </div>
 </body>
 </html>
  
