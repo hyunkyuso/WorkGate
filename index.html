@@ -6342,7 +6342,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                 const hTitle = (row.headTitles||[])[qi2];
                 const hActing = (row.headActing||[])[qi2];
                 const hDisp = hNames[qi2]?(hNames[qi2]+(hTitle?' <span style="color:#3b82f6;font-weight:500">('+hTitle+')</span>':'')+(hActing?' <span style="color:#3b82f6;font-size:10px">('+hActing+')</span>':'')):'';
-                return '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+hDisp+'</td>';
+                return '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+hDisp+'</td>';
               }).join('')+'<td style="'+tS+'text-align:right;font-weight:700">-</td>'+noteTd+'</tr>');
             } else if (colType==='team') {
               const bg = BG_TEAM_AMT;
@@ -7444,6 +7444,19 @@ function openDeptMenu(dept, event) {
   document.body.appendChild(popup);
   const close = function(e) { if(!popup.contains(e.target)&&e.target!==btn){popup.remove();document.removeEventListener('click',close);}};
   setTimeout(function(){document.addEventListener('click',close);},10);
+}
+
+function openExtraHeadModal(dept, ri, qi) {
+  const rows = (deptFundSettings[dept]||{}).extraRows||[];
+  const row = rows[ri];
+  if (!row) return;
+  if (!row.headNames) row.headNames = ['','','',''];
+  const curName = row.headNames[qi]||'';
+  const qLabel = ['1~3월','4~6월','7~9월','10~12월'][qi];
+  const name = prompt(`부서장/본부장 이름 (${qLabel})`, curName);
+  if (name === null) return;
+  row.headNames[qi] = name.trim();
+  saveDeptFundSettings(); setTimeout(_renderDeptFund, 50);
 }
 
 function openAddRowModal(dept) {
