@@ -6096,12 +6096,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           if(isFirst2) noteRendered2=true;
           if(colType==='bonbu'||colType==='dept'){
             const bg2=BG_DEPT_HEADER;
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellOrg2(qi2);const amt=(isBuseojang||isTeamjang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(orgNames[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+BG_DEPT_HEADER+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellOrg2(qi2);const amt=(isBuseojang||isTeamjang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+BG_DEPT_HEADER+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='bonbujang'||colType==='deptjang'){
             html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';const hT2=(row.headTitles||[])[qi2];const hA2=(row.headActing||[])[qi2];const hD2=hNames2[qi2]?(hNames2[qi2]+(hT2?' <span style="color:#3b82f6;font-weight:500">('+hT2+')</span>':'')+(hA2?' <span style="color:#3b82f6;font-size:10px">('+hA2+')</span>':'')):'';return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadModal(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+hD2+'</td>';}).join('')+'<td style="'+tS2+'text-align:right;font-weight:700">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
           } else if(colType==='team'){
             const bg2=BG_TEAM_AMT;
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellTeam2(qi2);const amt=isTeamjang&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(orgNames[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellTeam2(qi2);const amt=isTeamjang&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='name'){
             const hasOrgAbove2 = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
             const totalRowspan2 = hasDate2 ? 2 : 1;
@@ -7447,16 +7447,61 @@ function openDeptMenu(dept, event) {
 }
 
 function openExtraHeadModal(dept, ri, qi) {
+  if (document.getElementById('head-name-modal')) return;
   const rows = (deptFundSettings[dept]||{}).extraRows||[];
   const row = rows[ri];
   if (!row) return;
   if (!row.headNames) row.headNames = ['','','',''];
   const curName = row.headNames[qi]||'';
+  const curTitle = (row.headTitles||[])[qi]||'';
+  const curActing = (row.headActing||[])[qi]||'';
+  const curMemo = (row.headMemos||[])[qi]||'';
   const qLabel = ['1~3월','4~6월','7~9월','10~12월'][qi];
-  const name = prompt(`부서장/본부장 이름 (${qLabel})`, curName);
-  if (name === null) return;
-  row.headNames[qi] = name.trim();
-  saveDeptFundSettings(); setTimeout(_renderDeptFund, 50);
+  const titleRoles = ['팀장','부서장','본부장'];
+  const actingRoles = ['팀장대행','부서장대행','본부장대행'];
+  const modal = document.createElement('div');
+  modal.id = 'head-name-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)" ondblclick="event.stopPropagation()">
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">부서장/본부장 이름 수정</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:12px">${qLabel}</div>
+    <input id="hn-name" value="${curName}" placeholder="이름 입력" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:10px;outline:none">
+    <div style="font-size:12px;color:#64748b;margin-bottom:6px">직책</div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+      ${titleRoles.map(r=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${curTitle===r?'background:#dbeafe;border-color:#3b82f6':''}"><input type="radio" name="hn-title" value="${r}" ${curTitle===r?'checked':''} style="accent-color:#3b82f6"> ${r}</label>`).join('')}
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${!curTitle?'background:#f1f5f9':''}"><input type="radio" name="hn-title" value="" ${!curTitle?'checked':''} style="accent-color:#3b82f6"> 없음</label>
+    </div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:6px">직책(대행)</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      ${actingRoles.map(r=>`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${curActing===r?'background:#dbeafe;border-color:#3b82f6':''}"><input type="radio" name="hn-acting" value="${r}" ${curActing===r?'checked':''} style="accent-color:#3b82f6"> ${r}</label>`).join('')}
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;${!curActing?'background:#f1f5f9':''}"><input type="radio" name="hn-acting" value="" ${!curActing?'checked':''} style="accent-color:#3b82f6"> 없음</label>
+    </div>
+    <input id="hn-memo" value="${curMemo}" placeholder="메모 (선택)" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:14px;outline:none">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="hn-cancel" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">취소</button>
+      <button id="hn-save" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">저장</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  modal.querySelector('#hn-cancel').addEventListener('click', () => modal.remove());
+  modal.querySelector('#hn-save').addEventListener('click', () => {
+    const name = document.getElementById('hn-name').value.trim();
+    const title = document.querySelector('input[name="hn-title"]:checked')?.value||'';
+    const acting = document.querySelector('input[name="hn-acting"]:checked')?.value||'';
+    const memo = document.getElementById('hn-memo').value.trim();
+    const r = deptFundSettings[dept].extraRows[ri];
+    if (!r.headNames) r.headNames = ['','','',''];
+    if (!r.headTitles) r.headTitles = ['','','',''];
+    if (!r.headActing) r.headActing = ['','','',''];
+    if (!r.headMemos) r.headMemos = ['','','',''];
+    r.headNames[qi] = name;
+    r.headTitles[qi] = title;
+    r.headActing[qi] = acting;
+    r.headMemos[qi] = memo;
+    saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund, 50);
+  });
+  setTimeout(() => document.getElementById('hn-name')?.focus(), 50);
 }
 
 function openAddRowModal(dept) {
