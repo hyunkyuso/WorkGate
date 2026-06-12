@@ -6823,26 +6823,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       const mergedTotal = mergedAmts.reduce((s,v)=>s+(v||0),0);
       // noteRowspan: isSWStyle 계산 이후에 확정
-      const extraRowsTotalTrsForNote = (() => {
-        const ownRows = (deptFundSettings[dept]||{}).extraRows||[];
-        const guestRows = [];
-        Object.keys(deptFundSettings).forEach(od => {
-          if (od===dept) return;
-          ((deptFundSettings[od]||{}).extraRows||[]).forEach(row => {
-            if ((row.orgNames||[]).some(n=>n===dept)||(row.parentOrg||[]).some(p=>p===dept)) guestRows.push(row);
-          });
-        });
-        return [...ownRows,...guestRows].reduce((s,row)=>{
-          const hasHeadLink = (row.headNames||[]).some(n=>n);
-          if (!hasHeadLink) return s;
-          const c=row.cols||['name','date'];
-          return s+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
-        },0);
-      })();
-      const noteRowspan = 1 + (deptHead?1:0) + (isSWStyle ? (swSubDept ? 1 + swSubPair*2 : 1 + Math.max(2,maxChunks)) : 1 + Math.max(2, maxChunks)) + (hasLeavers?1:0) + extraRowsTotalTrsForNote;
+      // noteRowspan 계산 (설계 기준)
+      // 부서장 비고: 초록줄 + 부서장칸 = 2
+      // 팀장 비고(예외): 초록줄 + 부서장칸 + 하늘줄 + 이름칸 + 날짜칸 = 2 + 1 + pairCount*2
+      const noteRowspan = isTypeTeamjang
+        ? 2 + 1 + pairCount*2
+        : 2;
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
       const swNoteRowspan = isSWStyle && swSubDept
-        ? 1 + 1 + 1 + swSubPair*2 + extraRowsTotalTrsForNote
+        ? 1 + 1 + 1 + swSubPair*2
         : noteRowspan;
       const swNoteCellHtml = isSWStyle && swSubDept
         ? `<td rowspan="${swNoteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`
@@ -6853,13 +6842,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         <tbody>
         <tr style="background:${BG_DEPT}">
           ${[0,1,2,3].map(qi2 => disabledQi.includes(qi2)
-            ? `<td colspan="4" rowspan="${(deptHead?2:1) + 1 + pairCount*2}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`
+            ? `<td colspan="4" rowspan="${noteRowspan}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`
             : (qi2===0
               ? `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[0]!==null?fmtMoney(mergedAmts[0]):'-'}</td>`
               : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",${qi2})'>${getDeptDisplayName(dept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="${qi2}" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[qi2]!==null?fmtMoney(mergedAmts[qi2]):'-'}</td>`)
           ).join('')}
           <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
-          ${(()=>{window._dbgPath=window._dbgPath||{};window._dbgPath[dept]='D:main buseojang noteRowspan='+noteRowspan+' isTeamjang='+isTypeTeamjang;return '';})()}${isTypeTeamjang ? '' : swNoteCellHtml}
+          ${swNoteCellHtml}
         </tr>
         <tr>
           ${[0,1,2,3].map(qi2 => {
@@ -6901,7 +6890,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               : `<td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td><td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="${qi2}" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[qi2]!==null?fmtMoney(tAmts[qi2]):'-'}${((extraList||[]).some(e=>e.qi==qi2&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`)
           ).join('')}
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
-          ${(()=>{window._dbgPath=window._dbgPath||{};window._dbgPath[dept]='E:main teamjang rowspan='+(1+pairCount*2+extraRowsTotalTrsForNote);return '';})()}<td rowspan="${1 + pairCount*2 + extraRowsTotalTrsForNote}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
         </tr>
 ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
