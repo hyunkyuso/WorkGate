@@ -6459,7 +6459,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t+=50000; });
         return t || null;
       });
-      if (isTypeBuseojang||isTypeBonbu) window._deptBuseojangCalcs[dept] = calcBAmts;
+      if ((isTypeBuseojang||isTypeBonbu) && !isTypeTeamjang) window._deptBuseojangCalcs[dept] = calcBAmts;
       const bTotal = 0;
 
       // tAmts: _lastQNames 기반으로 재계산 (렌더링 후 업데이트)
@@ -6923,11 +6923,14 @@ ${nameRows.map((rowByQ, rowIdx) => `
       const amts = calcFn();
       const total = amts.reduce((s,v)=>s+(v||0),0);
       [0,1,2,3].forEach(qi => {
-        const cell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="teamjang"]`);
+        // 팀장 셀 또는 부서장 셀(팀장 비고인 부서) 모두 업데이트
+        const cell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="teamjang"]`)
+          || container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
       });
-      // 합계 셀 업데이트 (팀장 행의 계 셀)
-      const teamCell = container.querySelector(`td[data-dept="${dept}"][data-qi="0"][data-type="teamjang"]`);
+      // 합계 셀
+      const teamCell = container.querySelector(`td[data-dept="${dept}"][data-qi="0"][data-type="teamjang"]`)
+        || container.querySelector(`td[data-dept="${dept}"][data-qi="0"][data-type="buseojang"]`);
       if (teamCell) {
         const row = teamCell.closest('tr');
         const lastTd = row?.querySelector('td:last-child');
