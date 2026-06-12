@@ -6251,14 +6251,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // ── extraRows 렌더링 ──
       const renderExtraRows = () => {
         const ownRows = (deptFundSettings[dept]||{}).extraRows || [];
-        // 다른 조직에서 이 dept를 parentOrg 또는 orgNames로 지정한 extraRows도 포함
+        // 다른 조직에서 이 dept를 parentOrg로 지정한 extraRows도 포함
         const guestRows = [];
         Object.keys(deptFundSettings).forEach(otherDept => {
           if (otherDept === dept) return;
           ((deptFundSettings[otherDept]||{}).extraRows||[]).forEach((row, ri) => {
-            const inParentOrg = row.parentOrg && row.parentOrg.some(p=>p===dept);
-            const inOrgNames = (row.orgNames||[]).some(n=>n===dept);
-            if (inParentOrg || inOrgNames) {
+            if (row.parentOrg && row.parentOrg.some(p=>p===dept)) {
               guestRows.push({row, ri, sourceDept: otherDept});
             }
           });
@@ -6271,7 +6269,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const btnStyle = 'float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4';
         const result = [];
         const totalExtraTrs = rows.reduce(function(sum, {row}) {
-          if (!(row.headNames||[]).some(function(n){return n;}) && !row.headName) return sum;
+          if (!(row.headNames||[]).some(function(n){return n;})) return sum;
           const cols = row.cols||['name','date'];
           const rt = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return cols.includes(k);});
           return sum + rt.length;
@@ -6338,12 +6336,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const menuBtn = '<button onclick="openDeptMenu(decodeURIComponent(\x27'+deptEnc+'\x27),event)" data-d="'+dept+'" data-extra-ri="'+ri+'" style="'+btnStyle+'">☰</button>';
 
           rowTypes.forEach(function(colType, typeIdx) {
-            const hasHeadLink = (row.headNames||[]).some(function(n){return n;}) || !!row.headName;
+            const hasHeadLink = (row.headNames||[]).some(function(n){return n;});
             // 직책자 연결된 행: 비고 셀 없음 (팀장 행 비고 셀이 커버)
             // 연결 안 된 행: 자체 비고 셀 출력
-            const isFirst = !noteRendered;
-            // 메인 비고 셀이 rowspan으로 모든 extra row를 커버하므로 자체 비고 출력 안 함
-            const noteTd = '';
+            const isFirst = !noteRendered && !hasHeadLink;
+            const noteTd = (!hasHeadLink && typeIdx===0)
+              ? '<td rowspan="'+rowTypes.length+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>'
+              : '';
             if (isFirst) noteRendered = true;
 
             if (colType==='bonbu'||colType==='dept') {
@@ -6405,10 +6404,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             }
           });
         });
-        const html2 = result.join('');
-        if(!window._dbgExtraHtml) window._dbgExtraHtml={};
-        if(html2) window._dbgExtraHtml[dept] = html2;
-        return html2;
+        return result.join('');
       };
 
       const deptIsNone = (setting.type === '' || setting.type === '없음');
@@ -6610,26 +6606,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             return Array.from({length:4}, (_,i) => chunk[i]||'');
           })
         );
-        const extraTrsForNoteCellT = (() => {
-          const ownR = (deptFundSettings[dept]||{}).extraRows||[];
-          const guestR = [];
-          Object.keys(deptFundSettings).forEach(od => {
-            if (od===dept) return;
-            ((deptFundSettings[od]||{}).extraRows||[]).forEach(row => {
-              if ((row.orgNames||[]).some(n=>n===dept)||(row.parentOrg||[]).some(p=>p===dept)) guestR.push(row);
-            });
-          });
-          return [...ownR,...guestR].reduce((s,row) => {
-            const c=row.cols||['name','date'];
-            const allDQ=(row.disabledQi||[]);
-            const allQD=[0,1,2,3].every(qi=>allDQ.includes(qi));
-            const ck=['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k));
-            let trs=ck.length;
-            if(ck.includes('date')&&allQD) trs-=1;
-            return s+trs;
-          }, 0);
-        })();
-        const noteCellT = `<td rowspan="${1 + pairT*2 + extraTrsForNoteCellT}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
+        const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
@@ -6673,13 +6650,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             });
           });
           return [...own,...guest].reduce((s,r)=>{
+            if (!(r.headNames||[]).some(n=>n)) return s;
             const c=r.cols||['name','date'];
-            const allDQ=(r.disabledQi||[]);
-            const allQD=[0,1,2,3].every(qi=>allDQ.includes(qi));
-            const ck=['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k));
-            let trs=ck.length;
-            if(ck.includes('date')&&allQD) trs-=1;
-            return s+trs;
+            return s+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
           },0);
         })();
         const sfDeptCells = [0,1,2,3].map(qi2 => {
@@ -6858,19 +6831,16 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           });
         });
         return [...ownRows,...guestRows].reduce((s,row)=>{
+          const hasHeadLink = (row.headNames||[]).some(n=>n);
+          if (!hasHeadLink) return s;
           const c=row.cols||['name','date'];
-          const allDisabledQi=(row.disabledQi||[]);
-          const allQDis=[0,1,2,3].every(qi=>allDisabledQi.includes(qi));
-          const colKeys=['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k));
-          let trs=colKeys.length;
-          if(colKeys.includes('date')&&allQDis) trs-=1;
-          return s+trs;
+          return s+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
         },0);
       })();
       const noteRowspan = 1 + (deptHead?1:0) + (isSWStyle ? (swSubDept ? 1 + swSubPair*2 : 1 + Math.max(2,maxChunks)) : 1 + Math.max(2, maxChunks)) + (hasLeavers?1:0) + extraRowsTotalTrsForNote;
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
       const swNoteRowspan = isSWStyle && swSubDept
-        ? 1 + 1 + 1 + swSubPair*2
+        ? 1 + 1 + 1 + swSubPair*2 + extraRowsTotalTrsForNote
         : noteRowspan;
       const swNoteCellHtml = isSWStyle && swSubDept
         ? `<td rowspan="${swNoteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`
