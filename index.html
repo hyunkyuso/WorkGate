@@ -6886,7 +6886,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               : `<td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td><td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="${qi2}" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[qi2]!==null?fmtMoney(tAmts[qi2]):'-'}${((extraList||[]).some(e=>e.qi==qi2&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`)
           ).join('')}
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
-          ${noteCellHtml}
+          <td rowspan="${1 + pairCount*2 + extraRowsTotalTrsForNote}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
         </tr>
 ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
