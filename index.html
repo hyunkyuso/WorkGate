@@ -6337,11 +6337,13 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
           rowTypes.forEach(function(colType, typeIdx) {
             const hasHeadLink = (row.headNames||[]).some(function(n){return n;});
-            const isFirst = !noteRendered && !globalNoteRendered && hasHeadLink;
-            const noteTd = hasHeadLink
-              ? (isFirst ? '<td rowspan="'+totalExtraTrs+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>' : '')
-              : (typeIdx===0 ? '<td rowspan="'+rowTypes.length+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>' : '');
-            if (isFirst) { noteRendered = true; globalNoteRendered = true; }
+            // 직책자 연결된 행: 비고 셀 없음 (팀장 행 비고 셀이 커버)
+            // 연결 안 된 행: 자체 비고 셀 출력
+            const isFirst = !noteRendered && !hasHeadLink;
+            const noteTd = (!hasHeadLink && typeIdx===0)
+              ? '<td rowspan="'+rowTypes.length+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>'
+              : '';
+            if (isFirst) noteRendered = true;
 
             if (colType==='bonbu'||colType==='dept') {
               const bg = BG_DEPT_HEADER;
