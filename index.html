@@ -6251,12 +6251,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // ── extraRows 렌더링 ──
       const renderExtraRows = () => {
         const ownRows = (deptFundSettings[dept]||{}).extraRows || [];
-        // 다른 조직에서 이 dept를 parentOrg로 지정한 extraRows도 포함
+        // 다른 조직에서 이 dept를 parentOrg 또는 orgNames로 지정한 extraRows도 포함
         const guestRows = [];
         Object.keys(deptFundSettings).forEach(otherDept => {
           if (otherDept === dept) return;
           ((deptFundSettings[otherDept]||{}).extraRows||[]).forEach((row, ri) => {
-            if (row.parentOrg && row.parentOrg.some(p=>p===dept)) {
+            const inParentOrg = row.parentOrg && row.parentOrg.some(p=>p===dept);
+            const inOrgNames = (row.orgNames||[]).some(n=>n===dept);
+            if (inParentOrg || inOrgNames) {
               guestRows.push({row, ri, sourceDept: otherDept});
             }
           });
@@ -6403,7 +6405,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             }
           });
         });
-        return result.join('');
+        const html2 = result.join('');
+        if(!window._dbgExtraHtml) window._dbgExtraHtml={};
+        if(html2) window._dbgExtraHtml[dept] = html2;
+        return html2;
       };
 
       const deptIsNone = (setting.type === '' || setting.type === '없음');
@@ -6539,7 +6544,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const tTotal = 0;
       // 팀 단위 조직 (부서장 없고 하위팀 없음) → 이름만 표시
       if (!deptHead && !hasSubTeams) {
-        if((deptFundSettings[dept]||{}).extraRows?.length) console.log('[PATH-A nodepthead]',dept, 'extraRows:', (deptFundSettings[dept]||{}).extraRows.length, 'noteCellT rowspan:', 1+pairT*2+extraTrsForNoteCellT);
         const nameNsT = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
         const nameNsTAmt = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;background:${BG_TEAM_AMT};`;
         // 팀단위 금액 계산
@@ -6659,7 +6663,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       // 하위팀 있는 부서 → 이름행 미표시 (단, 재무회계부 서식 지정 부서 제외)
       if (useSimpleFormat) {
-        if((deptFundSettings[dept]||{}).extraRows?.length) console.log('[PATH-B simpleformat]',dept,'sfExtraTrs will be computed');
         const sfExtraTrs = (() => {
           const own = (deptFundSettings[dept]||{}).extraRows||[];
           const guest = [];
@@ -6926,7 +6929,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               : `<td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td><td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="${qi2}" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[qi2]!==null?fmtMoney(tAmts[qi2]):'-'}${((extraList||[]).some(e=>e.qi==qi2&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`)
           ).join('')}
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
-          <td rowspan="${1 + pairCount*2 + extraRowsTotalTrsForNote}" data-dbg-rs="${1 + pairCount*2 + extraRowsTotalTrsForNote}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
+          <td rowspan="${1 + pairCount*2 + extraRowsTotalTrsForNote}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
         </tr>
 ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
