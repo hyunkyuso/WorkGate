@@ -6134,7 +6134,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           }
         });
       });
-      html += '</tbody></table><div style="height:12px"></div>';
+      html += '</tbody></table><div style="height:24px"></div>';
     }
 
     // ── 부서별 테이블 ──
@@ -6638,7 +6638,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             return Array.from({length:4}, (_,i) => chunk[i]||'');
           })
         );
-        const noteCellT = `<td rowspan="${1 + pairT*2 + 1}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
+        const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
@@ -6666,8 +6666,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           </tr>`}`;
           }).join('')}
           ${renderExtraRows()}
-        <tr><td colspan="18" style="height:20px;border-left:1px solid #b0bec5;border-right:1px solid #b0bec5;border-bottom:1px solid #b0bec5"></td></tr>
-          </tbody></table><div style='height:12px'></div>`;
+          </tbody></table><div style='height:24px'></div>`;
         return;
       }
 
@@ -6693,15 +6692,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           <tr style="background:${BG_DEPT_HEADER}">
             ${sfDeptCells}
             <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
-            <td rowspan="3" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
+            <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
           </tr>
           <tr>
             ${sfHeadCells}
             <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
           </tr>
           ${renderExtraRows()}
-        <tr><td colspan="18" style="height:20px;border-left:1px solid #b0bec5;border-right:1px solid #b0bec5;border-bottom:1px solid #b0bec5"></td></tr>
-          </tbody></table><div style='height:12px'></div>`;
+          </tbody></table><div style='height:24px'></div>`;
         return;
       }
 
@@ -6849,17 +6847,17 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const calcNoteRowspan = () => {
         // 파란줄(본부장): 2 → 별도 처리
         // 초록줄(부서장) 일반: 2
-        if (isTypeBuseojang && !isTypeTeamjang) return 2 + extraRowsTrsForNote + 1;
+        if (isTypeBuseojang && !isTypeTeamjang) return 2 + extraRowsTrsForNote;
         // 하늘줄(팀장) 단독(deptHead 없음): 1+pairCount*2
-        if (isTypeTeamjang && !deptHead && !hasSubTeams) return 1 + pairCount*2 + 1;
+        if (isTypeTeamjang && !deptHead && !hasSubTeams) return 1 + pairCount*2;
         // 예외1: 부서장 있고 팀 없음 → 초록+부서장+하늘+이름+날짜
-        if (deptHead && !hasSubTeams) return 2 + 1 + pairCount*2 + extraRowsTrsForNote + 1;
+        if (deptHead && !hasSubTeams) return 2 + 1 + pairCount*2 + extraRowsTrsForNote;
         // 예외2,3: 부서장 있고 하위팀 있음
         if (deptHead && hasSubTeams) {
           const subTeamList = deptNames.filter(d=>departments.some(dep=>dep.name===d&&dep.parent===(departments.find(dep2=>dep2.name===dept)||{}).id));
-          return 2 + subTeamList.length * (1 + pairCount*2) + extraRowsTrsForNote + 1;
+          return 2 + subTeamList.length * (1 + pairCount*2) + extraRowsTrsForNote;
         }
-        return 2 + extraRowsTrsForNote + 1;
+        return 2 + extraRowsTrsForNote;
       };
       const noteRowspan = calcNoteRowspan();
       const noteCellHtml = `<td rowspan="${noteRowspan}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
@@ -6942,8 +6940,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
         </tr>`}`).join('')}
         `}
         ${renderExtraRows()}
-        <tr><td colspan="18" style="height:20px;border-left:1px solid #b0bec5;border-right:1px solid #b0bec5;border-bottom:1px solid #b0bec5"></td></tr>
-        </tbody></table><div style='height:12px'></div>`;
+        </tbody></table><div style='height:24px'></div>`;
     });
   });
 
