@@ -6251,7 +6251,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const nameNsE = 'border:'+B+';padding:4px 6px;text-align:center;font-size:11px;height:28px;';
         const btnStyle = 'float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4';
         const result = [];
-
+        const totalExtraTrs = rows.reduce(function(sum, row) {
+          const cols = row.cols||['name','date'];
+          const rt = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return cols.includes(k);});
+          return sum + rt.length;
+        }, 0);
         let globalNoteRendered = false;
 
         rows.forEach(function(row, ri) {
@@ -6314,7 +6318,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           rowTypes.forEach(function(colType, typeIdx) {
             const isFirst = !noteRendered && !globalNoteRendered;
             const noteTd = isFirst
-              ? '<td rowspan="'+extraRowsTotalTrs+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>'
+              ? '<td rowspan="'+totalExtraTrs+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>'
               : '';
             if (isFirst) { noteRendered = true; globalNoteRendered = true; }
 
