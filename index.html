@@ -6256,7 +6256,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         Object.keys(deptFundSettings).forEach(otherDept => {
           if (otherDept === dept) return;
           ((deptFundSettings[otherDept]||{}).extraRows||[]).forEach((row, ri) => {
-            if (row.parentOrg && row.parentOrg.some(p=>p===dept)) {
+            if ((row.parentOrg && row.parentOrg.some(p=>p===dept)) ||
+                (row.orgNames && row.orgNames.some(n=>n===dept))) {
               guestRows.push({row, ri, sourceDept: otherDept});
             }
           });
@@ -6606,7 +6607,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             return Array.from({length:4}, (_,i) => chunk[i]||'');
           })
         );
-        window._dbgPath = window._dbgPath||{}; window._dbgPath[dept]='A:nodepthead pairT='+pairT+' extraTrs=0 rowspan='+(1+pairT*2);
+        
         const noteCellT = `<td rowspan="${1 + pairT*2}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>`;
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
@@ -6641,23 +6642,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       // 하위팀 있는 부서 → 이름행 미표시 (단, 재무회계부 서식 지정 부서 제외)
       if (useSimpleFormat) {
-        const sfExtraTrs = (() => {
-          const own = (deptFundSettings[dept]||{}).extraRows||[];
-          const guest = [];
-          Object.keys(deptFundSettings).forEach(od => {
-            if (od===dept) return;
-            ((deptFundSettings[od]||{}).extraRows||[]).forEach(row => {
-              if ((row.orgNames||[]).some(n=>n===dept)||(row.parentOrg||[]).some(p=>p===dept)) guest.push(row);
-            });
-          });
-          return [...own,...guest].reduce((s,r)=>{
-            if (!(r.headNames||[]).some(n=>n)) return s;
-            const c=r.cols||['name','date'];
-            return s+['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
-          },0);
-        })();
         const sfDeptCells = [0,1,2,3].map(qi2 => {
-          if (disabledQi.includes(qi2)) return `<td colspan="4" rowspan="${2+sfExtraTrs}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`;
+          if (disabledQi.includes(qi2)) return `<td colspan="4" rowspan="2" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`;
           const amt = (isTypeBuseojang||isTypeBonbu)&&bAmts[qi2]!==null ? fmtMoney(bAmts[qi2]) : '-';
           const menuBtn = qi2===0 ? `<button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>` : '';
           const dblclick = qi2===0 ? `ondblclick='openDeptNameModal("${dept}",0)'` : `ondblclick='openDeptNameModal("${dept}",${qi2})'`;
@@ -6676,8 +6662,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           <tr style="background:${BG_DEPT_HEADER}">
             ${sfDeptCells}
             <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
-            window._dbgPath = window._dbgPath||{}; window._dbgPath[dept]='B:simpleformat sfExtraTrs='+sfExtraTrs+' rowspan='+(2+sfExtraTrs);
-            <td rowspan="${2+sfExtraTrs}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
+            
+            <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
           </tr>
           <tr>
             ${sfHeadCells}
