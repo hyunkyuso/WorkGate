@@ -6301,7 +6301,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const rowAmts = quarters.map(function(qArr, qi2) {
             const qs = qArr[0], qe = qArr[1];
             if (rowTypeLabel==='없음' || exDisabledQi.includes(qi2)) return null;
-            if(!window._dbgRowAmts) window._dbgRowAmts=[];
             let t = 0;
             // headNames 포함 (dept 포함 조합)
             if (hasDeptCol) {
@@ -6316,9 +6315,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                 }
               }
             }
+            // nameData 기반 계산
+            const countedNames = new Set();
             [0,1,2,3].forEach(function(ci) {
               const nd = ndList.find(function(d){return d.qi===qi2&&d.col===ci;});
-              if (!nd||!nd.name) return;
+              if (!nd||!nd.name||countedNames.has(nd.name)) return;
+              countedNames.add(nd.name);
               const dd = ddList.find(function(d){return d.qi===qi2&&d.col===ci;});
               if (isTeamjang) {
                 let months = qe-qs+1;
@@ -6330,7 +6332,21 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                 if(active) t += 50000;
               }
             });
-            window._dbgRowAmts.push({dept,ri,qi2,isBuseojang,isTeamjang,hasDeptCol,ndListLen:ndList.length,t});
+            // 부서장 타입: orgNames/teamOrgNames에 해당하는 팀의 _lastQNames도 포함
+            if (isBuseojang) {
+              var allOrgNames = (orgNames||[]).concat(teamOrgNames||[]).filter(function(n){return n;});
+              var uniqueOrgs = allOrgNames.filter(function(n,i,a){return a.indexOf(n)===i;});
+              uniqueOrgs.forEach(function(orgName) {
+                var orgDq = (deptFundSettings[orgName]||{}).disabledQi||[];
+                if (orgDq.includes(qi2)) return;
+                var qn = (window._lastQNames&&window._lastQNames[orgName]&&window._lastQNames[orgName][qi2])||[];
+                qn.forEach(function(obj) {
+                  if (!obj||!obj.name||countedNames.has(obj.name)) return;
+                  countedNames.add(obj.name);
+                  t += 50000;
+                });
+              });
+            }
             return t||null;
           });
           const rowTotal = rowAmts.reduce(function(s,v){return s+(v||0);},0);
