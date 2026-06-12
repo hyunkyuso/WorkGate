@@ -6116,7 +6116,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';const hT2=(row.headTitles||[])[qi2];const hA2=(row.headActing||[])[qi2];const hD2=hNames2[qi2]?(hNames2[qi2]+(hT2?' <span style="color:#3b82f6;font-weight:500">('+hT2+')</span>':'')+(hA2?' <span style="color:#3b82f6;font-size:10px">('+hA2+')</span>':'')):'';return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadModal(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+hD2+'</td>';}).join('')+'<td style="'+tS2+'text-align:right;font-weight:700">'+(isTeamjang?'-':rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
           } else if(colType==='team'){
             const bg2=BG_TEAM_AMT;
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellTeam2(qi2);const amt=isTeamjang&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraTeamOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(teamOrgNames2[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellTeam2(qi2);const amt=(isTeamjang||isBuseojang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraTeamOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(teamOrgNames2[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='name'){
             const hasOrgAbove2 = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
             const totalRowspan2 = hasDate2 ? 2 : 1;
@@ -6364,7 +6364,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
                 if (exDisabledQi.includes(qi2)) return disabledCellOrg(qi2);
                 const btn = qi2===0 ? menuBtn : '';
-                const deptAmt = isBuseojang&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';
+                const deptAmt = (isBuseojang||isTeamjang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';
                 return '<td colspan="3" style="'+tS+'font-weight:600;background:'+bg+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+btn+(orgNames[qi2]||'')+'</td>'+
                   '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+deptAmt+'</td>';
               }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">계</td>'+noteTd+'</tr>');
@@ -6380,7 +6380,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               const bg = BG_TEAM_AMT;
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
                 if (exDisabledQi.includes(qi2)) return disabledCellTeam(qi2);
-                const teamAmt = isTeamjang&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';
+                const teamAmt = (isTeamjang||isBuseojang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';
                 const btn = qi2===0 ? menuBtn : '';
                 return '<td colspan="3" style="'+tS+'font-weight:600;background:'+bg+';cursor:pointer" ondblclick="openExtraTeamOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+btn+(teamOrgNames[qi2]||'')+'</td>'+
                   '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+teamAmt+'</td>';
