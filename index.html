@@ -5831,6 +5831,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
   const bonbuNames = [...new Set(employees.map(e => getBonbu(e)).filter(Boolean))];
   // departments sortOrder 기준 정렬
   bonbuNames.sort((a,b) => getDeptSortOrder(a) - getDeptSortOrder(b));
+  window._allDeptNames = new Set();
 
   // 본부별 부서 구성
   const bonbuMap = {};
@@ -6222,10 +6223,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const qNames = quarters.map((_,qi) => getQNames(qi));
       // getDateCell에서 참조하기 위해 전역 저장
       if (!window._lastQNames) window._lastQNames = {};
-  window._allDeptNames = new Set();
       if (!window._lastQNames[dept]) window._lastQNames[dept] = {};
       qNames.forEach((names, qi) => { window._lastQNames[dept][qi] = names; });
-      if (!window._allDeptNames) window._allDeptNames = new Set();
       window._allDeptNames.add(dept);
       // extraRows 조직명도 수집
       ((deptFundSettings[dept]||{}).extraRows||[]).forEach(row => {
