@@ -6467,9 +6467,16 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             countedNames.add(obj.name); t += 50000;
           });
         });
-        // extraRows headNames + nameData
+        // extraRows headNames + nameData (본부 extraRows 중 이 dept를 orgNames로 가진 것도 포함)
         const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
-        extraRows.forEach(row => {
+        const guestExtraRowsB = [];
+        Object.keys(deptFundSettings).forEach(od => {
+          if (od===dept) return;
+          ((deptFundSettings[od]||{}).extraRows||[]).forEach(row => {
+            if ((row.orgNames||[]).some(n=>n===dept)) guestExtraRowsB.push(row);
+          });
+        });
+        [...extraRows, ...guestExtraRowsB].forEach(row => {
           if ((row.exDisabledQi||[]).includes(qi)) return;
           const rt = row.type||'없음';
           const hasDept = (row.cols||[]).includes('dept');
@@ -6518,9 +6525,16 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             t += m * 40000;
           });
         });
-        // extraRows 팀장 type
+        // extraRows 팀장 type (본부 extraRows 중 이 dept를 orgNames로 가진 것도 포함)
         const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
-        extraRows.forEach(row => {
+        const guestExtraRows = [];
+        Object.keys(deptFundSettings).forEach(od => {
+          if (od===dept) return;
+          ((deptFundSettings[od]||{}).extraRows||[]).forEach(row => {
+            if ((row.orgNames||[]).some(n=>n===dept)) guestExtraRows.push(row);
+          });
+        });
+        [...extraRows, ...guestExtraRows].forEach(row => {
           if ((row.exDisabledQi||[]).includes(qi)) return;
           if ((row.type||'없음')==='팀장') {
             // 이름칸
@@ -6796,7 +6810,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       }
       // 부서칸 합산금액
       const mergedAmts = quarters.map(([qs,qe],qi)=>{
-        if (isTypeTeamjang && !isTypeBuseojang && !isTypeBonbu) return null; // 팀장: 녹색줄 -
+        if (isTypeTeamjang) return null; // 팀장 비고: 초록줄 금액 표기 안함
         if (isTypeBuseojang || isTypeBonbu) {
           // SW스타일 부서장: Firebase 직원 기준으로 직접 계산
           if (isSWStyle) {
