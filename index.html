@@ -6279,6 +6279,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         let globalNoteRendered = false;
 
         rows.forEach(function({row, ri, sourceDept}) {
+          // 각 extra row를 독립 테이블로 시작
+          result.push('<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">'+colgroup+'<tbody>');
           const cols = row.cols || ['team','name','date'];
           const rowTypes = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return cols.includes(k);});
           const rowTypeLabel = row.type||'없음';
@@ -6353,7 +6355,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           rowTypes.forEach(function(colType, typeIdx) {
             const isFirst = !noteRendered;
             const noteTd = typeIdx===0
-              ? '<td rowspan="'+(rowTypes.length+1)+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>'
+              ? '<td rowspan="'+rowTypes.length+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>'
               : '';
             if (isFirst) noteRendered = true;
 
@@ -6414,8 +6416,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               }).join('')+(hasName?'':'<td style="'+nameNsE+'"></td>')+noteTd+'</tr>');
             }
           });
-          // extra row 아래 여백
-          result.push('<tr><td colspan="18" style="height:20px;border-left:1px solid #b0bec5;border-right:1px solid #b0bec5;border-bottom:1px solid #b0bec5"></td></tr>');
+          // 각 extra row 독립 테이블 닫기 + 아래 여백
+          result.push('</tbody></table><div style="height:24px"></div>');
         });
         return result.join('');
       };
@@ -6667,8 +6669,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             ${[0,1,2,3].map(qi2=>disabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(dept,qi2,ri,ci,nameNsT,qNamesT[qi2],nameDataList)).join('')).join('')}
           </tr>`}`;
           }).join('')}
-          ${renderExtraRows()}
-          </tbody></table><div style='height:24px'></div>`;
+          </tbody></table><div style='height:24px'></div>
+          ${renderExtraRows()}`;
         return;
       }
 
@@ -6700,8 +6702,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             ${sfHeadCells}
             <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
           </tr>
-          ${renderExtraRows()}
-          </tbody></table><div style='height:24px'></div>`;
+          </tbody></table><div style='height:24px'></div>
+          ${renderExtraRows()}`;
         return;
       }
 
@@ -6840,11 +6842,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       const mergedTotal = mergedAmts.reduce((s,v)=>s+(v||0),0);
       // dept 포함 extraRows 행 수 (비고 합치기 대상)
-      const extraRowsTrsForNote = ((deptFundSettings[dept]||{}).extraRows||[]).reduce((s,row)=>{
-        const c = row.cols||['name','date'];
-        if (!c.includes('dept')) return s;
-        return s + ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
-      }, 0);
+      const extraRowsTrsForNote = 0; // extra row는 독립 테이블로 분리됨
       // noteRowspan 계산 (설계 기준)
       const calcNoteRowspan = () => {
         // 파란줄(본부장): 2 → 별도 처리
@@ -6941,8 +6939,8 @@ ${nameRows.map((rowByQ, rowIdx) => `
           ${[0,1,2,3].map(qi2=>disabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(dept,qi2,rowIdx,ci,nameNs,qNames[qi2],nameDataList)).join('')).join('')}
         </tr>`}`).join('')}
         `}
-        ${renderExtraRows()}
-        </tbody></table><div style='height:24px'></div>`;
+        </tbody></table><div style='height:24px'></div>
+        ${renderExtraRows()}`;
     });
   });
 
