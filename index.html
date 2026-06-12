@@ -6111,12 +6111,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           if(isFirst2) noteRendered2=true;
           if(colType==='bonbu'||colType==='dept'){
             const bg2=BG_DEPT_HEADER;
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellOrg2(qi2);const btn2=qi2===0?menuBtn2:'';const deptAmt=isBuseojang&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(orgNames[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+deptAmt+'</td>';}).join('')+'<td style="'+tS2+'background:'+BG_DEPT_HEADER+';text-align:center;font-weight:600">'+(isBuseojang?rowTotal?rowTotal.toLocaleString():'-':'계')+'</td>'+(isBuseojang?noteTd2:'')+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellOrg2(qi2);const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(orgNames[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">-</td>';}).join('')+'<td style="'+tS2+'background:'+BG_DEPT_HEADER+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='bonbujang'||colType==='deptjang'){
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';const hT2=(row.headTitles||[])[qi2];const hA2=(row.headActing||[])[qi2];const hD2=hNames2[qi2]?(hNames2[qi2]+(hT2?' <span style="color:#3b82f6;font-weight:500">('+hT2+')</span>':'')+(hA2?' <span style="color:#3b82f6;font-size:10px">('+hA2+')</span>':'')):'';return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadModal(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+hD2+'</td>';}).join('')+'<td style="'+tS2+'text-align:right;font-weight:700">-</td>'+(isBuseojang?'':noteTd2)+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';const hT2=(row.headTitles||[])[qi2];const hA2=(row.headActing||[])[qi2];const hD2=hNames2[qi2]?(hNames2[qi2]+(hT2?' <span style="color:#3b82f6;font-weight:500">('+hT2+')</span>':'')+(hA2?' <span style="color:#3b82f6;font-size:10px">('+hA2+')</span>':'')):'';return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadModal(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+hD2+'</td>';}).join('')+'<td style="'+tS2+'text-align:right;font-weight:700">'+(isTeamjang?'-':rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
           } else if(colType==='team'){
             const bg2=BG_TEAM_AMT;
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellTeam2(qi2);const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraTeamOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(teamOrgNames2[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">-</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+(isTeamjang?noteTd2:'')+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellTeam2(qi2);const amt='-';const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraTeamOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(teamOrgNames2[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='name'){
             const hasOrgAbove2 = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
             const totalRowspan2 = hasDate2 ? 2 : 1;
@@ -6362,26 +6362,26 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
                 if (exDisabledQi.includes(qi2)) return disabledCellOrg(qi2);
                 const btn = qi2===0 ? menuBtn : '';
-                const deptAmt = isBuseojang&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';
                 return '<td colspan="3" style="'+tS+'font-weight:600;background:'+bg+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+btn+(orgNames[qi2]||'')+'</td>'+
-                  '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+deptAmt+'</td>';
-              }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">'+(isBuseojang?rowTotal?rowTotal.toLocaleString():'-':'계')+'</td>'+(isBuseojang?noteTd:'')+'</tr>');
+                  '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">-</td>';
+              }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">계</td>'+noteTd+'</tr>');
             } else if (colType==='bonbujang'||colType==='deptjang') {
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
-                if (exDisabledQi.includes(qi2)) return '';
+                if (exDisabledQi.includes(qi2)) return ''; // 위 org 행에서 rowspan으로 커버
                 const hTitle = (row.headTitles||[])[qi2];
                 const hActing = (row.headActing||[])[qi2];
                 const hDisp = hNames[qi2]?(hNames[qi2]+(hTitle?' <span style="color:#3b82f6;font-weight:500">('+hTitle+')</span>':'')+(hActing?' <span style="color:#3b82f6;font-size:10px">('+hActing+')</span>':'')):'';
                 return '<td colspan="4" style="'+tS+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+hDisp+'</td>';
-              }).join('')+'<td style="'+tS+'text-align:right;font-weight:700">-</td>'+(isBuseojang?'':noteTd)+'</tr>');
+              }).join('')+'<td style="'+tS+'text-align:right;font-weight:700">-</td>'+noteTd+'</tr>');
             } else if (colType==='team') {
               const bg = BG_TEAM_AMT;
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
                 if (exDisabledQi.includes(qi2)) return disabledCellTeam(qi2);
+                const amt = '-';
                 const btn = qi2===0 ? menuBtn : '';
                 return '<td colspan="3" style="'+tS+'font-weight:600;background:'+bg+';cursor:pointer" ondblclick="openExtraTeamOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+btn+(teamOrgNames[qi2]||'')+'</td>'+
-                  '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">-</td>';
-              }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">계</td>'+(isTeamjang?noteTd:'')+'</tr>');
+                  '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';
+              }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">'+(isTeamjang&&rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd+'</tr>');
             } else if (colType==='name') {
               const hasOrgAbove = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
               const totalRowspan = hasDate ? 2 : 1;
@@ -6840,12 +6840,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // dept 포함 extraRows 행 수 (비고 합치기 대상)
       const extraRowsTrsForNote = ((deptFundSettings[dept]||{}).extraRows||[]).reduce((s,row)=>{
         const c = row.cols||['name','date'];
-        const allDQ = row.disabledQi||[];
-        const allQDis = [0,1,2,3].every(qi=>allDQ.includes(qi));
-        const colKeys = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k));
-        let trs = colKeys.length;
-        if (colKeys.includes('date') && allQDis) trs -= 1;
-        return s + trs;
+        if (!c.includes('dept')) return s;
+        return s + ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
       }, 0);
       // noteRowspan 계산 (설계 기준)
       const calcNoteRowspan = () => {
