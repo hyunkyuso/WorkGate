@@ -6301,6 +6301,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const rowAmts = quarters.map(function(qArr, qi2) {
             const qs = qArr[0], qe = qArr[1];
             if (rowTypeLabel==='없음' || exDisabledQi.includes(qi2)) return null;
+            if(!window._dbgRowAmts) window._dbgRowAmts=[];
             let t = 0;
             // headNames 포함 (dept 포함 조합)
             if (hasDeptCol) {
@@ -6329,6 +6330,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                 if(active) t += 50000;
               }
             });
+            window._dbgRowAmts.push({dept,ri,qi2,isBuseojang,isTeamjang,hasDeptCol,ndListLen:ndList.length,t});
             return t||null;
           });
           const rowTotal = rowAmts.reduce(function(s,v){return s+(v||0);},0);
