@@ -6069,6 +6069,16 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const qs=qArr[0],qe=qArr[1];
           if(rowTypeLabel==='없음'||exDisabledQi.includes(qi2)) return null;
           let t=0;
+          // headNames 포함 (dept 포함 조합, 팀장 비고)
+          const hasDeptCol2 = rowTypes.includes('dept');
+          if (hasDeptCol2 && isTeamjang) {
+            const hn = hNames2[qi2];
+            if (hn) {
+              const emp = employees.find(function(e){return e.name===hn;});
+              const m = emp ? getEmpMonthsInQuarter(emp,year,qs,qe) : 3;
+              t += m * 40000;
+            }
+          }
           [0,1,2,3].forEach(function(ci){
             const nd=ndList.find(function(d){return d.qi===qi2&&d.col===ci;});
             if(!nd||!nd.name) return;
