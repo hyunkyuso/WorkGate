@@ -6034,7 +6034,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             ? `<td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${bonbu}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getBonbuDisplayName(bonbu,0)}</td><td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="0" data-type="buseojang" data-bonbu-teamjang="${bonbuIsTeamjang?bonbu:''}" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}${((bonbuExtraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`
             : `<td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",${qi2})'>${getBonbuDisplayName(bonbu,qi2)}</td><td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="${qi2}" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==qi2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[qi2]===null?'-':fmtMoney(qAmts[qi2])}${((bonbuExtraList||[]).some(e=>e.qi==qi2&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`)
         ).join('')}
-        <td style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">계</td>
+        <td data-bonbu-total="${bonbu}" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">계</td>
         <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:#fff" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel}</td>
       </tr>
       <tr>
@@ -6042,7 +6042,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ? ''
           : `<td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${bonbu}","bonbuHead")'>${headName}</td>`
         ).join('')}
-        <td style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
+        <td data-bonbu-total-amt="${bonbu}" style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
       </tr>
       </tbody></table><div style="height:24px"></div>`;
     // 본부 extraRows
@@ -6956,9 +6956,8 @@ ${nameRows.map((rowByQ, rowIdx) => `
         const cell = container.querySelector(`td[data-dept="${bonbu}"][data-qi="${qi}"][data-type="buseojang"]`);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
       });
-      const bonbuRow = container.querySelector(`td[data-dept="${bonbu}"][data-qi="0"][data-type="buseojang"]`)?.closest('tr');
-      const nextRow = bonbuRow?.nextElementSibling;
-      if (nextRow) { const lastTd=nextRow.querySelector('td:last-child'); if(lastTd&&!lastTd.dataset.dept)lastTd.textContent=total?total.toLocaleString():'-'; }
+      const bonbuTotalAmtCell = container.querySelector(`td[data-bonbu-total-amt="${bonbu}"]`);
+      if (bonbuTotalAmtCell) bonbuTotalAmtCell.textContent = total ? total.toLocaleString() : '-';
     });
     window._bonbuTeamjangCalcs = {};
   }
@@ -6972,9 +6971,8 @@ ${nameRows.map((rowByQ, rowIdx) => `
         const cell = container.querySelector(`td[data-dept="${bonbu}"][data-qi="${qi}"][data-type="buseojang"]`);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
       });
-      const bonbuRow = container.querySelector(`td[data-dept="${bonbu}"][data-qi="0"][data-type="buseojang"]`)?.closest('tr');
-      const nextRow = bonbuRow?.nextElementSibling;
-      if (nextRow) { const lastTd=nextRow.querySelector('td:last-child'); if(lastTd&&!lastTd.dataset.dept)lastTd.textContent=total?total.toLocaleString():'-'; }
+      const bonbuTotalAmtCell2 = container.querySelector(`td[data-bonbu-total-amt="${bonbu}"]`);
+      if (bonbuTotalAmtCell2) bonbuTotalAmtCell2.textContent = total ? total.toLocaleString() : '-';
     });
     window._bonbuAmtCalcs = {};
   }
@@ -7008,14 +7006,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
           || container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
       });
-      // 합계 셀
-      const teamCell = container.querySelector(`td[data-dept="${dept}"][data-qi="0"][data-type="teamjang"]`)
-        || container.querySelector(`td[data-dept="${dept}"][data-qi="0"][data-type="buseojang"]`);
-      if (teamCell) {
-        const row = teamCell.closest('tr');
-        const lastTd = row?.querySelector('td:last-child');
-        if (lastTd && !lastTd.dataset.dept) lastTd.textContent = total ? total.toLocaleString() : '-';
-      }
+      // 팀장 합계는 이름행 rowspan 셀(renderDeptFund 내)에서 처리됨
     });
     window._deptTeamjangCalcs = {};
   }
