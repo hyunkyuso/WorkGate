@@ -6840,8 +6840,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // dept 포함 extraRows 행 수 (비고 합치기 대상)
       const extraRowsTrsForNote = ((deptFundSettings[dept]||{}).extraRows||[]).reduce((s,row)=>{
         const c = row.cols||['name','date'];
-        if (!c.includes('dept')) return s;
-        return s + ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
+        const allDQ = row.disabledQi||[];
+        const allQDis = [0,1,2,3].every(qi=>allDQ.includes(qi));
+        const colKeys = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k));
+        let trs = colKeys.length;
+        if (colKeys.includes('date') && allQDis) trs -= 1;
+        return s + trs;
       }, 0);
       // noteRowspan 계산 (설계 기준)
       const calcNoteRowspan = () => {
