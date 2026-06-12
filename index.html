@@ -6353,7 +6353,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           rowTypes.forEach(function(colType, typeIdx) {
             const isFirst = !noteRendered;
             const noteTd = typeIdx===0
-              ? '<td rowspan="'+rowTypes.length+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>'
+              ? '<td rowspan="'+(rowTypes.length+1)+'" style="'+tS+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>'
               : '';
             if (isFirst) noteRendered = true;
 
@@ -6414,6 +6414,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               }).join('')+(hasName?'':'<td style="'+nameNsE+'"></td>')+noteTd+'</tr>');
             }
           });
+          // extra row 아래 여백
+          result.push('<tr><td colspan="18" style="height:20px;border-left:1px solid #b0bec5;border-right:1px solid #b0bec5;border-bottom:1px solid #b0bec5"></td></tr>');
         });
         return result.join('');
       };
