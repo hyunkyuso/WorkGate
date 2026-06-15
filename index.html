@@ -6764,6 +6764,19 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           });
           const swSubDq = swSub ? ((deptFundSettings[swSub]||{}).disabledQi||[]) : [];
           if (!swSubDq.includes(qi)) return null;
+          // 미사용 분기: 부서 전체 직원(하위팀 포함) 직접 계산
+          const deptObj = departments.find(x=>x.name===dept);
+          const allSubEmps = deptObj ? employees.filter(e=>{
+            if (e.dept===dept) return true;
+            const eDeptObj = departments.find(x=>x.name===e.dept);
+            return eDeptObj && eDeptObj.parent===deptObj.id;
+          }) : employees.filter(e=>e.dept===dept);
+          let t2=0;
+          allSubEmps.forEach(e=>{
+            const m=getEmpMonthsInQuarter(e,year,qs,qe);
+            if(m>0) t2+=m*40000;
+          });
+          return t2||null;
         }
         let t = 0;
         const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
@@ -9353,7 +9366,7 @@ if (!state.kpis.length) {
   auth = firebase.auth();
   setupAuthListener();
 })();
-</script> 
+</script>
 </body>
 </html>
  
