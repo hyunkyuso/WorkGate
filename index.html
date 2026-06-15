@@ -7406,97 +7406,16 @@ ${nameRows.map((rowByQ, rowIdx) => `
   renderDeptFundSummary(container, summarySums);
 }
 
-function renderDeptFundSummary(container) {
+function renderDeptFundSummary(container, sums) {
   const existing = document.getElementById('deptfund-summary');
   if (existing) existing.remove();
 
   const qLabels = ['01~03월','04~06월','07~09월','10~12월'];
   const types = ['본부장','부서장','팀장'];
   const typeColors = {'본부장':'#dbeafe','부서장':'#bbf7d0','팀장':'#f1f5f9'};
-  const sums = {};
-  types.forEach(t => { sums[t] = [0,0,0,0]; });
 
-  const parseNum = s => parseInt((s||'').replace(/,/g,''))||0;
-
-  // 비고 셀: 이전 형제가 '계'인 것 (요약 테이블 제외)
-  const remarkCells = [...container.querySelectorAll('td')].filter(td => {
-    if (td.closest('#deptfund-summary')) return false;
-    const txt = td.textContent.trim();
-    if (!types.includes(txt)) return false;
-    const prev = td.previousElementSibling;
-    return prev && prev.textContent.trim() === '계';
-  });
-
-  remarkCells.forEach(remarkTd => {
-    const typeText = remarkTd.textContent.trim();
-    const totalTd = remarkTd.previousElementSibling;
-    if (!totalTd) return;
-
-    // data-bonbu-total → typeText 기준으로 합산 (팀장 타입 본부도 있으므로)
-    if (totalTd.dataset.bonbuTotal) {
-      const dept = totalTd.dataset.bonbuTotal;
-      if (typeText === '본부장') {
-        [0,1,2,3].forEach(qi => {
-          const cell = container.querySelector('td[data-type="buseojang"][data-dept="' + dept + '"][data-qi="' + qi + '"]');
-          sums['본부장'][qi] += parseNum(cell?.textContent);
-        });
-      } else if (typeText === '팀장') {
-        [0,1,2,3].forEach(qi => {
-          const cell = container.querySelector('td[data-type="buseojang"][data-dept="' + dept + '"][data-qi="' + qi + '"]');
-          sums['팀장'][qi] += parseNum(cell?.textContent);
-        });
-      }
-      return;
-    }
-
-    // data-total-dept → 부서장 or 팀장
-    if (totalTd.dataset.totalDept) {
-      const dept = totalTd.dataset.totalDept;
-      if (typeText === '부서장') {
-        [0,1,2,3].forEach(qi => {
-          const cell = container.querySelector('td[data-type="buseojang"][data-dept="' + dept + '"][data-qi="' + qi + '"]');
-          sums['부서장'][qi] += parseNum(cell?.textContent);
-        });
-      } else if (typeText === '팀장') {
-        [0,1,2,3].forEach(qi => {
-          const cell = container.querySelector('td[data-type="teamjang"][data-dept="' + dept + '"][data-qi="' + qi + '"]')
-            || container.querySelector('td[data-type="buseojang"][data-dept="' + dept + '"][data-qi="' + qi + '"]');
-          sums['팀장'][qi] += parseNum(cell?.textContent);
-        });
-      }
-      return;
-    }
-
-    // data 없음 → data-teamjang-total 또는 extraRow
-    const tr = remarkTd.closest('tr');
-    const table = remarkTd.closest('table');
-
-    // data-teamjang-total 셀이 같은 테이블에 있으면 분기별 합산
-    if (table) {
-      const teamjangTotalCell = table.querySelector('td[data-teamjang-total]');
-      if (teamjangTotalCell) {
-        const dept = teamjangTotalCell.getAttribute('data-teamjang-total');
-        [0,1,2,3].forEach(qi => {
-          const cell = container.querySelector('td[data-type="teamjang"][data-dept="' + dept + '"][data-qi="' + qi + '"]')
-            || container.querySelector('td[data-type="buseojang"][data-dept="' + dept + '"][data-qi="' + qi + '"]');
-          sums[typeText][qi] += parseNum(cell?.textContent);
-        });
-        return;
-      }
-    }
-
-    // extraRow
-    if (tr) {
-      const extraTotalTd = [...tr.querySelectorAll('td')].find(td => td.hasAttribute('data-extra-buseojang-rowtotal'));
-      if (extraTotalTd) {
-        const key = extraTotalTd.getAttribute('data-extra-buseojang-rowtotal');
-        [0,1,2,3].forEach(qi => {
-          const cell = container.querySelector('td[data-extra-buseojang-qi="' + key + '-' + qi + '"]');
-          sums[typeText][qi] += parseNum(cell?.textContent);
-        });
-      }
-    }
-  });
+  // sums가 전달되지 않으면 빈값으로 초기화
+  const summarySums = sums || {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
 
   const fmtM = v => v ? v.toLocaleString() : '-';
   const tdS = 'border:1px solid #e2e8f0;padding:6px 12px;text-align:right;font-size:12px;';
@@ -7513,17 +7432,17 @@ function renderDeptFundSummary(container) {
       </tr></thead>
       <tbody>
         ${types.map(t=>{
-          const total=sums[t].reduce((s,v)=>s+v,0);
+          const total=summarySums[t].reduce((s,v)=>s+v,0);
           return `<tr>
             <td style="${tdS}text-align:center;font-weight:600;background:${typeColors[t]}">${t}</td>
-            ${sums[t].map(v=>`<td style="${tdS}">${fmtM(v)}</td>`).join('')}
+            ${summarySums[t].map(v=>`<td style="${tdS}">${fmtM(v)}</td>`).join('')}
             <td style="${tdS}font-weight:700">${fmtM(total)}</td>
           </tr>`;
         }).join('')}
         <tr style="background:#f8fafc">
           <td style="${tdS}text-align:center;font-weight:700">합계</td>
-          ${[0,1,2,3].map(qi=>`<td style="${tdS}font-weight:700">${fmtM(types.reduce((s,t)=>s+sums[t][qi],0))}</td>`).join('')}
-          <td style="${tdS}font-weight:700;color:var(--ac)">${fmtM(types.reduce((s,t)=>s+sums[t].reduce((a,b)=>a+b,0),0))}</td>
+          ${[0,1,2,3].map(qi=>`<td style="${tdS}font-weight:700">${fmtM(types.reduce((s,t)=>s+summarySums[t][qi],0))}</td>`).join('')}
+          <td style="${tdS}font-weight:700;color:var(--ac)">${fmtM(types.reduce((s,t)=>s+summarySums[t].reduce((a,b)=>a+b,0),0))}</td>
         </tr>
       </tbody>
     </table>
@@ -7531,6 +7450,7 @@ function renderDeptFundSummary(container) {
 
   container.insertAdjacentHTML('afterbegin', summaryHtml);
 }
+
 
 
 
