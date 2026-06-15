@@ -6050,8 +6050,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           if (dkHead && !dkHeadIsBonbuHead && !countedNames.has(dkHead.name) && getEmpMonthsInQuarter(dkHead,year,qs,qe)>0) {
             countedNames.add(dkHead.name); t += 50000;
           }
-          // 이름칸
-          const qn = (window._lastQNames&&window._lastQNames[dk]&&window._lastQNames[dk][qi])||[];
+          // 이름칸 (_lastQNames 없으면 employees에서 직접 계산 - SW스타일 하위팀 등)
+          let qn = (window._lastQNames&&window._lastQNames[dk]&&window._lastQNames[dk][qi])||[];
+          if (!qn.length) {
+            qn = employees.filter(e=>e.dept===dk&&getEmpMonthsInQuarter(e,year,qs,qe)>0).map(e=>({name:e.name,isEmp:true}));
+          }
           qn.forEach(obj => {
             if (!obj||!obj.name||countedNames.has(obj.name)) return;
             countedNames.add(obj.name); t += 50000;
