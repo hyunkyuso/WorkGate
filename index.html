@@ -6755,8 +6755,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (!window._deptTeamjangCalcs) window._deptTeamjangCalcs = {};
       const calcTAmts = () => quarters.map(([qs,qe],qi) => {
         if (deptIsNone || !isTypeTeamjang) return null;
-        if (isSWStyle) return null; // SW스타일은 하위팀 테이블에서 별도 처리
         if (disabledQi.includes(qi)) return null;
+        // SW스타일: 하위팀이 사용 중인 분기는 하위팀 테이블에서 처리, 미사용 분기만 초록줄에 표기
+        if (isSWStyle && swSubTAmts[qi] !== null) return null;
         let t = 0;
         const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
         const deptAndSubs = [dept, ...subTeamEmps.map(e=>e.dept).filter((d,i,a)=>a.indexOf(d)===i)];
@@ -7031,6 +7032,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           swSubTAmts = quarters.map(([qs2,qe2],qi2)=>{
             if ((swSubSetting.type||'').includes('없음')) return null;
             if (isTypeBuseojang || isTypeBonbu) return null;
+            if (swSubDisabledQi.includes(qi2)) return null;
             const swSubDateData = (swSubSetting||{}).dateData||[];
             const items = calcNameMonths(swSubQNames[qi2], qi2, swSubDateData);
             let t = items.reduce((s,x)=>s+x.months*40000, 0);
@@ -7245,12 +7247,9 @@ ${nameRows.map((rowByQ, rowIdx) => `
           teamCell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString();
           if(extra) teamCell.appendChild(extra);
         } else {
-          // 팀장 셀이 하나도 없는 부서만 부서장 셀에 표기 (팀장 비고인 부서)
-          const hasAnyTeamCell = [0,1,2,3].some(q=>container.querySelector(`td[data-dept="${dept}"][data-qi="${q}"][data-type="teamjang"]`));
-          if (!hasAnyTeamCell) {
-            const buseoCell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
-            if (buseoCell) { const extra=buseoCell.querySelector('span'); buseoCell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra) buseoCell.appendChild(extra); }
-          }
+          // 팀장 셀이 없으면 부서장 셀에 표기 (SW스타일 포함)
+          const buseoCell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
+          if (buseoCell) { const extra=buseoCell.querySelector('span'); buseoCell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra) buseoCell.appendChild(extra); }
         }
       });
       // 팀장 합계 셀 직접 업데이트
