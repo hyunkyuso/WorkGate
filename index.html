@@ -7301,6 +7301,9 @@ ${nameRows.map((rowByQ, rowIdx) => `
 
   container.innerHTML = html;
 
+  // extra row 부서장 타입 금액 재계산
+  const summarySums = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
+
   // 팀장 타입 본부 금액 업데이트
   if (window._bonbuTeamjangCalcs) {
     Object.entries(window._bonbuTeamjangCalcs).forEach(([bonbu, calcFn]) => {
@@ -7309,6 +7312,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
       [0,1,2,3].forEach(qi => {
         const cell = container.querySelector(`td[data-dept="${bonbu}"][data-qi="${qi}"][data-type="buseojang"]`);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
+        summarySums['팀장'][qi] += (amts[qi]||0);
       });
       const bonbuTotalAmtCell = container.querySelector(`td[data-bonbu-total-amt="${bonbu}"]`);
       if (bonbuTotalAmtCell) bonbuTotalAmtCell.textContent = total ? total.toLocaleString() : '-';
@@ -7316,7 +7320,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
     window._bonbuTeamjangCalcs = {};
   }
 
-  // 본부장 타입 본부 금액 업데이트 (_lastQNames 기반)
+  // 본부장 타입 본부 금액 업데이트
   if (window._bonbuAmtCalcs) {
     Object.entries(window._bonbuAmtCalcs).forEach(([bonbu, calcFn]) => {
       const amts = calcFn();
@@ -7324,6 +7328,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
       [0,1,2,3].forEach(qi => {
         const cell = container.querySelector(`td[data-dept="${bonbu}"][data-qi="${qi}"][data-type="buseojang"]`);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
+        summarySums['본부장'][qi] += (amts[qi]||0);
       });
       const bonbuTotalAmtCell2 = container.querySelector(`td[data-bonbu-total-amt="${bonbu}"]`);
       if (bonbuTotalAmtCell2) bonbuTotalAmtCell2.textContent = total ? total.toLocaleString() : '-';
@@ -7331,7 +7336,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
     window._bonbuAmtCalcs = {};
   }
 
-  // 부서장 타입 부서 금액 업데이트 (_lastQNames 기반)
+  // 부서장 타입 부서 금액 업데이트
   if (window._deptBuseojangCalcs) {
     Object.entries(window._deptBuseojangCalcs).forEach(([dept, calcFn]) => {
       const amts = calcFn();
@@ -7339,17 +7344,15 @@ ${nameRows.map((rowByQ, rowIdx) => `
       [0,1,2,3].forEach(qi => {
         const cell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
+        summarySums['부서장'][qi] += (amts[qi]||0);
       });
-      // 합계 셀 - data-buseojang-total 셀 직접 업데이트
       const buseojangTotalCell = container.querySelector(`td[data-buseojang-total="${dept}"]`);
-      if (buseojangTotalCell) {
-        buseojangTotalCell.textContent = total ? total.toLocaleString() : '-';
-      }
+      if (buseojangTotalCell) buseojangTotalCell.textContent = total ? total.toLocaleString() : '-';
     });
     window._deptBuseojangCalcs = {};
   }
 
-  // 팀장 타입 부서 금액 업데이트 (_lastQNames 기반)
+  // 팀장 타입 부서 금액 업데이트
   if (window._deptTeamjangCalcs) {
     Object.entries(window._deptTeamjangCalcs).forEach(([dept, calcFn]) => {
       const amts = calcFn();
@@ -7361,15 +7364,13 @@ ${nameRows.map((rowByQ, rowIdx) => `
           teamCell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString();
           if(extra) teamCell.appendChild(extra);
         } else {
-          // 팀장 셀이 없으면 부서장 셀에 표기 (SW스타일 포함)
           const buseoCell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
           if (buseoCell) { const extra=buseoCell.querySelector('span'); buseoCell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra) buseoCell.appendChild(extra); }
         }
+        summarySums['팀장'][qi] += (amts[qi]||0);
       });
-      // 팀장 합계 셀 직접 업데이트
       const teamjangTotalCell = container.querySelector(`td[data-teamjang-total="${dept}"]`);
       if (teamjangTotalCell) teamjangTotalCell.textContent = total ? total.toLocaleString() : '';
-      // SW스타일: buseojang-total 셀도 업데이트
       if (!teamjangTotalCell) {
         const buseojangTotalCell = container.querySelector(`td[data-buseojang-total="${dept}"]`);
         if (buseojangTotalCell) buseojangTotalCell.textContent = total ? total.toLocaleString() : '-';
@@ -7378,25 +7379,31 @@ ${nameRows.map((rowByQ, rowIdx) => `
     window._deptTeamjangCalcs = {};
   }
 
-  // extra row 부서장 타입 금액 재계산
   if (window._extraBuseojangCalcs) {
     Object.entries(window._extraBuseojangCalcs).forEach(([key, calcFn]) => {
       const amts = calcFn();
       const total = amts.reduce((s,v)=>s+(v||0),0);
-      // 분기별 셀 업데이트
       amts.forEach((amt, qi2) => {
         const cell = container.querySelector(`td[data-extra-buseojang-qi="${key}-${qi2}"]`);
         if (cell) cell.textContent = amt!==null ? amt.toLocaleString() : '-';
       });
-      // 합계 셀 업데이트
       const totalCell = container.querySelector(`td[data-extra-buseojang-rowtotal="${key}"]`);
       if (totalCell) totalCell.textContent = total ? total.toLocaleString() : '-';
+      // 요약 누적 - 비고 셀로 타입 판단
+      if (totalCell) {
+        const tr = totalCell.closest('tr');
+        const remarkTd = tr ? [...tr.querySelectorAll('td')].find(td => ['본부장','부서장','팀장'].includes(td.textContent.trim())) : null;
+        const typeText = remarkTd?.textContent.trim();
+        if (typeText && summarySums[typeText]) {
+          amts.forEach((amt,qi2) => { summarySums[typeText][qi2] += (amt||0); });
+        }
+      }
     });
     window._extraBuseojangCalcs = {};
   }
 
   // 직책별 금액 요약 렌더링
-  renderDeptFundSummary(container);
+  renderDeptFundSummary(container, summarySums);
 }
 
 function renderDeptFundSummary(container) {
