@@ -7460,8 +7460,25 @@ function renderDeptFundSummary(container) {
       return;
     }
 
-    // data 없음 → extraRow
+    // data 없음 → data-teamjang-total 또는 extraRow
     const tr = remarkTd.closest('tr');
+    const table = remarkTd.closest('table');
+
+    // data-teamjang-total 셀이 같은 테이블에 있으면 분기별 합산
+    if (table) {
+      const teamjangTotalCell = table.querySelector('td[data-teamjang-total]');
+      if (teamjangTotalCell) {
+        const dept = teamjangTotalCell.getAttribute('data-teamjang-total');
+        [0,1,2,3].forEach(qi => {
+          const cell = container.querySelector('td[data-type="teamjang"][data-dept="' + dept + '"][data-qi="' + qi + '"]')
+            || container.querySelector('td[data-type="buseojang"][data-dept="' + dept + '"][data-qi="' + qi + '"]');
+          sums[typeText][qi] += parseNum(cell?.textContent);
+        });
+        return;
+      }
+    }
+
+    // extraRow
     if (tr) {
       const extraTotalTd = [...tr.querySelectorAll('td')].find(td => td.hasAttribute('data-extra-buseojang-rowtotal'));
       if (extraTotalTd) {
