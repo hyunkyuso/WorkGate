@@ -5982,7 +5982,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     // 팀장 타입 본부 금액 계산 함수 (부서 렌더링 후 _lastQNames 채워진 뒤 호출)
     if (!window._bonbuTeamjangCalcs) window._bonbuTeamjangCalcs = {};
     const calcBonbuTeamjangAmts = () => quarters.map(([qs,qe],qi) => {
-      if (bonbuDisabledQi.includes(qi)) return null;
       let t=0;
       const countedNames = new Set();
       // 본부 extraRows 중 type=없음이지만 nameData가 있는 경우 포함
@@ -6030,7 +6029,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const calcBonbuAmts = () => quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
       if (bonbuIsTeamjang) return null;
-      if (bonbuDisabledQi.includes(qi)) return null;
       let t = 0;
       const countedNames = new Set();
       // 본부장 본인
@@ -6185,7 +6183,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // 렌더링 후 재계산 등록 (_lastQNames 채워진 뒤 호출)
         if (!window._extraBuseojangCalcs) window._extraBuseojangCalcs = {};
         const bonbuRowKey = bonbu+'-'+ri;
-        console.log('[등록]', bonbuRowKey, 'isTeamjang='+isTeamjang, 'isBuseojang='+isBuseojang);
         const bonbuRowOrgNames = row.orgNames||[row.name||'',row.name||'',row.name||'',row.name||''];
         const bonbuRowTeamOrgNames = row.teamOrgNames||['','','',''];
         const bonbuRowNdList = ndList;
@@ -6599,7 +6596,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (!window._deptBuseojangCalcs) window._deptBuseojangCalcs = {};
       const calcBAmts = () => quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
-        if (disabledQi.includes(qi)) return null;
         let t = 0;
         const countedNames = new Set();
         // 부서장칸 (deptHead)
@@ -6740,7 +6736,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (!window._deptTeamjangCalcs) window._deptTeamjangCalcs = {};
       const calcTAmts = () => quarters.map(([qs,qe],qi) => {
         if (deptIsNone || !isTypeTeamjang) return null;
-        if (disabledQi.includes(qi)) return null;
         let t = 0;
         const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
         const deptAndSubs = [dept, ...subTeamEmps.map(e=>e.dept).filter((d,i,a)=>a.indexOf(d)===i)];
