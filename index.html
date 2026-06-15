@@ -7400,7 +7400,6 @@ ${nameRows.map((rowByQ, rowIdx) => `
 }
 
 function renderDeptFundSummary(container) {
-  // 기존 요약 제거
   const existing = document.getElementById('deptfund-summary');
   if (existing) existing.remove();
 
@@ -7408,10 +7407,13 @@ function renderDeptFundSummary(container) {
   const types = ['본부장','부서장','팀장'];
   const typeColors = {'본부장':'#dbeafe','부서장':'#bbf7d0','팀장':'#f1f5f9'};
   const sums = {};
-  types.forEach(t => { sums[t] = [0,0,0,0]; }); // Q1~Q4
+  types.forEach(t => { sums[t] = [0,0,0,0]; });
 
-  // 비고 셀 기준: 이전 형제가 '계'인 비고 셀만 추출 (요약 테이블 제외)
+  const parseNum = s => parseInt((s||'').replace(/,/g,''))||0;
+
+  // 비고 셀: 이전 형제가 '계'인 것만 (요약 테이블 제외)
   const remarkCells = [...container.querySelectorAll('td')].filter(td => {
+    if (td.closest('#deptfund-summary')) return false;
     const txt = td.textContent.trim();
     if (!types.includes(txt)) return false;
     const prev = td.previousElementSibling;
@@ -7420,51 +7422,41 @@ function renderDeptFundSummary(container) {
 
   remarkCells.forEach(remarkTd => {
     const typeText = remarkTd.textContent.trim();
-    const totalTd = remarkTd.previousElementSibling; // '계' 셀 = 합계
-    // 합계 셀의 이전 형제들이 Q1~Q4 금액 셀
-    // 하지만 합계 셀은 rowspan이 있어서 같은 tr에 있지 않을 수 있음
-    // 대신 합계 셀의 data 속성으로 해당 dept 찾기
-    const totalVal = parseInt((totalTd?.textContent||'').replace(/,/g,''))||0;
-
-    // 분기별: 같은 테이블에서 data-bonbu-total-amt, data-buseojang-total, data-teamjang-total 중
-    // 해당 합계와 일치하는 것 찾기
-    const tr = remarkTd.closest('tr');
     const table = remarkTd.closest('table');
     if (!table) return;
 
-    // 분기별 금액: Q1~Q4 data-type 셀에서 읽기
-    // 같은 테이블의 data-bonbu-total-amt 또는 data-buseojang-total 또는 data-teamjang-total 셀
-    const bonbuTotalCell = table.querySelector('td[data-bonbu-total-amt]');
-    const buseojangTotalCell = table.querySelector('td[data-buseojang-total]');
-    const teamjangTotalCell = table.querySelector('td[data-teamjang-total]');
+    // extra row인지 확인 (data-extra-buseojang-rowtotal 셀이 같은 행에 있는지)
+    const tr = remarkTd.closest('tr');
+    const extraTotalInRow = tr ? [...tr.querySelectorAll('td')].find(td => td.hasAttribute('data-extra-buseojang-rowtotal')) : null;
 
-    // 어떤 타입인지 판단 후 분기별 금액 읽기
-    let qCells = [];
-    if (typeText === '본부장') {
-      qCells = [...table.querySelectorAll('td[data-type="buseojang"][data-bonbu-teamjang]')];
-    } else if (typeText === '부서장') {
-      qCells = [...table.querySelectorAll('td[data-type="buseojang"]:not([data-bonbu-teamjang])')];
-    } else if (typeText === '팀장') {
-      qCells = [...table.querySelectorAll('td[data-type="teamjang"]')];
-    }
-
-    // extraRow 합계 셀인 경우 (data-extra-buseojang-rowtotal)
-    const extraTotalCell = totalTd?.getAttribute('data-extra-buseojang-rowtotal')
-      ? totalTd : null;
-
-    if (extraTotalCell) {
+    if (extraTotalInRow) {
       // extraRow: data-extra-buseojang-qi 셀에서 분기별 읽기
-      const key = extraTotalCell.getAttribute('data-extra-buseojang-rowtotal');
+      const key = extraTotalInRow.getAttribute('data-extra-buseojang-rowtotal');
       [0,1,2,3].forEach(qi => {
         const cell = container.querySelector(`td[data-extra-buseojang-qi="${key}-${qi}"]`);
-        const val = parseInt((cell?.textContent||'').replace(/,/g,''))||0;
-        sums[typeText][qi] += val;
+        sums[typeText][qi] += parseNum(cell?.textContent);
       });
-    } else if (qCells.length) {
+      return;
+    }
+
+    // 일반 행: 타입별 셀에서 분기별 금액 읽기
+    if (typeText === '본부장') {
+      // data-bonbu-total-amt 셀이 있는 테이블 → data-type="buseojang"[data-bonbu-teamjang] 셀
       [0,1,2,3].forEach(qi => {
-        const cell = qCells.find(c => parseInt(c.getAttribute('data-qi')||'-1') === qi);
-        const val = parseInt((cell?.textContent||'').replace(/,/g,''))||0;
-        sums[typeText][qi] += val;
+        const cell = table.querySelector(`td[data-type="buseojang"][data-bonbu-teamjang][data-qi="${qi}"]`);
+        sums['본부장'][qi] += parseNum(cell?.textContent);
+      });
+    } else if (typeText === '부서장') {
+      // data-type="buseojang" 중 bonbu 아닌 것
+      [0,1,2,3].forEach(qi => {
+        const cell = table.querySelector(`td[data-type="buseojang"]:not([data-bonbu-teamjang])[data-qi="${qi}"]`);
+        sums['부서장'][qi] += parseNum(cell?.textContent);
+      });
+    } else if (typeText === '팀장') {
+      // data-type="teamjang" 셀
+      [0,1,2,3].forEach(qi => {
+        const cell = table.querySelector(`td[data-type="teamjang"][data-qi="${qi}"]`);
+        sums['팀장'][qi] += parseNum(cell?.textContent);
       });
     }
   });
@@ -7477,16 +7469,14 @@ function renderDeptFundSummary(container) {
   <div id="deptfund-summary" style="margin-bottom:12px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
     <div style="padding:8px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#374151">📊 직책별 운영비 요약</div>
     <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead>
-        <tr>
-          <th style="${thS}width:80px">구분</th>
-          ${qLabels.map(q=>`<th style="${thS}">${q}</th>`).join('')}
-          <th style="${thS}">합계</th>
-        </tr>
-      </thead>
+      <thead><tr>
+        <th style="${thS}width:80px">구분</th>
+        ${qLabels.map(q=>`<th style="${thS}">${q}</th>`).join('')}
+        <th style="${thS}">합계</th>
+      </tr></thead>
       <tbody>
         ${types.map(t=>{
-          const total = sums[t].reduce((s,v)=>s+v,0);
+          const total=sums[t].reduce((s,v)=>s+v,0);
           return `<tr>
             <td style="${tdS}text-align:center;font-weight:600;background:${typeColors[t]}">${t}</td>
             ${sums[t].map(v=>`<td style="${tdS}">${fmtM(v)}</td>`).join('')}
