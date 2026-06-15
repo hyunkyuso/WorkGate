@@ -7441,10 +7441,17 @@ function renderDeptFundSummary(container) {
 
     // 일반 행: 타입별 셀에서 분기별 금액 읽기
     if (typeText === '본부장') {
-      // data-bonbu-total-amt 셀이 있는 테이블 → data-type="buseojang"[data-bonbu-teamjang] 셀
+      // bonbu 행: data-bonbu-teamjang이 Q1에만 있으므로 dept로 판단
+      // Q1에서 data-bonbu-teamjang이 있는 셀의 dept 목록 수집
+      const bonbuDepts = new Set(
+        [...container.querySelectorAll('td[data-bonbu-teamjang][data-qi="0"]')]
+          .map(c => c.getAttribute('data-dept')).filter(Boolean)
+      );
       [0,1,2,3].forEach(qi => {
-        const cell = table.querySelector(`td[data-type="buseojang"][data-bonbu-teamjang][data-qi="${qi}"]`);
-        sums['본부장'][qi] += parseNum(cell?.textContent);
+        bonbuDepts.forEach(dept => {
+          const cell = container.querySelector(`td[data-type="buseojang"][data-dept="${dept}"][data-qi="${qi}"]`);
+          sums['본부장'][qi] += parseNum(cell?.textContent);
+        });
       });
     } else if (typeText === '부서장') {
       // data-type="buseojang" 중 bonbu 아닌 것
