@@ -6058,7 +6058,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         });
         // extraRows headNames + nameData
         ((deptFundSettings[dk]||{}).extraRows||[]).forEach(row => {
-          if ((row.exDisabledQi||[]).includes(qi)) return;
+          const rowDq = [...(row.exDisabledQi||[]), ...(row.disabledQi||[])];
+          if (rowDq.includes(qi)) return;
           const hn = (row.headNames||[])[qi];
           if (hn && !countedNames.has(hn)) { countedNames.add(hn); t += 50000; }
           (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(d => {
@@ -6649,6 +6650,16 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           qn.forEach(obj => {
             if (!obj||!obj.name||countedNames.has(obj.name)) return;
             countedNames.add(obj.name); t += 50000;
+          });
+          // 하위팀 extraRows의 nameData도 합산 (type=없음 포함, disabledQi 체크)
+          ((deptFundSettings[dk]||{}).extraRows||[]).forEach(function(row) {
+            const rowDq = row.disabledQi||[];
+            if (rowDq.includes(qi)) return;
+            (row.nameData||[]).filter(function(d){return d.qi===qi&&d.name&&!d.hidden;}).forEach(function(d) {
+              if (!countedNames.has(d.name)) { countedNames.add(d.name); t += 50000; }
+            });
+            const hn = (row.headNames||[])[qi];
+            if (hn && !countedNames.has(hn)) { countedNames.add(hn); t += 50000; }
           });
         });
         // extraRows headNames + nameData (본부 extraRows 중 이 dept를 orgNames로 가진 것도 포함)
