@@ -672,6 +672,7 @@ select.form-input{cursor:pointer}
         <div style="padding:8px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
           <span style="font-size:12px;color:#856404">⚠️ 이름 데이터가 이상하게 보이면 정리 버튼을 클릭하세요</span>
           <button onclick="cleanupNameData()" style="padding:4px 12px;background:#ffc107;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">데이터 정리</button>
+          <button onclick="debugDeptFund()" style="padding:4px 12px;background:#e0e7ff;border:1px solid #6366f1;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;color:#4338ca">🔍 Q1 디버그</button>
         </div>
         <div id="deptfund-content" style="overflow-x:auto;padding:8px">
           <p style="color:#94a3b8">로딩 중...</p>
@@ -5801,6 +5802,32 @@ function cleanupNameData() {
   }
 }
 
+
+function debugDeptFund() {
+  const lines = [];
+  lines.push('=== _lastQNames Q1(qi=0) ===');
+  if (window._lastQNames) {
+    Object.entries(window._lastQNames).forEach(([dept, qmap]) => {
+      const q1 = qmap[0]||[];
+      if (q1.length) lines.push(dept+': '+q1.map(o=>o.name).join(', '));
+    });
+  } else lines.push('_lastQNames 없음');
+
+  lines.push('\n=== _extraBuseojangCalcs 키 목록 ===');
+  if (window._extraBuseojangCalcs) {
+    Object.keys(window._extraBuseojangCalcs).forEach(k => lines.push(k));
+  } else lines.push('없음 (이미 실행 후 비워짐)');
+
+  lines.push('\n=== deptFundSettings extraRows ===');
+  Object.entries(deptFundSettings).forEach(([dept, s]) => {
+    if (!(s.extraRows||[]).length) return;
+    s.extraRows.forEach((row, ri) => {
+      lines.push(dept+'-'+ri+': type='+row.type+' orgNames='+JSON.stringify(row.orgNames)+' teamOrgNames='+JSON.stringify(row.teamOrgNames)+' name='+row.name);
+    });
+  });
+
+  alert(lines.join('\n'));
+}
 
 function _renderDeptFund() {
   const container = document.getElementById('deptfund-content');
