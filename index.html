@@ -6038,25 +6038,26 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       }
       deptNames.filter(dk=>!dk.includes('수석전문위원')&&!dk.includes('베트남')&&dk!==bonbu).forEach(dk => {
         const dkDisabledQi = (deptFundSettings[dk]||{}).disabledQi||[];
-        if (dkDisabledQi.includes(qi)) return;
-        // 부서장칸
-        const dkEmpList = depts[dk]||[];
-        const dkHead = dkEmpList.find(e=>
-          (e.dept===dk||(e.concurrent||[]).some(c=>c.dept===dk&&((c.title||'').includes('부서장')||(c.title||'').includes('부장')))) &&
-          ((e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장')||(e.concurrent||[]).some(c=>c.dept===dk&&((c.title||'').includes('부서장')||(c.title||'').includes('부장'))))
-        );
-        // 겸직 본부장(bonbuHead)이 부서장칸에 잡혀 중복 계산되지 않도록 제외
-        const dkHeadIsBonbuHead = bonbuHead && dkHead && dkHead.name === bonbuHead.name;
-        if (dkHead && !dkHeadIsBonbuHead && !countedNames.has(dkHead.name) && getEmpMonthsInQuarter(dkHead,year,qs,qe)>0) {
-          countedNames.add(dkHead.name); t += 50000;
+        // 부서장칸 + 이름칸: 부서 자체 disabledQi로 skip
+        if (!dkDisabledQi.includes(qi)) {
+          const dkEmpList = depts[dk]||[];
+          const dkHead = dkEmpList.find(e=>
+            (e.dept===dk||(e.concurrent||[]).some(c=>c.dept===dk&&((c.title||'').includes('부서장')||(c.title||'').includes('부장')))) &&
+            ((e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장')||(e.concurrent||[]).some(c=>c.dept===dk&&((c.title||'').includes('부서장')||(c.title||'').includes('부장'))))
+          );
+          // 겸직 본부장(bonbuHead)이 부서장칸에 잡혀 중복 계산되지 않도록 제외
+          const dkHeadIsBonbuHead = bonbuHead && dkHead && dkHead.name === bonbuHead.name;
+          if (dkHead && !dkHeadIsBonbuHead && !countedNames.has(dkHead.name) && getEmpMonthsInQuarter(dkHead,year,qs,qe)>0) {
+            countedNames.add(dkHead.name); t += 50000;
+          }
+          // 이름칸
+          const qn = (window._lastQNames&&window._lastQNames[dk]&&window._lastQNames[dk][qi])||[];
+          qn.forEach(obj => {
+            if (!obj||!obj.name||countedNames.has(obj.name)) return;
+            countedNames.add(obj.name); t += 50000;
+          });
         }
-        // 이름칸
-        const qn = (window._lastQNames&&window._lastQNames[dk]&&window._lastQNames[dk][qi])||[];
-        qn.forEach(obj => {
-          if (!obj||!obj.name||countedNames.has(obj.name)) return;
-          countedNames.add(obj.name); t += 50000;
-        });
-        // extraRows headNames + nameData
+        // extraRows: 부서 disabledQi와 무관하게 row 자체 disabledQi로만 판단
         ((deptFundSettings[dk]||{}).extraRows||[]).forEach(row => {
           const rowDq = [...(row.exDisabledQi||[]), ...(row.disabledQi||[])];
           if (rowDq.includes(qi)) return;
