@@ -7275,6 +7275,11 @@ ${nameRows.map((rowByQ, rowIdx) => `
       // 팀장 합계 셀 직접 업데이트
       const teamjangTotalCell = container.querySelector(`td[data-teamjang-total="${dept}"]`);
       if (teamjangTotalCell) teamjangTotalCell.textContent = total ? total.toLocaleString() : '';
+      // SW스타일: buseojang-total 셀도 업데이트
+      if (!teamjangTotalCell) {
+        const buseojangTotalCell = container.querySelector(`td[data-buseojang-total="${dept}"]`);
+        if (buseojangTotalCell) buseojangTotalCell.textContent = total ? total.toLocaleString() : '-';
+      }
     });
     window._deptTeamjangCalcs = {};
   }
@@ -9366,7 +9371,7 @@ if (!state.kpis.length) {
   auth = firebase.auth();
   setupAuthListener();
 })();
-</script> 
+</script>
 </body>
 </html>
  
