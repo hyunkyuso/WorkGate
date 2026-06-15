@@ -5680,12 +5680,26 @@ const DEPTFUND_SETTINGS_KEY = 'deptfund_settings';
 let deptFundSettings = {}; // { deptId: { mode: 'buseojang'|'teamjang'|'both' } }
 
 let deptFundSettingsLoaded = false;
+let deptFundSettingsLoadedYear = null;
+
+function getDeptFundSettingsKey(year) {
+  const baseYear = new Date().getFullYear();
+  // 기준연도(현재연도)는 기존 키 사용, 이후 연도는 연도별 키
+  const curYear = parseInt(document.getElementById('deptfund-year')?.value || baseYear);
+  // 2026년이 기본 키
+  if (!year) year = curYear;
+  return year <= 2026 ? DEPTFUND_SETTINGS_KEY : DEPTFUND_SETTINGS_KEY + '_' + year;
+}
+
 async function loadDeptFundSettings(force=false) {
-  if (deptFundSettingsLoaded && !force) return;
+  const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
+  if (deptFundSettingsLoaded && !force && deptFundSettingsLoadedYear === year) return;
   try {
-    const snap = await db.collection('settings').doc(DEPTFUND_SETTINGS_KEY).get();
+    const key = getDeptFundSettingsKey(year);
+    const snap = await db.collection('settings').doc(key).get();
     deptFundSettings = snap.exists ? snap.data() : {};
     deptFundSettingsLoaded = true;
+    deptFundSettingsLoadedYear = year;
   } catch(e) { console.error('loadDeptFundSettings error:', e); }
 }
 
@@ -5763,8 +5777,93 @@ function removeExtra(dept, qi, type, idx) {
 
 async function saveDeptFundSettings() {
   try {
-    await db.collection('settings').doc(DEPTFUND_SETTINGS_KEY).set(deptFundSettings);
+    const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
+    const key = getDeptFundSettingsKey(year);
+    await db.collection('settings').doc(key).set(deptFundSettings);
   } catch(e) { console.error(e); }
+}
+
+// 차년도 Q4 기준 데이터 생성
+async function createNextYearSettings() {
+  const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
+  const prevYear = year - 1;
+  if (!confirm(prevYear + '년 Q4 데이터를 기준으로 ' + year + '년 데이터를 생성합니다. 계속할까요?')) return;
+
+  // 전년도 settings 로드
+  const prevKey = getDeptFundSettingsKey(prevYear);
+  const snap = await db.collection('settings').doc(prevKey).get();
+  const prevSettings = snap.exists ? snap.data() : {};
+
+  if (!Object.keys(prevSettings).length) {
+    alert(prevYear + '년 데이터가 없습니다.');
+    return;
+  }
+
+  const newSettings = {};
+  const QI_PREV = 3; // Q4 = index 3
+
+  Object.entries(prevSettings).forEach(([dept, s]) => {
+    const dq = s.disabledQi || [];
+    // Q4가 미사용이면 이 부서 전체 제외
+    if (dq.includes(QI_PREV)) return;
+
+    const ns = {};
+    // type, buseojang, teamjang 복사
+    if (s.type) ns.type = s.type;
+    if (s.buseojang !== undefined) ns.buseojang = s.buseojang;
+    if (s.teamjang !== undefined) ns.teamjang = s.teamjang;
+    // disabledQi 초기화 (새해엔 미사용 없음)
+    ns.disabledQi = [];
+    // extra 초기화
+    ns.extra = [];
+    // deptDisplayNames: Q4 값을 Q1~Q4 전체로 복사
+    if (s.deptDisplayNames) {
+      const q4Name = s.deptDisplayNames[QI_PREV] || s.deptDisplayNames['3'] || '';
+      if (q4Name && q4Name !== '__HIDDEN__') {
+        ns.deptDisplayNames = {0: q4Name, 1: q4Name, 2: q4Name, 3: q4Name};
+      } else {
+        ns.deptDisplayNames = {};
+      }
+    }
+    // nameData: Q4(qi=3) 항목을 Q1~Q4(qi=0~3)로 복사, hidden 제외
+    const prevNameData = (s.nameData || []).filter(d => d.qi === QI_PREV && d.name && !d.hidden);
+    ns.nameData = [0,1,2,3].flatMap(qi => prevNameData.map(d => ({...d, qi})));
+    // dateData 초기화
+    ns.dateData = [];
+    // hiddenDates 초기화
+    ns.hiddenDates = [];
+    // extraRows: Q4 미사용 제외하고 복사, disabledQi 초기화
+    const prevExtraRows = (s.extraRows || []).filter(row => !(row.disabledQi || []).includes(QI_PREV));
+    ns.extraRows = prevExtraRows.map(row => {
+      const nr = {...row};
+      nr.disabledQi = [];
+      nr.exDisabledQi = [];
+      // orgNames: Q4 값을 전체 분기로 복사
+      const q4Org = (row.orgNames || [])[QI_PREV] || (row.orgNames || [])[0] || '';
+      nr.orgNames = [q4Org, q4Org, q4Org, q4Org];
+      const q4TeamOrg = (row.teamOrgNames || [])[QI_PREV] || (row.teamOrgNames || [])[0] || '';
+      nr.teamOrgNames = [q4TeamOrg, q4TeamOrg, q4TeamOrg, q4TeamOrg];
+      // headNames: Q4 값을 전체 분기로 복사
+      const q4Head = (row.headNames || [])[QI_PREV] || '';
+      nr.headNames = [q4Head, q4Head, q4Head, q4Head];
+      // nameData: Q4 항목을 전체 분기로 복사, hidden 제외
+      const rPrevNd = (row.nameData || []).filter(d => d.qi === QI_PREV && d.name && !d.hidden);
+      nr.nameData = [0,1,2,3].flatMap(qi => rPrevNd.map(d => ({...d, qi})));
+      nr.dateData = [];
+      return nr;
+    });
+
+    newSettings[dept] = ns;
+  });
+
+  // 저장
+  const newKey = getDeptFundSettingsKey(year);
+  await db.collection('settings').doc(newKey).set(newSettings);
+  deptFundSettings = newSettings;
+  deptFundSettingsLoaded = true;
+  deptFundSettingsLoadedYear = year;
+  alert(year + '년 데이터가 생성되었습니다!');
+  _renderDeptFund();
 }
 
 function renderDeptFund() {
@@ -5788,6 +5887,16 @@ function _renderDeptFund() {
     deptFundSettings[dept].nameData = deptFundSettings[dept].nameData.filter(d=>d.name&&d.name.trim());
   });
   const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
+  // 차년도 데이터 없으면 생성 버튼 표시
+  const baseYear = 2026;
+  if (year > baseYear && Object.keys(deptFundSettings).length === 0) {
+    container.innerHTML = `<div style="padding:40px;text-align:center">
+      <div style="font-size:15px;font-weight:600;color:#374151;margin-bottom:8px">${year}년 데이터가 없습니다</div>
+      <div style="font-size:13px;color:#6b7280;margin-bottom:20px">${year-1}년 Q4 데이터를 기준으로 생성할 수 있습니다</div>
+      <button onclick="createNextYearSettings()" style="padding:10px 24px;background:var(--ac);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">📋 ${year-1}년 Q4 기준으로 ${year}년 생성</button>
+    </div>`;
+    return;
+  }
   // 전체 4분기 (1~3월은 대기로 '-' 표시)
   const quarters = [[0,2],[3,5],[6,8],[9,11]];
   const qLabels = ['01월~03월','04월~06월','07월~09월','10월~12월'];
