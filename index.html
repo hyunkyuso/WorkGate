@@ -5804,29 +5804,27 @@ function cleanupNameData() {
 
 
 function debugDeptFund() {
-  const lines = [];
-  lines.push('=== _lastQNames Q1(qi=0) ===');
+  console.log('=== _lastQNames Q1(qi=0) ===');
   if (window._lastQNames) {
     Object.entries(window._lastQNames).forEach(([dept, qmap]) => {
       const q1 = qmap[0]||[];
-      if (q1.length) lines.push(dept+': '+q1.map(o=>o.name).join(', '));
+      if (q1.length) console.log(dept+':', q1.map(o=>o.name).join(', '));
     });
-  } else lines.push('_lastQNames 없음');
+  } else console.log('_lastQNames 없음');
 
-  lines.push('\n=== _extraBuseojangCalcs 키 목록 ===');
+  console.log('=== _extraBuseojangCalcs 키 목록 ===');
   if (window._extraBuseojangCalcs) {
-    Object.keys(window._extraBuseojangCalcs).forEach(k => lines.push(k));
-  } else lines.push('없음 (이미 실행 후 비워짐)');
+    Object.keys(window._extraBuseojangCalcs).forEach(k => console.log(k));
+  } else console.log('없음 (이미 실행 후 비워짐)');
 
-  lines.push('\n=== deptFundSettings extraRows ===');
+  console.log('=== deptFundSettings extraRows ===');
   Object.entries(deptFundSettings).forEach(([dept, s]) => {
     if (!(s.extraRows||[]).length) return;
     s.extraRows.forEach((row, ri) => {
-      lines.push(dept+'-'+ri+': type='+row.type+' orgNames='+JSON.stringify(row.orgNames)+' teamOrgNames='+JSON.stringify(row.teamOrgNames)+' name='+row.name);
+      console.log(dept+'-'+ri, 'type='+row.type, 'orgNames=', row.orgNames, 'teamOrgNames=', row.teamOrgNames, 'name='+row.name);
     });
   });
-
-  alert(lines.join('\n'));
+  console.log('디버그 완료');
 }
 
 function _renderDeptFund() {
