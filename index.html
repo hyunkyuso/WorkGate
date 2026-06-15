@@ -5813,10 +5813,10 @@ async function createNextYearSettings() {
     if (dq.includes(QI_PREV)) return;
 
     const ns = {};
-    // type, buseojang, teamjang 복사
-    if (s.type) ns.type = s.type;
-    if (s.buseojang !== undefined) ns.buseojang = s.buseojang;
-    if (s.teamjang !== undefined) ns.teamjang = s.teamjang;
+    // type, buseojang, teamjang 복사 (빈 문자열 포함)
+    ns.type = s.type !== undefined ? s.type : '';
+    ns.buseojang = s.buseojang !== undefined ? s.buseojang : false;
+    ns.teamjang = s.teamjang !== undefined ? s.teamjang : false;
     // disabledQi 초기화 (새해엔 미사용 없음)
     ns.disabledQi = [];
     // extra 초기화
@@ -5859,6 +5859,22 @@ async function createNextYearSettings() {
     });
 
     newSettings[dept] = ns;
+  });
+
+  // 2026 settings에 없지만 employees 기반으로 존재하는 본부/부서도 기본값으로 추가
+  const allDepts = [...new Set(employees.map(e=>e.dept).filter(Boolean))];
+  allDepts.forEach(dept => {
+    if (newSettings[dept]) return; // 이미 있으면 skip
+    const prevS = prevSettings[dept];
+    if (!prevS) return; // 전년도에도 없으면 skip
+    const dq = prevS.disabledQi || [];
+    if (dq.includes(QI_PREV)) return;
+    newSettings[dept] = {
+      type: prevS.type !== undefined ? prevS.type : '',
+      buseojang: prevS.buseojang !== undefined ? prevS.buseojang : false,
+      teamjang: prevS.teamjang !== undefined ? prevS.teamjang : false,
+      disabledQi: [], extra: [], deptDisplayNames: {}, nameData: [], dateData: [], hiddenDates: [], extraRows: []
+    };
   });
 
   // 저장
