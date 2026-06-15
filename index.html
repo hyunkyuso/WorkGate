@@ -8508,6 +8508,45 @@ async function exportDeptFundExcel() {
   }
   ws.getRow(3).height = 18;
 
+  // 안내문 배너 추가
+  const bannerLines = [
+    {text:'1. 본부장운영비/부서장운영비/팀운영비 예산 편성 기준(21.04.01개정)*본부장운영비 신설', bold:true},
+    {text:'ⓐ본부장운영비 (분기/1인/5만원, 본부장,인턴,정직원 포함)'},
+    {text:'ⓑ본부 내 팀장이 없는 경우 매월 본부장 및 해당 팀원 월/1인/4만원'},
+    {text:'ⓒ본부원이 없을 경우 본부장운영비는 지원하지 않음'},
+    {text:'ⓓ베트남지사에 파견된 본부장의 본부장운영비는 파견된 본부장에게 위임'},
+    {text:'ⓔ부서장운영비 (분기/1인/5만원, 부서장,인턴,정직원 포함)'},
+    {text:'ⓕ부서 내 팀장이 없는 경우 매월 부서장 및 해당 팀원 월/1인/4만원'},
+    {text:'ⓖ부서원이 없을 경우 부서장운영비는 지원하지 않음(부득이한 사유 발생 또는 조직의 특성에 따라 본부장간의 합의를 통해 운영비를 별도로 책정할 수 있다.)'},
+    {text:'ⓗ베트남지사에 파견된 부서장의 부서장운영비는 파견된 부서장에게 위임'},
+    {text:'ⓘ친목도모 및 화합을 위한 회식(식사,스포츠,문화행사관람)의 목적으로만 사용가능하며 물품의 구매(선물포함), 현금성상품권 구매 등의 용도로 사용이 불가함'},
+    {text:'ⓙ팀장이 없는 부서장 운영비는 팀장 운영비와 비교하여 지원 규모가 큰 항목을 적용(단, 중복지원 불가)'},
+    {text:'2. 규정에 없는 지시사항', bold:true},
+    {text:'ⓐ육아휴직자는 모든 운영비에서 제외'},
+    {text:'ⓑ팀장 또는 부서장이 육아휴직일 때 일반적인 사항은 부서장 또는 본부장 운영비에 편입'},
+    {text:'ⓒ팀장 또는 부서장이 육아휴직, 퇴사 예정 등 장기간 부재일 경우 팀장 또는 부서장 운영비 대체자가 운영(해당 본부장 확인 필요)'},
+    {text:'ⓓ팀장 또는 부서장이 장기근속 및 기타 사유로 한달이상 부재일 경우 팀장 및 부서장 운영비는 소속 팀원 및 부서원들에게 운영비 사용에 관한 위임은 가능. 단, 정산은 팀장 및 부서장이 해야 함'},
+    {text:'※ 21.04 월부터 상한가,하한가 적용 삭제'},
+  ];
+  const BG_BANNER = {type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF9EC'}};
+  bannerLines.forEach(line => {
+    const bRow = ws.addRow([line.text]);
+    ws.mergeCells(wsRow, 1, wsRow, TOTAL_COLS);
+    const cell = bRow.getCell(1);
+    cell.font = {bold: line.bold||false, size:10, color:{argb: line.bold?'FF374151':'FFDC2626'}};
+    cell.fill = BG_BANNER;
+    cell.alignment = {horizontal:'left', vertical:'middle', wrapText:false};
+    cell.border = {
+      top:{style:'thin',color:{argb:'FFFDE68A'}},
+      left:{style:'thin',color:{argb:'FFFDE68A'}},
+      bottom:{style:'thin',color:{argb:'FFFDE68A'}},
+      right:{style:'thin',color:{argb:'FFFDE68A'}}
+    };
+    bRow.height = 15;
+    wsRow++;
+  });
+  wsRow++; // 배너 후 빈 행
+
   // DOM에서 테이블 데이터 읽기
   const container = document.getElementById('deptfund-content');
   const tables = container.querySelectorAll('table');
