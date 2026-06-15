@@ -6084,7 +6084,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         html += '<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed"><colgroup>' + colgroup.replace(/<colgroup>|<\/colgroup>/g,'') + '</colgroup><tbody>';
         const cols = row.cols||['team','name','date'];
         const rowTypes = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return cols.includes(k);});
-        const rowTypeLabel = row.type||'없음';
+        // type 없으면 cols로 자동 판단
+        const rowTypeLabel = row.type || (cols.includes('team') ? '팀장' : cols.includes('dept') ? '부서장' : '없음');
         const isTeamjang = rowTypeLabel==='팀장';
         const isBuseojang = rowTypeLabel==='부서장'||rowTypeLabel==='본부장';
         const exDisabledQi = [...new Set([...(row.disabledQi||[]), ...bonbuDisabledQi])];
@@ -6363,7 +6364,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           result.push('<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">'+colgroup+'<tbody>');
           const cols = row.cols || ['team','name','date'];
           const rowTypes = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return cols.includes(k);});
-          const rowTypeLabel = row.type||'없음';
+          const rowTypeLabel = row.type || (cols.includes('team') ? '팀장' : cols.includes('dept') ? '부서장' : '없음');
           const isTeamjang = rowTypeLabel==='팀장';
           const isBuseojang = rowTypeLabel==='부서장'||rowTypeLabel==='본부장';
           const deptEnc = encodeURIComponent(sourceDept);
@@ -6637,7 +6638,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // extra row 부서장/팀장 타입 재계산 등록
       if (!window._extraBuseojangCalcs) window._extraBuseojangCalcs = {};
       ((deptFundSettings[dept]||{}).extraRows||[]).forEach(function(row, ri) {
-        const rowT = row.type||'없음';
+        const rowT = row.type || ((row.cols||[]).includes('team') ? '팀장' : (row.cols||[]).includes('dept') ? '부서장' : '없음');
         if (rowT==='없음') return;
         const key = dept+'-'+ri;
         const rowOrgNames = (row.orgNames||[row.name||'',row.name||'',row.name||'',row.name||'']);
