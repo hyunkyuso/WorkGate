@@ -6761,30 +6761,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       // 하위팀 있는 부서 → 이름행 미표시 (단, 재무회계부 서식 지정 부서 제외)
       if (useSimpleFormat) {
-        // 하위팀 목록 및 행 수 계산 (비고 높이 산출용)
-        const sfSubTeamList = deptNames.filter(d => {
-          const o = departments.find(x=>x.name===d);
-          return o && o.parent === (departments.find(x=>x.name===dept)||{}).id;
-        });
-        // 각 하위팀의 pairCount 계산
-        const sfSubPairs = sfSubTeamList.map(sd => {
-          const sdEmps = depts[sd]||[];
-          const sdSetting = deptFundSettings[sd]||{};
-          const sdNameDataList = sdSetting.nameData||[];
-          const sdDisabledQi = sdSetting.disabledQi||[];
-          const sdQNames = quarters.map((_,qi2)=>{
-            const [qs2,qe2]=quarters[qi2];
-            if(sdDisabledQi.includes(qi2)) return [];
-            return sdEmps.filter(e=>getEmpMonthsInQuarter(e,year,qs2,qe2)>0);
-          });
-          const sdMax = Math.max(1,...sdQNames.map(n=>n.length));
-          return sdMax<=4?1:2;
-        });
-        // 전체 행 수: 2(초록+부서장) + 하위팀별(1+pair*2)
-        const sfTotalRows = 2 + sfSubTeamList.reduce((s,_,i)=>s+1+sfSubPairs[i]*2, 0);
-        // 비고 높이: 행당 28px (border 포함 약 29px)
-        const sfNoteHeight = sfTotalRows * 29;
-
         const sfDeptCells = [0,1,2,3].map(qi2 => {
           if (disabledQi.includes(qi2)) return `<td colspan="4" rowspan="2" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`;
           const amt = (isTypeBuseojang||isTypeBonbu)&&bAmts[qi2]!==null ? fmtMoney(bAmts[qi2]) : '-';
@@ -6800,26 +6776,18 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const disp=nm?nm+ttl2+'<span style="color:#3b82f6;font-weight:500"> (부서장)</span>':'';
           return `<td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${disp}</td>`;
         }).join('');
-
-        // 비고 오버레이: 렌더링 후 JS로 높이 맞춤
-        const sfNoteId = 'sfnote_' + dept.replace(/[^a-zA-Z0-9가-힣]/g,'_');
-        const sfWrapperId = 'sfwrap_' + dept.replace(/[^a-zA-Z0-9가-힣]/g,'_');
-
-        html += `<div id="${sfWrapperId}" style="position:relative;margin-right:61px">
-          <table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
-            ${colgroup}<tbody>
-            <tr style="background:${BG_DEPT_HEADER}">
-              ${sfDeptCells}
-              <td data-total-dept="${dept}" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
-            </tr>
-            <tr>
-              ${sfHeadCells}
-              <td data-buseojang-total="${dept}" style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
-            </tr>
-            </tbody></table>
-          <div id="${sfNoteId}" style="position:absolute;top:0;right:-61px;width:60px;background:#fff;border:1px solid #b0bec5;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#111;cursor:pointer;box-sizing:border-box" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</div>
-          </div>
-          <div style='height:24px'></div>
+        html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
+          ${colgroup}<tbody>
+          <tr style="background:${BG_DEPT_HEADER}">
+            ${sfDeptCells}
+            <td data-total-dept="${dept}" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
+            <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
+          </tr>
+          <tr>
+            ${sfHeadCells}
+            <td data-buseojang-total="${dept}" style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
+          </tr>
+          </tbody></table><div style='height:24px'></div>
           ${renderExtraRows()}`;
         return;
       }
@@ -6963,8 +6931,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // noteRowspan 계산 (설계 기준)
       const calcNoteRowspan = () => {
         // 파란줄(본부장): 2 → 별도 처리
-        // 초록줄(부서장) 일반: 2 (하위팀 있으면 아래 조건으로)
-        if (isTypeBuseojang && !isTypeTeamjang && !hasSubTeams) return 2 + extraRowsTrsForNote;
+        // 초록줄(부서장) 단독, deptHead 없음: 2
+        if (isTypeBuseojang && !isTypeTeamjang && !hasSubTeams && !deptHead) return 2 + extraRowsTrsForNote;
         // 하늘줄(팀장) 단독(deptHead 없음): 1+pairCount*2
         if (isTypeTeamjang && !deptHead && !hasSubTeams) return 1 + pairCount*2;
         // 예외1: 부서장 있고 팀 없음 → 초록+부서장+하늘+이름+날짜
@@ -7038,6 +7006,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               : `<td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td><td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="${qi2}" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[qi2]!==null?fmtMoney(tAmts[qi2]):'-'}${((extraList||[]).some(e=>e.qi==qi2&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`)
           ).join('')}
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
+          ${parentDept && parentDept.name && (() => { const ps = deptFundSettings[parentDept.name]||{}; return (ps.type||'').includes('부서장')||(ps.type||'').includes('본부장'); })() ? `<td rowspan="${1+pairCount*2}" style="${tdStyle}border-left:1px solid #b0bec5;background:#fff"></td>` : ''}
         </tr>
 ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
@@ -7062,13 +7031,6 @@ ${nameRows.map((rowByQ, rowIdx) => `
   });
 
   container.innerHTML = html;
-
-  // useSimpleFormat 비고 오버레이 높이 맞춤
-  container.querySelectorAll('[id^="sfwrap_"]').forEach(wrapper => {
-    const noteId = wrapper.id.replace('sfwrap_', 'sfnote_');
-    const noteEl = document.getElementById(noteId);
-    if (noteEl) noteEl.style.height = wrapper.offsetHeight + 'px';
-  });
 
   // 팀장 타입 본부 금액 업데이트
   if (window._bonbuTeamjangCalcs) {
