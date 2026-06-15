@@ -6828,8 +6828,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           qn.forEach(obj => {
             if (!obj||!obj.name||countedNames.has(obj.name)) return;
             countedNames.add(obj.name);
-            const emp = employees.find(e=>e.name===obj.name);
-            let m = emp ? getEmpMonthsInQuarter(emp,year,qs,qe) : 3;
+            let m = qe - qs + 1;
             // dateData 날짜칸 체크
             const dd = dateDataList.find(d=>d.name===obj.name&&d.qi===qi);
             if (dd&&dd.fullDate) {
@@ -6837,6 +6836,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               if (dd.type==='leave'||dd.type==='to') m=Math.max(0,Math.min(dtM,qe)-qs+1);
               else if (dd.type==='join'||dd.type==='from') m=Math.max(0,qe-Math.max(dtM,qs)+1);
             }
+            // Firebase 직원: getEmpMonthsInQuarter로 육아휴직/입퇴사 반영 (calcNameMonths와 동일)
+            const emp = employees.find(e=>e.name===obj.name);
+            if (emp) m = Math.min(m, getEmpMonthsInQuarter(emp,year,qs,qe));
             t += m * 40000;
           });
         });
