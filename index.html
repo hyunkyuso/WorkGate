@@ -671,7 +671,7 @@ select.form-input{cursor:pointer}
         </div>
         <div style="padding:8px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
           <span style="font-size:12px;color:#856404">⚠️ 이름 데이터가 이상하게 보이면 정리 버튼을 클릭하세요</span>
-          <button onclick="cleanupNameData()" style="padding:4px 12px;background:#ffc107;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">데이터 정리</button>
+
 
         </div>
         <div id="deptfund-content" style="overflow-x:auto;padding:8px">
@@ -5780,27 +5780,6 @@ function renderDeptFund() {
     return;
   }
   loadDeptFundSettings().then(() => _renderDeptFund());
-}
-
-
-// ── nameData 정리 (중복/빈이름 제거) ──
-function cleanupNameData() {
-  let changed = false;
-  Object.keys(deptFundSettings).forEach(dept => {
-    if (!deptFundSettings[dept].nameData) return;
-    const before = deptFundSettings[dept].nameData.length;
-    // name 없는 항목, col/rowIdx 있는 구 버전 항목 제거
-    // name 없거나 구버전(col 필드 있는 것) 제거
-    deptFundSettings[dept].nameData = deptFundSettings[dept].nameData.filter(d => d.name && d.name.trim() && d.col === undefined);
-    if (deptFundSettings[dept].nameData.length !== before) changed = true;
-  });
-  if (changed) {
-    saveDeptFundSettings();
-    alert('데이터 정리 완료! 페이지를 새로고침합니다.');
-    location.reload();
-  } else {
-    alert('정리할 데이터가 없습니다.');
-  }
 }
 
 
