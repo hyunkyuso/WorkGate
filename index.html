@@ -7328,12 +7328,12 @@ function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
     const year2 = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
     const qRanges = [[0,2],[3,5],[6,8],[9,11]];
     const [qs2,qe2] = qRanges[qi];
-    // col 위치 직원 이름
-    const nameObj = qNamesArr && qNamesArr[col];
+    // rowIdx*4+col 위치 직원 이름
+    const nameObj = qNamesArr && qNamesArr[rowIdx*4+col];
     const empName = nameObj ? (typeof nameObj==='object'?nameObj.name:String(nameObj).replace(/<[^>]*>/g,'').trim()) : null;
     if (empName) {
       // 해당 직원의 입사/퇴사일이 이 분기에 해당하는지만 체크
-      const emp = (employees||[]).find(e=>e.name===empName&&e.dept===dept);
+      const emp = (employees||[]).find(e=>e.name===empName);
       if (emp) {
         const jd=parseLocalDate(emp.joindate);
         if (jd&&jd.getFullYear()===year2&&jd.getMonth()>=qs2&&jd.getMonth()<=qe2)
