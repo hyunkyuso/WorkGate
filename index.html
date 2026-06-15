@@ -6137,6 +6137,58 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           }
         });
         html += '</tbody></table><div style="height:24px"></div>';
+        // 렌더링 후 재계산 등록 (_lastQNames 채워진 뒤 호출)
+        if (!window._extraBuseojangCalcs) window._extraBuseojangCalcs = {};
+        const bonbuRowKey = bonbu+'-'+ri;
+        const bonbuRowOrgNames = row.orgNames||[row.name||'',row.name||'',row.name||'',row.name||''];
+        const bonbuRowTeamOrgNames = row.teamOrgNames||['','','',''];
+        const bonbuRowNdList = ndList;
+        const bonbuRowDdList = ddList;
+        const bonbuRowIsTeamjang = isTeamjang;
+        const bonbuRowIsBuseojang = isBuseojang;
+        const bonbuRowDisabledQi = exDisabledQi;
+        window._extraBuseojangCalcs[bonbuRowKey] = (function(rOrgNames, rTeamOrgNames, rNdList, rDdList, rIsTeamjang, rIsBuseojang, rDisabledQi) {
+          return function() {
+            const allVals = rOrgNames.concat(rTeamOrgNames).filter(function(n){return n;});
+            const fallback = allVals[0]||'';
+            const effOrg = rOrgNames.map(function(n){return n||fallback;});
+            const effTeam = rTeamOrgNames.map(function(n){return n||fallback;});
+            return quarters.map(function(qArr, qi2) {
+              var qs=qArr[0], qe=qArr[1];
+              if (rDisabledQi.includes(qi2)) return null;
+              var t = 0;
+              var countedNames = new Set();
+              // nameData 기반
+              rNdList.filter(function(d){return d.qi===qi2&&d.col!==undefined&&d.name;}).forEach(function(d){
+                if(countedNames.has(d.name)) return;
+                countedNames.add(d.name);
+                if (rIsTeamjang) {
+                  var dd = rDdList.find(function(x){return x.qi===qi2&&x.col===d.col;});
+                  var months = qe-qs+1;
+                  if(dd&&dd.fullDate){var dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
+                  t += months*40000;
+                } else { t += 50000; }
+              });
+              // orgNames/teamOrgNames 팀의 _lastQNames 포함
+              var allOrgs = effOrg.concat(effTeam).filter(function(n){return n;}).filter(function(n,i,a){return a.indexOf(n)===i;});
+              allOrgs.forEach(function(orgName) {
+                var orgDq = (deptFundSettings[orgName]||{}).disabledQi||[];
+                if (orgDq.includes(qi2)) return;
+                var qn = (window._lastQNames&&window._lastQNames[orgName]&&window._lastQNames[orgName][qi2])||[];
+                qn.forEach(function(obj) {
+                  if(!obj||!obj.name||countedNames.has(obj.name)) return;
+                  countedNames.add(obj.name);
+                  if (rIsTeamjang) {
+                    var emp2 = employees.find(function(e){return e.name===obj.name;});
+                    var m2 = emp2 ? getEmpMonthsInQuarter(emp2,year,qs,qe) : (qe-qs+1);
+                    t += m2*40000;
+                  } else { t += 50000; }
+                });
+              });
+              return t||null;
+            });
+          };
+        })(bonbuRowOrgNames, bonbuRowTeamOrgNames, bonbuRowNdList, bonbuRowDdList, bonbuRowIsTeamjang, bonbuRowIsBuseojang, bonbuRowDisabledQi);
       });
     }
 
