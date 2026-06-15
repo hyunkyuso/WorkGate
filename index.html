@@ -8441,7 +8441,7 @@ async function exportDeptFundExcel() {
     right: right||{style:'thin',color:{argb:'FFB0BEC5'}}
   });
   const thickRight = border({style:'medium',color:{argb:'FF78909C'}});
-  const center = {horizontal:'center',vertical:'middle',wrapText:true};
+  const center = {horizontal:'center',vertical:'middle',wrapText:false};
   const right_align = {horizontal:'right',vertical:'middle'};
 
   // 배경색
@@ -8458,9 +8458,10 @@ async function exportDeptFundExcel() {
   // 화면: colspan=2 소속, colspan=2 금액 → 엑셀: 2+2+2+2+2+2+2+2 + 합계 + 구분 + 비고 = 18col
   const COL_W = 7;
   ws.columns = Array.from({length:18}, (_,i) => {
-    if(i===16) return {width:10}; // 합계
-    if(i===17) return {width:6};  // 구분
-    return {width: i%4===0||i%4===1 ? 9 : 7}; // 소속넓게
+    if(i===16) return {width:13}; // 합계
+    if(i===17) return {width:7};  // 구분
+    // 소속칸(i%4===0,1): 넓게, 금액칸(i%4===2,3): 보통
+    return {width: i%4===0||i%4===1 ? 12 : 10};
   });
 
   // 총 열 수: 분기4 × 4col + 합계1 + 구분1 + 비고1 = 18
@@ -8524,7 +8525,10 @@ async function exportDeptFundExcel() {
       tds.forEach(td => {
         const cs = parseInt(td.getAttribute('colspan')||'1');
         const rs = parseInt(td.getAttribute('rowspan')||'1');
-        const text = td.innerText.trim().replace(/\n/g,' ');
+        // ☰ 버튼 텍스트 제거 후 추출
+        const clone = td.cloneNode(true);
+        clone.querySelectorAll('button').forEach(b=>b.remove());
+        const text = clone.innerText.trim().replace(/\n/g,' ');
         const style = td.getAttribute('style')||'';
         let bg = 'FFFFFFFF';
         if(style.includes('93c5fd')||style.includes('93C5FD')) bg='FF93C5FD';
