@@ -6633,7 +6633,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         let t = 0;
         const countedNames = new Set();
         // 부서장칸 (deptHead)
-        if (deptHead && !countedNames.has(deptHead.name) && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) {
+        // 겸직 본부장이 부서장으로도 잡히면 본부장 금액에 이미 포함됐으므로 제외
+        const deptHeadIsBonbuHead = deptHead && employees.some(e=>
+          e.name===deptHead.name && (e.title||'').includes('본부장')
+        );
+        if (deptHead && !deptHeadIsBonbuHead && !countedNames.has(deptHead.name) && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) {
           countedNames.add(deptHead.name); t += 50000;
         }
         // 해당 부서(+하위팀) 이름칸 _lastQNames 합산
