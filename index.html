@@ -6843,7 +6843,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // extraRows 팀장 type
         const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
         extraRows.forEach(row => {
-          if ((row.exDisabledQi||[]).includes(qi)) return;
+          if ([...(row.exDisabledQi||[]),...(row.disabledQi||[])].includes(qi)) return;
           if ((row.type||'없음')==='팀장') {
             // 이름칸
             (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(()=>{ t+=120000; });
@@ -6918,7 +6918,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const extraRowsT = (deptFundSettings[dept]||{}).extraRows||[];
           extraRowsT.forEach(row => {
             if ((row.type||'없음')!=='팀장') return;
-            if ((row.exDisabledQi||[]).includes(qi)) return;
+            if ([...(row.exDisabledQi||[]),...(row.disabledQi||[])].includes(qi)) return;
             t += (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).length * 120000;
             const hn = (row.headNames||[])[qi];
             if (hn) t += 120000;
