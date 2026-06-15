@@ -5953,6 +5953,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const bonbuNameDataList = (deptFundSettings[bonbu]||{}).nameData || [];
     const bonbuIsTeamjang = (bonbuSetting.type||'').includes('팀장');
     const bonbuIsBuseojang = (bonbuSetting.type||'').includes('부서장');
+    const bonbuDisabledQi = (deptFundSettings[bonbu]||{}).disabledQi || [];
     // 팀장 타입 본부 금액 계산 함수 (부서 렌더링 후 _lastQNames 채워진 뒤 호출)
     if (!window._bonbuTeamjangCalcs) window._bonbuTeamjangCalcs = {};
     const calcBonbuTeamjangAmts = () => quarters.map(([qs,qe],qi) => {
@@ -6025,10 +6026,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     if (!bonbuIsTeamjang && !bonbuIsNone) window._bonbuAmtCalcs[bonbu] = calcBonbuAmts;
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
 
-
     // ── 본부장 테이블 ──
     const bonbuTypeLabel = bonbuIsNone ? '' : ((deptFundSettings[bonbu]||{}).type || '본부장');
-    const bonbuDisabledQi = (deptFundSettings[bonbu]||{}).disabledQi || [];
     html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
