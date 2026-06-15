@@ -6675,6 +6675,21 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             var isExtraTeamjang = rowT==='팀장';
             var isExtraBuseojang = rowT==='부서장'||rowT==='본부장';
             var countedNames = new Set();
+            // headNames (부서장) 포함
+            var hasDeptCol = (row.cols||[]).includes('dept');
+            if (hasDeptCol) {
+              var hn = (row.headNames||[])[qi2];
+              if (hn && !countedNames.has(hn)) {
+                countedNames.add(hn);
+                if (isExtraTeamjang) {
+                  var hEmp = employees.find(function(e){return e.name===hn;});
+                  var hm = hEmp ? getEmpMonthsInQuarter(hEmp,year,qs,qe) : (qe-qs+1);
+                  t += hm*40000;
+                } else {
+                  t += 50000;
+                }
+              }
+            }
             // nameData 기반
             (row.nameData||[]).filter(function(d){return d.qi===qi2&&d.name&&!d.hidden;}).forEach(function(d){
               if (countedNames.has(d.name)) return;
@@ -9301,6 +9316,6 @@ if (!state.kpis.length) {
   setupAuthListener();
 })();
 </script>
-</body> 
+</body>
 </html>
  
