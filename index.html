@@ -5971,8 +5971,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     );
     // 주소속 본부장
     const bonbuHeadMain = allEmpInBonbu.find(e=>(e.title||'').includes('본부장'));
-    // 겸직 본부장은 주소속 본부에서만 계산 (다른 본부에서는 제외)
-    const bonbuHeadConcFiltered = bonbuHeadConc && bonbuHeadConc.dept !== bonbu ? null : bonbuHeadConc;
+    // 겸직 본부장은 주소속이 다른 본부인 경우 제외 (단, 정도유아이티/대표이사 등 본부 외 소속은 허용)
+    const bonbuHeadConcMainBonbu = bonbuHeadConc ? getBonbu({dept: bonbuHeadConc.dept}) : null;
+    const bonbuHeadConcFiltered = bonbuHeadConc && bonbuHeadConcMainBonbu && bonbuHeadConcMainBonbu !== bonbu && bonbuHeadConcMainBonbu !== bonbuHeadConc.dept ? null : bonbuHeadConc;
     const bonbuHead = bonbuHeadConcFiltered || bonbuHeadMain;
     const hdDataBonbu = ((deptFundSettings[bonbu]||{}).nameData||[]).find(d=>d.rowIdx===-1);
     const headName = hdDataBonbu&&hdDataBonbu.name ? hdDataBonbu.name+(hdDataBonbu.acting?` (${hdDataBonbu.acting})`:'') : (bonbuHead ? bonbuHead.name : '');
