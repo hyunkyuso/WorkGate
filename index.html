@@ -6843,28 +6843,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             t += m * 40000;
           });
         });
-        // extraRows 팀장 type
-        const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
-        extraRows.forEach(row => {
-          if ([...(row.exDisabledQi||[]),...(row.disabledQi||[])].includes(qi)) return;
-          if ((row.type||'없음')==='팀장') {
-            // 이름칸
-            (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(()=>{ t+=120000; });
-            // team 칸의 headNames (팀장)
-            const hasDept = (row.cols||[]).includes('dept');
-            const hn=(row.headNames||[])[qi];
-            if (hn) {
-              if (hasDept) {
-                // 부서+부서장+팀+이름+날짜 조합: deptjang headNames → 재직월수×4만
-                const emp = employees.find(e=>e.name===hn);
-                const m = emp ? getEmpMonthsInQuarter(emp,year,qs,qe) : 3;
-                t += m * 40000;
-              } else {
-                t += 120000;
-              }
-            }
-          }
-        });
+        // extraRows는 _extraBuseojangCalcs에서 별도 처리하므로 여기서 합산하지 않음
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
         return t || null;
       });
@@ -6917,15 +6896,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const dateDataT = (deptFundSettings[dept]||{}).dateData||[];
           const items = calcNameMonths(qNamesT[qi], qi, dateDataT);
           let t = items.reduce((s,x)=>s+x.months*40000, 0);
-          // extraRows 중 팀장 type
-          const extraRowsT = (deptFundSettings[dept]||{}).extraRows||[];
-          extraRowsT.forEach(row => {
-            if ((row.type||'없음')!=='팀장') return;
-            if ([...(row.exDisabledQi||[]),...(row.disabledQi||[])].includes(qi)) return;
-            t += (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).length * 120000;
-            const hn = (row.headNames||[])[qi];
-            if (hn) t += 120000;
-          });
+          // extraRows는 _extraBuseojangCalcs에서 별도 처리하므로 여기서 합산하지 않음
           extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
           return t || null;
         });
