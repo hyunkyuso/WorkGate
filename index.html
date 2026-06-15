@@ -6190,7 +6190,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const bonbuRowIsTeamjang = isTeamjang;
         const bonbuRowIsBuseojang = isBuseojang;
         const bonbuRowDisabledQi = exDisabledQi;
-        window._extraBuseojangCalcs[bonbuRowKey] = (function(rOrgNames, rTeamOrgNames, rNdList, rDdList, rIsTeamjang, rIsBuseojang, rDisabledQi) {
+        window._extraBuseojangCalcs[bonbuRowKey] = (function(rOrgNames, rTeamOrgNames, rNdList, rDdList, rIsTeamjang, rIsBuseojang, rDisabledQi, rHeadNames, rCols) {
           return function() {
             const allVals = rOrgNames.concat(rTeamOrgNames).filter(function(n){return n;});
             const fallback = allVals[0]||'';
@@ -6201,6 +6201,21 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               if (rDisabledQi.includes(qi2)) return null;
               var t = 0;
               var countedNames = new Set();
+              // headNames (부서장) 포함
+              var hasDeptCol = rCols.includes('dept');
+              if (hasDeptCol) {
+                var rawHn = rHeadNames[qi2];
+                var fallbackHn = rHeadNames.find(function(n){return n;})||'';
+                var hn = rawHn || fallbackHn;
+                if (hn && !countedNames.has(hn)) {
+                  countedNames.add(hn);
+                  if (rIsTeamjang) {
+                    var hEmp = employees.find(function(e){return e.name===hn;});
+                    var hm = hEmp ? getEmpMonthsInQuarter(hEmp,year,qs,qe) : (qe-qs+1);
+                    t += hm*40000;
+                  } else { t += 50000; }
+                }
+              }
               // nameData 기반
               rNdList.filter(function(d){return d.qi===qi2&&d.col!==undefined&&d.name;}).forEach(function(d){
                 if(countedNames.has(d.name)) return;
@@ -6218,6 +6233,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                 var orgDq = (deptFundSettings[orgName]||{}).disabledQi||[];
                 if (orgDq.includes(qi2)) return;
                 var qn = (window._lastQNames&&window._lastQNames[orgName]&&window._lastQNames[orgName][qi2])||[];
+                if (!qn.length) {
+                  qn = employees.filter(function(e){return e.dept===orgName&&getEmpMonthsInQuarter(e,year,qs,qe)>0;}).map(function(e){return {name:e.name,isEmp:true};});
+                }
                 qn.forEach(function(obj) {
                   if(!obj||!obj.name||countedNames.has(obj.name)) return;
                   countedNames.add(obj.name);
@@ -6231,7 +6249,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               return t||null;
             });
           };
-        })(bonbuRowOrgNames, bonbuRowTeamOrgNames, bonbuRowNdList, bonbuRowDdList, bonbuRowIsTeamjang, bonbuRowIsBuseojang, bonbuRowDisabledQi);
+        })(bonbuRowOrgNames, bonbuRowTeamOrgNames, bonbuRowNdList, bonbuRowDdList, bonbuRowIsTeamjang, bonbuRowIsBuseojang, bonbuRowDisabledQi, row.headNames||['','','',''], row.cols||[]);
       });
     }
 
