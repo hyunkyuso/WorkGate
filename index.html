@@ -5842,7 +5842,7 @@ function _renderDeptFund() {
   const Q1_PENDING = true; // 1~3월 대기
   const colSpan = 10; // 소속x4 + 금액x4 + 합계 + 구분 + 비고
 
-const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계부", "글로벌사업본부", "해외사업부", "해외사업팀", "글로벌기획본부", "AI전략기획본부", "AI기획팀", "디자인팀", "AI GIS 연구본부", "SW지원부", "SW지원팀", "AI GIS 연구부", "연구1팀", "연구2팀", "R&D기획부", "R&D기획팀", "SW기술연구소", "응용개발연구부", "제품개발연구부", "SW영업본부", "GIS SW영업부", "GIS SW영업팀", "도시계획 SW영업부", "도시계획 SW영업팀", "GIS사업본부", "GIS사업1부", "GIS1부 사업1팀", "GIS1부 사업2팀", "GIS사업2부", "GIS2부 사업팀", "도시계획사업본부", "도시계획사업부", "도시계획사업1팀", "도시계획사업2팀"];
+const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계부", "글로벌사업본부", "해외사업부", "해외사업팀", "글로벌기획본부", "AI전략기획본부", "AI기획팀", "디자인팀", "AI GIS 연구본부", "SW지원부", "SW지원팀", "기술서비스팀", "AI GIS 연구부", "연구1팀", "연구2팀", "R&D기획부", "R&D기획팀", "SW기술연구소", "응용개발연구부", "제품개발연구부", "플랫폼개발본부", "플랫폼개발1팀", "플랫폼개발2팀", "품질기획팀", "SW영업본부", "GIS SW영업부", "GIS SW영업팀", "도시계획 SW영업부", "도시계획 SW영업팀", "GIS사업본부", "GIS사업1부", "GIS1부 사업1팀", "GIS1부 사업2팀", "GIS사업2부", "GIS2부 사업팀", "도시계획사업본부", "도시계획사업부", "도시계획사업1팀", "도시계획사업2팀"];
   const getDeptSortOrder = (name) => {
     if (!name) return 9999;
     let idx = FIXED_DEPT_ORDER.indexOf(name);
@@ -6044,7 +6044,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           (e.dept===dk||(e.concurrent||[]).some(c=>c.dept===dk&&((c.title||'').includes('부서장')||(c.title||'').includes('부장')))) &&
           ((e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장')||(e.concurrent||[]).some(c=>c.dept===dk&&((c.title||'').includes('부서장')||(c.title||'').includes('부장'))))
         );
-        if (dkHead && !countedNames.has(dkHead.name) && getEmpMonthsInQuarter(dkHead,year,qs,qe)>0) {
+        // 겸직 본부장(bonbuHead)이 부서장칸에 잡혀 중복 계산되지 않도록 제외
+        const dkHeadIsBonbuHead = bonbuHead && dkHead && dkHead.name === bonbuHead.name;
+        if (dkHead && !dkHeadIsBonbuHead && !countedNames.has(dkHead.name) && getEmpMonthsInQuarter(dkHead,year,qs,qe)>0) {
           countedNames.add(dkHead.name); t += 50000;
         }
         // 이름칸
@@ -6064,6 +6066,18 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         });
       });
       bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t+=50000; });
+      // 본부 자체 extraRows (기술서비스팀, 품질기획팀 등 추가 줄) headNames + nameData 합산
+      const bonbuExtraRowsList = (deptFundSettings[bonbu]||{}).extraRows||[];
+      bonbuExtraRowsList.forEach(function(row) {
+        const rowDq = row.disabledQi||[];
+        if (rowDq.includes(qi)) return;
+        const rowType = row.type||'없음';
+        const hn = (row.headNames||[])[qi];
+        if (hn && !countedNames.has(hn)) { countedNames.add(hn); t += 50000; }
+        (row.nameData||[]).filter(function(d){return d.qi===qi&&d.name&&!d.hidden;}).forEach(function(d) {
+          if (!countedNames.has(d.name)) { countedNames.add(d.name); t += 50000; }
+        });
+      });
       return t || null;
     });
     if (!bonbuIsTeamjang && !bonbuIsNone) window._bonbuAmtCalcs[bonbu] = calcBonbuAmts;
