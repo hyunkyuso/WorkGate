@@ -6337,10 +6337,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             });
             // 부서장 타입: orgNames/teamOrgNames에 해당하는 팀의 _lastQNames도 포함
             if (isBuseojang) {
-              var fallbackOrg2 = (orgNames||[]).find(function(n){return n;})||'';
-              var fallbackTeam2 = (teamOrgNames||[]).find(function(n){return n;})||'';
-              var effOrg = (orgNames||[]).map(function(n){return n||fallbackOrg2;});
-              var effTeam = (teamOrgNames||[]).map(function(n){return n||fallbackTeam2;});
+              var allVals2 = (orgNames||[]).concat(teamOrgNames||[]).filter(function(n){return n;});
+              var fallback2 = allVals2[0]||'';
+              var effOrg = (orgNames||[]).map(function(n){return n||fallback2;});
+              var effTeam = (teamOrgNames||[]).map(function(n){return n||fallback2;});
               var allOrgNames = effOrg.concat(effTeam).filter(function(n){return n;});
               var uniqueOrgs = allOrgNames.filter(function(n,i,a){return a.indexOf(n)===i;});
               uniqueOrgs.forEach(function(orgName) {
@@ -6537,10 +6537,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const hn=(row.headNames||[])[qi];
           if(hn&&!countedNames.has(hn)){countedNames.add(hn);t+=50000;}
           // orgNames/teamOrgNames에 해당하는 팀의 _lastQNames도 포함
-          const fbOrg = (row.orgNames||[]).find(n=>n)||'';
-          const fbTeam = (row.teamOrgNames||[]).find(n=>n)||'';
-          const effOrgNames = (row.orgNames||[]).map(n=>n||fbOrg);
-          const effTeamNames = (row.teamOrgNames||[]).map(n=>n||fbTeam);
+          const fbAll = (row.orgNames||[]).concat(row.teamOrgNames||[]).filter(n=>n);
+          const fb = fbAll[0]||row.name||'';
+          const effOrgNames = (row.orgNames||[row.name||'',row.name||'',row.name||'',row.name||'']).map(n=>n||fb);
+          const effTeamNames = (row.teamOrgNames||['','',''  ,'']).map(n=>n||fb);
           const allExtraOrgs = effOrgNames.concat(effTeamNames).filter(n=>n)
             .filter((n,i,a)=>a.indexOf(n)===i);
           allExtraOrgs.forEach(orgName => {
@@ -6566,11 +6566,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const rowOrgNames = (row.orgNames||[row.name||'',row.name||'',row.name||'',row.name||'']);
         const rowTeamOrgNames = row.teamOrgNames||['','','',''];
         window._extraBuseojangCalcs[key] = function() {
-          // orgNames/teamOrgNames 빈 분기는 다른 분기 값으로 fallback
-          const fallbackOrg = rowOrgNames.find(function(n){return n;})||'';
-          const fallbackTeam = rowTeamOrgNames.find(function(n){return n;})||'';
-          const effectiveOrgNames = rowOrgNames.map(function(n){return n||fallbackOrg;});
-          const effectiveTeamOrgNames = rowTeamOrgNames.map(function(n){return n||fallbackTeam;});
+          // orgNames/teamOrgNames 빈 분기는 전체 배열 통합에서 첫 유효값으로 fallback
+          const allVals = rowOrgNames.concat(rowTeamOrgNames).filter(function(n){return n;});
+          const fallback = allVals[0]||'';
+          const effectiveOrgNames = rowOrgNames.map(function(n){return n||fallback;});
+          const effectiveTeamOrgNames = rowTeamOrgNames.map(function(n){return n||fallback;});
           return quarters.map(function(qArr, qi2) {
             var qs=qArr[0], qe=qArr[1];
             if ((row.disabledQi||[]).includes(qi2)) return null;
