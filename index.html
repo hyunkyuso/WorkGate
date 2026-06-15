@@ -7238,9 +7238,10 @@ ${nameRows.map((rowByQ, rowIdx) => `
       const amts = calcFn();
       const total = amts.reduce((s,v)=>s+(v||0),0);
       [0,1,2,3].forEach(qi => {
-        // 팀장 셀 또는 부서장 셀(팀장 비고인 부서) 모두 업데이트
-        const cell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="teamjang"]`)
-          || container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
+        // 팀장 셀 우선, 없으면 부서장 셀 (단, SW스타일처럼 별도 팀 테이블이 있는 경우 부서장 셀 업데이트 안 함)
+        const teamCell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="teamjang"]`);
+        const buseoCell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
+        const cell = teamCell || (!teamCell && buseoCell && !container.querySelector(`td[data-dept="${dept}"][data-qi="0"][data-type="teamjang"]`) ? buseoCell : null);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
       });
       // 팀장 합계 셀 직접 업데이트
