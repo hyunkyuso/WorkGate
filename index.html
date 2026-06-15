@@ -5956,8 +5956,11 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     // 팀장 타입 본부 금액 계산 함수 (부서 렌더링 후 _lastQNames 채워진 뒤 호출)
     if (!window._bonbuTeamjangCalcs) window._bonbuTeamjangCalcs = {};
     const calcBonbuTeamjangAmts = () => quarters.map(([qs,qe],qi) => {
+      if (bonbuDisabledQi.includes(qi)) return null;
       let t=0;
       deptNames.forEach(d => {
+        const dDq = (deptFundSettings[d]||{}).disabledQi||[];
+        if (dDq.includes(qi)) return;
         const dQNames = window._lastQNames&&window._lastQNames[d]&&window._lastQNames[d][qi]||[];
         const dDateData = (deptFundSettings[d]||{}).dateData||[];
         const dEmpList = depts[d]||[];
@@ -5981,6 +5984,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const calcBonbuAmts = () => quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
       if (bonbuIsTeamjang) return null;
+      if (bonbuDisabledQi.includes(qi)) return null;
       let t = 0;
       const countedNames = new Set();
       // 본부장 본인
@@ -6494,6 +6498,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (!window._deptBuseojangCalcs) window._deptBuseojangCalcs = {};
       const calcBAmts = () => quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
+        if (disabledQi.includes(qi)) return null;
         let t = 0;
         const countedNames = new Set();
         // 부서장칸 (deptHead)
@@ -6604,6 +6609,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (!window._deptTeamjangCalcs) window._deptTeamjangCalcs = {};
       const calcTAmts = () => quarters.map(([qs,qe],qi) => {
         if (deptIsNone || !isTypeTeamjang) return null;
+        if (disabledQi.includes(qi)) return null;
         let t = 0;
         const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
         const deptAndSubs = [dept, ...subTeamEmps.map(e=>e.dept).filter((d,i,a)=>a.indexOf(d)===i)];
