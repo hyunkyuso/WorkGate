@@ -6987,6 +6987,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           return t || null;
         });
         const tTotal = tAmtsT.reduce((s,v)=>s+(v||0),0);
+        // 팀장 요약 누적
+        if (!window._summaryAccum) window._summaryAccum = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
+        tAmtsT.forEach((v,qi) => { window._summaryAccum['팀장'][qi] += (v||0); });
         const maxET = Math.max(1, ...qNamesT.map(n=>n.length));
         const pairT = maxET <= 4 ? 1 : 2;
         const nameRowsT = Array.from({length:pairT}, (_,ri) =>
@@ -7302,7 +7305,13 @@ ${nameRows.map((rowByQ, rowIdx) => `
   container.innerHTML = html;
 
   // extra row 부서장 타입 금액 재계산
-  const summarySums = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
+  // _summaryAccum에서 팀단위 조직 팀장 금액 가져오기
+  const summarySums = {
+    본부장:[0,0,0,0],
+    부서장:[0,0,0,0],
+    팀장: window._summaryAccum ? [...window._summaryAccum['팀장']] : [0,0,0,0]
+  };
+  window._summaryAccum = null;
 
   // 팀장 타입 본부 금액 업데이트
   if (window._bonbuTeamjangCalcs) {
