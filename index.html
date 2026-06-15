@@ -6138,9 +6138,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     }
 
     // ── 부서별 테이블 ──
+    const _sfSkipDepts = new Set();
     deptNames.forEach(dept => {
       if (dept.includes('수석전문위원')) return;
       if (dept.includes('베트남')) return;
+      // useSimpleFormat 부서의 하위팀은 부모 테이블에 포함되므로 skip
+      if (_sfSkipDepts.has(dept)) return;
       // SW지원부/GIS SW영업부의 하위팀은 부모 테이블에 포함되므로 skip
       const deptObj = departments.find(d=>d.name===dept);
       const parentDept = deptObj ? departments.find(d=>d.id===deptObj.parent) : null;
@@ -6761,8 +6764,55 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
       // 하위팀 있는 부서 → 이름행 미표시 (단, 재무회계부 서식 지정 부서 제외)
       if (useSimpleFormat) {
+        // 하위팀 목록 미리 계산
+        const sfSubTeamList = deptNames.filter(d => {
+          const o = departments.find(x=>x.name===d);
+          return o && o.parent === (departments.find(x=>x.name===dept)||{}).id;
+        });
+        // 하위팀별 데이터 계산
+        const sfSubTeamData = sfSubTeamList.map(subDept => {
+          const subEmps = depts[subDept]||[];
+          const subSetting = deptFundSettings[subDept]||{};
+          const subNameDataList = subSetting.nameData||[];
+          const subDateDataList = subSetting.dateData||[];
+          const subDisabledQi = subSetting.disabledQi||[];
+          const subTypeLabel = subSetting.type||'팀장';
+          const subIsTeamjang = subTypeLabel.includes('팀장');
+          const subTeamHead = subEmps.find(e=>(e.title||'').includes('팀장'));
+          const subQNames = quarters.map((_,qi2)=>{
+            const [qs2,qe2]=quarters[qi2];
+            const activeEmps=subEmps.filter(e=>getEmpMonthsInQuarter(e,year,qs2,qe2)>0);
+            let objs=activeEmps.map(e=>{
+              if(subNameDataList.some(d=>d.qi===qi2&&d.name===e.name&&d.hidden)) return null;
+              return {display:e.title==='팀장'?e.name+'<span style="color:#3b82f6;font-weight:500"> (팀장)</span>':e.name, isEmp:true, name:e.name};
+            }).filter(Boolean);
+            subNameDataList.filter(d=>d.qi===qi2&&d.name&&!d.insertBefore&&!d.acting&&!objs.find(o=>o.name===d.name)&&!d.hidden).forEach(nd=>{
+              objs.push({display:nd.name, isEmp:false, name:nd.name, nd});
+            });
+            return objs;
+          });
+          const subMaxEmp = Math.max(1,...subQNames.map(n=>n.length));
+          const subPair = subMaxEmp<=4?1:2;
+          const subNameRows = Array.from({length:subPair},(_,ri)=>quarters.map((_,qi2)=>{
+            const chunk=subQNames[qi2].slice(ri*4,(ri+1)*4);
+            return Array.from({length:4},(_,i)=>chunk[i]||'');
+          }));
+          const subTAmts = quarters.map(([qs2,qe2],qi2)=>{
+            if(!subIsTeamjang) return null;
+            if(subDisabledQi.includes(qi2)) return null;
+            const items=calcNameMonths(subQNames[qi2],qi2,subDateDataList);
+            return items.reduce((s,x)=>s+x.months*40000,0)||null;
+          });
+          const subTTotal=subTAmts.reduce((s,v)=>s+(v||0),0);
+          return {subDept,subSetting,subNameDataList,subDateDataList,subDisabledQi,subTypeLabel,subIsTeamjang,subTeamHead,subQNames,subPair,subNameRows,subTAmts,subTTotal};
+        });
+
+        // 전체 행 수 계산 (비고 rowspan)
+        // 2(초록+부서장) + 각 하위팀별 (1+pairCount*2)
+        const sfTotalRows = 2 + sfSubTeamData.reduce((s,d)=>s+1+d.subPair*2, 0);
+
         const sfDeptCells = [0,1,2,3].map(qi2 => {
-          if (disabledQi.includes(qi2)) return `<td colspan="4" rowspan="2" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`;
+          if (disabledQi.includes(qi2)) return `<td colspan="4" rowspan="${sfTotalRows}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`;
           const amt = (isTypeBuseojang||isTypeBonbu)&&bAmts[qi2]!==null ? fmtMoney(bAmts[qi2]) : '-';
           const menuBtn = qi2===0 ? `<button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>` : '';
           const dblclick = qi2===0 ? `ondblclick='openDeptNameModal("${dept}",0)'` : `ondblclick='openDeptNameModal("${dept}",${qi2})'`;
@@ -6776,19 +6826,59 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const disp=nm?nm+ttl2+'<span style="color:#3b82f6;font-weight:500"> (부서장)</span>':'';
           return `<td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${disp}</td>`;
         }).join('');
+
+        // 하위팀 행 HTML 생성
+        const sfSubTeamHtml = sfSubTeamData.map(({subDept,subNameDataList,subDateDataList,subDisabledQi,subIsTeamjang,subTeamHead,subQNames,subPair,subNameRows,subTAmts,subTTotal})=>{
+          const nameNsSF = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
+          let rows = '';
+          // 하늘줄 (팀 헤더행)
+          rows += `<tr style="background:${BG_TEAM_AMT}">
+            ${[0,1,2,3].map(qi2=>{
+              if(subDisabledQi.includes(qi2)) return `<td colspan="4" rowspan="${1+subPair*2}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreDisabled('${subDept}',${qi2})"></td>`;
+              const amt=subIsTeamjang&&subTAmts[qi2]!==null?fmtMoney(subTAmts[qi2]):'-';
+              const btn=qi2===0?`<button onclick="openDeptMenu(this.dataset.d,event)" data-d="${subDept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>`:'';
+              return `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${subDept}",${qi2})'>${btn}${getDeptDisplayName(subDept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae" data-dept="${subDept}" data-qi="${qi2}" data-type="teamjang" ondblclick='openAmtModal(this)'>${amt}</td>`;
+            }).join('')}
+            <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
+          </tr>`;
+          // 이름+날짜 행
+          subNameRows.forEach((rowByQ,ri)=>{
+            rows += `<tr>
+              ${[0,1,2,3].map(qi2=>{
+                if(subDisabledQi.includes(qi2)) return '';
+                return Array.from({length:4},(_,ci)=>{
+                  const o=rowByQ[qi2][ci];
+                  const obj=o||{display:'',isEmp:false};
+                  const ndIdx=obj.name?subNameDataList.findIndex(d=>d.qi===qi2&&d.name===obj.name&&!d.hidden&&(d.acting||d.insertBefore)):-1;
+                  return `<td style="${nameNsSF}cursor:pointer" data-dept="${subDept}" data-qi="${qi2}" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display||''}</td>`;
+                }).join('');
+              }).join('')}
+              ${ri===0?`<td data-teamjang-total="${subDept}" rowspan="${subPair*2}" style="${nameNsSF}text-align:right;font-weight:700;vertical-align:middle">${subTTotal?fmtMoney(subTTotal):''}</td>`:''}
+            </tr>`;
+            const allDis=[0,1,2,3].every(qi2=>subDisabledQi.includes(qi2));
+            if(!allDis){
+              rows+=`<tr>${[0,1,2,3].map(qi2=>subDisabledQi.includes(qi2)?'':Array.from({length:4},(_,ci)=>renderDateTd(subDept,qi2,ri,ci,nameNsSF,subQNames[qi2],subNameDataList)).join('')).join('')}</tr>`;
+            }
+          });
+          return rows;
+        }).join('');
+
         html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
             ${sfDeptCells}
             <td data-total-dept="${dept}" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
-            <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
+            <td rowspan="${sfTotalRows}" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
           </tr>
           <tr>
             ${sfHeadCells}
             <td data-buseojang-total="${dept}" style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
           </tr>
+          ${sfSubTeamHtml}
           </tbody></table><div style='height:24px'></div>
           ${renderExtraRows()}`;
+        // 하위팀은 이 테이블에 포함됐으므로 forEach에서 skip 처리
+        sfSubTeamList.forEach(sd => { _sfSkipDepts.add(sd); });
         return;
       }
 
