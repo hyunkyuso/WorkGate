@@ -6757,7 +6757,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         if (deptIsNone || !isTypeTeamjang) return null;
         if (disabledQi.includes(qi)) return null;
         // SW스타일: 하위팀이 사용 중인 분기는 하위팀 테이블에서 처리, 미사용 분기만 초록줄에 표기
-        if (isSWStyle && swSubTAmts[qi] !== null) return null;
+        if (['SW지원부','GIS SW영업부'].includes(dept)) {
+          const swSub = Object.keys(deptFundSettings).find(d=>{
+            const o=departments.find(x=>x.name===d);
+            return o&&o.parent===(departments.find(x=>x.name===dept)||{}).id;
+          });
+          const swSubDq = swSub ? ((deptFundSettings[swSub]||{}).disabledQi||[]) : [];
+          if (!swSubDq.includes(qi)) return null;
+        }
         let t = 0;
         const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
         const deptAndSubs = [dept, ...subTeamEmps.map(e=>e.dept).filter((d,i,a)=>a.indexOf(d)===i)];
