@@ -6185,6 +6185,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // 렌더링 후 재계산 등록 (_lastQNames 채워진 뒤 호출)
         if (!window._extraBuseojangCalcs) window._extraBuseojangCalcs = {};
         const bonbuRowKey = bonbu+'-'+ri;
+        console.log('[등록]', bonbuRowKey, 'isTeamjang='+isTeamjang, 'isBuseojang='+isBuseojang);
         const bonbuRowOrgNames = row.orgNames||[row.name||'',row.name||'',row.name||'',row.name||''];
         const bonbuRowTeamOrgNames = row.teamOrgNames||['','','',''];
         const bonbuRowNdList = ndList;
@@ -6712,6 +6713,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               var orgDq = (deptFundSettings[orgName]||{}).disabledQi||[];
               if (orgDq.includes(qi2)) return;
               var qn = (window._lastQNames&&window._lastQNames[orgName]&&window._lastQNames[orgName][qi2])||[];
+              // _lastQNames에 없으면 (베트남 등 skip된 부서) employees에서 직접 계산
+              if (!qn.length) {
+                qn = employees.filter(function(e){return e.dept===orgName&&getEmpMonthsInQuarter(e,year,qs,qe)>0;}).map(function(e){return {name:e.name,isEmp:true};});
+              }
               qn.forEach(function(obj) {
                 if (!obj||!obj.name||countedNames.has(obj.name)) return;
                 countedNames.add(obj.name);
@@ -9319,5 +9324,5 @@ if (!state.kpis.length) {
 })();
 </script>
 </body>
-</html> 
+</html>
  
