@@ -6702,10 +6702,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if ((isTypeBuseojang||isTypeBonbu) && !isTypeTeamjang) window._deptBuseojangCalcs[dept] = calcBAmts;
       // extra row 부서장/팀장 타입 재계산 등록
       if (!window._extraBuseojangCalcs) window._extraBuseojangCalcs = {};
-      console.log('[extraRows등록]', dept, 'extraRows수:', (deptFundSettings[dept]||{}).extraRows?.length||0);
       ((deptFundSettings[dept]||{}).extraRows||[]).forEach(function(row, ri) {
         const rowT = row.type||'없음';
-        console.log('[extraRows등록]', dept+'-'+ri, 'type:', rowT);
         if (rowT==='없음') return;
         const key = dept+'-'+ri;
         const rowOrgNames = (row.orgNames||[row.name||'',row.name||'',row.name||'',row.name||'']);
@@ -6718,7 +6716,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const effectiveTeamOrgNames = rowTeamOrgNames.map(function(n){return n||fallback;});
           return quarters.map(function(qArr, qi2) {
             var qs=qArr[0], qe=qArr[1];
-            if ((row.disabledQi||[]).includes(qi2) || ((deptFundSettings[dept]||{}).disabledQi||[]).includes(qi2)) return null;
+            if ((row.disabledQi||[]).includes(qi2)) return null;
             var t = 0;
             var isExtraTeamjang = rowT==='팀장';
             var isExtraBuseojang = rowT==='부서장'||rowT==='본부장';
