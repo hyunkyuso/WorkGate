@@ -6931,8 +6931,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // noteRowspan 계산 (설계 기준)
       const calcNoteRowspan = () => {
         // 파란줄(본부장): 2 → 별도 처리
-        // 초록줄(부서장) 일반: 2
-        if (isTypeBuseojang && !isTypeTeamjang) return 2 + extraRowsTrsForNote;
+        // 초록줄(부서장) 일반: 2 (하위팀 있으면 아래 조건으로)
+        if (isTypeBuseojang && !isTypeTeamjang && !hasSubTeams) return 2 + extraRowsTrsForNote;
         // 하늘줄(팀장) 단독(deptHead 없음): 1+pairCount*2
         if (isTypeTeamjang && !deptHead && !hasSubTeams) return 1 + pairCount*2;
         // 예외1: 부서장 있고 팀 없음 → 초록+부서장+하늘+이름+날짜
@@ -6977,7 +6977,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             return `<td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${disp}</td>`;
           }).join('')}
           <td data-buseojang-total="${dept}" style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&(isSWStyle?mergedTotal:bTotal)?fmtMoney(isSWStyle?mergedTotal:bTotal):'-'}</td>
-          <td style="${tdStyle}"></td>
         </tr>
         ${isSWStyle && swSubDept ? `
         <tr style="background:${BG_TEAM_AMT}">
