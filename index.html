@@ -666,6 +666,7 @@ select.form-input{cursor:pointer}
             <select id="deptfund-year" onchange="renderDeptFund()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
               <option value="2026" selected>2026년</option><option value="2027">2027년</option><option value="2028">2028년</option><option value="2029">2029년</option><option value="2030">2030년</option>
             </select>
+            <button id="deptfund-regen-btn" onclick="createNextYearSettings()" style="display:none;padding:6px 12px;border-radius:8px;border:1px solid #6366f1;color:#6366f1;background:#fff;cursor:pointer;font-size:13px;font-weight:600">🔄 Q4 기준 재생성</button>
             <button onclick="exportDeptFundExcel()" style="padding:6px 12px;border-radius:8px;border:1px solid #217346;color:#217346;background:#fff;cursor:pointer;font-size:13px;font-weight:600">📊 Excel</button>
           </div>
         </div>
@@ -5787,7 +5788,11 @@ async function saveDeptFundSettings() {
 async function createNextYearSettings() {
   const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
   const prevYear = year - 1;
-  if (!confirm(prevYear + '년 Q4 데이터를 기준으로 ' + year + '년 데이터를 생성합니다. 계속할까요?')) return;
+  const hasData = Object.keys(deptFundSettings).length > 0;
+  const msg = hasData
+    ? prevYear + '년 Q4 기준으로 ' + year + '년 데이터를 재생성합니다.\n기존 ' + year + '년 데이터가 덮어씌워집니다. 계속할까요?'
+    : prevYear + '년 Q4 데이터를 기준으로 ' + year + '년 데이터를 생성합니다. 계속할까요?';
+  if (!confirm(msg)) return;
 
   // 전년도 settings 로드
   const prevKey = getDeptFundSettingsKey(prevYear);
@@ -5874,6 +5879,11 @@ function renderDeptFund() {
     setTimeout(renderDeptFund, 500);
     return;
   }
+  // 재생성 버튼 표시/숨김
+  const yearVal = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
+  const regenBtn = document.getElementById('deptfund-regen-btn');
+  if (regenBtn) regenBtn.style.display = yearVal > 2026 ? '' : 'none';
+  deptFundSettingsLoaded = false;
   loadDeptFundSettings().then(() => _renderDeptFund());
 }
 
