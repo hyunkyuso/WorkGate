@@ -6678,7 +6678,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             // headNames (부서장) 포함
             var hasDeptCol = (row.cols||[]).includes('dept');
             if (hasDeptCol) {
-              var hn = (row.headNames||[])[qi2];
+              var rawHn = (row.headNames||[])[qi2];
+              var fallbackHn = (row.headNames||[]).find(function(n){return n;})||'';
+              var hn = rawHn || fallbackHn;
               if (hn && !countedNames.has(hn)) {
                 countedNames.add(hn);
                 if (isExtraTeamjang) {
