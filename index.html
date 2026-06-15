@@ -8431,24 +8431,158 @@ async function exportDeptFundExcel() {
   const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('부서장운영비');
-  const border = {top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
-  const center = {horizontal:'center',vertical:'middle'};
-  const right = {horizontal:'right',vertical:'middle'};
-  const green = {type:'pattern',pattern:'solid',fgColor:{argb:'FFD9E5CC'}};
 
-  ws.columns = [{width:16},{width:14},{width:14},{width:14},{width:14},{width:16},{width:14},{width:10},{width:14}];
+  const THIN = {style:'thin', color:{argb:'FF90A4AE'}};
+  const THICK = {style:'medium', color:{argb:'FF78909C'}};
+  const border = (right, bottom) => ({
+    top:{style:'thin',color:{argb:'FFB0BEC5'}},
+    left:{style:'thin',color:{argb:'FFB0BEC5'}},
+    bottom: bottom||{style:'thin',color:{argb:'FFB0BEC5'}},
+    right: right||{style:'thin',color:{argb:'FFB0BEC5'}}
+  });
+  const thickRight = border({style:'medium',color:{argb:'FF78909C'}});
+  const center = {horizontal:'center',vertical:'middle',wrapText:true};
+  const right_align = {horizontal:'right',vertical:'middle'};
+
+  // 배경색
+  const BG_HEAD   = {type:'pattern',pattern:'solid',fgColor:{argb:'FFF1F5F9'}};
+  const BG_BONBU  = {type:'pattern',pattern:'solid',fgColor:{argb:'FF93C5FD'}};
+  const BG_DEPT   = {type:'pattern',pattern:'solid',fgColor:{argb:'FFE8EDF2'}};
+  const BG_GREEN  = {type:'pattern',pattern:'solid',fgColor:{argb:'FFBBF7D0'}};
+  const BG_BLUE   = {type:'pattern',pattern:'solid',fgColor:{argb:'FFDBEAFE'}};
+  const BG_GRAY   = {type:'pattern',pattern:'solid',fgColor:{argb:'FF94A3B8'}};
+  const BG_WHITE  = {type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFFFF'}};
+
+  // 컬럼 너비: 소속(2)+금액(2) × 4분기 + 합계 + 구분 + 비고 = 18컬럼
+  // 각 분기: 소속2col + 금액2col → 실제로 소속4col + 금액1col × 4분기
+  // 화면: colspan=2 소속, colspan=2 금액 → 엑셀: 2+2+2+2+2+2+2+2 + 합계 + 구분 + 비고 = 18col
+  const COL_W = 7;
+  ws.columns = Array.from({length:18}, (_,i) => {
+    if(i===16) return {width:10}; // 합계
+    if(i===17) return {width:6};  // 구분
+    return {width: i%4===0||i%4===1 ? 9 : 7}; // 소속넓게
+  });
+
+  // 총 열 수: 분기4 × 4col + 합계1 + 구분1 + 비고1 = 18
+  const TOTAL_COLS = 18;
+  const toCol = (n) => {
+    let s=''; let r=n;
+    while(r>0){s=String.fromCharCode(64+(r%26||26))+s;r=Math.floor((r-1)/26);}
+    return s;
+  };
+
+  // 작성일자
+  const today = new Date();
+  const dateStr = `작성일자: ${year}. ${String(today.getMonth()+1).padStart(2,'0')}. ${String(today.getDate()).padStart(2,'0')}.`;
+  ws.addRow([...Array(17).fill(''), dateStr]);
+  ws.getRow(1).getCell(18).alignment = {horizontal:'right'};
+  ws.getRow(1).height = 16;
 
   // 제목
   ws.addRow([`${year}년 부서장/팀장 운영비`]);
-  ws.mergeCells('A1:I1');
-  ws.getCell('A1').font = {bold:true,size:14};
-  ws.getCell('A1').alignment = center;
-  ws.getRow(1).height = 28;
+  ws.mergeCells(`A2:${toCol(TOTAL_COLS)}2`);
+  ws.getCell('A2').font = {bold:true, size:14};
+  ws.getCell('A2').alignment = center;
+  ws.getRow(2).height = 28;
 
-  ws.addRow(['소속','01월~03월','04월~06월','07월~09월','10월~12월','소속','구분','비고']);
-  const hr = ws.getRow(2);
-  hr.eachCell(cell => { cell.border=border; cell.fill=green; cell.font={bold:true}; cell.alignment=center; });
-  hr.height = 20;
+  // 헤더행
+  // 소속(2) Q1금액(2) 소속(2) Q2금액(2) 소속(2) Q3금액(2) 소속(2) Q4금액(2) 합계(1) 구분(1) 비고(1)
+  const hRow = ws.addRow([]);
+  ws.mergeCells('A3:B3'); ws.getCell('A3').value='소속';
+  ws.mergeCells('C3:D3'); ws.getCell('C3').value='01월~03월';
+  ws.mergeCells('E3:F3'); ws.getCell('E3').value='소속';
+  ws.mergeCells('G3:H3'); ws.getCell('G3').value='04월~06월';
+  ws.mergeCells('I3:J3'); ws.getCell('I3').value='소속';
+  ws.mergeCells('K3:L3'); ws.getCell('K3').value='07월~09월';
+  ws.mergeCells('M3:N3'); ws.getCell('M3').value='소속';
+  ws.mergeCells('O3:P3'); ws.getCell('O3').value='10월~12월';
+  ws.getCell('Q3').value='구분';
+  ws.getCell('R3').value='비고';
+  for(let c=1;c<=TOTAL_COLS;c++){
+    const cell = ws.getRow(3).getCell(c);
+    cell.fill = BG_HEAD;
+    cell.font = {bold:true, size:10};
+    cell.alignment = center;
+    cell.border = border(c===4||c===8||c===12||c===16?{style:'medium',color:{argb:'FF78909C'}}:undefined);
+  }
+  ws.getRow(3).height = 18;
+
+  // DOM에서 테이블 데이터 읽기
+  const container = document.getElementById('deptfund-content');
+  const tables = container.querySelectorAll('table');
+
+  let wsRow = 4;
+
+  tables.forEach(table => {
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(tr => {
+      const tds = tr.querySelectorAll('td,th');
+      if(!tds.length) return;
+
+      // 행 데이터 수집
+      const rowData = [];
+      tds.forEach(td => {
+        const cs = parseInt(td.getAttribute('colspan')||'1');
+        const rs = parseInt(td.getAttribute('rowspan')||'1');
+        const text = td.innerText.trim().replace(/
+/g,' ');
+        const style = td.getAttribute('style')||'';
+        let bg = 'FFFFFFFF';
+        if(style.includes('93c5fd')||style.includes('93C5FD')) bg='FF93C5FD';
+        else if(style.includes('bbf7d0')||style.includes('BBF7D0')) bg='FFBBF7D0';
+        else if(style.includes('dbeafe')||style.includes('DBEAFE')) bg='FFDBEAFE';
+        else if(style.includes('e8edf2')||style.includes('E8EDF2')) bg='FFE8EDF2';
+        else if(style.includes('94a3b8')||style.includes('94A3B8')) bg='FF94A3B8';
+        else if(style.includes('f1f5f9')||style.includes('F1F5F9')) bg='FFF1F5F9';
+        const isRight = style.includes('right') && !style.includes('border-right');
+        const isBold = style.includes('font-weight:700')||style.includes('font-weight:600');
+        rowData.push({text, cs, rs, bg, isRight, isBold});
+      });
+
+      // 엑셀 행 작성
+      const eRow = ws.getRow(wsRow);
+      let col = 1;
+      rowData.forEach(d => {
+        // 빈 셀 skip (이미 병합된 셀)
+        while(col<=TOTAL_COLS && eRow.getCell(col).isMerged) col++;
+        if(col>TOTAL_COLS) return;
+
+        const cell = eRow.getCell(col);
+        // 숫자 변환
+        const numVal = d.text.replace(/,/g,'');
+        if(/^-?\d+$/.test(numVal) && d.text !== '-') {
+          cell.value = parseInt(numVal);
+          cell.numFmt = '#,##0';
+        } else {
+          cell.value = d.text === '-' ? '-' : d.text;
+        }
+        cell.alignment = d.isRight ? right_align : center;
+        cell.font = {bold: d.isBold, size:10};
+        cell.fill = {type:'pattern',pattern:'solid',fgColor:{argb:d.bg}};
+
+        // border
+        const isQBorder = col===4||col===8||col===12||col===16;
+        cell.border = border(
+          isQBorder ? {style:'medium',color:{argb:'FF78909C'}} : {style:'thin',color:{argb:'FFB0BEC5'}},
+          {style:'thin',color:{argb:'FFB0BEC5'}}
+        );
+
+        // 병합
+        if(d.cs>1||d.rs>1) {
+          const endCol = Math.min(col+d.cs-1, TOTAL_COLS);
+          const endRow = wsRow+d.rs-1;
+          if(endCol>col||endRow>wsRow) {
+            ws.mergeCells(wsRow, col, endRow, endCol);
+          }
+        }
+        col += d.cs;
+      });
+      eRow.height = 18;
+      wsRow++;
+    });
+    // 본부 간 구분선 (빈 행)
+    wsRow++;
+  });
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
