@@ -7522,8 +7522,13 @@ function renderDeptFundSummary(container, allSums) {
     } else {
       // data-teamjang-total 또는 data-buseojang-total에서 조직명
       const totalCell = table.querySelector('td[data-teamjang-total]') || table.querySelector('td[data-buseojang-total]');
+      // 팀장 타입 본부: data-bonbu-total-amt
+      const bonbuAmtCell = table.querySelector('td[data-bonbu-total-amt]');
       if (totalCell) {
         orgName = totalCell.getAttribute('data-teamjang-total') || totalCell.getAttribute('data-buseojang-total') || '';
+        headName = findOrgHead(orgName);
+      } else if (bonbuAmtCell) {
+        orgName = bonbuAmtCell.getAttribute('data-bonbu-total-amt') || '';
         headName = findOrgHead(orgName);
       } else {
         // extraRow: data-extra-buseojang-rowtotal
