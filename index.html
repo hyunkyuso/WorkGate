@@ -7408,15 +7408,45 @@ function renderDeptFundSummary(container, allSums) {
   const existing = document.getElementById('deptfund-summary');
   if (existing) existing.remove();
 
+  const parseNum = s => parseInt((s||'').replace(/,/g,''))||0;
   const qLabels = ['01~03월','04~06월','07~09월','10~12월'];
   const types = ['본부장','부서장','팀장'];
   const typeColors = {'본부장':'#dbeafe','부서장':'#bbf7d0','팀장':'#f1f5f9'};
-  // allSums에서 직접 사용 (즉시실행 누적값)
-  const sums = {
-    본부장: [...(allSums?.본부장||[0,0,0,0])],
-    부서장: [...(allSums?.부서장||[0,0,0,0])],
-    팀장:   [...(allSums?.팀장  ||[0,0,0,0])],
-  };
+  const sums = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
+
+  // 비고 셀(본부장/부서장/팀장) 기준으로 같은 테이블의 분기별 금액 합산
+  const allTables = [...container.querySelectorAll('table')].filter(t=>!t.closest('#deptfund-summary'));
+
+  allTables.forEach(table => {
+    // 비고 셀 찾기 (이전 형제가 '계'인 것)
+    const remarkTd = [...table.querySelectorAll('td')].find(td => {
+      if (!types.includes(td.textContent.trim())) return false;
+      return td.previousElementSibling?.textContent.trim() === '계';
+    });
+    if (!remarkTd) return;
+    const typeText = remarkTd.textContent.trim();
+
+    // 분기별 금액 셀: 숫자값이 있고 40000의 배수인 셀들 (합계 제외)
+    const amtCells = [...table.querySelectorAll('td')].filter(td => {
+      if (td.querySelector('button')) return false;
+      const v = parseNum(td.textContent);
+      return v > 0 && v % 40000 === 0;
+    });
+
+    // 마지막 셀이 합계이면 제외, 앞의 4개가 Q1~Q4
+    // data-qi 있는 경우 우선 사용
+    const withQi = amtCells.filter(td => td.getAttribute('data-qi') !== null);
+    if (withQi.length >= 4) {
+      [0,1,2,3].forEach(qi => {
+        const cell = withQi.find(td => td.getAttribute('data-qi') === String(qi));
+        sums[typeText][qi] += parseNum(cell?.textContent);
+      });
+    } else {
+      // data-qi 없는 경우: 순서대로 Q1~Q4 (마지막 합계 셀 제외)
+      const qCells = amtCells.slice(0, 4);
+      qCells.forEach((td, qi) => { sums[typeText][qi] += parseNum(td.textContent); });
+    }
+  });
 
   const fmtM = v => v ? v.toLocaleString() : '-';
   const tdS = 'border:1px solid #e2e8f0;padding:6px 12px;text-align:right;font-size:12px;';
@@ -9694,7 +9724,7 @@ if (!state.kpis.length) {
   auth = firebase.auth();
   setupAuthListener();
 })();
-</script> 
+</script>
 </body>
 </html>
  
