@@ -7323,7 +7323,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
 
   container.innerHTML = html;
 
-  // _summaryAccum 초기화 (tAmtsT에서 누적된 팀단위 조직 팀장 금액)
+  // _summaryAccum에서 즉시실행 누적값 읽기
   const _finalSums = window._summaryAccum || {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
   window._summaryAccum = null;
 
@@ -7414,7 +7414,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
   }
 
   // 직책별 금액 요약: 모든 calc 완료 후 DOM에서 읽기
-  renderDeptFundSummary(container);
+  renderDeptFundSummary(container, _finalSums);
 }
 
 function renderDeptFundSummary(container) {
@@ -7492,10 +7492,10 @@ function renderDeptFundSummary(container) {
     }
   });
 
-  // _summaryAccum 즉시실행 누적값 추가 (팀단위 조직 등)
-  if (window._summaryAccum) {
+  // allSums에서 즉시실행 누적값 사용 (팀단위 조직 등 calcTAmts 즉시실행 결과)
+  if (allSums) {
     types.forEach(t => {
-      window._summaryAccum[t]?.forEach((v,qi) => { sums[t][qi] += (v||0); });
+      (allSums[t]||[]).forEach((v,qi) => { sums[t][qi] += (v||0); });
     });
   }
 
