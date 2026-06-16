@@ -7507,10 +7507,10 @@ function renderDeptFundSummary(container, allSums) {
       orgName = row2 ? [...row2.querySelectorAll('td')][0]?.textContent.trim().replace(/☰/g,'').trim() : '';
       headName = row3 ? [...row3.querySelectorAll('td')][0]?.textContent.trim() : '';
     } else {
-      // 부서장/팀장: 첫 행에서 조직명, 이름 셀 찾기
-      const firstRow = rows[0];
-      const orgNameTd = firstRow ? [...firstRow.querySelectorAll('td')].find(td=>
-        (td.getAttribute('colspan')==='2'||td.getAttribute('colspan')==='3'))  : null;
+      // 부서장/팀장: colspan=2 또는 3인 셀에서 조직명 찾기 (모든 행 탐색)
+      const orgNameTd = [...table.querySelectorAll('td')].find(td=>
+        (td.getAttribute('colspan')==='2'||td.getAttribute('colspan')==='3') && td.textContent.trim().length > 0
+      );
       orgName = orgNameTd ? orgNameTd.textContent.trim().replace(/☰/g,'').trim() : '';
       // 이름: 대행자 우선, 없으면 팀장/부서장
       const headTd = [...table.querySelectorAll('td')].find(td =>
