@@ -7426,11 +7426,11 @@ function renderDeptFundSummary(container, allSums) {
     if (!remarkTd) return;
     const typeText = remarkTd.textContent.trim();
 
-    // 분기별 금액 셀: 숫자값이 있고 40000의 배수인 셀들 (합계 제외)
+    // 분기별 금액 셀: 숫자값이 있는 셀 (이름칸 등 제외)
     const amtCells = [...table.querySelectorAll('td')].filter(td => {
       if (td.querySelector('button')) return false;
-      const v = parseNum(td.textContent);
-      return v > 0 && v % 40000 === 0;
+      const txt = td.textContent.trim().replace(/,/g,'');
+      return /^\d+$/.test(txt) && parseInt(txt) > 0;
     });
 
     // 마지막 셀이 합계이면 제외, 앞의 4개가 Q1~Q4
