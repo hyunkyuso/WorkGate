@@ -7507,19 +7507,32 @@ function renderDeptFundSummary(container, allSums) {
       orgName = row2 ? [...row2.querySelectorAll('td')][0]?.textContent.trim().replace(/☰/g,'').trim() : '';
       headName = row3 ? [...row3.querySelectorAll('td')][0]?.textContent.trim() : '';
     } else {
-      // 부서장/팀장: colspan=2 또는 3인 셀에서 조직명 찾기 (모든 행 탐색)
+      // 부서장/팀장: data-dept 속성에서 실제 조직명 찾기
+      const deptCell = [...table.querySelectorAll('td[data-dept]')].find(td => td.getAttribute('data-qi') === '0');
+      const deptAttr = deptCell?.getAttribute('data-dept') || '';
+      // colspan 셀에서 표시명 찾기 (모든 행 탐색)
       const orgNameTd = [...table.querySelectorAll('td')].find(td=>
         (td.getAttribute('colspan')==='2'||td.getAttribute('colspan')==='3') && td.textContent.trim().length > 0
       );
-      orgName = orgNameTd ? orgNameTd.textContent.trim().replace(/☰/g,'').trim() : '';
-      // 이름: 대행자 우선, 없으면 팀장/부서장
-      const headTd = [...table.querySelectorAll('td')].find(td =>
-        td.textContent.trim().includes('(팀장대행)') || td.textContent.trim().includes('(부서장대행)')
-      ) || [...table.querySelectorAll('td')].find(td => {
-        const txt = td.textContent.trim();
-        return txt.includes('(팀장)') || txt.includes('(부서장)') || txt.includes('(부장)');
-      });
-      headName = headTd ? headTd.textContent.trim().replace(/\(.*?\)/g,'').trim() : '';
+      orgName = deptAttr || (orgNameTd ? orgNameTd.textContent.trim().replace(/☰/g,'').trim() : '');
+
+      // 이름: 본부 타입이면 2행 첫 셀, 아니면 (팀장)/(부서장) 셀
+      const row2 = rows[1];
+      const row2Tds = row2 ? [...row2.querySelectorAll('td')] : [];
+      // 2행이 이름 행인지 확인 (숫자나 날짜가 아닌 한글 이름)
+      const row2First = row2Tds[0]?.textContent.trim();
+      const isNameRow = row2First && !/^\d/.test(row2First) && !row2First.includes('월') && row2First.length > 0;
+      if (isNameRow && row2Tds.length <= 6) {
+        headName = row2First;
+      } else {
+        const headTd2 = [...table.querySelectorAll('td')].find(td =>
+          td.textContent.trim().includes('(팀장대행)') || td.textContent.trim().includes('(부서장대행)')
+        ) || [...table.querySelectorAll('td')].find(td => {
+          const txt = td.textContent.trim();
+          return txt.includes('(팀장)') || txt.includes('(부서장)') || txt.includes('(부장)');
+        });
+        headName = headTd2 ? headTd2.textContent.trim().replace(/\(.*?\)/g,'').trim() : '';
+      }
     }
 
     // 분기별 금액
