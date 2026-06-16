@@ -7516,23 +7516,26 @@ function renderDeptFundSummary(container, allSums) {
       );
       orgName = deptAttr || (orgNameTd ? orgNameTd.textContent.trim().replace(/☰/g,'').trim() : '');
 
-      // 이름: 본부 타입이면 2행 첫 셀, 아니면 (팀장)/(부서장) 셀
-      const row2 = rows[1];
-      const row2Tds = row2 ? [...row2.querySelectorAll('td')] : [];
-      // 2행이 이름 행인지 확인 (숫자나 날짜가 아닌 한글 이름)
-      const row2First = row2Tds[0]?.textContent.trim();
-      const isNameRow = row2First && !/^\d/.test(row2First) && !row2First.includes('월') && row2First.length > 0;
-      if (isNameRow && row2Tds.length <= 6) {
-        headName = row2First;
-      } else {
+      // 이름: 이름만 있는 행 찾기 (숫자/날짜/조직명 아닌 한글 이름)
+      const findNameRow = (rows) => {
+        for (const row of rows) {
+          const tds = [...row.querySelectorAll('td')];
+          const first = tds[0]?.textContent.trim();
+          if (!first || first.includes('☰') || /^\d/.test(first) || first.includes('월') || first.includes('부터') || first.includes('까지') || first.includes('입사') || first.includes('퇴사')) continue;
+          // 이름처럼 생긴 텍스트 (2~4글자 한글)
+          if (/^[가-힣]{2,4}$/.test(first)) return first;
+        }
+        return '';
+      };
+      headName = findNameRow(rows.slice(1)) || (() => {
         const headTd2 = [...table.querySelectorAll('td')].find(td =>
           td.textContent.trim().includes('(팀장대행)') || td.textContent.trim().includes('(부서장대행)')
         ) || [...table.querySelectorAll('td')].find(td => {
           const txt = td.textContent.trim();
           return txt.includes('(팀장)') || txt.includes('(부서장)') || txt.includes('(부장)');
         });
-        headName = headTd2 ? headTd2.textContent.trim().replace(/\(.*?\)/g,'').trim() : '';
-      }
+        return headTd2 ? headTd2.textContent.trim().replace(/\(.*?\)/g,'').trim() : '';
+      })();
     }
 
     // 분기별 금액
