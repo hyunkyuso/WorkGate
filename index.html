@@ -5907,8 +5907,6 @@ function renderDeptFund() {
 function _renderDeptFund() {
   const container = document.getElementById('deptfund-content');
   if (!container) return;
-  // 요약 누적 초기화
-  window._summaryAccum = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
   // nameData 정리 (name 없는 항목 제거)
   Object.keys(deptFundSettings).forEach(dept => {
     if (!deptFundSettings[dept]?.nameData) return;
@@ -6111,11 +6109,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       bonbuExtraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=(qe-qs+1)*40000; });
       return t || null;
     });
-    if (bonbuIsTeamjang) {
-      window._bonbuTeamjangCalcs[bonbu] = calcBonbuTeamjangAmts;
-      const _bta = calcBonbuTeamjangAmts();
-      _bta.forEach((v,qi) => { if(v) window._summaryAccum['팀장'][qi] += v; });
-    }
+    if (bonbuIsTeamjang) window._bonbuTeamjangCalcs[bonbu] = calcBonbuTeamjangAmts;
 
     // qAmts: 렌더링 후 _lastQNames 기반으로 재계산
     const qAmts = [null, null, null, null];
@@ -6179,11 +6173,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       return t || null;
     });
-    if (!bonbuIsTeamjang && !bonbuIsNone) {
-      window._bonbuAmtCalcs[bonbu] = calcBonbuAmts;
-      const _baa = calcBonbuAmts();
-      _baa.forEach((v,qi) => { if(v) window._summaryAccum['본부장'][qi] += v; });
-    }
+    if (!bonbuIsTeamjang && !bonbuIsNone) window._bonbuAmtCalcs[bonbu] = calcBonbuAmts;
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
 
     // ── 본부장 테이블 ──
@@ -6800,11 +6790,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t+=50000; });
         return t || null;
       });
-      if ((isTypeBuseojang||isTypeBonbu) && !isTypeTeamjang) {
-        window._deptBuseojangCalcs[dept] = calcBAmts;
-        const _dba = calcBAmts();
-        _dba.forEach((v,qi) => { if(v) window._summaryAccum['부서장'][qi] += v; });
-      }
+      if ((isTypeBuseojang||isTypeBonbu) && !isTypeTeamjang) window._deptBuseojangCalcs[dept] = calcBAmts;
       // extra row 부서장/팀장 타입 재계산 등록
       if (!window._extraBuseojangCalcs) window._extraBuseojangCalcs = {};
       ((deptFundSettings[dept]||{}).extraRows||[]).forEach(function(row, ri) {
@@ -6947,12 +6933,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
         return t || null;
       });
-      if (isTypeTeamjang) {
-        window._deptTeamjangCalcs[dept] = calcTAmts;
-        // _lastQNames가 이미 채워진 후이므로 즉시 실행해서 요약에 누적
-        const _calcTAmtsNow = calcTAmts();
-        _calcTAmtsNow.forEach((v,qi) => { if(v) window._summaryAccum['팀장'][qi] += v; });
-      }
+      if (isTypeTeamjang) window._deptTeamjangCalcs[dept] = calcTAmts;
       const tTotal = 0;
       // 팀 단위 조직 (부서장 없고 하위팀 없음) → 이름만 표시
       if (!deptHead && !hasSubTeams) {
@@ -7006,9 +6987,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           return t || null;
         });
         const tTotal = tAmtsT.reduce((s,v)=>s+(v||0),0);
-        // 팀장 요약 누적 (tTotal이 0이어도 초기화 보장)
-        if (!window._summaryAccum) window._summaryAccum = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
-        tAmtsT.forEach((v,qi) => { if(v) window._summaryAccum['팀장'][qi] += v; });
+        if (!window._tAmtsSummaryTemp) window._tAmtsSummaryTemp = [0,0,0,0];
+        tAmtsT.forEach((v,qi) => { if(v) window._tAmtsSummaryTemp[qi] += v; });
         const maxET = Math.max(1, ...qNamesT.map(n=>n.length));
         const pairT = maxET <= 4 ? 1 : 2;
         const nameRowsT = Array.from({length:pairT}, (_,ri) =>
@@ -7323,9 +7303,10 @@ ${nameRows.map((rowByQ, rowIdx) => `
 
   container.innerHTML = html;
 
-  // _summaryAccum에서 즉시실행 누적값 읽기
-  const _finalSums = window._summaryAccum || {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
-  window._summaryAccum = null;
+  // 모든 calc 완료 후 직접 합산할 sums 초기화
+  const _tAmtsTemp = window._tAmtsSummaryTemp || [0,0,0,0];
+  window._tAmtsSummaryTemp = null;
+  const _finalSums = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[..._tAmtsTemp]};
 
   // 팀장 타입 본부 금액 업데이트
   if (window._bonbuTeamjangCalcs) {
@@ -7338,6 +7319,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
       });
       const bonbuTotalAmtCell = container.querySelector(`td[data-bonbu-total-amt="${bonbu}"]`);
       if (bonbuTotalAmtCell) bonbuTotalAmtCell.textContent = total ? total.toLocaleString() : '-';
+      amts.forEach((v,qi) => { _finalSums['팀장'][qi] += (v||0); });
     });
     window._bonbuTeamjangCalcs = {};
   }
@@ -7353,6 +7335,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
       });
       const bonbuTotalAmtCell2 = container.querySelector(`td[data-bonbu-total-amt="${bonbu}"]`);
       if (bonbuTotalAmtCell2) bonbuTotalAmtCell2.textContent = total ? total.toLocaleString() : '-';
+      amts.forEach((v,qi) => { _finalSums['본부장'][qi] += (v||0); });
     });
     window._bonbuAmtCalcs = {};
   }
@@ -7368,6 +7351,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
       });
       const buseojangTotalCell = container.querySelector(`td[data-buseojang-total="${dept}"]`);
       if (buseojangTotalCell) buseojangTotalCell.textContent = total ? total.toLocaleString() : '-';
+      amts.forEach((v,qi) => { _finalSums['부서장'][qi] += (v||0); });
     });
     window._deptBuseojangCalcs = {};
   }
@@ -7394,6 +7378,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
         const buseojangTotalCell = container.querySelector(`td[data-buseojang-total="${dept}"]`);
         if (buseojangTotalCell) buseojangTotalCell.textContent = total ? total.toLocaleString() : '-';
       }
+      amts.forEach((v,qi) => { _finalSums['팀장'][qi] += (v||0); });
     });
     window._deptTeamjangCalcs = {};
   }
@@ -7408,7 +7393,13 @@ ${nameRows.map((rowByQ, rowIdx) => `
       });
       const totalCell = container.querySelector(`td[data-extra-buseojang-rowtotal="${key}"]`);
       if (totalCell) totalCell.textContent = total ? total.toLocaleString() : '-';
-
+      // 비고 셀로 타입 판단해서 누적
+      if (totalCell) {
+        const eTr = totalCell.closest('tr');
+        const eRemark = eTr ? [...eTr.querySelectorAll('td')].find(td=>['본부장','부서장','팀장'].includes(td.textContent.trim())) : null;
+        const eType = eRemark?.textContent.trim();
+        if (eType && _finalSums[eType]) amts.forEach((v,qi) => { _finalSums[eType][qi] += (v||0); });
+      }
     });
     window._extraBuseojangCalcs = {};
   }
