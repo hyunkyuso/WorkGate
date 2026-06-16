@@ -6109,13 +6109,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       bonbuExtraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=(qe-qs+1)*40000; });
       return t || null;
     });
-    if (bonbuIsTeamjang) {
-      window._bonbuTeamjangCalcs[bonbu] = calcBonbuTeamjangAmts;
-      // 즉시 계산해서 _summaryAccum에 누적
-      if (!window._summaryAccum) window._summaryAccum = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
-      const _bta = calcBonbuTeamjangAmts();
-      _bta.forEach((v,qi) => { window._summaryAccum['팀장'][qi] += (v||0); });
-    }
+    if (bonbuIsTeamjang) window._bonbuTeamjangCalcs[bonbu] = calcBonbuTeamjangAmts;
 
     // qAmts: 렌더링 후 _lastQNames 기반으로 재계산
     const qAmts = [null, null, null, null];
@@ -6179,12 +6173,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       return t || null;
     });
-    if (!bonbuIsTeamjang && !bonbuIsNone) {
-      window._bonbuAmtCalcs[bonbu] = calcBonbuAmts;
-      if (!window._summaryAccum) window._summaryAccum = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
-      const _baa = calcBonbuAmts();
-      _baa.forEach((v,qi) => { window._summaryAccum['본부장'][qi] += (v||0); });
-    }
+    if (!bonbuIsTeamjang && !bonbuIsNone) window._bonbuAmtCalcs[bonbu] = calcBonbuAmts;
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
 
     // ── 본부장 테이블 ──
@@ -6801,12 +6790,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t+=50000; });
         return t || null;
       });
-      if ((isTypeBuseojang||isTypeBonbu) && !isTypeTeamjang) {
-        window._deptBuseojangCalcs[dept] = calcBAmts;
-        if (!window._summaryAccum) window._summaryAccum = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
-        const _dba = calcBAmts();
-        _dba.forEach((v,qi) => { window._summaryAccum['부서장'][qi] += (v||0); });
-      }
+      if ((isTypeBuseojang||isTypeBonbu) && !isTypeTeamjang) window._deptBuseojangCalcs[dept] = calcBAmts;
       // extra row 부서장/팀장 타입 재계산 등록
       if (!window._extraBuseojangCalcs) window._extraBuseojangCalcs = {};
       ((deptFundSettings[dept]||{}).extraRows||[]).forEach(function(row, ri) {
@@ -6949,12 +6933,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
         return t || null;
       });
-      if (isTypeTeamjang) {
-        window._deptTeamjangCalcs[dept] = calcTAmts;
-        if (!window._summaryAccum) window._summaryAccum = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
-        const _dta = calcTAmts();
-        _dta.forEach((v,qi) => { window._summaryAccum['팀장'][qi] += (v||0); });
-      }
+      if (isTypeTeamjang) window._deptTeamjangCalcs[dept] = calcTAmts;
       const tTotal = 0;
       // 팀 단위 조직 (부서장 없고 하위팀 없음) → 이름만 표시
       if (!deptHead && !hasSubTeams) {
@@ -7325,13 +7304,8 @@ ${nameRows.map((rowByQ, rowIdx) => `
 
   container.innerHTML = html;
 
-  // extra row 부서장 타입 금액 재계산
-  // _summaryAccum에서 모든 직책 금액 가져오기 (calc 함수 즉시 실행 + tAmtsT 누적)
-  const summarySums = {
-    본부장: window._summaryAccum ? [...window._summaryAccum['본부장']] : [0,0,0,0],
-    부서장: window._summaryAccum ? [...window._summaryAccum['부서장']] : [0,0,0,0],
-    팀장:   window._summaryAccum ? [...window._summaryAccum['팀장']]   : [0,0,0,0],
-  };
+  // _summaryAccum 초기화 (tAmtsT에서 누적된 팀단위 조직 팀장 금액)
+  const _tAmtsSummary = window._summaryAccum ? [...window._summaryAccum['팀장']] : [0,0,0,0];
   window._summaryAccum = null;
 
   // 팀장 타입 본부 금액 업데이트
@@ -7420,20 +7394,68 @@ ${nameRows.map((rowByQ, rowIdx) => `
     window._extraBuseojangCalcs = {};
   }
 
-  // 직책별 금액 요약 렌더링
-  renderDeptFundSummary(container, summarySums);
+  // 직책별 금액 요약: DOM에서 최종값 읽어서 합산
+  renderDeptFundSummary(container, _tAmtsSummary);
 }
 
-function renderDeptFundSummary(container, sums) {
+function renderDeptFundSummary(container, tAmtsSummary) {
   const existing = document.getElementById('deptfund-summary');
   if (existing) existing.remove();
 
+  const parseNum = s => parseInt((s||'').replace(/,/g,''))||0;
   const qLabels = ['01~03월','04~06월','07~09월','10~12월'];
   const types = ['본부장','부서장','팀장'];
   const typeColors = {'본부장':'#dbeafe','부서장':'#bbf7d0','팀장':'#f1f5f9'};
+  const sums = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[...(tAmtsSummary||[0,0,0,0])]};
 
-  // sums가 전달되지 않으면 빈값으로 초기화
-  const summarySums = sums || {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
+  // 본부장: data-bonbu-total-amt 셀이 있는 테이블에서 비고=본부장인 경우
+  container.querySelectorAll('td[data-bonbu-total-amt]').forEach(td => {
+    const bonbu = td.getAttribute('data-bonbu-total-amt');
+    // 같은 테이블에서 비고 셀 찾기
+    const table = td.closest('table');
+    const remarkTd = table ? [...table.querySelectorAll('td')].find(t =>
+      ['본부장','팀장'].includes(t.textContent.trim()) &&
+      t.previousElementSibling?.textContent.trim() === '계'
+    ) : null;
+    const typeText = remarkTd?.textContent.trim() || '본부장';
+    [0,1,2,3].forEach(qi => {
+      const cell = container.querySelector(`td[data-type="buseojang"][data-dept="${bonbu}"][data-qi="${qi}"]`);
+      sums[typeText][qi] += parseNum(cell?.textContent);
+    });
+  });
+
+  // 부서장: data-buseojang-total 셀
+  container.querySelectorAll('td[data-buseojang-total]').forEach(td => {
+    const dept = td.getAttribute('data-buseojang-total');
+    // extraRow 제외 (data-extra-buseojang-rowtotal은 별도 처리)
+    [0,1,2,3].forEach(qi => {
+      const cell = container.querySelector(`td[data-type="buseojang"][data-dept="${dept}"][data-qi="${qi}"]`);
+      sums['부서장'][qi] += parseNum(cell?.textContent);
+    });
+  });
+
+  // 팀장(부서): data-teamjang-total 셀
+  container.querySelectorAll('td[data-teamjang-total]').forEach(td => {
+    const dept = td.getAttribute('data-teamjang-total');
+    [0,1,2,3].forEach(qi => {
+      const cell = container.querySelector(`td[data-type="teamjang"][data-dept="${dept}"][data-qi="${qi}"]`)
+        || container.querySelector(`td[data-type="buseojang"][data-dept="${dept}"][data-qi="${qi}"]`);
+      sums['팀장'][qi] += parseNum(cell?.textContent);
+    });
+  });
+
+  // extraRow: data-extra-buseojang-rowtotal 셀 (비고 셀로 타입 판단)
+  container.querySelectorAll('td[data-extra-buseojang-rowtotal]').forEach(td => {
+    const key = td.getAttribute('data-extra-buseojang-rowtotal');
+    const tr = td.closest('tr');
+    const remarkTd = tr ? [...tr.querySelectorAll('td')].find(t => types.includes(t.textContent.trim())) : null;
+    const typeText = remarkTd?.textContent.trim();
+    if (!typeText || !sums[typeText]) return;
+    [0,1,2,3].forEach(qi => {
+      const cell = container.querySelector(`td[data-extra-buseojang-qi="${key}-${qi}"]`);
+      sums[typeText][qi] += parseNum(cell?.textContent);
+    });
+  });
 
   const fmtM = v => v ? v.toLocaleString() : '-';
   const tdS = 'border:1px solid #e2e8f0;padding:6px 12px;text-align:right;font-size:12px;';
@@ -7450,17 +7472,17 @@ function renderDeptFundSummary(container, sums) {
       </tr></thead>
       <tbody>
         ${types.map(t=>{
-          const total=summarySums[t].reduce((s,v)=>s+v,0);
+          const total=sums[t].reduce((s,v)=>s+v,0);
           return `<tr>
             <td style="${tdS}text-align:center;font-weight:600;background:${typeColors[t]}">${t}</td>
-            ${summarySums[t].map(v=>`<td style="${tdS}">${fmtM(v)}</td>`).join('')}
+            ${sums[t].map(v=>`<td style="${tdS}">${fmtM(v)}</td>`).join('')}
             <td style="${tdS}font-weight:700">${fmtM(total)}</td>
           </tr>`;
         }).join('')}
         <tr style="background:#f8fafc">
           <td style="${tdS}text-align:center;font-weight:700">합계</td>
-          ${[0,1,2,3].map(qi=>`<td style="${tdS}font-weight:700">${fmtM(types.reduce((s,t)=>s+summarySums[t][qi],0))}</td>`).join('')}
-          <td style="${tdS}font-weight:700;color:var(--ac)">${fmtM(types.reduce((s,t)=>s+summarySums[t].reduce((a,b)=>a+b,0),0))}</td>
+          ${[0,1,2,3].map(qi=>`<td style="${tdS}font-weight:700">${fmtM(types.reduce((s,t)=>s+sums[t][qi],0))}</td>`).join('')}
+          <td style="${tdS}font-weight:700;color:var(--ac)">${fmtM(types.reduce((s,t)=>s+sums[t].reduce((a,b)=>a+b,0),0))}</td>
         </tr>
       </tbody>
     </table>
@@ -7468,10 +7490,6 @@ function renderDeptFundSummary(container, sums) {
 
   container.insertAdjacentHTML('afterbegin', summaryHtml);
 }
-
-
-
-
 
 function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
   const dd = getDateData(dept, qi, rowIdx, col);
