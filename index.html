@@ -7488,55 +7488,66 @@ function renderDeptFundSummary(container, allSums) {
 
   // 조직별 대표자 요약 데이터 수집
   const orgRows = [];
+
+  // employees에서 조직 대표자 찾기
+  const findOrgHead = (dept) => {
+    const acting = employees.find(e => e.dept===dept && (e.title||'').includes('대행'));
+    if (acting) return acting.name;
+    const head = employees.find(e => e.dept===dept && (
+      (e.title||'').includes('팀장') || (e.title||'').includes('부서장') ||
+      (e.title||'').includes('본부장') || (e.title||'').includes('부장') || (e.title||'').includes('소장')
+    ));
+    if (head) return head.name;
+    const conc = employees.find(e => (e.concurrent||[]).some(c => c.dept===dept && (
+      (c.title||'').includes('팀장') || (c.title||'').includes('부서장') || (c.title||'').includes('본부장')
+    )));
+    return conc ? conc.name : '';
+  };
+
   allTables.forEach(table => {
     const remarkTd = [...table.querySelectorAll('td')].find(td =>
       types.includes(td.textContent.trim()) && td.previousElementSibling?.textContent.trim() === '계'
     );
     if (!remarkTd) return;
     const typeText = remarkTd.textContent.trim();
-    const rows = [...table.querySelectorAll('tr')];
 
-    // 조직명 추출
     let orgName = '';
     let headName = '';
 
     if (typeText === '본부장') {
-      // 본부장: 2행 첫 셀이 조직명, 3행 첫 셀이 이름
-      const row2 = rows[1];
-      const row3 = rows[2];
-      orgName = row2 ? [...row2.querySelectorAll('td')][0]?.textContent.trim().replace(/☰/g,'').trim() : '';
-      headName = row3 ? [...row3.querySelectorAll('td')][0]?.textContent.trim() : '';
+      const bonbuCell = table.querySelector('td[data-bonbu-total-amt]');
+      orgName = bonbuCell?.getAttribute('data-bonbu-total-amt') || '';
+      headName = findOrgHead(orgName);
     } else {
-      // 부서장/팀장: data-dept 속성에서 실제 조직명 찾기
-      const deptCell = [...table.querySelectorAll('td[data-dept]')].find(td => td.getAttribute('data-qi') === '0');
-      const deptAttr = deptCell?.getAttribute('data-dept') || '';
-      // colspan 셀에서 표시명 찾기 (모든 행 탐색)
-      const orgNameTd = [...table.querySelectorAll('td')].find(td=>
-        (td.getAttribute('colspan')==='2'||td.getAttribute('colspan')==='3') && td.textContent.trim().length > 0
-      );
-      orgName = deptAttr || (orgNameTd ? orgNameTd.textContent.trim().replace(/☰/g,'').trim() : '');
-
-      // 이름: 이름만 있는 행 찾기 (숫자/날짜/조직명 아닌 한글 이름)
-      const findNameRow = (rows) => {
-        for (const row of rows) {
-          const tds = [...row.querySelectorAll('td')];
-          const first = tds[0]?.textContent.trim();
-          if (!first || first.includes('☰') || /^\d/.test(first) || first.includes('월') || first.includes('부터') || first.includes('까지') || first.includes('입사') || first.includes('퇴사')) continue;
-          // 이름처럼 생긴 텍스트 (2~4글자 한글)
-          if (/^[가-힣]{2,4}$/.test(first)) return first;
+      // data-teamjang-total 또는 data-buseojang-total에서 조직명
+      const totalCell = table.querySelector('td[data-teamjang-total]') || table.querySelector('td[data-buseojang-total]');
+      if (totalCell) {
+        orgName = totalCell.getAttribute('data-teamjang-total') || totalCell.getAttribute('data-buseojang-total') || '';
+        headName = findOrgHead(orgName);
+      } else {
+        // extraRow: data-extra-buseojang-rowtotal
+        const extraCell = remarkTd.closest('tr') ? [...remarkTd.closest('tr').querySelectorAll('td')].find(td => td.hasAttribute('data-extra-buseojang-rowtotal')) : null;
+        if (extraCell) {
+          const key = extraCell.getAttribute('data-extra-buseojang-rowtotal');
+          const parentDept = key ? key.replace(/-[0-9]+$/, '') : '';
+          const ri = parseInt((key||'').split('-').pop())||0;
+          const row = (deptFundSettings[parentDept]?.extraRows||[])[ri];
+          orgName = (row?.orgNames||[])[0] || (row?.teamOrgNames||[])[0] || parentDept;
+          headName = findOrgHead(orgName);
         }
-        return '';
-      };
-      headName = findNameRow(rows.slice(1)) || (() => {
-        const headTd2 = [...table.querySelectorAll('td')].find(td =>
+      }
+      // employees에서 못 찾으면 DOM에서 (팀장대행)/(팀장)/(부서장) 셀
+      if (!headName) {
+        const headTd = [...table.querySelectorAll('td')].find(td =>
           td.textContent.trim().includes('(팀장대행)') || td.textContent.trim().includes('(부서장대행)')
         ) || [...table.querySelectorAll('td')].find(td => {
           const txt = td.textContent.trim();
           return txt.includes('(팀장)') || txt.includes('(부서장)') || txt.includes('(부장)');
         });
-        return headTd2 ? headTd2.textContent.trim().replace(/\(.*?\)/g,'').trim() : '';
-      })();
+        headName = headTd ? headTd.textContent.trim().replace(/\(.*?\)/g,'').trim() : '';
+      }
     }
+
 
     // 분기별 금액
     const isTotal2 = td => td.hasAttribute('data-teamjang-total') || td.hasAttribute('data-buseojang-total') ||
