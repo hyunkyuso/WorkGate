@@ -7527,16 +7527,20 @@ function renderDeptFundSummary(container, allSums) {
         headName = findOrgHead(orgName);
       } else {
         // extraRow: data-extra-buseojang-rowtotal
-        const extraCell = remarkTd.closest('tr') ? [...remarkTd.closest('tr').querySelectorAll('td')].find(td => td.hasAttribute('data-extra-buseojang-rowtotal')) : null;
-        if (extraCell) {
-          const key = extraCell.getAttribute('data-extra-buseojang-rowtotal');
-          const parentDept = key ? key.replace(/-[0-9]+$/, '') : '';
-          const ri = parseInt((key||'').split('-').pop())||0;
-          const settings = window._deptFundSettingsCache || {};
-          const row = (settings[parentDept]?.extraRows||[])[ri];
-          orgName = (row?.orgNames||[])[0] || (row?.teamOrgNames||[])[0] || parentDept;
-          headName = findOrgHead(orgName);
-        }
+        // extraRow: 테이블 내 data-extra-buseojang-rowtotal 셀에서 조직명
+      const extraCell = [...table.querySelectorAll('td[data-extra-buseojang-rowtotal]')].find(td => {
+        // 이 extraRow의 비고가 typeText와 일치하는지 확인 (같은 테이블이므로 그냥 사용)
+        return true;
+      });
+      if (extraCell) {
+        const key = extraCell.getAttribute('data-extra-buseojang-rowtotal');
+        const parentDept = key ? key.replace(/-[0-9]+$/, '') : '';
+        const ri = parseInt((key||'').split('-').pop())||0;
+        const settings = window._deptFundSettingsCache || {};
+        const row = (settings[parentDept]?.extraRows||[])[ri];
+        orgName = (row?.orgNames||[])[0] || (row?.teamOrgNames||[])[0] || parentDept;
+        headName = findOrgHead(orgName);
+      }
       }
       // employees에서 못 찾으면 DOM에서 (팀장대행)/(팀장)/(부서장) 셀
       if (!headName) {
