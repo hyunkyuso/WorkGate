@@ -7401,6 +7401,7 @@ ${nameRows.map((rowByQ, rowIdx) => `
   }
 
   // 직책별 금액 요약: 모든 calc 완료 후 DOM에서 읽기
+  window._deptFundSettingsCache = deptFundSettings;
   renderDeptFundSummary(container, _finalSums);
 }
 
@@ -7531,7 +7532,8 @@ function renderDeptFundSummary(container, allSums) {
           const key = extraCell.getAttribute('data-extra-buseojang-rowtotal');
           const parentDept = key ? key.replace(/-[0-9]+$/, '') : '';
           const ri = parseInt((key||'').split('-').pop())||0;
-          const row = (deptFundSettings[parentDept]?.extraRows||[])[ri];
+          const settings = window._deptFundSettingsCache || {};
+          const row = (settings[parentDept]?.extraRows||[])[ri];
           orgName = (row?.orgNames||[])[0] || (row?.teamOrgNames||[])[0] || parentDept;
           headName = findOrgHead(orgName);
         }
