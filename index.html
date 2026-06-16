@@ -7002,8 +7002,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             ${[0,1,2,3].map(qi2 => disabledQi.includes(qi2)
               ? `<td colspan="4" rowspan="${1+pairT*2}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`
               : (qi2===0
-                ? `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[0]===null?'-':fmtMoney(tAmtsT[0])}</td>`
-                : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",${qi2})'>${getDeptDisplayName(dept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[qi2]===null?'-':fmtMoney(tAmtsT[qi2])}</td>`)
+                ? `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="teamjang">${tAmtsT[0]===null?'-':fmtMoney(tAmtsT[0])}</td>`
+                : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",${qi2})'>${getDeptDisplayName(dept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="${qi2}" data-type="teamjang">${tAmtsT[qi2]===null?'-':fmtMoney(tAmtsT[qi2])}</td>`)
             ).join('')}
             <td style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center">계</td>
             ${noteCellT}
@@ -7442,7 +7442,7 @@ function renderDeptFundSummary(container, allSums) {
     const amtCells = allNumCells;
 
     // 마지막 셀이 합계이면 제외, 앞의 4개가 Q1~Q4
-    // data-qi 있는 경우 qi로 읽기, 없으면 순서대로 Q1~Q4
+    // data-qi 있는 경우만 읽기
     const withQi = amtCells.filter(td => td.getAttribute('data-qi') !== null);
     if (withQi.length >= 1) {
       [0,1,2,3].forEach(qi => {
@@ -7450,7 +7450,7 @@ function renderDeptFundSummary(container, allSums) {
         sums[typeText][qi] += parseNum(cell?.textContent);
       });
     } else {
-      // data-qi 없는 경우: 순서대로 Q1~Q4 (최대 4개)
+      // data-qi 없는 경우: extraRow 등 - 순서대로 Q1~Q4 (최대 4개)
       amtCells.slice(0, 4).forEach((td, qi) => { sums[typeText][qi] += parseNum(td.textContent); });
     }
   });
