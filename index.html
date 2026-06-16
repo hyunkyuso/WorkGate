@@ -7539,7 +7539,10 @@ function renderDeptFundSummary(container, allSums) {
         const settings = window._deptFundSettingsCache || {};
         const row = (settings[parentDept]?.extraRows||[])[ri];
         orgName = (row?.orgNames||[])[0] || (row?.teamOrgNames||[])[0] || parentDept;
-        headName = findOrgHead(orgName);
+        // headNames 또는 nameData 첫번째에서 대표자 이름 읽기
+        const hn = (row?.headNames||[]).find(h=>h);
+        const nd = (row?.nameData||[]).filter(d=>d.name&&!d.hidden).sort((a,b)=>a.qi-b.qi||a.col-b.col)[0];
+        headName = hn || nd?.name || findOrgHead(orgName);
       }
       }
       // employees에서 못 찾으면 DOM에서 (팀장대행)/(팀장)/(부서장) 셀
