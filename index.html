@@ -7494,25 +7494,38 @@ function renderDeptFundSummary(container, allSums) {
     );
     if (!remarkTd) return;
     const typeText = remarkTd.textContent.trim();
+    const rows = [...table.querySelectorAll('tr')];
 
-    // 조직명: 첫 번째 행의 소속 셀
-    const firstRow = table.querySelector('tr');
-    const orgNameTd = firstRow ? [...firstRow.querySelectorAll('td')].find(td=>td.getAttribute('colspan')==='2'||td.getAttribute('colspan')==='3') : null;
-    const orgName = orgNameTd ? orgNameTd.textContent.trim().replace(/☰/g,'').trim() : '';
+    // 조직명 추출
+    let orgName = '';
+    let headName = '';
 
-    // 대표자 이름: 팀장/부서장/본부장 이름 셀
-    const headTd = [...table.querySelectorAll('td')].find(td => {
-      const txt = td.textContent.trim();
-      return txt.includes('(팀장)') || txt.includes('(부서장)') || txt.includes('(본부장)') || txt.includes('(팀장대행)');
-    });
-    const headName = headTd ? headTd.textContent.trim().replace(/\(.*?\)/g,'').trim() : '';
+    if (typeText === '본부장') {
+      // 본부장: 2행 첫 셀이 조직명, 3행 첫 셀이 이름
+      const row2 = rows[1];
+      const row3 = rows[2];
+      orgName = row2 ? [...row2.querySelectorAll('td')][0]?.textContent.trim().replace(/☰/g,'').trim() : '';
+      headName = row3 ? [...row3.querySelectorAll('td')][0]?.textContent.trim() : '';
+    } else {
+      // 부서장/팀장: 첫 행에서 조직명, 이름 셀 찾기
+      const firstRow = rows[0];
+      const orgNameTd = firstRow ? [...firstRow.querySelectorAll('td')].find(td=>
+        (td.getAttribute('colspan')==='2'||td.getAttribute('colspan')==='3'))  : null;
+      orgName = orgNameTd ? orgNameTd.textContent.trim().replace(/☰/g,'').trim() : '';
+      // 이름: (팀장), (부서장), (팀장대행) 포함 셀
+      const headTd = [...table.querySelectorAll('td')].find(td => {
+        const txt = td.textContent.trim();
+        return txt.includes('(팀장)') || txt.includes('(부서장)') || txt.includes('(팀장대행)') || txt.includes('(부장)');
+      });
+      headName = headTd ? headTd.textContent.trim().replace(/\(.*?\)/g,'').trim() : '';
+    }
 
     // 분기별 금액
-    const isTotal = td => td.hasAttribute('data-teamjang-total') || td.hasAttribute('data-buseojang-total') ||
+    const isTotal2 = td => td.hasAttribute('data-teamjang-total') || td.hasAttribute('data-buseojang-total') ||
                           td.hasAttribute('data-bonbu-total-amt') || td.hasAttribute('data-extra-buseojang-rowtotal') ||
                           td.hasAttribute('data-bonbu-total');
     const amtCells2 = [...table.querySelectorAll('td')].filter(td => {
-      if (td.querySelector('button') || isTotal(td)) return false;
+      if (td.querySelector('button') || isTotal2(td)) return false;
       const txt = td.textContent.trim().replace(/,/g,'');
       return /^\d+$/.test(txt) && parseInt(txt) > 0;
     });
@@ -7527,12 +7540,15 @@ function renderDeptFundSummary(container, allSums) {
       amtCells2.slice(0,4).forEach((td,qi) => { qAmts[qi] = parseNum(td.textContent); });
     }
     const total = qAmts.reduce((s,v)=>s+v,0);
-    if (total > 0) orgRows.push({orgName, headName, typeText, qAmts, total});
+    if (total > 0 || orgName) orgRows.push({orgName, headName, typeText, qAmts, total});
   });
 
   const orgTdS = 'border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;';
   const orgThS = 'border:1px solid #e2e8f0;padding:5px 10px;text-align:center;font-size:11px;font-weight:600;background:#f1f5f9;';
   const qLabels2 = ['1~3월','4~6월','7~9월','10~12월'];
+  const grandTotal = [0,0,0,0];
+  orgRows.forEach(r => r.qAmts.forEach((v,qi) => { grandTotal[qi] += v; }));
+  const grandSum = grandTotal.reduce((s,v)=>s+v,0);
 
   const orgSummaryHtml = `
   <div style="margin-top:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
@@ -7553,6 +7569,11 @@ function renderDeptFundSummary(container, allSums) {
           ${r.qAmts.map(v=>`<td style="${orgTdS}text-align:right">${fmtM(v)}</td>`).join('')}
           <td style="${orgTdS}text-align:right;font-weight:700">${fmtM(r.total)}</td>
         </tr>`).join('')}
+        <tr style="background:#f8fafc;font-weight:700">
+          <td style="${orgTdS}" colspan="3">합계</td>
+          ${grandTotal.map(v=>`<td style="${orgTdS}text-align:right">${fmtM(v)}</td>`).join('')}
+          <td style="${orgTdS}text-align:right;color:var(--ac)">${fmtM(grandSum)}</td>
+        </tr>
       </tbody>
     </table>
   </div>`;
