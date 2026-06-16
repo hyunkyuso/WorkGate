@@ -7426,25 +7426,32 @@ function renderDeptFundSummary(container, allSums) {
     if (!remarkTd) return;
     const typeText = remarkTd.textContent.trim();
 
-    // 분기별 금액 셀: 숫자값이 있는 셀 (이름칸 등 제외)
-    const amtCells = [...table.querySelectorAll('td')].filter(td => {
+    // 분기별 금액 셀: 숫자값이 있는 셀 중 합계 셀 제외
+    const isTotal = td => td.hasAttribute('data-teamjang-total') || 
+                          td.hasAttribute('data-buseojang-total') || 
+                          td.hasAttribute('data-bonbu-total-amt') ||
+                          td.hasAttribute('data-extra-buseojang-rowtotal') ||
+                          td.hasAttribute('data-bonbu-total');
+    const allNumCells = [...table.querySelectorAll('td')].filter(td => {
       if (td.querySelector('button')) return false;
+      if (isTotal(td)) return false;
       const txt = td.textContent.trim().replace(/,/g,'');
       return /^\d+$/.test(txt) && parseInt(txt) > 0;
     });
+    // 마지막 셀이 합계이면 제외 (합계 속성 없어도 마지막 숫자 셀이 합계인 경우)
+    const amtCells = allNumCells;
 
     // 마지막 셀이 합계이면 제외, 앞의 4개가 Q1~Q4
-    // data-qi 있는 경우 우선 사용
+    // data-qi 있는 경우 qi로 읽기, 없으면 순서대로 Q1~Q4
     const withQi = amtCells.filter(td => td.getAttribute('data-qi') !== null);
-    if (withQi.length >= 4) {
+    if (withQi.length >= 1) {
       [0,1,2,3].forEach(qi => {
         const cell = withQi.find(td => td.getAttribute('data-qi') === String(qi));
         sums[typeText][qi] += parseNum(cell?.textContent);
       });
     } else {
-      // data-qi 없는 경우: 순서대로 Q1~Q4 (마지막 합계 셀 제외)
-      const qCells = amtCells.slice(0, 4);
-      qCells.forEach((td, qi) => { sums[typeText][qi] += parseNum(td.textContent); });
+      // data-qi 없는 경우: 순서대로 Q1~Q4 (최대 4개)
+      amtCells.slice(0, 4).forEach((td, qi) => { sums[typeText][qi] += parseNum(td.textContent); });
     }
   });
 
