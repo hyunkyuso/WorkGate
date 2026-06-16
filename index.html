@@ -7413,32 +7413,91 @@ ${nameRows.map((rowByQ, rowIdx) => `
     window._extraBuseojangCalcs = {};
   }
 
-  // 직책별 금액 요약: DOM에서 최종값 읽어서 합산
-  renderDeptFundSummary(container, _finalSums);
+  // 직책별 금액 요약: 모든 calc 완료 후 DOM에서 읽기
+  renderDeptFundSummary(container);
 }
 
-function renderDeptFundSummary(container, allSums) {
+function renderDeptFundSummary(container) {
   const existing = document.getElementById('deptfund-summary');
   if (existing) existing.remove();
 
+  const parseNum = s => parseInt((s||'').replace(/,/g,''))||0;
   const qLabels = ['01~03월','04~06월','07~09월','10~12월'];
   const types = ['본부장','부서장','팀장'];
   const typeColors = {'본부장':'#dbeafe','부서장':'#bbf7d0','팀장':'#f1f5f9'};
-  const sums = allSums || {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
+  const sums = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
 
-  // extraRow 금액 추가 (DOM에서 읽기 - calc 완료 후 호출됨)
-  const parseNum = s => parseInt((s||'').replace(/,/g,''))||0;
-  container.querySelectorAll('td[data-extra-buseojang-rowtotal]').forEach(td => {
-    const key = td.getAttribute('data-extra-buseojang-rowtotal');
-    const tr = td.closest('tr');
-    const remarkTd = tr ? [...tr.querySelectorAll('td')].find(t => types.includes(t.textContent.trim())) : null;
-    const typeText = remarkTd?.textContent.trim();
-    if (!typeText || !sums[typeText]) return;
-    [0,1,2,3].forEach(qi => {
-      const cell = container.querySelector('td[data-extra-buseojang-qi="' + key + '-' + qi + '"]');
-      sums[typeText][qi] += parseNum(cell?.textContent);
+  // 비고 셀(본부장/부서장/팀장) 기준으로 같은 테이블의 분기별 금액 합산
+  // 요약 테이블 자체 제외
+  const allTables = [...container.querySelectorAll('table')].filter(t=>!t.closest('#deptfund-summary'));
+
+  allTables.forEach(table => {
+    // 비고 셀 찾기 (이전 형제가 '계'인 것)
+    const remarkTds = [...table.querySelectorAll('td')].filter(td => {
+      const txt = td.textContent.trim();
+      if (!types.includes(txt)) return false;
+      const prev = td.previousElementSibling;
+      return prev && prev.textContent.trim() === '계';
     });
+
+    if (!remarkTds.length) return;
+    const typeText = remarkTds[0].textContent.trim();
+    if (!sums[typeText]) return;
+
+    // 분기별 금액 셀 찾기
+    // 1. data-type="teamjang" 셀
+    const teamjangCells = table.querySelectorAll('td[data-type="teamjang"]');
+    if (teamjangCells.length) {
+      [0,1,2,3].forEach(qi => {
+        const cell = table.querySelector(`td[data-type="teamjang"][data-qi="${qi}"]`);
+        sums[typeText][qi] += parseNum(cell?.textContent);
+      });
+      return;
+    }
+
+    // 2. data-type="buseojang" 셀 (본부장/부서장/팀장타입 본부)
+    const buseojangCells = table.querySelectorAll('td[data-type="buseojang"]');
+    if (buseojangCells.length) {
+      // 해당 dept 확인
+      const dept = buseojangCells[0]?.getAttribute('data-dept');
+      if (dept) {
+        [0,1,2,3].forEach(qi => {
+          const cell = table.querySelector(`td[data-type="buseojang"][data-dept="${dept}"][data-qi="${qi}"]`);
+          sums[typeText][qi] += parseNum(cell?.textContent);
+        });
+      }
+      return;
+    }
+
+    // 3. data-extra-buseojang-rowtotal 셀 (extraRow)
+    const extraTotalTd = remarkTds[0].closest('tr') ?
+      [...remarkTds[0].closest('tr').querySelectorAll('td')].find(td => td.hasAttribute('data-extra-buseojang-rowtotal')) : null;
+    if (extraTotalTd) {
+      const key = extraTotalTd.getAttribute('data-extra-buseojang-rowtotal');
+      [0,1,2,3].forEach(qi => {
+        const cell = container.querySelector(`td[data-extra-buseojang-qi="${key}-${qi}"]`);
+        sums[typeText][qi] += parseNum(cell?.textContent);
+      });
+      return;
+    }
+
+    // 4. data-teamjang-total 셀이 있는 경우 (팀단위 조직 - calcTAmts 완료됨)
+    const teamjangTotal = table.querySelector('td[data-teamjang-total]');
+    if (teamjangTotal) {
+      const dept = teamjangTotal.getAttribute('data-teamjang-total');
+      // calcTAmts 완료 후이므로 teamjang-total 셀 값을 4로 나눌 수 없음
+      // _deptTeamjangCalcs가 이미 실행됐으므로 합계에서 역산 불가
+      // 대신 _summaryAccum에서 읽기
+      // 이미 즉시실행으로 누적됐으므로 여기선 skip
+    }
   });
+
+  // _summaryAccum 즉시실행 누적값 추가 (팀단위 조직 등)
+  if (window._summaryAccum) {
+    types.forEach(t => {
+      window._summaryAccum[t]?.forEach((v,qi) => { sums[t][qi] += (v||0); });
+    });
+  }
 
   const fmtM = v => v ? v.toLocaleString() : '-';
   const tdS = 'border:1px solid #e2e8f0;padding:6px 12px;text-align:right;font-size:12px;';
