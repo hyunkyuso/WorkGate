@@ -7512,10 +7512,12 @@ function renderDeptFundSummary(container, allSums) {
       const orgNameTd = firstRow ? [...firstRow.querySelectorAll('td')].find(td=>
         (td.getAttribute('colspan')==='2'||td.getAttribute('colspan')==='3'))  : null;
       orgName = orgNameTd ? orgNameTd.textContent.trim().replace(/☰/g,'').trim() : '';
-      // 이름: (팀장), (부서장), (팀장대행) 포함 셀
-      const headTd = [...table.querySelectorAll('td')].find(td => {
+      // 이름: 대행자 우선, 없으면 팀장/부서장
+      const headTd = [...table.querySelectorAll('td')].find(td =>
+        td.textContent.trim().includes('(팀장대행)') || td.textContent.trim().includes('(부서장대행)')
+      ) || [...table.querySelectorAll('td')].find(td => {
         const txt = td.textContent.trim();
-        return txt.includes('(팀장)') || txt.includes('(부서장)') || txt.includes('(팀장대행)') || txt.includes('(부장)');
+        return txt.includes('(팀장)') || txt.includes('(부서장)') || txt.includes('(부장)');
       });
       headName = headTd ? headTd.textContent.trim().replace(/\(.*?\)/g,'').trim() : '';
     }
