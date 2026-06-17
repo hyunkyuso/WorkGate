@@ -10243,13 +10243,22 @@ function getMypageFundMembers(org, year, mode) {
         employees.filter(e=>e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)).forEach(e=>{
           if(!names.includes(e.name)) names.push(e.name);
         });
-        // 3. 본부장이면 산하 부서장들도 포함
+        // 3. 본부장이면 departments 기반 산하 직원들 포함
         if (isBonbu) {
-          const bonbu = dept;
-          employees.filter(e=>{
-            const b = getBonbu(e);
-            return b===bonbu && ((e.title||'').includes('부서장')||(e.title||'').includes('팀장')||(e.title||'').includes('소장'));
-          }).forEach(e=>{ if(!names.includes(e.name)) names.push(e.name); });
+          // departments에서 본부 직속 자식 부서들 찾기
+          const bonbuDept = departments.find(d=>d.name===dept);
+          const childDeptNames = bonbuDept
+            ? departments.filter(d=>d.parent===bonbuDept.id).map(d=>d.name)
+            : [];
+          // 자식 부서 직원 + 그 하위 팀 직원
+          const allChildDeptNames = new Set(childDeptNames);
+          childDeptNames.forEach(cd => {
+            const cdObj = departments.find(d=>d.name===cd);
+            if (cdObj) departments.filter(d=>d.parent===cdObj.id).forEach(d=>allChildDeptNames.add(d.name));
+          });
+          employees.filter(e=>allChildDeptNames.has(e.dept)).forEach(e=>{
+            if(!names.includes(e.name)) names.push(e.name);
+          });
         }
         return names;
       };
