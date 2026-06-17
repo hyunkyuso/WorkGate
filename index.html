@@ -10264,50 +10264,6 @@ function getMypageFundMembers(org, year, mode) {
     });
   }
 }
-    return Object.entries(memberMap).map(([name, monthAmts]) => {
-      const full = {};
-      for(let mo=1;mo<=12;mo++) full[mo] = monthAmts[mo]||0;
-      const total = Object.values(full).reduce((s,v)=>s+(v||0),0);
-      return {name, monthAmts: full, total};
-    });
-
-  } else {
-    const memberMap = {};
-    // 캐시 있고 인원이 있으면 사용, 없으면 직접 계산
-    const cacheData = cache ? (() => { try { return cache(); } catch(e) { return null; } })() : null;
-    const hasCacheMembers = cacheData && activeQis.some(qi => (cacheData.qiMembers[qi]||[]).length > 0);
-
-    if (hasCacheMembers) {
-      activeQis.forEach(qi => {
-        (cacheData.qiMembers[qi] || []).forEach(m => {
-          if (!memberMap[m.name]) memberMap[m.name] = {0:0,1:0,2:0,3:0};
-          memberMap[m.name][qi] = m.amt || 0;
-        });
-      });
-    } else {
-      activeQis.forEach(qi => {
-        let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
-        if (!names.length) {
-          const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
-          names = [...new Set(nd.map(d=>d.name))];
-        }
-        if (!names.length) {
-          names = employees.filter(e=>e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)).map(e=>e.name);
-        }
-        names.forEach(name => {
-          if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
-          const emp = employees.find(e=>e.name===name);
-          const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 3;
-          if (m > 0) memberMap[name][qi] = m * 50000;
-        });
-      });
-    }
-    return Object.entries(memberMap).map(([name, qiAmts]) => {
-      const total = Object.values(qiAmts).reduce((s,v)=>s+(v||0),0);
-      return {name, qiAmts, total};
-    });
-  }
-}
 
 async function openFundUsageModal(orgKey, period, rowIdx, year, mode='monthly') {
   // 기존 모달 제거
