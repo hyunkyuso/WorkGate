@@ -7492,13 +7492,20 @@ function renderDeptFundSummary(container, allSums) {
 
   // employees에서 조직 대표자 찾기
   const findOrgHead = (dept) => {
+    // nameData acting 대행자 우선
+    const settings = window._deptFundSettingsCache || {};
+    const nd = (settings[dept]?.nameData||[]).find(d => d.acting && d.name);
+    if (nd) return nd.name;
+    // employees title 대행자
     const acting = employees.find(e => e.dept===dept && (e.title||'').includes('대행'));
     if (acting) return acting.name;
+    // 팀장/부서장/본부장
     const head = employees.find(e => e.dept===dept && (
       (e.title||'').includes('팀장') || (e.title||'').includes('부서장') ||
       (e.title||'').includes('본부장') || (e.title||'').includes('부장') || (e.title||'').includes('소장')
     ));
     if (head) return head.name;
+    // 겸직으로 해당 부서 대표자
     const conc = employees.find(e => (e.concurrent||[]).some(c => c.dept===dept && (
       (c.title||'').includes('팀장') || (c.title||'').includes('부서장') || (c.title||'').includes('본부장')
     )));
