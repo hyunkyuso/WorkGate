@@ -10181,14 +10181,15 @@ function getMypageFundMembers(org, year, mode) {
         });
       });
     } else {
+      const extraNames = extraRowNameData
+        ? [...new Set(extraRowNameData.filter(d=>d.name&&!d.hidden).map(d=>d.name))]
+        : [];
+      extraRowHeadNames.forEach(hn => { if (hn && !extraNames.includes(hn)) extraNames.push(hn); });
+
       activeQis.forEach(qi => {
         let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
-        if (!names.length && extraRowNameData) {
-          const nd = extraRowNameData.filter(d=>d.qi===qi&&d.name&&!d.hidden);
-          names = [...new Set(nd.map(d=>d.name))];
-          // headNames도 포함
-          const hn = extraRowHeadNames[qi];
-          if (hn && !names.includes(hn)) names.unshift(hn);
+        if (!names.length && extraNames.length) {
+          names = [...extraNames];
         }
         if (!names.length) {
           const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
@@ -10227,13 +10228,17 @@ function getMypageFundMembers(org, year, mode) {
         });
       });
     } else {
+      // extraRowNameData에서 모든 인원 추출 (qi 무관)
+      const extraNames = extraRowNameData
+        ? [...new Set(extraRowNameData.filter(d=>d.name&&!d.hidden).map(d=>d.name))]
+        : [];
+      // headNames에서도 추출
+      extraRowHeadNames.forEach(hn => { if (hn && !extraNames.includes(hn)) extraNames.push(hn); });
+
       activeQis.forEach(qi => {
         let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
-        if (!names.length && extraRowNameData) {
-          const nd = extraRowNameData.filter(d=>d.qi===qi&&d.name&&!d.hidden);
-          names = [...new Set(nd.map(d=>d.name))];
-          const hn = extraRowHeadNames[qi];
-          if (hn && !names.includes(hn)) names.unshift(hn);
+        if (!names.length && extraNames.length) {
+          names = [...extraNames];
         }
         if (!names.length) {
           const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
