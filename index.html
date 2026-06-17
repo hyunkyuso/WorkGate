@@ -10234,6 +10234,10 @@ function getMypageFundMembers(org, year, mode) {
         : [];
       // headNames에서도 추출
       extraRowHeadNames.forEach(hn => { if (hn && !extraNames.includes(hn)) extraNames.push(hn); });
+      // employees에서도 추출 (본인 포함)
+      employees.filter(e=>e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)).forEach(e=>{
+        if (!extraNames.includes(e.name)) extraNames.push(e.name);
+      });
 
       activeQis.forEach(qi => {
         let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
@@ -10251,7 +10255,7 @@ function getMypageFundMembers(org, year, mode) {
           if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
           const emp = employees.find(e=>e.name===name);
           const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 3;
-          if (m > 0) memberMap[name][qi] = m * 50000;
+          if (m > 0) memberMap[name][qi] = 50000; // 부서장/본부장은 분기 고정 50,000원
         });
       });
     }
