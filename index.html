@@ -10251,6 +10251,10 @@ function getMypageFundMembers(org, year, mode) {
         if (!names.length) {
           names = employees.filter(e=>e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)).map(e=>e.name);
         }
+        // extra 배열에서 해당 qi에 추가된 인원
+        const extraAdded = (org.settings?.extra||[]).filter(e=>e.qi===qi&&e.name&&!names.includes(e.name)).map(e=>e.name);
+        names = [...names, ...extraAdded];
+
         names.forEach(name => {
           if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
           const emp = employees.find(e=>e.name===name);
