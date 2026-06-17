@@ -9885,9 +9885,11 @@ function renderMypageFundTable(org, year, usageData, key) {
       <tr>
         <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;font-weight:600;white-space:nowrap">${m.name}</td>
         ${months.map(mo => {
+          const qi = Math.floor((mo-1)/3);
+          const active = activeQis.includes(qi);
           const amt = m.monthAmts[mo] || 0;
-          return `<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;${!amt?'color:#cbd5e1':''}">
-            ${amt ? amt.toLocaleString() : '-'}
+          return `<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;${!active?'background:#f1f5f9;color:#cbd5e1':''}">
+            ${active ? (amt ? amt.toLocaleString() : '-') : ''}
           </td>`;
         }).join('')}
         <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right;font-weight:700;background:#fafafa">
@@ -9896,6 +9898,7 @@ function renderMypageFundTable(org, year, usageData, key) {
       </tr>`).join('');
 
     // 팀비합계
+    const activeQis = org.activeQis || [0,1,2,3];
     const monthTotals = months.map(mo => members.reduce((s,m) => s+(m.monthAmts[mo]||0), 0));
     const grandTotal = monthTotals.reduce((s,v)=>s+v,0);
 
@@ -9945,13 +9948,21 @@ function renderMypageFundTable(org, year, usageData, key) {
         ${memberRows}
         <tr style="background:#e0f2fe;font-weight:700">
           <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px">팀비합계</td>
-          ${monthTotals.map(v=>`<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right">${v?v.toLocaleString():'-'}</td>`).join('')}
+          ${monthTotals.map((v,i)=>{
+            const qi=Math.floor(i/3);
+            const active=activeQis.includes(qi);
+            return `<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;${!active?'background:#f1f5f9;color:#cbd5e1':''}">${active?(v?v.toLocaleString():'-'):''}</td>`;
+          }).join('')}
           <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right">${grandTotal.toLocaleString()}</td>
         </tr>
         ${usageRows}
         <tr style="background:#fff7ed">
           <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;font-weight:700">잔액</td>
-          ${monthBalances.map(v=>`<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;font-weight:600;color:${v<0?'#ef4444':'#374151'}">${v.toLocaleString()}</td>`).join('')}
+          ${monthBalances.map((v,i)=>{
+            const qi=Math.floor(i/3);
+            const active=activeQis.includes(qi);
+            return `<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;font-weight:600;${!active?'background:#f1f5f9;color:#cbd5e1':'color:'+(v<0?'#ef4444':'#374151')}">${active?v.toLocaleString():''}</td>`;
+          }).join('')}
           <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right;font-weight:700;color:${monthBalances.reduce((s,v)=>s+v,0)<0?'#ef4444':'#374151'}">${monthBalances.reduce((s,v)=>s+v,0).toLocaleString()}</td>
         </tr>
       </tbody>
@@ -10047,65 +10058,54 @@ function getMypageFundMembers(org, year, mode) {
   const dept = org.dept;
   const activeQis = org.activeQis || [0,1,2,3];
 
-  if (mode === 'monthly') {
-    // 팀장: _lastQNames 기반으로 분기별 인원 파악 후 월별로 변환
-    const memberMap = {}; // name → {mo: amt}
+  // 분기별 인원 가져오기 함수
+  const getQiNames = (qi) => {
+    // _lastQNames 우선
+    let names = (window._lastQNames?.[dept]?.[qi] || []).map(o => o.name);
+    if (names.length) return names;
+    // nameData에서
+    const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
+    names = [...new Set(nd.map(d=>d.name))];
+    if (names.length) return names;
+    // employees에서 직접 (부서장/본부장 타입)
+    return employees.filter(e => e.dept===dept || (e.concurrent||[]).some(c=>c.dept===dept)).map(e=>e.name);
+  };
 
+  if (mode === 'monthly') {
+    const memberMap = {};
     activeQis.forEach(qi => {
-      // _lastQNames에서 해당 분기 인원 가져오기
-      let qNames = (window._lastQNames?.[dept]?.[qi] || []).map(o => o.name);
-      // _lastQNames가 없으면 nameData에서
-      if (!qNames.length) {
-        const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
-        qNames = [...new Set(nd.map(d=>d.name))];
-        // _depts에서도 확인
-        if (!qNames.length) qNames = ((window._depts||{})[dept]||[]).map(e=>e.name);
-      }
+      const qNames = getQiNames(qi);
       qNames.forEach(name => {
         if (!memberMap[name]) memberMap[name] = {};
         const emp = employees.find(e=>e.name===name);
-        const months = emp ? getEmpMonthsInQuarter(emp, year, qi*3, qi*3+2) : 3;
-        // 분기를 월별로 배분
         for (let mo = qi*3+1; mo <= qi*3+3; mo++) {
-          // 해당 월 실제 근무월수 계산
           const empMonths = emp ? getEmpMonthsInQuarter(emp, year, mo-1, mo-1) : 1;
           memberMap[name][mo] = empMonths * 40000;
         }
       });
     });
-
     return Object.entries(memberMap).map(([name, monthAmts]) => {
-      const total = Object.values(monthAmts).reduce((s,v)=>s+(v||0),0);
-      // 12개월 모두 채우기
       const full = {};
       for(let mo=1;mo<=12;mo++) full[mo] = monthAmts[mo]||0;
+      const total = Object.values(full).reduce((s,v)=>s+(v||0),0);
       return {name, monthAmts: full, total};
     });
 
   } else {
     // 부서장/본부장: 분기별
     const memberMap = {};
-
     activeQis.forEach(qi => {
-      let qNames = (window._lastQNames?.[dept]?.[qi] || []).map(o => o.name);
-      if (!qNames.length) {
-        const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
-        qNames = [...new Set(nd.map(d=>d.name))];
-        if (!qNames.length) qNames = ((window._depts||{})[dept]||[]).map(e=>e.name);
-      }
+      const qNames = getQiNames(qi);
       qNames.forEach(name => {
-        if (!memberMap[name]) memberMap[name] = {};
+        if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
         const emp = employees.find(e=>e.name===name);
         const months = emp ? getEmpMonthsInQuarter(emp, year, qi*3, qi*3+2) : 3;
         memberMap[name][qi] = months * 50000;
       });
     });
-
     return Object.entries(memberMap).map(([name, qiAmts]) => {
-      const full = {0:0,1:0,2:0,3:0};
-      Object.assign(full, qiAmts);
-      const total = Object.values(full).reduce((s,v)=>s+(v||0),0);
-      return {name, qiAmts: full, total};
+      const total = Object.values(qiAmts).reduce((s,v)=>s+(v||0),0);
+      return {name, qiAmts, total};
     });
   }
 }
