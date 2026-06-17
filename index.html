@@ -10222,7 +10222,19 @@ function getMypageFundMembers(org, year, mode) {
           names = [...extraNames];
         }
         if (!names.length) {
-          names = employees.filter(e=>e.dept===dept).map(e=>e.name);
+          // 산하 부서가 있으면 (본부 타입이 팀장으로 설정된 경우) 산하 직원도 포함
+          const bonbuDept = departments.find(d=>d.name===dept);
+          const childDeptNames = bonbuDept ? departments.filter(d=>d.parent===bonbuDept.id).map(d=>d.name) : [];
+          const allChildDeptNames = new Set(childDeptNames);
+          childDeptNames.forEach(cd => {
+            const cdObj = departments.find(d=>d.name===cd);
+            if (cdObj) departments.filter(d=>d.parent===cdObj.id).forEach(d=>allChildDeptNames.add(d.name));
+          });
+          if (allChildDeptNames.size > 0) {
+            names = employees.filter(e=>e.dept===dept||allChildDeptNames.has(e.dept)).map(e=>e.name);
+          } else {
+            names = employees.filter(e=>e.dept===dept).map(e=>e.name);
+          }
         }
         // employees에서 부서장/팀장 항상 포함
         employees.filter(e => (e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)) &&
