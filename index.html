@@ -5815,7 +5815,9 @@ async function createNextYearSettings() {
 
     const ns = {};
     // type, buseojang, teamjang 복사 (빈 문자열 포함)
-    ns.type = s.type !== undefined ? s.type : '';
+    // 본부 settings: type이 없으면 '본부장'이 기본값
+    const isBonbu = Object.keys(window._depts||{}).some(d => getBonbu({dept:d}) === dept && d === dept);
+    ns.type = s.type !== undefined && s.type !== '' ? s.type : (isBonbu ? '본부장' : '');
     ns.buseojang = s.buseojang !== undefined ? s.buseojang : false;
     ns.teamjang = s.teamjang !== undefined ? s.teamjang : false;
     // disabledQi 초기화 (새해엔 미사용 없음)
@@ -6050,7 +6052,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
     // 분기별 금액 계산 (Q1=대기)
     const bonbuSetting = deptFundSettings[bonbu] || {type:'본부장'};
-    const bonbuIsNone = bonbuSetting.type === '' || bonbuSetting.type === '없음';
+    const bonbuIsNone = bonbuSetting.type === '없음';
     const bonbuExtraList = (deptFundSettings[bonbu]||{}).extra || [];
     // 겸직으로 이 본부의 본부장인 사람 (전체 직원에서 탐색)
     const bonbuHeadConc = employees.find(e=>
@@ -6178,8 +6180,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
 
     // ── 본부장 테이블 ──
-    const bonbuTypeLabel = bonbuIsNone ? '' : ((deptFundSettings[bonbu]||{}).type || '본부장');
-    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
+    const bonbuTypeLabel = bonbuIsNone ? '' : ((deptFundSettings[bonbu]||{}).type || '본부장');    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
         ${[0,1,2,3].map(qi2 => bonbuDisabledQi.includes(qi2)
