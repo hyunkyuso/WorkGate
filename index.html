@@ -9839,6 +9839,31 @@ async function renderMypageDeptFund(emp, container) {
   `;
   container.appendChild(fundHeader);
 
+  // 백그라운드로 부서장운영비 캐시 채우기
+  await new Promise(resolve => {
+    const existingContainer = document.getElementById('deptfund-content');
+    let tempDiv = null;
+    if (!existingContainer) {
+      tempDiv = document.createElement('div');
+      tempDiv.id = 'deptfund-content';
+      tempDiv.style.cssText = 'display:none;position:absolute;visibility:hidden';
+      document.body.appendChild(tempDiv);
+    }
+    const cleanup = () => {
+      if (tempDiv) { tempDiv.remove(); }
+      resolve();
+    };
+    if (!deptFundSettingsLoaded) {
+      loadDeptFundSettings().then(() => { _renderDeptFund(); cleanup(); }).catch(cleanup);
+    } else {
+      _renderDeptFund();
+      cleanup();
+    }
+  });
+
+  // 캐시 스냅샷 저장
+  window._deptFundMemberCacheSnapshot = window._deptFundMemberCache || {};
+
   // 현재 연도 운영비 렌더
   await renderMypageDeptFundYear(emp.name);
 }
@@ -10166,8 +10191,8 @@ function getMypageFundMembers(org, year, mode) {
   // extraRow면 extraRow.nameData 사용
   const extraRowNameData = org.extraRow?.nameData || org.guestExtraRow?.nameData || null;
   const extraRowHeadNames = org.extraRow?.headNames || org.guestExtraRow?.headNames || [];
-  // 마이페이지는 항상 재계산 (캐시는 본부장 본인만 저장되어 부정확)
-  const useCache = false;
+  // 캐시 사용 (백그라운드에서 채워진 캐시)
+  const useCache = !!cache;
 
   if (mode === 'monthly') {
     const memberMap = {};
