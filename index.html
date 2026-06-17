@@ -9889,27 +9889,7 @@ async function renderMypageDeptFundYear(empName) {
   allDepts.forEach(dept => {
     const s = settings[dept] || {};
     const type = s.type || '';
-    if (type === '없음') return;
-    if (!type) {
-      // type 없어도 employees에서 부서장/팀장이 본인이면 추가
-      const headName = findHeadForDept(dept, settings);
-      if (headName !== empName) return;
-      const empInDept = employees.find(e=>e.dept===dept&&(
-        (e.title||'').includes('팀장')||(e.title||'').includes('부서장')||
-        (e.title||'').includes('본부장')||(e.title||'').includes('부장')
-      ));
-      if (!empInDept) return;
-      const guessType = (e) => {
-        if ((e.title||'').includes('본부장')) return '본부장';
-        if ((e.title||'').includes('부서장')||(e.title||'').includes('부장')) return '부서장';
-        return '팀장';
-      };
-      const disabledQi = s.disabledQi || [];
-      const activeQis = [0,1,2,3].filter(qi => !disabledQi.includes(qi));
-      if (!activeQis.length) return;
-      processedOrgs.set(dept, { dept, type: guessType(empInDept), activeQis, settings: s });
-      return;
-    }
+    if (!type || type === '없음') return;
     const headName = findHeadForDept(dept, settings);
     if (headName !== empName) return;
 
@@ -9917,7 +9897,16 @@ async function renderMypageDeptFundYear(empName) {
     const activeQis = [0,1,2,3].filter(qi => !disabledQi.includes(qi));
     if (!activeQis.length) return;
 
-    processedOrgs.set(dept, { dept, type, activeQis, settings: s });
+    // 이 부서의 인원이 다른 부서의 extraRow에 등록된 경우 찾기
+    let guestExtraRow = null;
+    Object.entries(settings).forEach(([pd, ps]) => {
+      (ps.extraRows||[]).forEach(row => {
+        const orgNames = row.orgNames||[];
+        if (orgNames.some(n=>n===dept)) guestExtraRow = row;
+      });
+    });
+
+    processedOrgs.set(dept, { dept, type, activeQis, settings: s, guestExtraRow });
   });
 
   // 본부
@@ -10174,9 +10163,10 @@ function getMypageFundMembers(org, year, mode) {
   const activeQis = org.activeQis || [0,1,2,3];
   const cache = window._deptFundMemberCacheSnapshot?.[dept];
   // extraRow면 extraRow.nameData 사용
-  const extraRowNameData = org.extraRow?.nameData || null;
+  const extraRowNameData = org.extraRow?.nameData || org.guestExtraRow?.nameData || null;
+  const extraRowHeadNames = org.extraRow?.headNames || org.guestExtraRow?.headNames || [];
   // extraRow면 캐시 무시
-  const useCache = !org.isExtra && !!cache;
+  const useCache = !org.isExtra && !org.guestExtraRow && !!cache;
 
   if (mode === 'monthly') {
     const memberMap = {};
@@ -10197,7 +10187,7 @@ function getMypageFundMembers(org, year, mode) {
           const nd = extraRowNameData.filter(d=>d.qi===qi&&d.name&&!d.hidden);
           names = [...new Set(nd.map(d=>d.name))];
           // headNames도 포함
-          const hn = (org.extraRow?.headNames||[])[qi];
+          const hn = extraRowHeadNames[qi];
           if (hn && !names.includes(hn)) names.unshift(hn);
         }
         if (!names.length) {
@@ -10242,7 +10232,7 @@ function getMypageFundMembers(org, year, mode) {
         if (!names.length && extraRowNameData) {
           const nd = extraRowNameData.filter(d=>d.qi===qi&&d.name&&!d.hidden);
           names = [...new Set(nd.map(d=>d.name))];
-          const hn = (org.extraRow?.headNames||[])[qi];
+          const hn = extraRowHeadNames[qi];
           if (hn && !names.includes(hn)) names.unshift(hn);
         }
         if (!names.length) {
