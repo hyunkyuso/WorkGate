@@ -9972,6 +9972,7 @@ function renderMypageFundTable(org, year, usageData, key) {
     const members = getMypageFundMembers(org, year, 'monthly');
     const usageKey = key;
     const usage = usageData[usageKey] || {}; // {month: [{date,memo,amt}]}
+    const activeQis = org.activeQis || [0,1,2,3];
 
     const memberRows = members.map(m => `
       <tr>
@@ -9990,7 +9991,6 @@ function renderMypageFundTable(org, year, usageData, key) {
       </tr>`).join('');
 
     // 팀비합계
-    const activeQis = org.activeQis || [0,1,2,3];
     const monthTotals = months.map(mo => members.reduce((s,m) => s+(m.monthAmts[mo]||0), 0));
     const grandTotal = monthTotals.reduce((s,v)=>s+v,0);
 
