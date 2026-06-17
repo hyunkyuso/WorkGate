@@ -9901,20 +9901,23 @@ function renderMypageFundTable(org, year, usageData, key) {
 
     // 사용 내역 행들
     const maxUsageRows = months.reduce((max, mo) => Math.max(max, (usage[mo]||[]).length + 1), 1);
-    const usageRows = Array.from({length: maxUsageRows}, (_, ri) => `
-      <tr>
-        <td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;color:#f59e0b;font-weight:600">${ri===0?'사용':''}</td>
-        ${months.map(mo => {
-          const entries = usage[mo] || [];
-          const entry = entries[ri];
-          return `<td style="border:1px solid #e2e8f0;padding:2px 4px;font-size:11px;text-align:right">
-            ${entry ? `<div style="font-size:10px;color:#64748b">${entry.memo||''}</div><div>${entry.amt.toLocaleString()}</div>` : (ri===0?`<button onclick="openFundUsageModal('${key}',${mo},${ri},'${year}')" style="font-size:10px;padding:2px 6px;border:1px dashed #94a3b8;border-radius:4px;cursor:pointer;background:#f8fafc;color:#64748b">+입력</button>`:'<button onclick="openFundUsageModal(\''+key+'\','+mo+','+ri+',\''+year+'\')" style="font-size:10px;padding:2px 4px;border:none;background:none;cursor:pointer;color:#cbd5e1">+</button>')}
-          </td>`;
-        }).join('')}
-        <td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;text-align:right;background:#fafafa">
-          ${months.reduce((s,mo)=>s+((usage[mo]||[])[ri]?.amt||0),0)||''}
-        </td>
-      </tr>`).join('');
+    const usageRows = Array.from({length: maxUsageRows}, (_, ri) => {
+      const rowHtml = months.map(mo => {
+        const entries = usage[mo] || [];
+        const entry = entries[ri];
+        if (entry) {
+          return `<td style="border:1px solid #e2e8f0;padding:2px 4px;font-size:11px;text-align:right;cursor:pointer" onclick="openFundUsageModal('${key}',${mo},${ri},'${year}')"><div style="font-size:10px;color:#64748b;text-align:center">${entry.memo||''}</div><div>${entry.amt.toLocaleString()}</div></td>`;
+        } else if (ri === 0) {
+          return `<td style="border:1px solid #e2e8f0;padding:2px 4px;font-size:11px;text-align:center"><button onclick="openFundUsageModal('${key}',${mo},${ri},'${year}')" style="font-size:10px;padding:2px 6px;border:1px dashed #94a3b8;border-radius:4px;cursor:pointer;background:#f8fafc;color:#64748b">+입력</button></td>`;
+        } else {
+          return `<td style="border:1px solid #e2e8f0;padding:2px 4px;font-size:11px;text-align:center"><button onclick="openFundUsageModal('${key}',${mo},${ri},'${year}')" style="font-size:10px;padding:2px 4px;border:none;background:none;cursor:pointer;color:#cbd5e1">+</button></td>`;
+        }
+      }).join('');
+      const rowTotal = months.reduce((s,mo)=>s+((usage[mo]||[])[ri]?.amt||0),0);
+      const labelCell = `<td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;color:#f59e0b;font-weight:600;text-align:center">${ri===0?'사용':''}</td>`;
+      const totalCell = `<td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;text-align:right;background:#fafafa">${rowTotal?rowTotal.toLocaleString():'-'}</td>`;
+      return `<tr>${labelCell}${rowHtml}${totalCell}</tr>`;
+    }).join('');
 
     // 잔액
     const monthBalances = months.map(mo => {
@@ -9980,7 +9983,7 @@ function renderMypageFundTable(org, year, usageData, key) {
     const maxUsageRows = [0,1,2,3].reduce((max,qi) => Math.max(max,(usage[qi]||[]).length+1),1);
     const usageRows = Array.from({length:maxUsageRows},(_,ri) => `
       <tr>
-        <td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;color:#f59e0b;font-weight:600">${ri===0?'사용':''}</td>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;color:#f59e0b;font-weight:600;text-align:center">${ri===0?'사용':''}</td>
         ${[0,1,2,3].map(qi => {
           const active = org.activeQis.includes(qi);
           if (!active) return `<td style="border:1px solid #e2e8f0;background:#f1f5f9"></td>`;
@@ -9988,12 +9991,15 @@ function renderMypageFundTable(org, year, usageData, key) {
           const entry = entries[ri];
           return `<td style="border:1px solid #e2e8f0;padding:2px 4px;font-size:11px;text-align:right">
             ${entry
-              ? `<div style="font-size:10px;color:#64748b">${entry.memo||''}</div><div>${entry.amt.toLocaleString()}</div>`
+              ? `<div style="cursor:pointer" onclick="openFundUsageModal('${key}',${qi},${ri},'${year}','quarterly')">
+                  <div style="font-size:10px;color:#64748b;text-align:center">${entry.memo||''}</div>
+                  <div style="text-align:right">${entry.amt.toLocaleString()}</div>
+                </div>`
               : `<button onclick="openFundUsageModal('${key}',${qi},${ri},'${year}','quarterly')" style="font-size:10px;padding:2px 6px;border:1px dashed #94a3b8;border-radius:4px;cursor:pointer;background:#f8fafc;color:#64748b">${ri===0?'+입력':'+'}</button>`}
           </td>`;
         }).join('')}
         <td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;text-align:right;background:#fafafa">
-          ${[0,1,2,3].reduce((s,qi)=>s+((usage[qi]||[])[ri]?.amt||0),0)||''}
+          ${([0,1,2,3].reduce((s,qi)=>s+((usage[qi]||[])[ri]?.amt||0),0)||0).toLocaleString()||'-'}
         </td>
       </tr>`).join('');
 
@@ -10121,7 +10127,7 @@ async function openFundUsageModal(orgKey, period, rowIdx, year, mode='monthly') 
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="saveFundUsage('${orgKey}',${period},${rowIdx},'${year}','${mode}')" style="flex:1;padding:10px;background:var(--ac);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">저장</button>
-        ${entry.amt ? `<button onclick="deleteFundUsage('${orgKey}',${period},${rowIdx},'${year}','${mode}')" style="padding:10px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;cursor:pointer;font-weight:600">삭제</button>` : ''}
+        <button onclick="deleteFundUsage('${orgKey}',${period},${rowIdx},'${year}','${mode}')" style="padding:10px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;cursor:pointer;font-weight:600${entry.amt?'':'display:none'}">삭제</button>
         <button onclick="document.getElementById('fund-usage-modal').remove()" style="padding:10px 14px;background:#f1f5f9;color:#374151;border:none;border-radius:8px;cursor:pointer">취소</button>
       </div>
     </div>`;
