@@ -9920,7 +9920,8 @@ async function renderMypageDeptFundYear(empName) {
     const activeQis = [0,1,2,3].filter(qi => !disabledQi.includes(qi));
     if (!activeQis.length) return;
     if (!processedOrgs.has(bonbu)) {
-      processedOrgs.set(bonbu, { dept: bonbu, type, activeQis, settings: s, allSettings: settings });
+      window._mypageAllSettings = settings;
+      processedOrgs.set(bonbu, { dept: bonbu, type, activeQis, settings: s });
     }
   });
 
@@ -10261,9 +10262,9 @@ function getMypageFundMembers(org, year, mode) {
             if(!names.includes(e.name)) names.push(e.name);
           });
           // 산하 부서 nameData에서도 추가 (employees에 없는 인원, qi 무관 전체)
-          if (org.allSettings) {
+          if (window._mypageAllSettings) {
             allChildDeptNames.forEach(deptName => {
-              const ds = org.allSettings[deptName] || {};
+              const ds = window._mypageAllSettings[deptName] || {};
               (ds.nameData||[]).filter(d=>d.name&&!d.hidden).forEach(d=>{
                 if(!names.includes(d.name)) names.push(d.name);
               });
@@ -10280,7 +10281,7 @@ function getMypageFundMembers(org, year, mode) {
         if (!names.length) names = [...baseNames];
 
         // 산하 부서 nameData에서 해당 qi 인원 추가 (본부장 타입)
-        if (isBonbu && org.allSettings) {
+        if (isBonbu && window._mypageAllSettings) {
           const bonbuDept = departments.find(d=>d.name===dept);
           const childDeptNames = bonbuDept ? departments.filter(d=>d.parent===bonbuDept.id).map(d=>d.name) : [];
           const allChildDeptNames = new Set(childDeptNames);
@@ -10289,7 +10290,7 @@ function getMypageFundMembers(org, year, mode) {
             if (cdObj) departments.filter(d=>d.parent===cdObj.id).forEach(d=>allChildDeptNames.add(d.name));
           });
           allChildDeptNames.forEach(deptName => {
-            const ds = org.allSettings[deptName] || {};
+            const ds = window._mypageAllSettings[deptName] || {};
             (ds.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden&&!names.includes(d.name)).forEach(d=>{
               names.push(d.name);
             });
