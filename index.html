@@ -10228,38 +10228,46 @@ function getMypageFundMembers(org, year, mode) {
         });
       });
     } else {
-      // extraRowNameData에서 모든 인원 추출 (qi 무관)
-      const extraNames = extraRowNameData
-        ? [...new Set(extraRowNameData.filter(d=>d.name&&!d.hidden).map(d=>d.name))]
-        : [];
-      // headNames에서도 추출
-      extraRowHeadNames.forEach(hn => { if (hn && !extraNames.includes(hn)) extraNames.push(hn); });
-      // employees에서도 추출 (본인 포함)
-      employees.filter(e=>e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)).forEach(e=>{
-        if (!extraNames.includes(e.name)) extraNames.push(e.name);
-      });
+      const type = org.type || '';
+      const isBonbu = type === '본부장';
+
+      // 기본 인원 목록 구성
+      const getBaseNames = () => {
+        const names = [];
+        // 1. extraRow nameData (qi 무관)
+        if (extraRowNameData) {
+          extraRowNameData.filter(d=>d.name&&!d.hidden).forEach(d=>{ if(!names.includes(d.name)) names.push(d.name); });
+          extraRowHeadNames.forEach(hn=>{ if(hn&&!names.includes(hn)) names.push(hn); });
+        }
+        // 2. 본인 (employees에서 해당 부서 소속)
+        employees.filter(e=>e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)).forEach(e=>{
+          if(!names.includes(e.name)) names.push(e.name);
+        });
+        // 3. 본부장이면 산하 부서장들도 포함
+        if (isBonbu) {
+          const bonbu = dept;
+          employees.filter(e=>{
+            const b = getBonbu(e);
+            return b===bonbu && ((e.title||'').includes('부서장')||(e.title||'').includes('팀장')||(e.title||'').includes('소장'));
+          }).forEach(e=>{ if(!names.includes(e.name)) names.push(e.name); });
+        }
+        return names;
+      };
+
+      const baseNames = getBaseNames();
 
       activeQis.forEach(qi => {
         let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
-        if (!names.length && extraNames.length) {
-          names = [...extraNames];
-        }
-        if (!names.length) {
-          const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
-          names = [...new Set(nd.map(d=>d.name))];
-        }
-        if (!names.length) {
-          names = employees.filter(e=>e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)).map(e=>e.name);
-        }
+        if (!names.length) names = [...baseNames];
+
         // extra 배열에서 해당 qi에 추가된 인원
-        const extraAdded = (org.settings?.extra||[]).filter(e=>e.qi===qi&&e.name&&!names.includes(e.name)).map(e=>e.name);
-        names = [...names, ...extraAdded];
+        (org.settings?.extra||[]).filter(e=>e.qi===qi&&e.name&&!names.includes(e.name)).forEach(e=>names.push(e.name));
 
         names.forEach(name => {
           if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
           const emp = employees.find(e=>e.name===name);
           const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 3;
-          if (m > 0) memberMap[name][qi] = 50000; // 부서장/본부장은 분기 고정 50,000원
+          if (m > 0) memberMap[name][qi] = 50000;
         });
       });
     }
