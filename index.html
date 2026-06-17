@@ -610,7 +610,7 @@ select.form-input{cursor:pointer}
             </div>
           </div>
         </div>
-        <div id="mypage-content" style="max-width:700px"></div>
+        <div id="mypage-content" style="max-width:1200px"></div>
       </div>
 
       <div id="page-parentbirthday" class="page">
@@ -9343,8 +9343,6 @@ function renderMyPageEmp(emp, email) {
     editBtn.style.display = isMyPage ? 'inline-flex' : 'none';
     editBtn.onclick = () => openMyInfoModal(emp);
   }
-
-  // 기본 정보 렌더링
   const avatarHtml = emp.photo
     ? '<img src="'+emp.photo+'" style="width:100%;height:100%;object-fit:cover">'
     : '<span style="font-size:24px">'+(emp.name||'?')[0]+'</span>';
@@ -9629,20 +9627,105 @@ function renderMyPageEmp(emp, email) {
 
   if (!html) html = '<p style="color:#94a3b8;font-size:13px">아직 발생한 복리후생 항목이 없습니다.</p>';
 
-  container.innerHTML =
-    '<div style="display:flex;align-items:center;gap:16px;padding:20px;background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:20px">'
+  // 기본 정보 HTML
+  const infoHtml =
+    '<div style="display:flex;align-items:center;gap:16px;padding:20px;background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:16px">'
     +'<div style="width:64px;height:64px;border-radius:50%;background:#e2e8f0;overflow:hidden;display:flex;align-items:center;justify-content:center">'+avatarHtml+'</div>'
     +'<div>'
     +'<div style="font-size:18px;font-weight:700">'+(emp.position||'')+' '+(emp.name||'')+'</div>'
     +'<div style="font-size:13px;color:#64748b;margin-top:4px">'+(emp.dept||'')+(emp.duty?' · '+emp.duty:'')+'</div>'
     +'<div style="font-size:13px;color:#3b82f6;margin-top:2px;font-weight:600">근속 '+tenure+'</div>'
-    +'</div></div>'
-    +'<div style="font-size:15px;font-weight:700;margin-bottom:12px">🎁 복리후생 현황</div>'
-    + html;
+    +'</div></div>';
 
-  // 운영비 섹션 추가
-  renderMypageDeptFund(emp, container);
+  const tabBtn = (id, label, active) =>
+    `<button id="mptab-${id}" onclick="showMypageTab('${id}','${emp.name.replace(/'/g,"\\'")}${emp.id?'|'+emp.id:''}')" style="padding:8px 18px;border:none;border-bottom:2px solid ${active?'var(--ac)':'transparent'};background:none;cursor:pointer;font-size:13px;font-weight:${active?700:500};color:${active?'var(--ac)':'#64748b'}">${label}</button>`;
+
+  container.innerHTML =
+    infoHtml
+    + '<div style="display:flex;gap:0;border-bottom:1px solid #e2e8f0;margin-bottom:16px">'
+    + tabBtn('info','👤 내 정보', true)
+    + tabBtn('welfare','🎁 복리후생', false)
+    + '<button id="mptab-fund" onclick="showMypageTab(\'fund\',\''+emp.name.replace(/'/g,"\\'")+'\')" style="display:none;padding:8px 18px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;font-size:13px;font-weight:500;color:#64748b">💰 부서장운영비</button>'
+    + '</div>'
+    + '<div id="mptab-content-info"></div>'
+    + '<div id="mptab-content-welfare" style="display:none">'+ html +'</div>'
+    + '<div id="mptab-content-fund" style="display:none"></div>';
+
+  // 내 정보 탭 렌더
+  renderMypageInfoTab(emp);
+
+  // 운영비 탭 대상자 여부 확인
+  (async () => {
+    const docId = 'deptfund_settings';
+    try {
+      const doc = await firebase.firestore().collection('settings').doc(docId).get();
+      const settings = doc.data() || {};
+      const findHead = (dept) => {
+        const nd = (settings[dept]?.nameData||[]).find(d=>d.acting&&d.name);
+        if (nd) return nd.name;
+        const head = employees.find(e=>e.dept===dept&&(
+          (e.title||'').includes('팀장')||(e.title||'').includes('부서장')||
+          (e.title||'').includes('본부장')||(e.title||'').includes('부장')||(e.title||'').includes('소장')
+        ));
+        return head?.name||'';
+      };
+      const bonbuList = [...new Set(employees.map(e=>getBonbu(e)).filter(Boolean))];
+      const isFund = [...Object.keys(settings),...bonbuList].some(dept=>findHead(dept)===emp.name)
+        || Object.values(settings).some(s=>(s.extraRows||[]).some(row=>{
+          const hn=(row.headNames||[]).find(h=>h);
+          const nd=(row.nameData||[]).filter(d=>d.name&&!d.hidden).sort((a,b)=>a.qi-b.qi)[0];
+          return (hn||nd?.name)===emp.name;
+        }));
+      const fundTab = document.getElementById('mptab-fund');
+      if (fundTab && isFund) fundTab.style.display = 'inline-block';
+    } catch(e) {}
+  })();
 }
+
+function renderMypageInfoTab(emp) {
+  const el = document.getElementById('mptab-content-info');
+  if (!el) return;
+  const fields = [
+    {label:'이름', value:emp.name},
+    {label:'부서', value:emp.dept},
+    {label:'직책', value:emp.title},
+    {label:'직위', value:emp.position},
+    {label:'담당업무', value:emp.duty},
+    {label:'입사일', value:emp.joindate},
+    {label:'근무지', value:emp.workplace},
+    {label:'연락처', value:emp.mobile},
+    {label:'이메일', value:emp.id},
+  ].filter(f=>f.value);
+  el.innerHTML = '<div style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:20px;max-width:500px">'
+    + fields.map(f=>`<div style="display:flex;padding:8px 0;border-bottom:1px solid #f1f5f9">
+        <div style="width:100px;font-size:13px;color:#64748b;flex-shrink:0">${f.label}</div>
+        <div style="font-size:13px;font-weight:500">${f.value}</div>
+      </div>`).join('')
+    + '</div>';
+}
+
+function showMypageTab(tab, empKey) {
+  const empName = (empKey||'').split('|')[0];
+  ['info','welfare','fund'].forEach(t => {
+    const btn = document.getElementById('mptab-'+t);
+    const content = document.getElementById('mptab-content-'+t);
+    const active = t === tab;
+    if (btn && btn.style.display !== 'none') {
+      btn.style.borderBottom = active ? '2px solid var(--ac)' : '2px solid transparent';
+      btn.style.fontWeight = active ? '700' : '500';
+      btn.style.color = active ? 'var(--ac)' : '#64748b';
+    }
+    if (content) content.style.display = active ? 'block' : 'none';
+  });
+  if (tab === 'fund') {
+    const fundDiv = document.getElementById('mptab-content-fund');
+    if (fundDiv && !fundDiv.dataset.loaded) {
+      fundDiv.dataset.loaded = '1';
+      renderMypageDeptFund({name: empName}, fundDiv);
+    }
+  }
+}
+
 
 // 마이페이지 부서장운영비 섹션
 async function renderMypageDeptFund(emp, container) {
@@ -9846,8 +9929,8 @@ function renderMypageFundTable(org, year, usageData, key) {
       <span style="font-size:12px;padding:2px 8px;border-radius:12px;background:${typeColor};color:#374151">${typeLabel}</span>
       <span style="font-size:12px;color:#64748b">${year}년</span>
     </div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-    <table style="border-collapse:collapse;font-size:11px;min-width:900px;width:100%">
+    <div>
+    <table style="border-collapse:collapse;font-size:11px;width:100%">
       <thead>
         <tr style="background:#f1f5f9">
           <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:left;min-width:70px">성명</th>
@@ -9926,7 +10009,7 @@ function renderMypageFundTable(org, year, usageData, key) {
       <span style="font-size:12px;padding:2px 8px;border-radius:12px;background:${typeColor};color:#374151">${typeLabel}</span>
       <span style="font-size:12px;color:#64748b">${year}년</span>
     </div>
-    <div style="overflow-x:auto">
+    <div>
     <table style="border-collapse:collapse;font-size:11px;width:100%">
       <thead>
         <tr style="background:#f1f5f9">
