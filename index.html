@@ -10176,9 +10176,12 @@ function getMypageFundMembers(org, year, mode) {
 
   if (mode === 'monthly') {
     const memberMap = {};
-    if (cache) {
+    const cacheData = cache ? (() => { try { return cache(); } catch(e) { return null; } })() : null;
+    const hasCacheMembers = cacheData && activeQis.some(qi => (cacheData.qiMembers[qi]||[]).length > 0);
+
+    if (hasCacheMembers) {
       activeQis.forEach(qi => {
-        (cache().qiMembers[qi] || []).forEach(m => {
+        (cacheData.qiMembers[qi] || []).forEach(m => {
           if (!memberMap[m.name]) memberMap[m.name] = {};
           Object.assign(memberMap[m.name], m.monthAmts || {});
         });
@@ -10212,9 +10215,13 @@ function getMypageFundMembers(org, year, mode) {
 
   } else {
     const memberMap = {};
-    if (cache) {
+    // 캐시 있고 인원이 있으면 사용, 없으면 직접 계산
+    const cacheData = cache ? (() => { try { return cache(); } catch(e) { return null; } })() : null;
+    const hasCacheMembers = cacheData && activeQis.some(qi => (cacheData.qiMembers[qi]||[]).length > 0);
+
+    if (hasCacheMembers) {
       activeQis.forEach(qi => {
-        (cache().qiMembers[qi] || []).forEach(m => {
+        (cacheData.qiMembers[qi] || []).forEach(m => {
           if (!memberMap[m.name]) memberMap[m.name] = {0:0,1:0,2:0,3:0};
           memberMap[m.name][qi] = m.amt || 0;
         });
