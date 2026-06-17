@@ -10044,51 +10044,70 @@ function renderMypageFundTable(org, year, usageData, key) {
 }
 
 function getMypageFundMembers(org, year, mode) {
-  // 인원별 배정액 계산
-  const s = org.settings || {};
-  const quarters = [[1,3],[4,6],[7,9],[10,12]];
-  const members = [];
-  const nameSet = new Set();
-
-  // nameData에서 인원 수집
-  const nameData = s.nameData || [];
-  const allNames = [...new Set(nameData.filter(d=>d.name&&!d.hidden).map(d=>d.name))];
+  const dept = org.dept;
+  const activeQis = org.activeQis || [0,1,2,3];
 
   if (mode === 'monthly') {
-    allNames.forEach(name => {
-      const emp = employees.find(e=>e.name===name);
-      const monthAmts = {};
-      let total = 0;
-      for (let mo=1; mo<=12; mo++) {
-        const qi = Math.floor((mo-1)/3);
-        if (!(org.activeQis||[0,1,2,3]).includes(qi)) { monthAmts[mo]=0; continue; }
-        const [qs,qe] = [new Date(year,qi*3,1), new Date(year,qi*3+3,0)];
-        const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 1;
-        // 해당 월이 쿼터에 포함되는지
-        const inMonth = nameData.some(d=>d.name===name&&d.qi===qi&&!d.hidden);
-        monthAmts[mo] = inMonth ? Math.round((m/3)*40000) : 0;
-        total += monthAmts[mo];
+    // 팀장: _lastQNames 기반으로 분기별 인원 파악 후 월별로 변환
+    const memberMap = {}; // name → {mo: amt}
+
+    activeQis.forEach(qi => {
+      // _lastQNames에서 해당 분기 인원 가져오기
+      let qNames = (window._lastQNames?.[dept]?.[qi] || []).map(o => o.name);
+      // _lastQNames가 없으면 nameData에서
+      if (!qNames.length) {
+        const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
+        qNames = [...new Set(nd.map(d=>d.name))];
+        // _depts에서도 확인
+        if (!qNames.length) qNames = ((window._depts||{})[dept]||[]).map(e=>e.name);
       }
-      members.push({name, monthAmts, total});
-    });
-  } else {
-    // quarterly
-    allNames.forEach(name => {
-      const emp = employees.find(e=>e.name===name);
-      const qiAmts = {};
-      let total = 0;
-      [0,1,2,3].forEach(qi => {
-        if (!(org.activeQis||[0,1,2,3]).includes(qi)) { qiAmts[qi]=0; return; }
-        const inQi = nameData.some(d=>d.name===name&&d.qi===qi&&!d.hidden);
-        if (!inQi) { qiAmts[qi]=0; return; }
-        const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 3;
-        qiAmts[qi] = m * 50000; // 부서장/본부장: 월 5만
-        total += qiAmts[qi];
+      qNames.forEach(name => {
+        if (!memberMap[name]) memberMap[name] = {};
+        const emp = employees.find(e=>e.name===name);
+        const months = emp ? getEmpMonthsInQuarter(emp, year, qi*3, qi*3+2) : 3;
+        // 분기를 월별로 배분
+        for (let mo = qi*3+1; mo <= qi*3+3; mo++) {
+          // 해당 월 실제 근무월수 계산
+          const empMonths = emp ? getEmpMonthsInQuarter(emp, year, mo-1, mo-1) : 1;
+          memberMap[name][mo] = empMonths * 40000;
+        }
       });
-      members.push({name, qiAmts, total});
+    });
+
+    return Object.entries(memberMap).map(([name, monthAmts]) => {
+      const total = Object.values(monthAmts).reduce((s,v)=>s+(v||0),0);
+      // 12개월 모두 채우기
+      const full = {};
+      for(let mo=1;mo<=12;mo++) full[mo] = monthAmts[mo]||0;
+      return {name, monthAmts: full, total};
+    });
+
+  } else {
+    // 부서장/본부장: 분기별
+    const memberMap = {};
+
+    activeQis.forEach(qi => {
+      let qNames = (window._lastQNames?.[dept]?.[qi] || []).map(o => o.name);
+      if (!qNames.length) {
+        const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
+        qNames = [...new Set(nd.map(d=>d.name))];
+        if (!qNames.length) qNames = ((window._depts||{})[dept]||[]).map(e=>e.name);
+      }
+      qNames.forEach(name => {
+        if (!memberMap[name]) memberMap[name] = {};
+        const emp = employees.find(e=>e.name===name);
+        const months = emp ? getEmpMonthsInQuarter(emp, year, qi*3, qi*3+2) : 3;
+        memberMap[name][qi] = months * 50000;
+      });
+    });
+
+    return Object.entries(memberMap).map(([name, qiAmts]) => {
+      const full = {0:0,1:0,2:0,3:0};
+      Object.assign(full, qiAmts);
+      const total = Object.values(full).reduce((s,v)=>s+(v||0),0);
+      return {name, qiAmts: full, total};
     });
   }
-  return members;
 }
 
 async function openFundUsageModal(orgKey, period, rowIdx, year, mode='monthly') {
