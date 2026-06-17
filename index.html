@@ -10203,78 +10203,41 @@ function renderMypageFundTable(org, year, usageData, key) {
 function getMypageFundMembers(org, year, mode) {
   const dept = org.dept;
   const activeQis = org.activeQis || [0,1,2,3];
-  const cache = window._deptFundMemberCacheSnapshot?.[dept];
-  // extraRow면 extraRow.nameData 사용
-  const extraRowNameData = org.extraRow?.nameData || org.guestExtraRow?.nameData || null;
-  const extraRowHeadNames = org.extraRow?.headNames || org.guestExtraRow?.headNames || [];
-  const useCache = false;
+
+  // 부서장운영비 탭 DOM에서 직접 읽기
+  const getDomMembers = (deptKey, qi) => {
+    const els = document.querySelectorAll(`[data-dept="${deptKey}"][data-qi="${qi}"]`);
+    const names = [];
+    els.forEach(el => {
+      const txt = el.textContent.trim();
+      if (txt && !txt.includes(',') && !txt.includes('/') && txt !== '-' && !/^\d+$/.test(txt)) {
+        const name = txt.replace(/\s*\(.*?\)/g, '').trim();
+        if (name && !names.includes(name)) names.push(name);
+      }
+    });
+    return names;
+  };
 
   if (mode === 'monthly') {
     const memberMap = {};
-    const cacheData = useCache ? (() => { try { return cache(); } catch(e) { return null; } })() : null;
-    const hasCacheMembers = cacheData && activeQis.some(qi => (cacheData.qiMembers[qi]||[]).length > 0);
-
-    if (hasCacheMembers && !extraRowNameData) {
-      activeQis.forEach(qi => {
-        (cacheData.qiMembers[qi] || []).forEach(m => {
-          if (!memberMap[m.name]) memberMap[m.name] = {};
-          Object.assign(memberMap[m.name], m.monthAmts || {});
-        });
+    activeQis.forEach(qi => {
+      let names = getDomMembers(dept, qi);
+      if (!names.length) {
+        const bonbuDeptObj = departments.find(d=>d.name===dept);
+        const childDepts = bonbuDeptObj ? departments.filter(d=>d.parent===bonbuDeptObj.id).map(d=>d.name) : [];
+        const merged = new Set();
+        childDepts.forEach(cd => getDomMembers(cd, qi).forEach(n=>merged.add(n)));
+        names = [...merged];
+      }
+      names.forEach(name => {
+        if (!memberMap[name]) memberMap[name] = {};
+        const emp = employees.find(e=>e.name===name);
+        for (let mo=qi*3+1; mo<=qi*3+3; mo++) {
+          const m = emp ? getEmpMonthsInQuarter(emp,year,mo-1,mo-1) : 1;
+          if (m > 0) memberMap[name][mo] = m * 40000;
+        }
       });
-    } else {
-      const extraNames = extraRowNameData
-        ? [...new Set(extraRowNameData.filter(d=>d.name&&!d.hidden).map(d=>d.name))]
-        : [];
-      extraRowHeadNames.forEach(hn => { if (hn && !extraNames.includes(hn)) extraNames.push(hn); });
-
-      const bonbuDeptObj = departments.find(d=>d.name===dept);
-      const childDeptNames = bonbuDeptObj ? departments.filter(d=>d.parent===bonbuDeptObj.id).map(d=>d.name) : [];
-      const allChildDeptNamesSet = new Set(childDeptNames);
-      childDeptNames.forEach(cd => {
-        const cdObj = departments.find(d=>d.name===cd);
-        if (cdObj) departments.filter(d=>d.parent===cdObj.id).forEach(d=>allChildDeptNamesSet.add(d.name));
-      });
-
-      activeQis.forEach(qi => {
-        let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
-        // 본부 key 없으면 산하 팀들에서 합치기
-        if (!names.length && allChildDeptNamesSet.size > 0) {
-          const merged = new Set();
-          allChildDeptNamesSet.forEach(cd => {
-            (window._lastQNames?.[cd]?.[qi] || []).forEach(o => { if(o.name) merged.add(o.name); });
-          });
-          names = [...merged];
-        }
-        if (!names.length) {
-          // nameData에서 qi별로 먼저 시도
-          const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
-          names = [...new Set(nd.map(d=>d.name))];
-        }
-        if (!names.length && extraNames.length) {
-          names = [...extraNames];
-        }
-        if (!names.length) {
-          if (allChildDeptNamesSet.size > 0) {
-            names = employees.filter(e=>e.dept===dept||allChildDeptNamesSet.has(e.dept)).map(e=>e.name);
-          } else {
-            names = employees.filter(e=>e.dept===dept).map(e=>e.name);
-          }
-        }
-        // employees에서 부서장/팀장 항상 포함
-        employees.filter(e => (e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)) &&
-          ((e.title||'').includes('부서장')||(e.title||'').includes('팀장')||
-           (e.title||'').includes('본부장')||(e.title||'').includes('소장'))
-        ).forEach(e => { if (!names.includes(e.name)) names.push(e.name); });
-        names.forEach(name => {
-          if (!memberMap[name]) memberMap[name] = {};
-          const emp = employees.find(e=>e.name===name);
-          for(let mo=qi*3+1; mo<=qi*3+3; mo++) {
-            const m = emp ? getEmpMonthsInQuarter(emp,year,mo-1,mo-1) : 1;
-            memberMap[name][mo] = m * 40000;
-          }
-        });
-      });
-    }
+    });
     return Object.entries(memberMap).map(([name, monthAmts]) => {
       const full = {};
       for(let mo=1;mo<=12;mo++) full[mo] = monthAmts[mo]||0;
@@ -10284,98 +10247,22 @@ function getMypageFundMembers(org, year, mode) {
 
   } else {
     const memberMap = {};
-    const cacheData = useCache ? (() => { try { return cache(); } catch(e) { return null; } })() : null;
-    const hasCacheMembers = cacheData && activeQis.some(qi => (cacheData.qiMembers[qi]||[]).length > 0);
-
-    if (hasCacheMembers && !extraRowNameData) {
-      activeQis.forEach(qi => {
-        (cacheData.qiMembers[qi] || []).forEach(m => {
-          if (!memberMap[m.name]) memberMap[m.name] = {0:0,1:0,2:0,3:0};
-          memberMap[m.name][qi] = m.amt || 0;
-        });
+    activeQis.forEach(qi => {
+      const names = getDomMembers(dept, qi);
+      names.forEach(name => {
+        if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
+        const emp = employees.find(e=>e.name===name);
+        const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 3;
+        if (m > 0) memberMap[name][qi] = 50000;
       });
-    } else {
-      const type = org.type || '';
-      const isBonbu = type === '본부장';
-
-      // 기본 인원 목록 구성
-      const getBaseNames = () => {
-        const names = [];
-        // 1. extraRow nameData (qi 무관)
-        if (extraRowNameData) {
-          extraRowNameData.filter(d=>d.name&&!d.hidden).forEach(d=>{ if(!names.includes(d.name)) names.push(d.name); });
-          extraRowHeadNames.forEach(hn=>{ if(hn&&!names.includes(hn)) names.push(hn); });
-        }
-        // 2. 본인 (employees에서 해당 부서 소속)
-        employees.filter(e=>e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)).forEach(e=>{
-          if(!names.includes(e.name)) names.push(e.name);
-        });
-        // 3. 본부장이면 departments 기반 산하 직원들 포함
-        if (isBonbu) {
-          // departments에서 본부 직속 자식 부서들 찾기
-          const bonbuDept = departments.find(d=>d.name===dept);
-          const childDeptNames = bonbuDept
-            ? departments.filter(d=>d.parent===bonbuDept.id).map(d=>d.name)
-            : [];
-          // 자식 부서 직원 + 그 하위 팀 직원
-          const allChildDeptNames = new Set(childDeptNames);
-          childDeptNames.forEach(cd => {
-            const cdObj = departments.find(d=>d.name===cd);
-            if (cdObj) departments.filter(d=>d.parent===cdObj.id).forEach(d=>allChildDeptNames.add(d.name));
-          });
-          employees.filter(e=>allChildDeptNames.has(e.dept) && !e.dept.includes('베트남')).forEach(e=>{
-            if(!names.includes(e.name)) names.push(e.name);
-          });
-        }
-        return names;
-      };
-
-      const baseNames = getBaseNames();
-
-      activeQis.forEach(qi => {
-        let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
-        if (!names.length) names = [...baseNames];
-
-        // employees에서 해당 부서 부서장/팀장은 항상 포함 (headName이 _lastQNames에 없는 경우 대비)
-        employees.filter(e => (e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)) &&
-          ((e.title||'').includes('부서장')||(e.title||'').includes('팀장')||
-           (e.title||'').includes('본부장')||(e.title||'').includes('소장'))
-        ).forEach(e => { if (!names.includes(e.name)) names.push(e.name); });
-
-        // 산하 부서 nameData에서 해당 qi 인원 추가 (본부장 타입)
-        if (isBonbu && window._mypageAllSettings) {
-          const bonbuDept = departments.find(d=>d.name===dept);
-          const childDeptNames = bonbuDept ? departments.filter(d=>d.parent===bonbuDept.id).map(d=>d.name) : [];
-          const allChildDeptNames = new Set(childDeptNames);
-          childDeptNames.forEach(cd => {
-            const cdObj = departments.find(d=>d.name===cd);
-            if (cdObj) departments.filter(d=>d.parent===cdObj.id).forEach(d=>allChildDeptNames.add(d.name));
-          });
-          allChildDeptNames.forEach(deptName => {
-            const ds = window._mypageAllSettings[deptName] || {};
-            (ds.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden&&!names.includes(d.name)).forEach(d=>{
-              names.push(d.name);
-            });
-          });
-        }
-
-        // extra 배열에서 해당 qi에 추가된 인원
-        (org.settings?.extra||[]).filter(e=>e.qi===qi&&e.name&&!names.includes(e.name)).forEach(e=>names.push(e.name));
-
-        names.forEach(name => {
-          if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
-          const emp = employees.find(e=>e.name===name);
-          const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 3;
-          if (m > 0) memberMap[name][qi] = 50000;
-        });
-      });
-    }
+    });
     return Object.entries(memberMap).map(([name, qiAmts]) => {
       const total = Object.values(qiAmts).reduce((s,v)=>s+(v||0),0);
       return {name, qiAmts, total};
     });
   }
 }
+
 
 async function openFundUsageModal(orgKey, period, rowIdx, year, mode='monthly') {
   // 기존 모달 제거
