@@ -10261,15 +10261,6 @@ function getMypageFundMembers(org, year, mode) {
           employees.filter(e=>allChildDeptNames.has(e.dept) && !e.dept.includes('베트남')).forEach(e=>{
             if(!names.includes(e.name)) names.push(e.name);
           });
-          // 산하 부서 nameData에서도 추가 (employees에 없는 인원, qi 무관 전체)
-          if (window._mypageAllSettings) {
-            allChildDeptNames.forEach(deptName => {
-              const ds = window._mypageAllSettings[deptName] || {};
-              (ds.nameData||[]).filter(d=>d.name&&!d.hidden).forEach(d=>{
-                if(!names.includes(d.name)) names.push(d.name);
-              });
-            });
-          }
         }
         return names;
       };
