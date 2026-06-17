@@ -10294,7 +10294,20 @@ function getMypageFundMembers(org, year, mode) {
   if (mode === 'monthly') {
     const memberMap = {};
     activeQis.forEach(qi => {
-      // 1) 이 dept 직원
+      const [qs, qe] = quarters[qi];
+      const s = allSettings[dept] || {};
+
+      // 부서장 본인 (탭에서 부서장칸에 별도 표시 — getQNamesForDept에 포함 안됨)
+      const deptEmpList = employees.filter(e => e.dept===dept);
+      const deptHead = deptEmpList.find(e =>
+        (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
+        (e.title||'').includes('실장') || (e.title||'').includes('팀장')
+      );
+      // nameData rowIdx=-1: 부서장칸 대행자 지정
+      const hdData = (s.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
+      const headName = hdData?.name || (deptHead ? deptHead.name : '');
+
+      // 1) 이 dept 팀원 (부서장 제외)
       let objs = getQNamesForDept(dept, qi);
 
       // 2) 본부 타입이면 산하 팀도 수집 (팀장 타입 본부)
@@ -10304,6 +10317,19 @@ function getMypageFundMembers(org, year, mode) {
         const merged = [];
         const seenNames = new Set();
         childDepts.forEach(cd => {
+          // 각 하위 부서의 부서장도 포함
+          const cdEmpList = employees.filter(e => e.dept===cd);
+          const cdHead = cdEmpList.find(e =>
+            (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
+            (e.title||'').includes('실장') || (e.title||'').includes('팀장')
+          );
+          const cdS = allSettings[cd] || {};
+          const cdHdData = (cdS.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
+          const cdHeadName = cdHdData?.name || (cdHead ? cdHead.name : '');
+          if (cdHeadName && !seenNames.has(cdHeadName)) {
+            merged.push({ name: cdHeadName, isEmp: true });
+            seenNames.add(cdHeadName);
+          }
           getQNamesForDept(cd, qi).forEach(o => {
             if (!seenNames.has(o.name)) { merged.push(o); seenNames.add(o.name); }
           });
@@ -10311,7 +10337,17 @@ function getMypageFundMembers(org, year, mode) {
         objs = merged;
       }
 
-      objs.forEach(o => {
+      // 3) 부서장 본인을 맨 앞에 추가 (중복 방지)
+      const allObjs = [];
+      const seenAll = new Set();
+      if (headName && !seenAll.has(headName)) {
+        const hEmp = employees.find(e => e.name===headName);
+        const hm = hEmp ? getEmpMonthsInQuarter(hEmp, year, qs, qe) : 1;
+        if (hm > 0) { allObjs.push({ name: headName, isEmp: !!hEmp }); seenAll.add(headName); }
+      }
+      objs.forEach(o => { if (!seenAll.has(o.name)) { allObjs.push(o); seenAll.add(o.name); } });
+
+      allObjs.forEach(o => {
         if (!memberMap[o.name]) memberMap[o.name] = {};
         const emp = employees.find(e => e.name===o.name);
         for (let mo=qi*3+1; mo<=qi*3+3; mo++) {
