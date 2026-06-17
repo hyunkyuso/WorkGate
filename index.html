@@ -10175,10 +10175,12 @@ function getMypageFundMembers(org, year, mode) {
   const cache = window._deptFundMemberCacheSnapshot?.[dept];
   // extraRow면 extraRow.nameData 사용
   const extraRowNameData = org.extraRow?.nameData || null;
+  // extraRow면 캐시 무시
+  const useCache = !org.isExtra && !!cache;
 
   if (mode === 'monthly') {
     const memberMap = {};
-    const cacheData = cache ? (() => { try { return cache(); } catch(e) { return null; } })() : null;
+    const cacheData = useCache ? (() => { try { return cache(); } catch(e) { return null; } })() : null;
     const hasCacheMembers = cacheData && activeQis.some(qi => (cacheData.qiMembers[qi]||[]).length > 0);
 
     if (hasCacheMembers && !extraRowNameData) {
@@ -10224,7 +10226,7 @@ function getMypageFundMembers(org, year, mode) {
 
   } else {
     const memberMap = {};
-    const cacheData = cache ? (() => { try { return cache(); } catch(e) { return null; } })() : null;
+    const cacheData = useCache ? (() => { try { return cache(); } catch(e) { return null; } })() : null;
     const hasCacheMembers = cacheData && activeQis.some(qi => (cacheData.qiMembers[qi]||[]).length > 0);
 
     if (hasCacheMembers && !extraRowNameData) {
@@ -10601,7 +10603,7 @@ if (!state.kpis.length) {
   };
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
-  auth = firebase.auth(); 
+  auth = firebase.auth();
   setupAuthListener();
 })();
 </script>
