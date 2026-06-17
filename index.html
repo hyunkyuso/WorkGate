@@ -9639,6 +9639,452 @@ function renderMyPageEmp(emp, email) {
     +'</div></div>'
     +'<div style="font-size:15px;font-weight:700;margin-bottom:12px">🎁 복리후생 현황</div>'
     + html;
+
+  // 운영비 섹션 추가
+  renderMypageDeptFund(emp, container);
+}
+
+// 마이페이지 부서장운영비 섹션
+async function renderMypageDeptFund(emp, container) {
+  const curYear = new Date().getFullYear();
+
+  // 연도 선택 헤더
+  const fundHeader = document.createElement('div');
+  fundHeader.id = 'mypage-fund-section';
+  fundHeader.style.cssText = 'margin-top:24px';
+  fundHeader.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <div style="font-size:15px;font-weight:700">💰 부서장운영비</div>
+      <select id="mypage-fund-year" onchange="renderMypageDeptFundYear('${emp.name}')" style="padding:4px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+        <option value="${curYear}">${curYear}년</option>
+        <option value="${curYear-1}">${curYear-1}년</option>
+      </select>
+    </div>
+    <div id="mypage-fund-tables"></div>
+  `;
+  container.appendChild(fundHeader);
+
+  // 현재 연도 운영비 렌더
+  await renderMypageDeptFundYear(emp.name);
+}
+
+async function renderMypageDeptFundYear(empName) {
+  const year = parseInt(document.getElementById('mypage-fund-year')?.value || new Date().getFullYear());
+  const tablesDiv = document.getElementById('mypage-fund-tables');
+  if (!tablesDiv) return;
+  tablesDiv.innerHTML = '<p style="color:#94a3b8;font-size:13px">로딩 중...</p>';
+
+  // 해당 직원이 대표자인 조직 찾기 (조직별 운영비 요약의 findOrgHead 로직과 동일)
+  const settingsDocId = year === new Date().getFullYear() ? 'deptfund_settings' : `deptfund_settings_${year}`;
+  let settings = {};
+  try {
+    const doc = await firebase.firestore().collection('settings').doc(settingsDocId).get();
+    settings = doc.data() || {};
+  } catch(e) { settings = {}; }
+
+  // 분기별로 본인이 대표자인 조직 탐색
+  const quarters = [[0,2],[3,5],[6,8],[9,11]]; // 월 인덱스 (0-based)
+  const orgList = []; // {dept, type, qis:[0,1,2,3], members:[{name,months:[]}]}
+
+  const findHeadForDept = (dept, s) => {
+    const nd = (s[dept]?.nameData||[]).find(d => d.acting && d.name);
+    if (nd) return nd.name;
+    const head = employees.find(e => e.dept===dept && (
+      (e.title||'').includes('팀장')||(e.title||'').includes('부서장')||
+      (e.title||'').includes('본부장')||(e.title||'').includes('부장')||(e.title||'').includes('소장')
+    ));
+    if (head) return head.name;
+    const conc = employees.find(e => (e.concurrent||[]).some(c => c.dept===dept && (
+      (c.title||'').includes('팀장')||(c.title||'').includes('부서장')||(c.title||'').includes('본부장')
+    )));
+    return conc ? conc.name : '';
+  };
+
+  // 모든 부서/본부에서 본인이 대표자인 것 찾기
+  const allDepts = Object.keys(settings);
+  // 본부도 확인 (bonbu 목록)
+  const bonbuList = [...new Set(employees.map(e => getBonbu(e)).filter(Boolean))];
+
+  const processedOrgs = new Map(); // dept → orgInfo
+
+  // 일반 부서
+  allDepts.forEach(dept => {
+    const s = settings[dept] || {};
+    const type = s.type || '';
+    if (!type || type === '없음') return;
+    const headName = findHeadForDept(dept, settings);
+    if (headName !== empName) return;
+
+    const disabledQi = s.disabledQi || [];
+    const activeQis = [0,1,2,3].filter(qi => !disabledQi.includes(qi));
+    if (!activeQis.length) return;
+
+    processedOrgs.set(dept, { dept, type, activeQis, settings: s });
+  });
+
+  // 본부
+  bonbuList.forEach(bonbu => {
+    const s = settings[bonbu] || {};
+    const type = s.type || '본부장';
+    if (type === '없음') return;
+    const headName = findHeadForDept(bonbu, settings);
+    if (headName !== empName) return;
+    const disabledQi = s.disabledQi || [];
+    const activeQis = [0,1,2,3].filter(qi => !disabledQi.includes(qi));
+    if (!activeQis.length) return;
+    if (!processedOrgs.has(bonbu)) {
+      processedOrgs.set(bonbu, { dept: bonbu, type, activeQis, settings: s });
+    }
+  });
+
+  // extraRow에서 본인이 headName인 것
+  allDepts.forEach(dept => {
+    const s = settings[dept] || {};
+    (s.extraRows||[]).forEach((row, ri) => {
+      const rowType = row.type || '';
+      if (!rowType || rowType === '없음') return;
+      const disabledQi = row.disabledQi || [];
+      const hn = (row.headNames||[]).find(h=>h);
+      const nd = (row.nameData||[]).filter(d=>d.name&&!d.hidden).sort((a,b)=>a.qi-b.qi)[0];
+      const headName = hn || nd?.name || '';
+      if (headName !== empName) return;
+      const orgName = (row.orgNames||[])[0] || (row.teamOrgNames||[])[0] || dept;
+      const activeQis = [0,1,2,3].filter(qi => !disabledQi.includes(qi));
+      if (!activeQis.length) return;
+      processedOrgs.set(`${dept}_extra_${ri}`, { dept: orgName, type: rowType, activeQis, settings: s, isExtra: true, extraRow: row, parentDept: dept, extraIdx: ri });
+    });
+  });
+
+  if (processedOrgs.size === 0) {
+    tablesDiv.innerHTML = '<p style="color:#94a3b8;font-size:13px">부서장운영비 대상 조직이 없습니다.</p>';
+    return;
+  }
+
+  tablesDiv.innerHTML = '';
+
+  // 사용 내역 로드
+  const usageDocId = `deptfund_usage_${year}`;
+  let usageData = {};
+  try {
+    const uDoc = await firebase.firestore().collection('settings').doc(usageDocId).get();
+    usageData = uDoc.data() || {};
+  } catch(e) { usageData = {}; }
+
+  // 각 조직별 테이블 렌더
+  for (const [key, org] of processedOrgs) {
+    const div = document.createElement('div');
+    div.style.cssText = 'margin-bottom:20px;background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden';
+    div.innerHTML = renderMypageFundTable(org, year, usageData, key);
+    tablesDiv.appendChild(div);
+  }
+}
+
+function renderMypageFundTable(org, year, usageData, key) {
+  const isTeamjang = (org.type||'').includes('팀장');
+  const typeColor = isTeamjang ? '#f0fdf4' : (org.type||'').includes('부서장') ? '#f0fdf4' : '#dbeafe';
+  const typeLabel = org.type || '팀장';
+
+  const fmtW = v => v ? '₩'+v.toLocaleString() : '-';
+  const fmtM = v => v ? v.toLocaleString() : '-';
+
+  if (isTeamjang) {
+    // 팀장: 월별 표
+    const months = Array.from({length:12},(_,i)=>i+1);
+    const disabledMonths = (org.activeQis ? [] : []);
+
+    // 인원별 월별 배정액 계산
+    const s = org.settings || {};
+    const members = getMypageFundMembers(org, year, 'monthly');
+    const usageKey = key;
+    const usage = usageData[usageKey] || {}; // {month: [{date,memo,amt}]}
+
+    const memberRows = members.map(m => `
+      <tr>
+        <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;font-weight:600;white-space:nowrap">${m.name}</td>
+        ${months.map(mo => {
+          const amt = m.monthAmts[mo] || 0;
+          return `<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;${!amt?'color:#cbd5e1':''}">
+            ${amt ? amt.toLocaleString() : '-'}
+          </td>`;
+        }).join('')}
+        <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right;font-weight:700;background:#fafafa">
+          ${m.total.toLocaleString()}
+        </td>
+      </tr>`).join('');
+
+    // 팀비합계
+    const monthTotals = months.map(mo => members.reduce((s,m) => s+(m.monthAmts[mo]||0), 0));
+    const grandTotal = monthTotals.reduce((s,v)=>s+v,0);
+
+    // 사용 내역 행들
+    const maxUsageRows = months.reduce((max, mo) => Math.max(max, (usage[mo]||[]).length + 1), 1);
+    const usageRows = Array.from({length: maxUsageRows}, (_, ri) => `
+      <tr>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;color:#f59e0b;font-weight:600">${ri===0?'사용':''}</td>
+        ${months.map(mo => {
+          const entries = usage[mo] || [];
+          const entry = entries[ri];
+          return `<td style="border:1px solid #e2e8f0;padding:2px 4px;font-size:11px;text-align:right">
+            ${entry ? `<div style="font-size:10px;color:#64748b">${entry.memo||''}</div><div>${entry.amt.toLocaleString()}</div>` : (ri===0?`<button onclick="openFundUsageModal('${key}',${mo},${ri},'${year}')" style="font-size:10px;padding:2px 6px;border:1px dashed #94a3b8;border-radius:4px;cursor:pointer;background:#f8fafc;color:#64748b">+입력</button>`:'<button onclick="openFundUsageModal(\''+key+'\','+mo+','+ri+',\''+year+'\')" style="font-size:10px;padding:2px 4px;border:none;background:none;cursor:pointer;color:#cbd5e1">+</button>')}
+          </td>`;
+        }).join('')}
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;text-align:right;background:#fafafa">
+          ${months.reduce((s,mo)=>s+((usage[mo]||[])[ri]?.amt||0),0)||''}
+        </td>
+      </tr>`).join('');
+
+    // 잔액
+    const monthBalances = months.map(mo => {
+      const alloc = monthTotals[mo-1];
+      const used = (usage[mo]||[]).reduce((s,e)=>s+(e.amt||0),0);
+      return alloc - used;
+    });
+
+    return `
+    <div style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
+      <span style="font-weight:700;font-size:14px">${org.dept}</span>
+      <span style="font-size:12px;padding:2px 8px;border-radius:12px;background:${typeColor};color:#374151">${typeLabel}</span>
+      <span style="font-size:12px;color:#64748b">${year}년</span>
+    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <table style="border-collapse:collapse;font-size:11px;min-width:900px;width:100%">
+      <thead>
+        <tr style="background:#f1f5f9">
+          <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:left;min-width:70px">성명</th>
+          ${months.map(mo=>`<th style="border:1px solid #e2e8f0;padding:6px 4px;text-align:center;min-width:65px">${mo}월</th>`).join('')}
+          <th style="border:1px solid #e2e8f0;padding:6px 8px;text-align:right;min-width:70px">합계</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${memberRows}
+        <tr style="background:#e0f2fe;font-weight:700">
+          <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px">팀비합계</td>
+          ${monthTotals.map(v=>`<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right">${v?v.toLocaleString():'-'}</td>`).join('')}
+          <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right">${grandTotal.toLocaleString()}</td>
+        </tr>
+        ${usageRows}
+        <tr style="background:#fff7ed">
+          <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;font-weight:700">잔액</td>
+          ${monthBalances.map(v=>`<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;font-weight:600;color:${v<0?'#ef4444':'#374151'}">${v.toLocaleString()}</td>`).join('')}
+          <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right;font-weight:700;color:${monthBalances.reduce((s,v)=>s+v,0)<0?'#ef4444':'#374151'}">${monthBalances.reduce((s,v)=>s+v,0).toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>`;
+
+  } else {
+    // 부서장/본부장: 분기별 표
+    const qLabels = ['1~3월','4~6월','7~9월','10~12월'];
+    const members = getMypageFundMembers(org, year, 'quarterly');
+    const usage = usageData[key] || {}; // {qi: [{date,memo,amt}]}
+
+    const memberRows = members.map(m => `
+      <tr>
+        <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;font-weight:600">${m.name}</td>
+        ${[0,1,2,3].map(qi => {
+          const amt = m.qiAmts[qi] || 0;
+          const active = org.activeQis.includes(qi);
+          return `<td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right;${!active?'background:#f1f5f9;color:#cbd5e1':''}">
+            ${active && amt ? amt.toLocaleString() : '-'}
+          </td>`;
+        }).join('')}
+        <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right;font-weight:700;background:#fafafa">${m.total.toLocaleString()}</td>
+      </tr>`).join('');
+
+    const qiTotals = [0,1,2,3].map(qi => members.reduce((s,m)=>s+(m.qiAmts[qi]||0),0));
+    const grandTotal = qiTotals.reduce((s,v)=>s+v,0);
+
+    const maxUsageRows = [0,1,2,3].reduce((max,qi) => Math.max(max,(usage[qi]||[]).length+1),1);
+    const usageRows = Array.from({length:maxUsageRows},(_,ri) => `
+      <tr>
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;color:#f59e0b;font-weight:600">${ri===0?'사용':''}</td>
+        ${[0,1,2,3].map(qi => {
+          const active = org.activeQis.includes(qi);
+          if (!active) return `<td style="border:1px solid #e2e8f0;background:#f1f5f9"></td>`;
+          const entries = usage[qi]||[];
+          const entry = entries[ri];
+          return `<td style="border:1px solid #e2e8f0;padding:2px 4px;font-size:11px;text-align:right">
+            ${entry
+              ? `<div style="font-size:10px;color:#64748b">${entry.memo||''}</div><div>${entry.amt.toLocaleString()}</div>`
+              : `<button onclick="openFundUsageModal('${key}',${qi},${ri},'${year}','quarterly')" style="font-size:10px;padding:2px 6px;border:1px dashed #94a3b8;border-radius:4px;cursor:pointer;background:#f8fafc;color:#64748b">${ri===0?'+입력':'+'}</button>`}
+          </td>`;
+        }).join('')}
+        <td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;text-align:right;background:#fafafa">
+          ${[0,1,2,3].reduce((s,qi)=>s+((usage[qi]||[])[ri]?.amt||0),0)||''}
+        </td>
+      </tr>`).join('');
+
+    const qiBalances = [0,1,2,3].map(qi => {
+      const alloc = qiTotals[qi];
+      const used = (usage[qi]||[]).reduce((s,e)=>s+(e.amt||0),0);
+      return alloc - used;
+    });
+
+    return `
+    <div style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
+      <span style="font-weight:700;font-size:14px">${org.dept}</span>
+      <span style="font-size:12px;padding:2px 8px;border-radius:12px;background:${typeColor};color:#374151">${typeLabel}</span>
+      <span style="font-size:12px;color:#64748b">${year}년</span>
+    </div>
+    <div style="overflow-x:auto">
+    <table style="border-collapse:collapse;font-size:11px;width:100%">
+      <thead>
+        <tr style="background:#f1f5f9">
+          <th style="border:1px solid #e2e8f0;padding:6px 10px;text-align:left;min-width:80px">성명</th>
+          ${qLabels.map(q=>`<th style="border:1px solid #e2e8f0;padding:6px 10px;text-align:center;min-width:90px">${q}</th>`).join('')}
+          <th style="border:1px solid #e2e8f0;padding:6px 10px;text-align:right;min-width:80px">합계</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${memberRows}
+        <tr style="background:#e0f2fe;font-weight:700">
+          <td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px">합계</td>
+          ${qiTotals.map((v,qi)=>`<td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;text-align:right;${!org.activeQis.includes(qi)?'background:#f1f5f9;color:#cbd5e1':''}">${org.activeQis.includes(qi)&&v?v.toLocaleString():'-'}</td>`).join('')}
+          <td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;text-align:right">${grandTotal.toLocaleString()}</td>
+        </tr>
+        ${usageRows}
+        <tr style="background:#fff7ed">
+          <td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;font-weight:700">잔액</td>
+          ${qiBalances.map((v,qi)=>`<td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;text-align:right;font-weight:600;${!org.activeQis.includes(qi)?'background:#f1f5f9;color:#cbd5e1':''};color:${v<0?'#ef4444':'#374151'}">${org.activeQis.includes(qi)?v.toLocaleString():'-'}</td>`).join('')}
+          <td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;text-align:right;font-weight:700;color:${qiBalances.reduce((s,v)=>s+v,0)<0?'#ef4444':'#374151'}">${qiBalances.reduce((s,v)=>s+v,0).toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>`;
+  }
+}
+
+function getMypageFundMembers(org, year, mode) {
+  // 인원별 배정액 계산
+  const s = org.settings || {};
+  const quarters = [[1,3],[4,6],[7,9],[10,12]];
+  const members = [];
+  const nameSet = new Set();
+
+  // nameData에서 인원 수집
+  const nameData = s.nameData || [];
+  const allNames = [...new Set(nameData.filter(d=>d.name&&!d.hidden).map(d=>d.name))];
+
+  if (mode === 'monthly') {
+    allNames.forEach(name => {
+      const emp = employees.find(e=>e.name===name);
+      const monthAmts = {};
+      let total = 0;
+      for (let mo=1; mo<=12; mo++) {
+        const qi = Math.floor((mo-1)/3);
+        if (!(org.activeQis||[0,1,2,3]).includes(qi)) { monthAmts[mo]=0; continue; }
+        const [qs,qe] = [new Date(year,qi*3,1), new Date(year,qi*3+3,0)];
+        const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 1;
+        // 해당 월이 쿼터에 포함되는지
+        const inMonth = nameData.some(d=>d.name===name&&d.qi===qi&&!d.hidden);
+        monthAmts[mo] = inMonth ? Math.round((m/3)*40000) : 0;
+        total += monthAmts[mo];
+      }
+      members.push({name, monthAmts, total});
+    });
+  } else {
+    // quarterly
+    allNames.forEach(name => {
+      const emp = employees.find(e=>e.name===name);
+      const qiAmts = {};
+      let total = 0;
+      [0,1,2,3].forEach(qi => {
+        if (!(org.activeQis||[0,1,2,3]).includes(qi)) { qiAmts[qi]=0; return; }
+        const inQi = nameData.some(d=>d.name===name&&d.qi===qi&&!d.hidden);
+        if (!inQi) { qiAmts[qi]=0; return; }
+        const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 3;
+        qiAmts[qi] = m * 50000; // 부서장/본부장: 월 5만
+        total += qiAmts[qi];
+      });
+      members.push({name, qiAmts, total});
+    });
+  }
+  return members;
+}
+
+async function openFundUsageModal(orgKey, period, rowIdx, year, mode='monthly') {
+  // 기존 모달 제거
+  document.getElementById('fund-usage-modal')?.remove();
+
+  const usageDocId = `deptfund_usage_${year}`;
+  let usageData = {};
+  try {
+    const doc = await firebase.firestore().collection('settings').doc(usageDocId).get();
+    usageData = doc.data() || {};
+  } catch(e) {}
+
+  const orgUsage = usageData[orgKey] || {};
+  const periodUsage = orgUsage[period] || [];
+  const entry = periodUsage[rowIdx] || {date:'',memo:'',amt:''};
+  const periodLabel = mode==='monthly' ? `${period}월` : ['1~3월','4~6월','7~9월','10~12월'][period];
+
+  const modal = document.createElement('div');
+  modal.id = 'fund-usage-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:9999';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.18)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px">💰 사용 내역 입력 (${periodLabel})</div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px">날짜</label>
+        <input type="date" id="fund-usage-date" value="${entry.date||''}" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px">내용</label>
+        <input type="text" id="fund-usage-memo" value="${entry.memo||''}" placeholder="예: 팀 회식" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px">금액</label>
+        <input type="number" id="fund-usage-amt" value="${entry.amt||''}" placeholder="0" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="saveFundUsage('${orgKey}',${period},${rowIdx},'${year}','${mode}')" style="flex:1;padding:10px;background:var(--ac);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">저장</button>
+        ${entry.amt ? `<button onclick="deleteFundUsage('${orgKey}',${period},${rowIdx},'${year}','${mode}')" style="padding:10px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;cursor:pointer;font-weight:600">삭제</button>` : ''}
+        <button onclick="document.getElementById('fund-usage-modal').remove()" style="padding:10px 14px;background:#f1f5f9;color:#374151;border:none;border-radius:8px;cursor:pointer">취소</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function saveFundUsage(orgKey, period, rowIdx, year, mode) {
+  const date = document.getElementById('fund-usage-date')?.value || '';
+  const memo = document.getElementById('fund-usage-memo')?.value || '';
+  const amt = parseInt(document.getElementById('fund-usage-amt')?.value) || 0;
+  if (!amt) { showToast('금액을 입력하세요'); return; }
+
+  const usageDocId = `deptfund_usage_${year}`;
+  try {
+    const doc = await firebase.firestore().collection('settings').doc(usageDocId).get();
+    const usageData = doc.data() || {};
+    if (!usageData[orgKey]) usageData[orgKey] = {};
+    if (!usageData[orgKey][period]) usageData[orgKey][period] = [];
+    usageData[orgKey][period][rowIdx] = {date, memo, amt};
+    await firebase.firestore().collection('settings').doc(usageDocId).set(usageData);
+    document.getElementById('fund-usage-modal')?.remove();
+    showToast('✅ 저장되었습니다');
+    const empName = employees.find(e=>e.id===state.myEmail)?.name || '';
+    await renderMypageDeptFundYear(empName);
+  } catch(e) {
+    showToast('❌ 저장 오류');
+    console.error(e);
+  }
+}
+
+async function deleteFundUsage(orgKey, period, rowIdx, year, mode) {
+  const usageDocId = `deptfund_usage_${year}`;
+  try {
+    const doc = await firebase.firestore().collection('settings').doc(usageDocId).get();
+    const usageData = doc.data() || {};
+    if (usageData[orgKey]?.[period]) {
+      usageData[orgKey][period].splice(rowIdx, 1);
+      await firebase.firestore().collection('settings').doc(usageDocId).set(usageData);
+    }
+    document.getElementById('fund-usage-modal')?.remove();
+    showToast('🗑️ 삭제되었습니다');
+    const empName = employees.find(e=>e.id===state.myEmail)?.name || '';
+    await renderMypageDeptFundYear(empName);
+  } catch(e) {
+    showToast('❌ 삭제 오류');
+  }
 }
 
 function showPage(id, el) {
