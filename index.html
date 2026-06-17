@@ -10295,6 +10295,12 @@ function getMypageFundMembers(org, year, mode) {
         let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
         if (!names.length) names = [...baseNames];
 
+        // employees에서 해당 부서 부서장/팀장은 항상 포함 (headName이 _lastQNames에 없는 경우 대비)
+        employees.filter(e => (e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)) &&
+          ((e.title||'').includes('부서장')||(e.title||'').includes('팀장')||
+           (e.title||'').includes('본부장')||(e.title||'').includes('소장'))
+        ).forEach(e => { if (!names.includes(e.name)) names.push(e.name); });
+
         // 산하 부서 nameData에서 해당 qi 인원 추가 (본부장 타입)
         if (isBonbu && window._mypageAllSettings) {
           const bonbuDept = departments.find(d=>d.name===dept);
