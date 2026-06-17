@@ -10173,13 +10173,15 @@ function getMypageFundMembers(org, year, mode) {
   const dept = org.dept;
   const activeQis = org.activeQis || [0,1,2,3];
   const cache = window._deptFundMemberCacheSnapshot?.[dept];
+  // extraRow면 extraRow.nameData 사용
+  const extraRowNameData = org.extraRow?.nameData || null;
 
   if (mode === 'monthly') {
     const memberMap = {};
     const cacheData = cache ? (() => { try { return cache(); } catch(e) { return null; } })() : null;
     const hasCacheMembers = cacheData && activeQis.some(qi => (cacheData.qiMembers[qi]||[]).length > 0);
 
-    if (hasCacheMembers) {
+    if (hasCacheMembers && !extraRowNameData) {
       activeQis.forEach(qi => {
         (cacheData.qiMembers[qi] || []).forEach(m => {
           if (!memberMap[m.name]) memberMap[m.name] = {};
@@ -10189,6 +10191,13 @@ function getMypageFundMembers(org, year, mode) {
     } else {
       activeQis.forEach(qi => {
         let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
+        if (!names.length && extraRowNameData) {
+          const nd = extraRowNameData.filter(d=>d.qi===qi&&d.name&&!d.hidden);
+          names = [...new Set(nd.map(d=>d.name))];
+          // headNames도 포함
+          const hn = (org.extraRow?.headNames||[])[qi];
+          if (hn && !names.includes(hn)) names.unshift(hn);
+        }
         if (!names.length) {
           const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
           names = [...new Set(nd.map(d=>d.name))];
@@ -10206,6 +10215,55 @@ function getMypageFundMembers(org, year, mode) {
         });
       });
     }
+    return Object.entries(memberMap).map(([name, monthAmts]) => {
+      const full = {};
+      for(let mo=1;mo<=12;mo++) full[mo] = monthAmts[mo]||0;
+      const total = Object.values(full).reduce((s,v)=>s+(v||0),0);
+      return {name, monthAmts: full, total};
+    });
+
+  } else {
+    const memberMap = {};
+    const cacheData = cache ? (() => { try { return cache(); } catch(e) { return null; } })() : null;
+    const hasCacheMembers = cacheData && activeQis.some(qi => (cacheData.qiMembers[qi]||[]).length > 0);
+
+    if (hasCacheMembers && !extraRowNameData) {
+      activeQis.forEach(qi => {
+        (cacheData.qiMembers[qi] || []).forEach(m => {
+          if (!memberMap[m.name]) memberMap[m.name] = {0:0,1:0,2:0,3:0};
+          memberMap[m.name][qi] = m.amt || 0;
+        });
+      });
+    } else {
+      activeQis.forEach(qi => {
+        let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
+        if (!names.length && extraRowNameData) {
+          const nd = extraRowNameData.filter(d=>d.qi===qi&&d.name&&!d.hidden);
+          names = [...new Set(nd.map(d=>d.name))];
+          const hn = (org.extraRow?.headNames||[])[qi];
+          if (hn && !names.includes(hn)) names.unshift(hn);
+        }
+        if (!names.length) {
+          const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
+          names = [...new Set(nd.map(d=>d.name))];
+        }
+        if (!names.length) {
+          names = employees.filter(e=>e.dept===dept||(e.concurrent||[]).some(c=>c.dept===dept)).map(e=>e.name);
+        }
+        names.forEach(name => {
+          if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
+          const emp = employees.find(e=>e.name===name);
+          const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 3;
+          if (m > 0) memberMap[name][qi] = m * 50000;
+        });
+      });
+    }
+    return Object.entries(memberMap).map(([name, qiAmts]) => {
+      const total = Object.values(qiAmts).reduce((s,v)=>s+(v||0),0);
+      return {name, qiAmts, total};
+    });
+  }
+}
     return Object.entries(memberMap).map(([name, monthAmts]) => {
       const full = {};
       for(let mo=1;mo<=12;mo++) full[mo] = monthAmts[mo]||0;
