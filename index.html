@@ -10242,8 +10242,20 @@ function getMypageFundMembers(org, year, mode) {
     return objs;
   };
 
-  // extraRow 기반 org
-  if (org.isExtra && org.extraRow) {
+  // 본부 산하 모든 하위 부서 재귀 수집 (2단계: 부서, 3단계: 부서>팀 모두 포함)
+  const getAllChildDepts = (deptName) => {
+    const deptObj = departments.find(d => d.name===deptName);
+    if (!deptObj) return [];
+    const result = [];
+    const collect = (parentId) => {
+      departments.filter(d => d.parent===parentId).forEach(d => {
+        result.push(d.name);
+        collect(d.id); // 재귀: 팀의 하위도 수집
+      });
+    };
+    collect(deptObj.id);
+    return result;
+  };
     const row = org.extraRow;
     if (mode === 'monthly') {
       const memberMap = {};
@@ -10310,14 +10322,13 @@ function getMypageFundMembers(org, year, mode) {
       // 1) 이 dept 팀원 (부서장 제외)
       let objs = getQNamesForDept(dept, qi);
 
-      // 2) 본부 타입이면 산하 팀도 수집 (팀장 타입 본부)
+      // 2) 본부 타입이면 산하 모든 부서/팀 수집 (3단계 재귀)
       if (!objs.length) {
-        const bonbuDeptObj = departments.find(d => d.name===dept);
-        const childDepts = bonbuDeptObj ? departments.filter(d => d.parent===bonbuDeptObj.id).map(d => d.name) : [];
+        const childDepts2 = getAllChildDepts(dept);
         const merged = [];
         const seenNames = new Set();
-        childDepts.forEach(cd => {
-          // 각 하위 부서의 부서장도 포함
+        childDepts2.forEach(cd => {
+          // 각 하위 부서/팀의 부서장/팀장 추가
           const cdEmpList = employees.filter(e => e.dept===cd);
           const cdHead = cdEmpList.find(e =>
             (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
@@ -10371,9 +10382,8 @@ function getMypageFundMembers(org, year, mode) {
       const [qs, qe] = quarters[qi];
       const countedNames = new Set();
 
-      // 본부장 타입: 본부 직속 부서장들 + 각 부서 팀원들
-      const bonbuDeptObj = departments.find(d => d.name===dept);
-      const childDepts = bonbuDeptObj ? departments.filter(d => d.parent===bonbuDeptObj.id).map(d => d.name) : [];
+      // 본부장 타입: 본부 산하 모든 부서/팀 (3단계까지 재귀 수집)
+      const childDepts = getAllChildDepts(dept);
 
       const addMember = (name) => {
         if (countedNames.has(name)) return;
@@ -10397,14 +10407,26 @@ function getMypageFundMembers(org, year, mode) {
         childDepts.forEach(cd => {
           const cdDq = (allSettings[cd]||{}).disabledQi || [];
           if (cdDq.includes(qi)) return;
-          // 부서장
+          // 부서장/팀장 (직책명 포함)
           const cdEmpList = employees.filter(e => e.dept===cd);
           const cdHead = cdEmpList.find(e =>
-            (e.title||'').includes('부서장') || (e.title||'').includes('부장') || (e.title||'').includes('실장')
+            (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
+            (e.title||'').includes('실장') || (e.title||'').includes('팀장')
           );
-          if (cdHead) addMember(cdHead.name);
-          // 팀원 (getQNamesForDept 사용)
+          // nameData rowIdx=-1 대행자 우선
+          const cdS = allSettings[cd] || {};
+          const cdHdData = (cdS.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
+          const cdHeadName = cdHdData?.name || (cdHead ? cdHead.name : '');
+          if (cdHeadName) addMember(cdHeadName);
+          // 팀원 (getQNamesForDept: 직원 + nameData 추가인원)
           getQNamesForDept(cd, qi).forEach(o => addMember(o.name));
+          // 해당 부서/팀의 extraRows도 포함
+          (cdS.extraRows||[]).forEach(row => {
+            if ((row.disabledQi||[]).includes(qi)) return;
+            const hn = (row.headNames||[])[qi];
+            if (hn) addMember(hn);
+            (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => addMember(d.name));
+          });
         });
 
         // 본부 자체 extraRows headNames + nameData
