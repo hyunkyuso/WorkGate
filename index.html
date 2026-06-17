@@ -9859,6 +9859,7 @@ async function renderMypageDeptFundYear(empName) {
   } catch(e) {
     settings = window._deptFundSettingsCache || {};
   }
+  window._mypageAllSettings = settings;
 
   // 분기별로 본인이 대표자인 조직 탐색
   const quarters = [[0,2],[3,5],[6,8],[9,11]]; // 월 인덱스 (0-based)
@@ -9920,7 +9921,6 @@ async function renderMypageDeptFundYear(empName) {
     const activeQis = [0,1,2,3].filter(qi => !disabledQi.includes(qi));
     if (!activeQis.length) return;
     if (!processedOrgs.has(bonbu)) {
-      window._mypageAllSettings = settings;
       processedOrgs.set(bonbu, { dept: bonbu, type, activeQis, settings: s });
     }
   });
