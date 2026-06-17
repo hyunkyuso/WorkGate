@@ -9942,7 +9942,23 @@ async function renderMypageDeptFundYear(empName) {
     if (type === '없음') return;
     const headName = findHeadForDept(bonbu, settings);
     if (headName !== empName) return;
-    const disabledQi = s.disabledQi || [];
+
+    let disabledQi = s.disabledQi || [];
+    // 팀장 타입 본부: 산하 팀들의 disabledQi 합산
+    if (type === '팀장') {
+      const bonbuDeptObj = departments.find(d=>d.name===bonbu);
+      const childDepts = bonbuDeptObj ? departments.filter(d=>d.parent===bonbuDeptObj.id).map(d=>d.name) : [];
+      const allChildDisabled = new Set(disabledQi);
+      // 모든 산하 팀에서 공통으로 disabled된 qi만 적용
+      if (childDepts.length > 0) {
+        const childDisabledSets = childDepts.map(cd => new Set((settings[cd]?.disabledQi)||[]));
+        [0,1,2,3].forEach(qi => {
+          if (childDisabledSets.every(set => set.has(qi))) allChildDisabled.add(qi);
+        });
+      }
+      disabledQi = [...allChildDisabled];
+    }
+
     const activeQis = [0,1,2,3].filter(qi => !disabledQi.includes(qi));
     if (!activeQis.length) return;
     if (!processedOrgs.has(bonbu)) {
