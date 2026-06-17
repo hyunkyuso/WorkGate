@@ -9920,7 +9920,7 @@ async function renderMypageDeptFundYear(empName) {
     const activeQis = [0,1,2,3].filter(qi => !disabledQi.includes(qi));
     if (!activeQis.length) return;
     if (!processedOrgs.has(bonbu)) {
-      processedOrgs.set(bonbu, { dept: bonbu, type, activeQis, settings: s });
+      processedOrgs.set(bonbu, { dept: bonbu, type, activeQis, settings: s, allSettings: settings });
     }
   });
 
@@ -10260,6 +10260,15 @@ function getMypageFundMembers(org, year, mode) {
           employees.filter(e=>allChildDeptNames.has(e.dept) && !e.dept.includes('베트남')).forEach(e=>{
             if(!names.includes(e.name)) names.push(e.name);
           });
+          // 산하 부서 nameData에서도 추가 (employees에 없는 인원, qi 무관 전체)
+          if (org.allSettings) {
+            allChildDeptNames.forEach(deptName => {
+              const ds = org.allSettings[deptName] || {};
+              (ds.nameData||[]).filter(d=>d.name&&!d.hidden).forEach(d=>{
+                if(!names.includes(d.name)) names.push(d.name);
+              });
+            });
+          }
         }
         return names;
       };
@@ -10269,6 +10278,23 @@ function getMypageFundMembers(org, year, mode) {
       activeQis.forEach(qi => {
         let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
         if (!names.length) names = [...baseNames];
+
+        // 산하 부서 nameData에서 해당 qi 인원 추가 (본부장 타입)
+        if (isBonbu && org.allSettings) {
+          const bonbuDept = departments.find(d=>d.name===dept);
+          const childDeptNames = bonbuDept ? departments.filter(d=>d.parent===bonbuDept.id).map(d=>d.name) : [];
+          const allChildDeptNames = new Set(childDeptNames);
+          childDeptNames.forEach(cd => {
+            const cdObj = departments.find(d=>d.name===cd);
+            if (cdObj) departments.filter(d=>d.parent===cdObj.id).forEach(d=>allChildDeptNames.add(d.name));
+          });
+          allChildDeptNames.forEach(deptName => {
+            const ds = org.allSettings[deptName] || {};
+            (ds.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden&&!names.includes(d.name)).forEach(d=>{
+              names.push(d.name);
+            });
+          });
+        }
 
         // extra 배열에서 해당 qi에 추가된 인원
         (org.settings?.extra||[]).filter(e=>e.qi===qi&&e.name&&!names.includes(e.name)).forEach(e=>names.push(e.name));
