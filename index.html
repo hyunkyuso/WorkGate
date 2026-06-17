@@ -10188,12 +10188,13 @@ function getMypageFundMembers(org, year, mode) {
 
       activeQis.forEach(qi => {
         let names = (window._lastQNames?.[dept]?.[qi] || []).map(o=>o.name);
-        if (!names.length && extraNames.length) {
-          names = [...extraNames];
-        }
         if (!names.length) {
+          // nameData에서 qi별로 먼저 시도
           const nd = (org.settings?.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden);
           names = [...new Set(nd.map(d=>d.name))];
+        }
+        if (!names.length && extraNames.length) {
+          names = [...extraNames];
         }
         if (!names.length) {
           names = employees.filter(e=>e.dept===dept).map(e=>e.name);
