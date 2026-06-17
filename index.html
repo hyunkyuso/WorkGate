@@ -9886,11 +9886,31 @@ async function renderMypageDeptFundYear(empName) {
 
   const processedOrgs = new Map(); // dept → orgInfo
 
-  // 일반 부서
+  // 일반 부서 - settings 기반
   allDepts.forEach(dept => {
     const s = settings[dept] || {};
     const type = s.type || '';
-    if (!type || type === '없음') return;
+    if (type === '없음') return;
+    if (!type) {
+      // type 없어도 employees에서 부서장/팀장이 본인이면 추가
+      const headName = findHeadForDept(dept, settings);
+      if (headName !== empName) return;
+      const empInDept = employees.find(e=>e.dept===dept&&(
+        (e.title||'').includes('팀장')||(e.title||'').includes('부서장')||
+        (e.title||'').includes('본부장')||(e.title||'').includes('부장')
+      ));
+      if (!empInDept) return;
+      const guessType = (e) => {
+        if ((e.title||'').includes('본부장')) return '본부장';
+        if ((e.title||'').includes('부서장')||(e.title||'').includes('부장')) return '부서장';
+        return '팀장';
+      };
+      const disabledQi = s.disabledQi || [];
+      const activeQis = [0,1,2,3].filter(qi => !disabledQi.includes(qi));
+      if (!activeQis.length) return;
+      processedOrgs.set(dept, { dept, type: guessType(empInDept), activeQis, settings: s });
+      return;
+    }
     const headName = findHeadForDept(dept, settings);
     if (headName !== empName) return;
 
