@@ -9851,14 +9851,13 @@ async function renderMypageDeptFundYear(empName) {
 
   // 해당 직원이 대표자인 조직 찾기 (조직별 운영비 요약의 findOrgHead 로직과 동일)
   const settingsDocId = year === new Date().getFullYear() ? 'deptfund_settings' : `deptfund_settings_${year}`;
-  // _deptFundSettingsCache 사용, 없으면 Firebase에서 직접 로드
-  let settings = window._deptFundSettingsCache || {};
-  if (!Object.keys(settings).length) {
-    try {
-      const doc = await firebase.firestore().collection('settings').doc(settingsDocId).get();
-      settings = doc.data() || {};
-      window._deptFundSettingsCache = settings;
-    } catch(e) { settings = {}; }
+  // Firebase에서 직접 로드 (캐시는 부서장운영비 탭 기준이라 type이 없을 수 있음)
+  let settings = {};
+  try {
+    const doc = await firebase.firestore().collection('settings').doc(settingsDocId).get();
+    settings = doc.data() || {};
+  } catch(e) {
+    settings = window._deptFundSettingsCache || {};
   }
 
   // 분기별로 본인이 대표자인 조직 탐색
