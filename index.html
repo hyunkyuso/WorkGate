@@ -10256,7 +10256,7 @@ function getMypageFundMembers(org, year, mode) {
             const cdObj = departments.find(d=>d.name===cd);
             if (cdObj) departments.filter(d=>d.parent===cdObj.id).forEach(d=>allChildDeptNames.add(d.name));
           });
-          employees.filter(e=>allChildDeptNames.has(e.dept)).forEach(e=>{
+          employees.filter(e=>allChildDeptNames.has(e.dept) && !e.dept.includes('베트남')).forEach(e=>{
             if(!names.includes(e.name)) names.push(e.name);
           });
         }
