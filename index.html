@@ -10353,6 +10353,8 @@ function getMypageFundMembers(org, year, mode) {
           });
           // 산하 부서의 extraRows nameData도 포함
           (cdS.extraRows||[]).forEach(row => {
+            const rowOrgName2 = (row.orgNames||[]).find(n=>n);
+            if (rowOrgName2 && !departments.find(d=>d.name===rowOrgName2)) return;
             if ((row.disabledQi||[]).includes(qi)) return;
             (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => {
               if (!seenNames.has(d.name)) {
@@ -10384,6 +10386,9 @@ function getMypageFundMembers(org, year, mode) {
       deptChildDepts.add(dept);
       (allSettings[dept]?.extraRows||[]).forEach(row => {
         if ((row.disabledQi||[]).includes(qi)) return;
+        // orgNames가 departments에 없으면 폐지된 조직 → 제외
+        const orgName = (row.orgNames||[]).find(n=>n);
+        if (orgName && !departments.find(d=>d.name===orgName)) return;
         const rowDateData = row.dateData || [];
         if (!row.type || row.type === '없음') {
           const hasDateData = !!(row.dateData?.length);
@@ -10499,6 +10504,9 @@ function getMypageFundMembers(org, year, mode) {
           }
           // extraRows는 cd disabledQi 무관하게 row별로 체크
           (cdS.extraRows||[]).forEach(row => {
+            // orgNames가 departments에 없으면 폐지된 조직 → 제외
+            const rowOrgName = (row.orgNames||[]).find(n=>n);
+            if (rowOrgName && !departments.find(d=>d.name===rowOrgName)) return;
             if (!row.type || row.type === '없음') {
               const hasDateData = !!(row.dateData?.length);
               // cd의 부모가 dept이면 포함 (기술서비스팀 → 연구2팀 → AI GIS 연구부 케이스)
@@ -10521,6 +10529,9 @@ function getMypageFundMembers(org, year, mode) {
 
         // 본부 자체 extraRows headNames + nameData
         (s.extraRows||[]).forEach(row => {
+          // orgNames가 departments에 없으면 폐지된 조직 → 제외
+          const rowOrgName = (row.orgNames||[]).find(n=>n);
+          if (rowOrgName && !departments.find(d=>d.name===rowOrgName)) return;
           if (!row.type || row.type === '없음') {
             const hasDateData = !!(row.dateData?.length);
             const hasChildEmp = (row.nameData||[]).some(d => {
