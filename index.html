@@ -10376,16 +10376,19 @@ function getMypageFundMembers(org, year, mode) {
       // extraRow nameData 추가
       const extraRowObjs = [];
       const extraRowSeenNames = new Set(allObjs.map(o=>o.name));
+      const deptChildDepts = new Set(getAllChildDepts(dept));
       (allSettings[dept]?.extraRows||[]).forEach(row => {
-        if (!row.type || row.type === '없음') {
-          // type 없음: orgNames가 settings에 존재하거나 dateData가 있는 경우만 포함
-          const orgName = (row.orgNames||[]).find(n=>n);
-          const orgExists = orgName && !!allSettings[orgName];
-          const hasDateData = !!(row.dateData?.length);
-          if (!orgExists && !hasDateData) return;
-        }
         if ((row.disabledQi||[]).includes(qi)) return;
         const rowDateData = row.dateData || [];
+        // type 없음인 경우: dateData 있거나 nameData 인원이 산하 부서 소속이면 포함
+        if (!row.type || row.type === '없음') {
+          const hasDateData = !!(row.dateData?.length);
+          const hasChildEmp = (row.nameData||[]).some(d => {
+            const emp = employees.find(e=>e.name===d.name);
+            return emp && deptChildDepts.has(emp.dept);
+          });
+          if (!hasDateData && !hasChildEmp) return;
+        }
         (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => {
           if (!extraRowSeenNames.has(d.name)) {
             extraRowObjs.push({ name: d.name, isEmp: false, dateData: rowDateData });
@@ -10493,10 +10496,12 @@ function getMypageFundMembers(org, year, mode) {
           // extraRows는 cd disabledQi 무관하게 row별로 체크
           (cdS.extraRows||[]).forEach(row => {
             if (!row.type || row.type === '없음') {
-              const orgName = (row.orgNames||[]).find(n=>n);
-              const orgExists = orgName && !!allSettings[orgName];
               const hasDateData = !!(row.dateData?.length);
-              if (!orgExists && !hasDateData) return;
+              const hasChildEmp = (row.nameData||[]).some(d => {
+                const emp = employees.find(e=>e.name===d.name);
+                return emp && childDepts.includes(emp.dept);
+              });
+              if (!hasDateData && !hasChildEmp) return;
             }
             if ((row.disabledQi||[]).includes(qi)) return;
             const hn = (row.headNames||[])[qi];
@@ -10508,10 +10513,12 @@ function getMypageFundMembers(org, year, mode) {
         // 본부 자체 extraRows headNames + nameData
         (s.extraRows||[]).forEach(row => {
           if (!row.type || row.type === '없음') {
-            const orgName = (row.orgNames||[]).find(n=>n);
-            const orgExists = orgName && !!allSettings[orgName];
             const hasDateData = !!(row.dateData?.length);
-            if (!orgExists && !hasDateData) return;
+            const hasChildEmp = (row.nameData||[]).some(d => {
+              const emp = employees.find(e=>e.name===d.name);
+              return emp && childDepts.includes(emp.dept);
+            });
+            if (!hasDateData && !hasChildEmp) return;
           }
           if ((row.disabledQi||[]).includes(qi)) return;
           const hn = (row.headNames||[])[qi];
