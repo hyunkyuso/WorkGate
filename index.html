@@ -10497,12 +10497,16 @@ function getMypageFundMembers(org, year, mode) {
           (cdS.extraRows||[]).forEach(row => {
             if (!row.type || row.type === '없음') {
               const hasDateData = !!(row.dateData?.length);
+              // cd의 부모가 dept이면 포함 (기술서비스팀 → 연구2팀 → AI GIS 연구부 케이스)
+              const cdObj = departments.find(d=>d.name===cd);
+              const cdParent = departments.find(d=>d.id===cdObj?.parent);
+              const cdParentIsDept = cdParent?.name === dept;
               // 인원이 전체 본부(dept) 산하 부서 소속이면 포함
               const hasChildEmp = (row.nameData||[]).some(d => {
                 const emp = employees.find(e=>e.name===d.name);
                 return emp && childDepts.includes(emp.dept);
               });
-              if (!hasDateData && !hasChildEmp) return;
+              if (!hasDateData && !hasChildEmp && !cdParentIsDept) return;
             }
             if ((row.disabledQi||[]).includes(qi)) return;
             const hn = (row.headNames||[])[qi];
