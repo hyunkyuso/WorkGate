@@ -10466,21 +10466,24 @@ function getMypageFundMembers(org, year, mode) {
         childDepts.forEach(cd => {
           if (cd.includes('베트남')) return; // 베트남 관련 부서 제외
           const cdDq = (allSettings[cd]||{}).disabledQi || [];
-          if (cdDq.includes(qi)) return;
-          // 부서장/팀장 (직책명 포함)
-          const cdEmpList = employees.filter(e => e.dept===cd);
-          const cdHead = cdEmpList.find(e =>
-            (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
-            (e.title||'').includes('실장') || (e.title||'').includes('팀장')
-          );
-          // nameData rowIdx=-1 대행자 우선
           const cdS = allSettings[cd] || {};
-          const cdHdData = (cdS.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
-          const cdHeadName = cdHdData?.name || (cdHead ? cdHead.name : '');
-          if (cdHeadName) addMember(cdHeadName);
-          // 팀원 (getQNamesForDept: 직원 + nameData 추가인원)
-          getQNamesForDept(cd, qi).forEach(o => addMember(o.name));
-          // 해당 부서/팀의 extraRows도 포함
+
+          // cd 자체가 disabled여도 extraRows는 별도 체크
+          if (!cdDq.includes(qi)) {
+            // 부서장/팀장 (직책명 포함)
+            const cdEmpList = employees.filter(e => e.dept===cd);
+            const cdHead = cdEmpList.find(e =>
+              (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
+              (e.title||'').includes('실장') || (e.title||'').includes('팀장')
+            );
+            // nameData rowIdx=-1 대행자 우선
+            const cdHdData = (cdS.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
+            const cdHeadName = cdHdData?.name || (cdHead ? cdHead.name : '');
+            if (cdHeadName) addMember(cdHeadName);
+            // 팀원 (getQNamesForDept: 직원 + nameData 추가인원)
+            getQNamesForDept(cd, qi).forEach(o => addMember(o.name));
+          }
+          // extraRows는 cd disabledQi 무관하게 row별로 체크
           (cdS.extraRows||[]).forEach(row => {
             if ((row.disabledQi||[]).includes(qi)) return;
             const hn = (row.headNames||[])[qi];
