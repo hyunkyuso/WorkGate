@@ -10361,11 +10361,34 @@ function getMypageFundMembers(org, year, mode) {
       }
       objs.forEach(o => { if (!seenAll.has(o.name)) { allObjs.push(o); seenAll.add(o.name); } });
 
+      const dateDataList = (allSettings[dept]?.dateData || []);
+
       allObjs.forEach(o => {
         if (!memberMap[o.name]) memberMap[o.name] = {};
         const emp = employees.find(e => e.name===o.name);
         for (let mo=qi*3+1; mo<=qi*3+3; mo++) {
-          const m = emp ? getEmpMonthsInQuarter(emp, year, mo-1, mo-1) : 1;
+          let m;
+          if (emp) {
+            m = getEmpMonthsInQuarter(emp, year, mo-1, mo-1);
+          } else {
+            // employees에 없는 인원: dateData에서 퇴사/입사 날짜 확인
+            const dd = dateDataList.find(d => d.name===o.name && d.qi===qi);
+            if (dd) {
+              const fullDate = dd.fullDate ? new Date(dd.fullDate) : null;
+              const moDate = fullDate ? fullDate.getMonth()+1 : null;
+              if (dd.type === 'leave') {
+                // 퇴사: 퇴사월 포함 이전 달까지
+                m = moDate && mo <= moDate ? 1 : 0;
+              } else if (dd.type === 'join') {
+                // 입사: 입사월 포함 이후 달까지
+                m = moDate && mo >= moDate ? 1 : 0;
+              } else {
+                m = 1;
+              }
+            } else {
+              m = 1;
+            }
+          }
           if (m > 0) memberMap[o.name][mo] = m * 40000;
         }
       });
