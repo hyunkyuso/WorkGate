@@ -9830,7 +9830,7 @@ async function renderMypageDeptFund(emp, container) {
   fundHeader.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
       <div style="font-size:15px;font-weight:700">💰 부서장운영비</div>
-      <select id="mypage-fund-year" onchange="renderMypageDeptFundYear('${emp.name}')" style="padding:4px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+      <select id="mypage-fund-year" onchange="renderMypageDeptFundYear('${emp.name}','${emp.uid}')" style="padding:4px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
         <option value="${curYear}">${curYear}년</option>
         <option value="${curYear-1}">${curYear-1}년</option>
       </select>
@@ -9865,10 +9865,10 @@ async function renderMypageDeptFund(emp, container) {
   window._deptFundMemberCacheSnapshot = window._deptFundMemberCache || {};
 
   // 현재 연도 운영비 렌더
-  await renderMypageDeptFundYear(emp.name);
+  await renderMypageDeptFundYear(emp.name, emp.uid);
 }
 
-async function renderMypageDeptFundYear(empName) {
+async function renderMypageDeptFundYear(empName, empUid) {
   const year = parseInt(document.getElementById('mypage-fund-year')?.value || new Date().getFullYear());
   const tablesDiv = document.getElementById('mypage-fund-tables');
   if (!tablesDiv) return;
@@ -9893,12 +9893,13 @@ async function renderMypageDeptFundYear(empName) {
   const findHeadForDept = (dept, s) => {
     const nd = (s[dept]?.nameData||[]).find(d => d.acting && d.name);
     if (nd) return nd.name;
+    // uid가 있으면 uid로 비교
     const head = employees.find(e => e.dept===dept && (
       (e.title||'').includes('팀장')||(e.title||'').includes('부서장')||
       (e.title||'').includes('본부장')||(e.title||'').includes('부장')||(e.title||'').includes('소장')
-    ));
+    ) && (!empUid || e.uid === empUid));
     if (head) return head.name;
-    const conc = employees.find(e => (e.concurrent||[]).some(c => c.dept===dept && (
+    const conc = employees.find(e => (!empUid || e.uid === empUid) && (e.concurrent||[]).some(c => c.dept===dept && (
       (c.title||'').includes('팀장')||(c.title||'').includes('부서장')||(c.title||'').includes('본부장')
     )));
     return conc ? conc.name : '';
