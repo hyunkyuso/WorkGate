@@ -9737,7 +9737,7 @@ function renderMyPageEmp(emp, email) {
     + '<div style="display:flex;gap:0;border-bottom:1px solid #e2e8f0;margin-bottom:16px">'
     + tabBtn('info','👤 내 정보', true)
     + tabBtn('welfare','🎁 복리후생', false)
-    + '<button id="mptab-fund" onclick="showMypageTab(\'fund\',\''+emp.name.replace(/'/g,"\\'")+'\')" style="display:none;padding:8px 18px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;font-size:13px;font-weight:500;color:#64748b">💰 부서장운영비</button>'
+    + '<button id="mptab-fund" onclick="showMypageTab(\'fund\',\''+emp.name.replace(/'/g,"\\'")+( emp.id ? '|'+emp.id : '')+'\')" style="display:none;padding:8px 18px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;font-size:13px;font-weight:500;color:#64748b">💰 부서장운영비</button>'
     + '</div>'
     + '<div id="mptab-content-info"></div>'
     + '<div id="mptab-content-welfare" style="display:none">'+ html +'</div>'
@@ -9813,7 +9813,8 @@ function showMypageTab(tab, empKey) {
     const fundDiv = document.getElementById('mptab-content-fund');
     if (fundDiv && !fundDiv.dataset.loaded) {
       fundDiv.dataset.loaded = '1';
-      const empObj = employees.find(e=>e.name===empName) || {name: empName};
+      const empId = (empKey||'').split('|')[1];
+      const empObj = (empId ? employees.find(e=>e.id===empId) : null) || employees.find(e=>e.name===empName) || {name: empName};
       renderMypageDeptFund(empObj, fundDiv);
     }
   }
