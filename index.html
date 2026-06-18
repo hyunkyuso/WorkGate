@@ -10402,7 +10402,11 @@ function getMypageFundMembers(org, year, mode) {
         // 본부장 본인 (rowIdx=-1 nameData 또는 employees에서)
         const hdData = nameDataList.find(d => d.rowIdx===-1 && d.qi===qi);
         const bonbuHead = hdData?.name || (() => {
-          const h = employees.find(e => e.dept===dept && (e.title||'').includes('본부장'));
+          const h = employees.find(e => e.dept===dept && (
+            (e.title||'').includes('본부장') || (e.title||'').includes('부서장') ||
+            (e.title||'').includes('부장') || (e.title||'').includes('실장') ||
+            (e.title||'').includes('팀장') || (e.title||'').includes('소장')
+          ));
           return h ? h.name : '';
         })();
         if (bonbuHead) addMember(bonbuHead);
