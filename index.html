@@ -7784,7 +7784,15 @@ function getNameData(dept, qi, rowIdx, col) {
   return ((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.qi===qi&&d.col===col);
 }
 function getDateData(dept, qi, rowIdx, col) {
-  return ((deptFundSettings[dept]||{}).dateData||[]).find(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
+  const dateData = ((deptFundSettings[dept]||{}).dateData||[]);
+  // col 위치의 이름으로 먼저 찾기
+  const qNames = window._lastQNames?.[dept]?.[qi];
+  const nameAtCol = qNames ? (qNames[rowIdx*4+col]?.name || '') : '';
+  if (nameAtCol) {
+    const byName = dateData.find(d=>d.qi===qi&&d.name===nameAtCol);
+    if (byName) return byName;
+  }
+  return dateData.find(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
 }
 function getDateNote(dept, qi, rowIdx, col) {
   const d = getDateData(dept, qi, rowIdx, col);
