@@ -10363,7 +10363,21 @@ function getMypageFundMembers(org, year, mode) {
 
       const dateDataList = (allSettings[dept]?.dateData || []);
 
-      allObjs.forEach(o => {
+      // type='없음' extraRow의 nameData도 날짜 반영해서 추가 (홍유주/김지은/서다영 같은 케이스)
+      const extraRowObjs = [];
+      const extraRowSeenNames = new Set(allObjs.map(o=>o.name));
+      (allSettings[dept]?.extraRows||[]).forEach(row => {
+        if ((row.disabledQi||[]).includes(qi)) return;
+        const rowDateData = row.dateData || [];
+        (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => {
+          if (!extraRowSeenNames.has(d.name)) {
+            extraRowObjs.push({ name: d.name, isEmp: false, dateData: rowDateData });
+            extraRowSeenNames.add(d.name);
+          }
+        });
+      });
+
+      [...allObjs.map(o=>({...o, dateData: dateDataList})), ...extraRowObjs].forEach(o => {
         if (!memberMap[o.name]) memberMap[o.name] = {};
         const emp = employees.find(e => e.name===o.name);
         for (let mo=qi*3+1; mo<=qi*3+3; mo++) {
@@ -10371,16 +10385,13 @@ function getMypageFundMembers(org, year, mode) {
           if (emp) {
             m = getEmpMonthsInQuarter(emp, year, mo-1, mo-1);
           } else {
-            // employees에 없는 인원: dateData에서 퇴사/입사 날짜 확인
-            const dd = dateDataList.find(d => d.name===o.name && d.qi===qi);
+            const dd = (o.dateData||[]).find(d => d.name===o.name && d.qi===qi);
             if (dd) {
               const fullDate = dd.fullDate ? new Date(dd.fullDate) : null;
               const moDate = fullDate ? fullDate.getMonth()+1 : null;
               if (dd.type === 'leave') {
-                // 퇴사: 퇴사월 포함 이전 달까지
                 m = moDate && mo <= moDate ? 1 : 0;
               } else if (dd.type === 'join') {
-                // 입사: 입사월 포함 이후 달까지
                 m = moDate && mo >= moDate ? 1 : 0;
               } else {
                 m = 1;
