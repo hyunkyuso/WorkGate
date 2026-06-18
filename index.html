@@ -10203,264 +10203,77 @@ function renderMypageFundTable(org, year, usageData, key) {
 function getMypageFundMembers(org, year, mode) {
   const dept = org.dept;
   const activeQis = org.activeQis || [0,1,2,3];
-  const allSettings = window._mypageAllSettings || {};
-  const quarters = [[0,2],[3,5],[6,8],[9,11]];
 
-  // 탭 getQNames와 동일한 로직: 해당 부서의 qi별 인원 객체 배열 반환
-  const getQNamesForDept = (deptKey, qi) => {
-    const s = allSettings[deptKey] || {};
-    const nameDataList = s.nameData || [];
-    const [qs, qe] = quarters[qi];
-    const empList = employees.filter(e => e.dept === deptKey && getEmpMonthsInQuarter(e, year, qs, qe) > 0);
-    const allEmpNameSet = new Set(empList.map(e => e.name));
-
-    let objs = empList.map(e => {
-      if (nameDataList.some(d => d.qi===qi && d.name===e.name && d.hidden)) return null;
-      return { name: e.name, isEmp: true };
-    }).filter(Boolean);
-
-    const empNameSet = new Set(objs.map(o => o.name));
-
-    // acting 인원 acting 표시 (이미 포함된 경우 skip — 이름 중복 없이)
-    nameDataList.filter(d => d.qi===qi && d.acting && d.name && empNameSet.has(d.name) && !d.insertBefore).forEach(nd => {
-      // 이미 objs에 있으니 중복 추가 안함
+  // 부서장운영비 탭 DOM에서 직접 읽기
+  const getDomMembers = (deptKey, qi) => {
+    const names = [];
+    // 이름 셀 (data-rowidx 있는 것)
+    document.querySelectorAll(`[data-dept="${deptKey}"][data-qi="${qi}"][data-rowidx]`).forEach(el => {
+      const txt = el.textContent.trim().replace(/\s*\(.*?\)/g, '').trim();
+      if (txt && txt !== '-' && !txt.includes('/') && !txt.includes(',') && !/^\d+$/.test(txt)) {
+        if (!names.includes(txt)) names.push(txt);
+      }
     });
-
-    // insertBefore: 특정 직원 앞에 끼워넣기
-    nameDataList.filter(d => d.qi===qi && d.insertBefore && d.name && !empNameSet.has(d.name)).forEach(nd => {
-      const idx = objs.findIndex(o => o.name === nd.insertBefore);
-      const newObj = { name: nd.name, isEmp: false };
-      if (idx >= 0) objs.splice(idx, 0, newObj);
-      else objs.push(newObj);
+    // 부서장/팀장 헤더 이름 (금액 셀 바로 앞 colspan=3 셀)
+    document.querySelectorAll(`[data-dept="${deptKey}"][data-qi="${qi}"][data-type]`).forEach(amtEl => {
+      const prev = amtEl.previousElementSibling;
+      if (prev && prev.colSpan >= 3) {
+        const clone = prev.cloneNode(true);
+        clone.querySelectorAll('button,span').forEach(e=>e.remove());
+        const txt = clone.textContent.trim().replace(/\s*\(.*?\)/g, '').trim();
+        if (txt && txt !== '-' && !txt.includes('/') && !/^\d+$/.test(txt) && !names.includes(txt)) {
+          names.push(txt);
+        }
+      }
     });
-
-    // 일반 추가 인원 (insertBefore 없고, Firebase 직원 아닌 것, hidden 아닌 것)
-    nameDataList.filter(d => d.qi===qi && d.name && !d.insertBefore && !d.acting && !d.hidden && !empNameSet.has(d.name) && !allEmpNameSet.has(d.name)).forEach(nd => {
-      objs.push({ name: nd.name, isEmp: false });
-    });
-
-    return objs;
+    return names;
   };
 
-  // 본부 산하 모든 하위 부서 재귀 수집 (2단계: 부서, 3단계: 부서>팀 모두 포함)
-  const getAllChildDepts = (deptName) => {
-    const deptObj = departments.find(d => d.name===deptName);
-    if (!deptObj) return [];
-    const result = [];
-    const collect = (parentId) => {
-      departments.filter(d => d.parent===parentId).forEach(d => {
-        result.push(d.name);
-        collect(d.id); // 재귀: 팀의 하위도 수집
-      });
-    };
-    collect(deptObj.id);
-    return result;
-  };
-
-  // extraRow 기반 org
-  if (org.isExtra && org.extraRow) {
-    const row = org.extraRow;
-    if (mode === 'monthly') {
-      const memberMap = {};
-      activeQis.forEach(qi => {
-        const hn = (row.headNames||[])[qi] || '';
-        const ndList = (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden);
-        const seen = new Set();
-        const names = [];
-        if (hn && !seen.has(hn)) { names.push(hn); seen.add(hn); }
-        ndList.forEach(d => { if (!seen.has(d.name)) { names.push(d.name); seen.add(d.name); } });
-        names.forEach(name => {
-          if (!memberMap[name]) memberMap[name] = {};
-          const emp = employees.find(e => e.name===name);
-          for (let mo=qi*3+1; mo<=qi*3+3; mo++) {
-            const m = emp ? getEmpMonthsInQuarter(emp, year, mo-1, mo-1) : 1;
-            if (m > 0) memberMap[name][mo] = m * 40000;
-          }
-        });
-      });
-      return Object.entries(memberMap).map(([name, monthAmts]) => {
-        const full = {};
-        for (let mo=1; mo<=12; mo++) full[mo] = monthAmts[mo] || 0;
-        return { name, monthAmts: full, total: Object.values(full).reduce((s,v)=>s+v,0) };
-      });
-    } else {
-      const memberMap = {};
-      activeQis.forEach(qi => {
-        const hn = (row.headNames||[])[qi] || '';
-        const ndList = (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden);
-        const seen = new Set();
-        const names = [];
-        if (hn && !seen.has(hn)) { names.push(hn); seen.add(hn); }
-        ndList.forEach(d => { if (!seen.has(d.name)) { names.push(d.name); seen.add(d.name); } });
-        names.forEach(name => {
-          if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
-          const emp = employees.find(e => e.name===name);
-          const m = emp ? getEmpMonthsInQuarter(emp, year, qi*3, qi*3+2) : 3;
-          if (m > 0) memberMap[name][qi] = 50000;
-        });
-      });
-      return Object.entries(memberMap).map(([name, qiAmts]) => ({
-        name, qiAmts, total: Object.values(qiAmts).reduce((s,v)=>s+v,0)
-      }));
-    }
-  }
-
-  // 팀장 타입 (월별): 부서 직원 + nameData 추가인원
   if (mode === 'monthly') {
     const memberMap = {};
     activeQis.forEach(qi => {
-      const [qs, qe] = quarters[qi];
-      const s = allSettings[dept] || {};
-
-      // 부서장 본인 (탭에서 부서장칸에 별도 표시 — getQNamesForDept에 포함 안됨)
-      const deptEmpList = employees.filter(e => e.dept===dept);
-      const deptHead = deptEmpList.find(e =>
-        (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
-        (e.title||'').includes('실장') || (e.title||'').includes('팀장')
-      );
-      // nameData rowIdx=-1: 부서장칸 대행자 지정
-      const hdData = (s.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
-      const headName = hdData?.name || (deptHead ? deptHead.name : '');
-
-      // 1) 이 dept 팀원 (부서장 제외)
-      let objs = getQNamesForDept(dept, qi);
-
-      // 2) 본부 타입이면 산하 모든 부서/팀 수집 (3단계 재귀)
-      if (!objs.length) {
-        const childDepts2 = getAllChildDepts(dept);
-        const merged = [];
-        const seenNames = new Set();
-        childDepts2.forEach(cd => {
-          // 각 하위 부서/팀의 부서장/팀장 추가
-          const cdEmpList = employees.filter(e => e.dept===cd);
-          const cdHead = cdEmpList.find(e =>
-            (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
-            (e.title||'').includes('실장') || (e.title||'').includes('팀장')
-          );
-          const cdS = allSettings[cd] || {};
-          const cdHdData = (cdS.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
-          const cdHeadName = cdHdData?.name || (cdHead ? cdHead.name : '');
-          if (cdHeadName && !seenNames.has(cdHeadName)) {
-            merged.push({ name: cdHeadName, isEmp: true });
-            seenNames.add(cdHeadName);
-          }
-          getQNamesForDept(cd, qi).forEach(o => {
-            if (!seenNames.has(o.name)) { merged.push(o); seenNames.add(o.name); }
-          });
-        });
-        objs = merged;
+      let names = getDomMembers(dept, qi);
+      if (!names.length) {
+        const bonbuDeptObj = departments.find(d=>d.name===dept);
+        const childDepts = bonbuDeptObj ? departments.filter(d=>d.parent===bonbuDeptObj.id).map(d=>d.name) : [];
+        const merged = new Set();
+        childDepts.forEach(cd => getDomMembers(cd, qi).forEach(n=>merged.add(n)));
+        names = [...merged];
       }
-
-      // 3) 부서장 본인을 맨 앞에 추가 (중복 방지)
-      const allObjs = [];
-      const seenAll = new Set();
-      if (headName && !seenAll.has(headName)) {
-        const hEmp = employees.find(e => e.name===headName);
-        const hm = hEmp ? getEmpMonthsInQuarter(hEmp, year, qs, qe) : 1;
-        if (hm > 0) { allObjs.push({ name: headName, isEmp: !!hEmp }); seenAll.add(headName); }
-      }
-      objs.forEach(o => { if (!seenAll.has(o.name)) { allObjs.push(o); seenAll.add(o.name); } });
-
-      allObjs.forEach(o => {
-        if (!memberMap[o.name]) memberMap[o.name] = {};
-        const emp = employees.find(e => e.name===o.name);
+      names.forEach(name => {
+        if (!memberMap[name]) memberMap[name] = {};
+        const emp = employees.find(e=>e.name===name);
         for (let mo=qi*3+1; mo<=qi*3+3; mo++) {
-          const m = emp ? getEmpMonthsInQuarter(emp, year, mo-1, mo-1) : 1;
-          if (m > 0) memberMap[o.name][mo] = m * 40000;
+          const m = emp ? getEmpMonthsInQuarter(emp,year,mo-1,mo-1) : 1;
+          if (m > 0) memberMap[name][mo] = m * 40000;
         }
       });
     });
     return Object.entries(memberMap).map(([name, monthAmts]) => {
       const full = {};
-      for (let mo=1; mo<=12; mo++) full[mo] = monthAmts[mo] || 0;
-      return { name, monthAmts: full, total: Object.values(full).reduce((s,v)=>s+v,0) };
+      for(let mo=1;mo<=12;mo++) full[mo] = monthAmts[mo]||0;
+      const total = Object.values(full).reduce((s,v)=>s+(v||0),0);
+      return {name, monthAmts: full, total};
     });
 
   } else {
-    // 부서장/본부장 타입 (분기별)
     const memberMap = {};
     activeQis.forEach(qi => {
-      const s = allSettings[dept] || {};
-      const nameDataList = s.nameData || [];
-      const [qs, qe] = quarters[qi];
-      const countedNames = new Set();
-
-      // 본부장 타입: 본부 산하 모든 부서/팀 (3단계까지 재귀 수집)
-      const childDepts = getAllChildDepts(dept);
-
-      const addMember = (name) => {
-        if (countedNames.has(name)) return;
-        countedNames.add(name);
+      const names = getDomMembers(dept, qi);
+      names.forEach(name => {
         if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
-        const emp = employees.find(e => e.name===name);
-        const m = emp ? getEmpMonthsInQuarter(emp, year, qs, qe) : 3;
+        const emp = employees.find(e=>e.name===name);
+        const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 3;
         if (m > 0) memberMap[name][qi] = 50000;
-      };
-
-      if (childDepts.length > 0) {
-        // 본부장 타입: 본부장 본인 + 각 부서장 + 각 팀원
-        // 본부장 본인 (rowIdx=-1 nameData 또는 employees에서)
-        const hdData = nameDataList.find(d => d.rowIdx===-1 && d.qi===qi);
-        const bonbuHead = hdData?.name || (() => {
-          const h = employees.find(e => e.dept===dept && (e.title||'').includes('본부장'));
-          return h ? h.name : '';
-        })();
-        if (bonbuHead) addMember(bonbuHead);
-
-        childDepts.forEach(cd => {
-          const cdDq = (allSettings[cd]||{}).disabledQi || [];
-          if (cdDq.includes(qi)) return;
-          // 부서장/팀장 (직책명 포함)
-          const cdEmpList = employees.filter(e => e.dept===cd);
-          const cdHead = cdEmpList.find(e =>
-            (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
-            (e.title||'').includes('실장') || (e.title||'').includes('팀장')
-          );
-          // nameData rowIdx=-1 대행자 우선
-          const cdS = allSettings[cd] || {};
-          const cdHdData = (cdS.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
-          const cdHeadName = cdHdData?.name || (cdHead ? cdHead.name : '');
-          if (cdHeadName) addMember(cdHeadName);
-          // 팀원 (getQNamesForDept: 직원 + nameData 추가인원)
-          getQNamesForDept(cd, qi).forEach(o => addMember(o.name));
-          // 해당 부서/팀의 extraRows도 포함
-          (cdS.extraRows||[]).forEach(row => {
-            if ((row.disabledQi||[]).includes(qi)) return;
-            const hn = (row.headNames||[])[qi];
-            if (hn) addMember(hn);
-            (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => addMember(d.name));
-          });
-        });
-
-        // 본부 자체 extraRows headNames + nameData
-        (s.extraRows||[]).forEach(row => {
-          if ((row.disabledQi||[]).includes(qi)) return;
-          const hn = (row.headNames||[])[qi];
-          if (hn) addMember(hn);
-          (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => addMember(d.name));
-        });
-
-        // extra 인원 (buseojang 타입)
-        (s.extra||[]).filter(e => e.qi===qi && e.type==='buseojang' && e.name).forEach(e => addMember(e.name));
-
-      } else {
-        // 부서장 타입 (산하 팀 없음): 부서장 본인 + 팀원
-        const deptEmpList = employees.filter(e => e.dept===dept);
-        const deptHead = deptEmpList.find(e =>
-          (e.title||'').includes('부서장') || (e.title||'').includes('부장') || (e.title||'').includes('실장')
-        );
-        if (deptHead) addMember(deptHead.name);
-        getQNamesForDept(dept, qi).forEach(o => addMember(o.name));
-
-        // extra 인원 (buseojang 타입)
-        (s.extra||[]).filter(e => e.qi===qi && e.type==='buseojang' && e.name).forEach(e => addMember(e.name));
-      }
+      });
     });
-    return Object.entries(memberMap).map(([name, qiAmts]) => ({
-      name, qiAmts, total: Object.values(qiAmts).reduce((s,v)=>s+v,0)
-    }));
+    return Object.entries(memberMap).map(([name, qiAmts]) => {
+      const total = Object.values(qiAmts).reduce((s,v)=>s+(v||0),0);
+      return {name, qiAmts, total};
+    });
   }
 }
+
 
 
 async function openFundUsageModal(orgKey, period, rowIdx, year, mode='monthly') {
