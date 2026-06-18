@@ -10377,10 +10377,10 @@ function getMypageFundMembers(org, year, mode) {
       const extraRowObjs = [];
       const extraRowSeenNames = new Set(allObjs.map(o=>o.name));
       const deptChildDepts = new Set(getAllChildDepts(dept));
+      deptChildDepts.add(dept);
       (allSettings[dept]?.extraRows||[]).forEach(row => {
         if ((row.disabledQi||[]).includes(qi)) return;
         const rowDateData = row.dateData || [];
-        // type 없음인 경우: dateData 있거나 nameData 인원이 산하 부서 소속이면 포함
         if (!row.type || row.type === '없음') {
           const hasDateData = !!(row.dateData?.length);
           const hasChildEmp = (row.nameData||[]).some(d => {
@@ -10497,9 +10497,12 @@ function getMypageFundMembers(org, year, mode) {
           (cdS.extraRows||[]).forEach(row => {
             if (!row.type || row.type === '없음') {
               const hasDateData = !!(row.dateData?.length);
+              // 인원이 cd의 산하 부서 소속일 때만 포함
+              const cdChildDepts = new Set(getAllChildDepts(cd));
+              cdChildDepts.add(cd);
               const hasChildEmp = (row.nameData||[]).some(d => {
                 const emp = employees.find(e=>e.name===d.name);
-                return emp && childDepts.includes(emp.dept);
+                return emp && cdChildDepts.has(emp.dept);
               });
               if (!hasDateData && !hasChildEmp) return;
             }
