@@ -10485,6 +10485,7 @@ function getMypageFundMembers(org, year, mode) {
           }
           // extraRows는 cd disabledQi 무관하게 row별로 체크
           (cdS.extraRows||[]).forEach(row => {
+            if (!row.type || row.type === '없음') return;
             if ((row.disabledQi||[]).includes(qi)) return;
             const hn = (row.headNames||[])[qi];
             if (hn) addMemberForce(hn);
@@ -10494,6 +10495,7 @@ function getMypageFundMembers(org, year, mode) {
 
         // 본부 자체 extraRows headNames + nameData
         (s.extraRows||[]).forEach(row => {
+          if (!row.type || row.type === '없음') return;
           if ((row.disabledQi||[]).includes(qi)) return;
           const hn = (row.headNames||[])[qi];
           if (hn) addMemberForce(hn);
