@@ -10373,10 +10373,12 @@ function getMypageFundMembers(org, year, mode) {
 
       const dateDataList = (allSettings[dept]?.dateData || []);
 
-      // type='없음' extraRow의 nameData도 날짜 반영해서 추가 (홍유주/김지은/서다영 같은 케이스)
+      // extraRow nameData 추가 (날짜 정보 있는 케이스: 홍유주/김지은/서다영 등)
       const extraRowObjs = [];
       const extraRowSeenNames = new Set(allObjs.map(o=>o.name));
       (allSettings[dept]?.extraRows||[]).forEach(row => {
+        // type 없음이고 dateData도 없으면 단순 표기용 행 → 제외
+        if ((!row.type || row.type === '없음') && !(row.dateData?.length)) return;
         if ((row.disabledQi||[]).includes(qi)) return;
         const rowDateData = row.dateData || [];
         (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => {
