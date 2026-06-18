@@ -10373,12 +10373,17 @@ function getMypageFundMembers(org, year, mode) {
 
       const dateDataList = (allSettings[dept]?.dateData || []);
 
-      // extraRow nameData 추가 (날짜 정보 있는 케이스: 홍유주/김지은/서다영 등)
+      // extraRow nameData 추가
       const extraRowObjs = [];
       const extraRowSeenNames = new Set(allObjs.map(o=>o.name));
       (allSettings[dept]?.extraRows||[]).forEach(row => {
-        // type 없음이고 dateData도 없으면 단순 표기용 행 → 제외
-        if ((!row.type || row.type === '없음') && !(row.dateData?.length)) return;
+        if (!row.type || row.type === '없음') {
+          // type 없음: orgNames가 settings에 존재하거나 dateData가 있는 경우만 포함
+          const orgName = (row.orgNames||[]).find(n=>n);
+          const orgExists = orgName && !!allSettings[orgName];
+          const hasDateData = !!(row.dateData?.length);
+          if (!orgExists && !hasDateData) return;
+        }
         if ((row.disabledQi||[]).includes(qi)) return;
         const rowDateData = row.dateData || [];
         (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => {
@@ -10487,7 +10492,12 @@ function getMypageFundMembers(org, year, mode) {
           }
           // extraRows는 cd disabledQi 무관하게 row별로 체크
           (cdS.extraRows||[]).forEach(row => {
-            if (!row.type || row.type === '없음') return;
+            if (!row.type || row.type === '없음') {
+              const orgName = (row.orgNames||[]).find(n=>n);
+              const orgExists = orgName && !!allSettings[orgName];
+              const hasDateData = !!(row.dateData?.length);
+              if (!orgExists && !hasDateData) return;
+            }
             if ((row.disabledQi||[]).includes(qi)) return;
             const hn = (row.headNames||[])[qi];
             if (hn) addMemberForce(hn);
@@ -10497,7 +10507,12 @@ function getMypageFundMembers(org, year, mode) {
 
         // 본부 자체 extraRows headNames + nameData
         (s.extraRows||[]).forEach(row => {
-          if (!row.type || row.type === '없음') return;
+          if (!row.type || row.type === '없음') {
+            const orgName = (row.orgNames||[]).find(n=>n);
+            const orgExists = orgName && !!allSettings[orgName];
+            const hasDateData = !!(row.dateData?.length);
+            if (!orgExists && !hasDateData) return;
+          }
           if ((row.disabledQi||[]).includes(qi)) return;
           const hn = (row.headNames||[])[qi];
           if (hn) addMemberForce(hn);
