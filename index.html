@@ -10328,11 +10328,12 @@ function getMypageFundMembers(org, year, mode) {
       // 1) 이 dept 팀원 (부서장 제외)
       let objs = getQNamesForDept(dept, qi).filter(o => o.name !== headName);
 
-      // 2) 본부 타입이면 산하 모든 부서/팀 수집 (3단계 재귀)
-      if (!objs.length) {
-        const childDepts2 = getAllChildDepts(dept);
+      // 2) 항상 산하 모든 부서/팀 수집 (3단계 재귀)
+      const childDepts2 = getAllChildDepts(dept);
+      if (childDepts2.length > 0) {
         const merged = [];
-        const seenNames = new Set();
+        const seenNames = new Set(objs.map(o=>o.name));
+        objs.forEach(o => merged.push(o));
         childDepts2.forEach(cd => {
           // 각 하위 부서/팀의 부서장/팀장 추가
           const cdEmpList = employees.filter(e => e.dept===cd);
