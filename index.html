@@ -10433,12 +10433,21 @@ function getMypageFundMembers(org, year, mode) {
       const childDepts = getAllChildDepts(dept);
 
       const addMember = (name) => {
+        if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
         if (countedNames.has(name)) return;
         countedNames.add(name);
+        const emp = employees.find(e => e.name===name);
+        const m = emp ? getEmpMonthsInQuarter(emp, year, qs, qe) : 3;
+        if (m > 0) memberMap[name][qi] = 50000;
+      };
+
+      const addMemberForce = (name) => {
+        // countedNames 무시하고 qi별 금액 설정 (extraRow 인원용)
         if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
         const emp = employees.find(e => e.name===name);
         const m = emp ? getEmpMonthsInQuarter(emp, year, qs, qe) : 3;
         if (m > 0) memberMap[name][qi] = 50000;
+        countedNames.add(name);
       };
 
       if (childDepts.length > 0) {
@@ -10476,8 +10485,8 @@ function getMypageFundMembers(org, year, mode) {
           (cdS.extraRows||[]).forEach(row => {
             if ((row.disabledQi||[]).includes(qi)) return;
             const hn = (row.headNames||[])[qi];
-            if (hn) addMember(hn);
-            (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => addMember(d.name));
+            if (hn) addMemberForce(hn);
+            (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => addMemberForce(d.name));
           });
         });
 
@@ -10485,8 +10494,8 @@ function getMypageFundMembers(org, year, mode) {
         (s.extraRows||[]).forEach(row => {
           if ((row.disabledQi||[]).includes(qi)) return;
           const hn = (row.headNames||[])[qi];
-          if (hn) addMember(hn);
-          (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => addMember(d.name));
+          if (hn) addMemberForce(hn);
+          (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => addMemberForce(d.name));
         });
 
         // extra 인원 (buseojang 타입)
