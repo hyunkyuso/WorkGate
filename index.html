@@ -7785,14 +7785,16 @@ function getNameData(dept, qi, rowIdx, col) {
 }
 function getDateData(dept, qi, rowIdx, col) {
   const dateData = ((deptFundSettings[dept]||{}).dateData||[]);
-  // col 위치의 이름으로 먼저 찾기
+  // 해당 col 위치 이름 확인
   const qNames = window._lastQNames?.[dept]?.[qi];
   const nameAtCol = qNames ? (qNames[rowIdx*4+col]?.name || '') : '';
+  // name 필드 있는 dateData: 이름으로 매칭
   if (nameAtCol) {
-    const byName = dateData.find(d=>d.qi===qi&&d.name===nameAtCol);
+    const byName = dateData.find(d=>d.qi===qi&&d.name&&d.name===nameAtCol);
     if (byName) return byName;
   }
-  return dateData.find(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
+  // name 필드 없는 dateData: rowIdx+col로 매칭
+  return dateData.find(d=>d.qi===qi&&!d.name&&d.rowIdx===rowIdx&&d.col===col);
 }
 function getDateNote(dept, qi, rowIdx, col) {
   const d = getDateData(dept, qi, rowIdx, col);
