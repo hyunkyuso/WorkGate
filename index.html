@@ -10387,10 +10387,16 @@ function getMypageFundMembers(org, year, mode) {
       deptChildDepts.add(dept);
       (allSettings[dept]?.extraRows||[]).forEach(row => {
         if ((row.disabledQi||[]).includes(qi)) return;
-        // orgNames가 departments에 없고 dateData도 없으면 폐지된 조직 → 제외
         const orgName = (row.orgNames||[]).find(n=>n);
         const hasDateData = !!(row.dateData?.length);
-        if (orgName && !departments.find(d=>d.name===orgName) && !hasDateData) return;
+        const orgInDepts = orgName && !!departments.find(d=>d.name===orgName);
+        // orgNames가 departments에 없고 dateData도 없으면 제외
+        if (orgName && !orgInDepts && !hasDateData) return;
+        // orgNames가 departments에 없고 dateData 있어도 dept에 산하팀 없으면 제외 (박종서 케이스)
+        if (orgName && !orgInDepts && hasDateData) {
+          const deptHasChildren = getAllChildDepts(dept).length > 0;
+          if (!deptHasChildren) return;
+        }
         const rowDateData = row.dateData || [];
         if (!row.type || row.type === '없음') {
           const hasDateData = !!(row.dateData?.length);
