@@ -5745,7 +5745,7 @@ function openAmtModal(cell) {
           <input id="amt-memo" placeholder="메모 (툴팁에 표시)" style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;font-size:13px;outline:none">
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button onclick="document.getElementById('amt-modal').remove()" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">닫기</button>
+          <button onclick="document.getElementById('amt-modal').remove();if(document.getElementById('page-mypage')?.classList.contains('active')){const k=window._mypageCurrentEmpKey;if(k)renderMypageDeptFundYear(k.name,k.id);}else{_renderDeptFund();}" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:13px">닫기</button>
           <button onclick="addExtra('${dept}',${qi},'${type}')" style="padding:6px 14px;border-radius:8px;border:none;background:var(--ac);color:#fff;cursor:pointer;font-size:13px;font-weight:600">추가</button>
         </div>
       </div>
@@ -5762,14 +5762,23 @@ async function addExtra(dept, qi, type) {
   if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
   if (!deptFundSettings[dept].extra) deptFundSettings[dept].extra = [];
   deptFundSettings[dept].extra.push({qi, type, name, memo});
-  document.getElementById('amt-modal').remove();
-  await saveDeptFundSettings();
-  if (document.getElementById('page-mypage')?.classList.contains('active')) {
-    const empKey = window._mypageCurrentEmpKey;
-    if (empKey) renderMypageDeptFundYear(empKey.name, empKey.id);
-  } else {
-    _renderDeptFund();
+  // 입력 초기화
+  document.getElementById('amt-name').value = '';
+  document.getElementById('amt-memo').value = '';
+  // 모달 목록 업데이트
+  const listEl = document.getElementById('amt-extra-list');
+  if (listEl) {
+    const unitAmt = type === 'teamjang' ? 40000 : 50000;
+    const extras = deptFundSettings[dept].extra.filter(e=>e.qi===qi && e.type===type);
+    listEl.innerHTML = extras.map((e,i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9">
+        <span style="flex:1;font-size:13px">${e.name}</span>
+        <span style="font-size:11px;color:#64748b;flex:1">${e.memo||''}</span>
+        <span style="font-size:12px;font-weight:600">${unitAmt.toLocaleString()}원</span>
+        <button onclick="removeExtra('${dept}',${qi},'${type}',${i})" style="padding:2px 8px;border-radius:6px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:11px">삭제</button>
+      </div>`).join('') || '<div style="color:#94a3b8;font-size:12px;padding:8px 0">추가된 인원 없음</div>';
   }
+  saveDeptFundSettings();
 }
 
 async function removeExtra(dept, qi, type, idx) {
@@ -5777,14 +5786,20 @@ async function removeExtra(dept, qi, type, idx) {
   const item = list[idx];
   const allIdx = deptFundSettings[dept].extra.indexOf(item);
   if (allIdx > -1) deptFundSettings[dept].extra.splice(allIdx, 1);
-  document.getElementById('amt-modal').remove();
-  await saveDeptFundSettings();
-  if (document.getElementById('page-mypage')?.classList.contains('active')) {
-    const empKey = window._mypageCurrentEmpKey;
-    if (empKey) renderMypageDeptFundYear(empKey.name, empKey.id);
-  } else {
-    _renderDeptFund();
+  // 모달 목록 업데이트
+  const listEl = document.getElementById('amt-extra-list');
+  if (listEl) {
+    const unitAmt = type === 'teamjang' ? 40000 : 50000;
+    const extras = deptFundSettings[dept].extra.filter(e=>e.qi===qi && e.type===type);
+    listEl.innerHTML = extras.map((e,i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9">
+        <span style="flex:1;font-size:13px">${e.name}</span>
+        <span style="font-size:11px;color:#64748b;flex:1">${e.memo||''}</span>
+        <span style="font-size:12px;font-weight:600">${unitAmt.toLocaleString()}원</span>
+        <button onclick="removeExtra('${dept}',${qi},'${type}',${i})" style="padding:2px 8px;border-radius:6px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer;font-size:11px">삭제</button>
+      </div>`).join('') || '<div style="color:#94a3b8;font-size:12px;padding:8px 0">추가된 인원 없음</div>';
   }
+  saveDeptFundSettings();
 }
 
 async function saveDeptFundSettings() {
@@ -9900,13 +9915,17 @@ async function renderMypageDeptFundYear(empName, empId) {
 
   // 해당 직원이 대표자인 조직 찾기 (조직별 운영비 요약의 findOrgHead 로직과 동일)
   const settingsDocId = year === new Date().getFullYear() ? 'deptfund_settings' : `deptfund_settings_${year}`;
-  // Firebase에서 직접 로드 (캐시는 부서장운영비 탭 기준이라 type이 없을 수 있음)
+  // 메모리의 deptFundSettings 우선 사용, 없으면 Firebase 로드
   let settings = {};
-  try {
-    const doc = await firebase.firestore().collection('settings').doc(settingsDocId).get();
-    settings = doc.data() || {};
-  } catch(e) {
-    settings = window._deptFundSettingsCache || {};
+  if (deptFundSettings && Object.keys(deptFundSettings).length > 0) {
+    settings = deptFundSettings;
+  } else {
+    try {
+      const doc = await firebase.firestore().collection('settings').doc(settingsDocId).get();
+      settings = doc.data() || {};
+    } catch(e) {
+      settings = window._deptFundSettingsCache || {};
+    }
   }
   window._mypageAllSettings = settings;
 
@@ -9917,6 +9936,9 @@ async function renderMypageDeptFundYear(empName, empId) {
   const findHeadForDept = (dept, s) => {
     const nd = (s[dept]?.nameData||[]).find(d => d.acting && d.name);
     if (nd) return nd.name;
+    // nameData에 해당 직원이 있는지 확인
+    const inNameData = (s[dept]?.nameData||[]).find(d => d.name === empName && !d.hidden);
+    if (inNameData) return empName;
     // uid가 있으면 uid로 비교
     const head = employees.find(e => e.dept===dept && (
       (e.title||'').includes('팀장')||(e.title||'').includes('부서장')||
@@ -10972,5 +10994,5 @@ if (!state.kpis.length) {
 })();
 </script>
 </body>
-</html> 
+</html>
  
