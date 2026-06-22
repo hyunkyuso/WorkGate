@@ -10320,11 +10320,15 @@ function getMypageFundMembers(org, year, mode) {
       objs.push({ name: nd.name, isEmp: false });
     });
 
-    // 전체 정렬: 직책자 → 직위순 → 입사순
+    // 전체 정렬: 직책자/대행 → 직위순 → 입사순
     objs.sort((a, b) => {
       const empA = employees.find(e => e.name === a.name);
       const empB = employees.find(e => e.name === b.name);
-      const ta = TITLE_ORD_M[(empA?.title)||''] ?? 99, tb = TITLE_ORD_M[(empB?.title)||''] ?? 99;
+      // acting 여부 체크
+      const isActingA = nameDataList.some(d => d.qi===qi && d.name===a.name && d.acting);
+      const isActingB = nameDataList.some(d => d.qi===qi && d.name===b.name && d.acting);
+      const ta = isActingA ? 0 : (TITLE_ORD_M[(empA?.title)||''] ?? 99);
+      const tb = isActingB ? 0 : (TITLE_ORD_M[(empB?.title)||''] ?? 99);
       if (ta !== tb) return ta - tb;
       const pa = POS_ORD_M[(empA?.position)||''] ?? 99, pb = POS_ORD_M[(empB?.position)||''] ?? 99;
       if (pa !== pb) return pa - pb;
@@ -10749,14 +10753,16 @@ async function saveFundUsage(orgKey, period, rowIdx, year, mode) {
 
   const usageDocId = `deptfund_usage_${year}`;
   try {
-    const doc = await firebase.firestore().collection('settings').doc(usageDocId).get();
-    const usageData = doc.data() || {};
+    // 캐시 우선, 없으면 Firebase 로드
+    window._mypageUsageCache = window._mypageUsageCache || {};
+    if (!window._mypageUsageCache[year]) {
+      const doc = await firebase.firestore().collection('settings').doc(usageDocId).get();
+      window._mypageUsageCache[year] = doc.data() || {};
+    }
+    const usageData = window._mypageUsageCache[year];
     if (!usageData[orgKey]) usageData[orgKey] = {};
     if (!usageData[orgKey][period]) usageData[orgKey][period] = [];
     usageData[orgKey][period][rowIdx] = {date, memo, amt};
-    // usageData 캐시 저장
-    window._mypageUsageCache = window._mypageUsageCache || {};
-    window._mypageUsageCache[year] = usageData;
     // 화면 먼저 업데이트
     document.getElementById('fund-usage-modal')?.remove();
     showToast('✅ 저장되었습니다');
@@ -10773,14 +10779,15 @@ async function saveFundUsage(orgKey, period, rowIdx, year, mode) {
 async function deleteFundUsage(orgKey, period, rowIdx, year, mode) {
   const usageDocId = `deptfund_usage_${year}`;
   try {
-    const doc = await firebase.firestore().collection('settings').doc(usageDocId).get();
-    const usageData = doc.data() || {};
+    window._mypageUsageCache = window._mypageUsageCache || {};
+    if (!window._mypageUsageCache[year]) {
+      const doc = await firebase.firestore().collection('settings').doc(usageDocId).get();
+      window._mypageUsageCache[year] = doc.data() || {};
+    }
+    const usageData = window._mypageUsageCache[year];
     if (usageData[orgKey]?.[period]) {
       usageData[orgKey][period].splice(rowIdx, 1);
     }
-    // usageData 캐시 저장
-    window._mypageUsageCache = window._mypageUsageCache || {};
-    window._mypageUsageCache[year] = usageData;
     // 화면 먼저 업데이트
     document.getElementById('fund-usage-modal')?.remove();
     showToast('🗑️ 삭제되었습니다');
