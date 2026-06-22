@@ -10320,6 +10320,17 @@ function getMypageFundMembers(org, year, mode) {
       objs.push({ name: nd.name, isEmp: false });
     });
 
+    // 전체 정렬: 직책자 → 직위순 → 입사순
+    objs.sort((a, b) => {
+      const empA = employees.find(e => e.name === a.name);
+      const empB = employees.find(e => e.name === b.name);
+      const ta = TITLE_ORD_M[(empA?.title)||''] ?? 99, tb = TITLE_ORD_M[(empB?.title)||''] ?? 99;
+      if (ta !== tb) return ta - tb;
+      const pa = POS_ORD_M[(empA?.position)||''] ?? 99, pb = POS_ORD_M[(empB?.position)||''] ?? 99;
+      if (pa !== pb) return pa - pb;
+      const da = empA?.joindate||'9999', db2 = empB?.joindate||'9999';
+      return da < db2 ? -1 : da > db2 ? 1 : 0;
+    });
     return objs;
   };
 
