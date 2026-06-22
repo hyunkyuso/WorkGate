@@ -5762,14 +5762,16 @@ function addExtra(dept, qi, type) {
   if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
   if (!deptFundSettings[dept].extra) deptFundSettings[dept].extra = [];
   deptFundSettings[dept].extra.push({qi, type, name, memo});
-  saveDeptFundSettings();
   document.getElementById('amt-modal').remove();
+  // 렌더링 먼저
   if (document.getElementById('page-mypage')?.classList.contains('active')) {
     const empKey = window._mypageCurrentEmpKey;
     if (empKey) renderMypageDeptFundYear(empKey.name, empKey.id);
   } else {
     _renderDeptFund();
   }
+  // 저장은 백그라운드
+  saveDeptFundSettings();
 }
 
 function removeExtra(dept, qi, type, idx) {
@@ -5777,14 +5779,16 @@ function removeExtra(dept, qi, type, idx) {
   const item = list[idx];
   const allIdx = deptFundSettings[dept].extra.indexOf(item);
   if (allIdx > -1) deptFundSettings[dept].extra.splice(allIdx, 1);
-  saveDeptFundSettings();
   document.getElementById('amt-modal').remove();
+  // 렌더링 먼저
   if (document.getElementById('page-mypage')?.classList.contains('active')) {
     const empKey = window._mypageCurrentEmpKey;
     if (empKey) renderMypageDeptFundYear(empKey.name, empKey.id);
   } else {
     _renderDeptFund();
   }
+  // 저장은 백그라운드
+  saveDeptFundSettings();
 }
 
 async function saveDeptFundSettings() {
