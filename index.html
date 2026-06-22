@@ -5755,7 +5755,7 @@ function openAmtModal(cell) {
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); }); modal.addEventListener('dblclick', e => e.stopPropagation());
 }
 
-function addExtra(dept, qi, type) {
+async function addExtra(dept, qi, type) {
   const name = document.getElementById('amt-name').value.trim();
   const memo = document.getElementById('amt-memo').value.trim();
   if (!name) { alert('이름을 입력하세요'); return; }
@@ -5763,7 +5763,7 @@ function addExtra(dept, qi, type) {
   if (!deptFundSettings[dept].extra) deptFundSettings[dept].extra = [];
   deptFundSettings[dept].extra.push({qi, type, name, memo});
   document.getElementById('amt-modal').remove();
-  saveDeptFundSettings();
+  await saveDeptFundSettings();
   if (document.getElementById('page-mypage')?.classList.contains('active')) {
     const empKey = window._mypageCurrentEmpKey;
     if (empKey) renderMypageDeptFundYear(empKey.name, empKey.id);
@@ -5772,13 +5772,13 @@ function addExtra(dept, qi, type) {
   }
 }
 
-function removeExtra(dept, qi, type, idx) {
+async function removeExtra(dept, qi, type, idx) {
   const list = deptFundSettings[dept].extra.filter(e=>e.qi===qi && e.type===type);
   const item = list[idx];
   const allIdx = deptFundSettings[dept].extra.indexOf(item);
   if (allIdx > -1) deptFundSettings[dept].extra.splice(allIdx, 1);
   document.getElementById('amt-modal').remove();
-  saveDeptFundSettings();
+  await saveDeptFundSettings();
   if (document.getElementById('page-mypage')?.classList.contains('active')) {
     const empKey = window._mypageCurrentEmpKey;
     if (empKey) renderMypageDeptFundYear(empKey.name, empKey.id);
@@ -9902,16 +9902,11 @@ async function renderMypageDeptFundYear(empName, empId) {
   const settingsDocId = year === new Date().getFullYear() ? 'deptfund_settings' : `deptfund_settings_${year}`;
   // Firebase에서 직접 로드 (캐시는 부서장운영비 탭 기준이라 type이 없을 수 있음)
   let settings = {};
-  const curYear = new Date().getFullYear();
-  if (year === curYear && deptFundSettings && Object.keys(deptFundSettings).length > 0) {
-    settings = deptFundSettings;
-  } else {
-    try {
-      const doc = await firebase.firestore().collection('settings').doc(settingsDocId).get();
-      settings = doc.data() || {};
-    } catch(e) {
-      settings = window._deptFundSettingsCache || {};
-    }
+  try {
+    const doc = await firebase.firestore().collection('settings').doc(settingsDocId).get();
+    settings = doc.data() || {};
+  } catch(e) {
+    settings = window._deptFundSettingsCache || {};
   }
   window._mypageAllSettings = settings;
 
@@ -10977,5 +10972,5 @@ if (!state.kpis.length) {
 })();
 </script>
 </body>
-</html> 
+</html>
  
