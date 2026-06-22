@@ -610,7 +610,7 @@ select.form-input{cursor:pointer}
             </div>
           </div>
         </div>
-        <div id="mypage-content" style="max-width:1200px"></div>
+        <div id="mypage-content" style="max-width:700px"></div>
       </div>
 
       <div id="page-parentbirthday" class="page">
@@ -666,13 +666,14 @@ select.form-input{cursor:pointer}
             <select id="deptfund-year" onchange="renderDeptFund()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
               <option value="2026" selected>2026년</option><option value="2027">2027년</option><option value="2028">2028년</option><option value="2029">2029년</option><option value="2030">2030년</option>
             </select>
-            <button id="deptfund-regen-btn" onclick="createNextYearSettings()" style="display:none;padding:6px 12px;border-radius:8px;border:1px solid #6366f1;color:#6366f1;background:#fff;cursor:pointer;font-size:13px;font-weight:600">🔄 차년도 데이터 갱신</button>
-            <button onclick="toggleDeptFundSummary()" id="deptfund-summary-btn" style="padding:6px 12px;border-radius:8px;border:1px solid #3b82f6;color:#3b82f6;background:#fff;cursor:pointer;font-size:13px;font-weight:600">📊 조회</button>
             <button onclick="exportDeptFundExcel()" style="padding:6px 12px;border-radius:8px;border:1px solid #217346;color:#217346;background:#fff;cursor:pointer;font-size:13px;font-weight:600">📊 Excel</button>
           </div>
         </div>
-
-        <div id="deptfund-content" style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 160px);padding:8px">
+        <div style="padding:8px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+          <span style="font-size:12px;color:#856404">⚠️ 이름 데이터가 이상하게 보이면 정리 버튼을 클릭하세요</span>
+          <button onclick="cleanupNameData()" style="padding:4px 12px;background:#ffc107;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600">데이터 정리</button>
+        </div>
+        <div id="deptfund-content" style="overflow-x:auto;padding:8px">
           <p style="color:#94a3b8">로딩 중...</p>
         </div>
       </div>
@@ -3102,7 +3103,7 @@ function renderOrgView() {
       h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
       h+='</div>';
       h+='<div style="margin-top:4px;text-align:center;white-space:nowrap;overflow:hidden;width:'+BW+'px">';
-      h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+((e.position==='대표이사')?'CEO':(e.position?e.position+' ':' '))+'</span>';
+      h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+(e.position?e.position+' ':'')+'</span>';
       h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+e.name+'</span>';
       h+='</div>';
       h+='</div>';
@@ -5161,13 +5162,12 @@ function getBonbu(emp) {
   const bonbuMap = [
     { bonbu:'SW영업본부',       keywords:['도시계획 SW영업부','도시계획 SW영업팀','도시계획 SW영업','GIS SW영업부','GIS SW영업팀','GIS SW영업'] },
     { bonbu:'도시계획사업본부', keywords:['도시계획사업','도시계획사업1팀','도시계획사업2팀'] },
-    { bonbu:'AI GIS 연구본부',  keywords:['AI GIS 연구','GIS연구','연구1팀','연구2팀','연구1부','연구2부','R&D기획부','R&D기획팀','R&D기획','SW지원','기술서비스팀'] },
+    { bonbu:'AI GIS 연구본부',  keywords:['AI GIS 연구','GIS연구','연구1팀','연구2팀','연구1부','연구2부','R&D기획부','R&D기획팀','R&D기획','SW지원'] },
     { bonbu:'GIS사업본부',      keywords:['GIS사업','GIS1부','GIS2부'] },
     { bonbu:'AI전략기획본부',   keywords:['AI전략기획','AI기획','디자인팀','디자인'] },
     { bonbu:'글로벌사업본부',   keywords:['글로벌사업','해외사업','해외기획'] },
     { bonbu:'글로벌기획본부',   keywords:['글로벌기획','글로벌전략기획'] },
     { bonbu:'SW기술연구소',     keywords:['SW기술','소프트웨어','응용개발','제품개발'] },
-    { bonbu:'플랫폼개발본부',   keywords:['플랫폼개발1팀','플랫폼개발2팀','플랫폼개발','품질기획팀'] },
     { bonbu:'SW영업본부',       keywords:['SW영업'] },
     { bonbu:'경영관리본부',     keywords:['경영관리','인사총무','재무회계','경영지원','수석전문위원','인사'] },
   ];
@@ -5682,26 +5682,12 @@ const DEPTFUND_SETTINGS_KEY = 'deptfund_settings';
 let deptFundSettings = {}; // { deptId: { mode: 'buseojang'|'teamjang'|'both' } }
 
 let deptFundSettingsLoaded = false;
-let deptFundSettingsLoadedYear = null;
-
-function getDeptFundSettingsKey(year) {
-  const baseYear = new Date().getFullYear();
-  // 기준연도(현재연도)는 기존 키 사용, 이후 연도는 연도별 키
-  const curYear = parseInt(document.getElementById('deptfund-year')?.value || baseYear);
-  // 2026년이 기본 키
-  if (!year) year = curYear;
-  return year <= 2026 ? DEPTFUND_SETTINGS_KEY : DEPTFUND_SETTINGS_KEY + '_' + year;
-}
-
 async function loadDeptFundSettings(force=false) {
-  const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
-  if (deptFundSettingsLoaded && !force && deptFundSettingsLoadedYear === year) return;
+  if (deptFundSettingsLoaded && !force) return;
   try {
-    const key = getDeptFundSettingsKey(year);
-    const snap = await db.collection('settings').doc(key).get();
+    const snap = await db.collection('settings').doc(DEPTFUND_SETTINGS_KEY).get();
     deptFundSettings = snap.exists ? snap.data() : {};
     deptFundSettingsLoaded = true;
-    deptFundSettingsLoadedYear = year;
   } catch(e) { console.error('loadDeptFundSettings error:', e); }
 }
 
@@ -5779,115 +5765,8 @@ function removeExtra(dept, qi, type, idx) {
 
 async function saveDeptFundSettings() {
   try {
-    const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
-    const key = getDeptFundSettingsKey(year);
-    await db.collection('settings').doc(key).set(deptFundSettings);
+    await db.collection('settings').doc(DEPTFUND_SETTINGS_KEY).set(deptFundSettings);
   } catch(e) { console.error(e); }
-}
-
-// 차년도 Q4 기준 데이터 생성
-async function createNextYearSettings() {
-  const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
-  const prevYear = year - 1;
-  const hasData = Object.keys(deptFundSettings).length > 0;
-  const msg = hasData
-    ? prevYear + '년 Q4 기준으로 ' + year + '년 데이터를 재생성합니다.\n기존 ' + year + '년 데이터가 덮어씌워집니다. 계속할까요?'
-    : prevYear + '년 Q4 데이터를 기준으로 ' + year + '년 데이터를 생성합니다. 계속할까요?';
-  if (!confirm(msg)) return;
-
-  // 전년도 settings 로드
-  const prevKey = getDeptFundSettingsKey(prevYear);
-  const snap = await db.collection('settings').doc(prevKey).get();
-  const prevSettings = snap.exists ? snap.data() : {};
-
-  if (!Object.keys(prevSettings).length) {
-    alert(prevYear + '년 데이터가 없습니다.');
-    return;
-  }
-
-  const newSettings = {};
-  const QI_PREV = 3; // Q4 = index 3
-
-  Object.entries(prevSettings).forEach(([dept, s]) => {
-    const dq = s.disabledQi || [];
-    // Q4가 미사용이면 이 부서 전체 제외
-    if (dq.includes(QI_PREV)) return;
-
-    const ns = {};
-    // type, buseojang, teamjang 복사 (빈 문자열 포함)
-    // 본부 settings: type이 없으면 '본부장'이 기본값
-    const isBonbu = Object.keys(window._depts||{}).some(d => getBonbu({dept:d}) === dept && d === dept);
-    ns.type = s.type !== undefined && s.type !== '' ? s.type : (isBonbu ? '본부장' : '');
-    ns.buseojang = s.buseojang !== undefined ? s.buseojang : false;
-    ns.teamjang = s.teamjang !== undefined ? s.teamjang : false;
-    // disabledQi 초기화 (새해엔 미사용 없음)
-    ns.disabledQi = [];
-    // extra 초기화
-    ns.extra = [];
-    // deptDisplayNames: Q4 값을 Q1~Q4 전체로 복사
-    if (s.deptDisplayNames) {
-      const q4Name = s.deptDisplayNames[QI_PREV] || s.deptDisplayNames['3'] || '';
-      if (q4Name && q4Name !== '__HIDDEN__') {
-        ns.deptDisplayNames = {0: q4Name, 1: q4Name, 2: q4Name, 3: q4Name};
-      } else {
-        ns.deptDisplayNames = {};
-      }
-    }
-    // nameData: Q4(qi=3) 항목을 Q1~Q4(qi=0~3)로 복사, hidden 제외
-    const prevNameData = (s.nameData || []).filter(d => d.qi === QI_PREV && d.name && !d.hidden);
-    ns.nameData = [0,1,2,3].flatMap(qi => prevNameData.map(d => ({...d, qi})));
-    // dateData 초기화
-    ns.dateData = [];
-    // hiddenDates 초기화
-    ns.hiddenDates = [];
-    // extraRows: Q4 미사용 제외하고 복사, disabledQi 초기화
-    const prevExtraRows = (s.extraRows || []).filter(row => !(row.disabledQi || []).includes(QI_PREV));
-    ns.extraRows = prevExtraRows.map(row => {
-      const nr = {...row};
-      nr.disabledQi = [];
-      nr.exDisabledQi = [];
-      // orgNames: Q4 값을 전체 분기로 복사
-      const q4Org = (row.orgNames || [])[QI_PREV] || (row.orgNames || [])[0] || '';
-      nr.orgNames = [q4Org, q4Org, q4Org, q4Org];
-      const q4TeamOrg = (row.teamOrgNames || [])[QI_PREV] || (row.teamOrgNames || [])[0] || '';
-      nr.teamOrgNames = [q4TeamOrg, q4TeamOrg, q4TeamOrg, q4TeamOrg];
-      // headNames: Q4 값을 전체 분기로 복사
-      const q4Head = (row.headNames || [])[QI_PREV] || '';
-      nr.headNames = [q4Head, q4Head, q4Head, q4Head];
-      // nameData: Q4 항목을 전체 분기로 복사, hidden 제외
-      const rPrevNd = (row.nameData || []).filter(d => d.qi === QI_PREV && d.name && !d.hidden);
-      nr.nameData = [0,1,2,3].flatMap(qi => rPrevNd.map(d => ({...d, qi})));
-      nr.dateData = [];
-      return nr;
-    });
-
-    newSettings[dept] = ns;
-  });
-
-  // 2026 settings에 없지만 employees 기반으로 존재하는 본부/부서도 기본값으로 추가
-  const allDepts = [...new Set(employees.map(e=>e.dept).filter(Boolean))];
-  allDepts.forEach(dept => {
-    if (newSettings[dept]) return; // 이미 있으면 skip
-    const prevS = prevSettings[dept];
-    if (!prevS) return; // 전년도에도 없으면 skip
-    const dq = prevS.disabledQi || [];
-    if (dq.includes(QI_PREV)) return;
-    newSettings[dept] = {
-      type: prevS.type !== undefined ? prevS.type : '',
-      buseojang: prevS.buseojang !== undefined ? prevS.buseojang : false,
-      teamjang: prevS.teamjang !== undefined ? prevS.teamjang : false,
-      disabledQi: [], extra: [], deptDisplayNames: {}, nameData: [], dateData: [], hiddenDates: [], extraRows: []
-    };
-  });
-
-  // 저장
-  const newKey = getDeptFundSettingsKey(year);
-  await db.collection('settings').doc(newKey).set(newSettings);
-  deptFundSettings = newSettings;
-  deptFundSettingsLoaded = true;
-  deptFundSettingsLoadedYear = year;
-  alert(year + '년 데이터가 생성되었습니다!');
-  _renderDeptFund();
 }
 
 function renderDeptFund() {
@@ -5898,12 +5777,28 @@ function renderDeptFund() {
     setTimeout(renderDeptFund, 500);
     return;
   }
-  // 재생성 버튼 표시/숨김
-  const yearVal = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
-  const regenBtn = document.getElementById('deptfund-regen-btn');
-  if (regenBtn) regenBtn.style.display = yearVal > 2026 ? '' : 'none';
-  deptFundSettingsLoaded = false;
   loadDeptFundSettings().then(() => _renderDeptFund());
+}
+
+
+// ── nameData 정리 (중복/빈이름 제거) ──
+function cleanupNameData() {
+  let changed = false;
+  Object.keys(deptFundSettings).forEach(dept => {
+    if (!deptFundSettings[dept].nameData) return;
+    const before = deptFundSettings[dept].nameData.length;
+    // name 없는 항목, col/rowIdx 있는 구 버전 항목 제거
+    // name 없거나 구버전(col 필드 있는 것) 제거
+    deptFundSettings[dept].nameData = deptFundSettings[dept].nameData.filter(d => d.name && d.name.trim() && d.col === undefined);
+    if (deptFundSettings[dept].nameData.length !== before) changed = true;
+  });
+  if (changed) {
+    saveDeptFundSettings();
+    alert('데이터 정리 완료! 페이지를 새로고침합니다.');
+    location.reload();
+  } else {
+    alert('정리할 데이터가 없습니다.');
+  }
 }
 
 
@@ -5916,23 +5811,13 @@ function _renderDeptFund() {
     deptFundSettings[dept].nameData = deptFundSettings[dept].nameData.filter(d=>d.name&&d.name.trim());
   });
   const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
-  // 차년도 데이터 없으면 생성 버튼 표시
-  const baseYear = 2026;
-  if (year > baseYear && Object.keys(deptFundSettings).length === 0) {
-    container.innerHTML = `<div style="padding:40px;text-align:center">
-      <div style="font-size:15px;font-weight:600;color:#374151;margin-bottom:8px">${year}년 데이터가 없습니다</div>
-      <div style="font-size:13px;color:#6b7280;margin-bottom:20px">${year-1}년 Q4 데이터를 기준으로 생성할 수 있습니다</div>
-      <button onclick="createNextYearSettings()" style="padding:10px 24px;background:var(--ac);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">📋 ${year-1}년 Q4 기준으로 ${year}년 생성</button>
-    </div>`;
-    return;
-  }
   // 전체 4분기 (1~3월은 대기로 '-' 표시)
   const quarters = [[0,2],[3,5],[6,8],[9,11]];
   const qLabels = ['01월~03월','04월~06월','07월~09월','10월~12월'];
   const Q1_PENDING = true; // 1~3월 대기
   const colSpan = 10; // 소속x4 + 금액x4 + 합계 + 구분 + 비고
 
-const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계부", "글로벌사업본부", "해외사업부", "해외사업팀", "글로벌기획본부", "AI전략기획본부", "AI기획팀", "디자인팀", "AI GIS 연구본부", "SW지원부", "SW지원팀", "기술서비스팀", "AI GIS 연구부", "연구1팀", "연구2팀", "R&D기획부", "R&D기획팀", "SW기술연구소", "응용개발연구부", "제품개발연구부", "플랫폼개발본부", "플랫폼개발1팀", "플랫폼개발2팀", "품질기획팀", "SW영업본부", "GIS SW영업부", "GIS SW영업팀", "도시계획 SW영업부", "도시계획 SW영업팀", "GIS사업본부", "GIS사업1부", "GIS1부 사업1팀", "GIS1부 사업2팀", "GIS사업2부", "GIS2부 사업팀", "도시계획사업본부", "도시계획사업부", "도시계획사업1팀", "도시계획사업2팀"];
+const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계부", "글로벌사업본부", "해외사업부", "해외사업팀", "글로벌기획본부", "AI전략기획본부", "AI기획팀", "디자인팀", "AI GIS 연구본부", "SW지원부", "SW지원팀", "AI GIS 연구부", "연구1팀", "연구2팀", "R&D기획부", "R&D기획팀", "SW기술연구소", "응용개발연구부", "제품개발연구부", "SW영업본부", "GIS SW영업부", "GIS SW영업팀", "도시계획 SW영업부", "도시계획 SW영업팀", "GIS사업본부", "GIS사업1부", "GIS1부 사업1팀", "GIS1부 사업2팀", "GIS사업2부", "GIS2부 사업팀", "도시계획사업본부", "도시계획사업부", "도시계획사업1팀", "도시계획사업2팀"];
   const getDeptSortOrder = (name) => {
     if (!name) return 9999;
     let idx = FIXED_DEPT_ORDER.indexOf(name);
@@ -5998,8 +5883,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
   const BG_DEPT_HEADER = '#bbf7d0'; // 소속 들어간 줄: 더 옅은 초록
   const BG_TEAM_AMT = '#dbeafe';  // 팀장 금액 행: 옅은 파랑
   const BG_HEAD  = '#f1f5f9';    // 헤더
-  const thStyle = `border:${BORDER};padding:5px 8px;text-align:center;background:${BG_HEAD};font-size:11px;white-space:nowrap;position:sticky;top:0;z-index:2;`;
-  const tdStyle = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;position:relative;`;
+  const thStyle = `border:${BORDER};padding:5px 8px;text-align:center;background:${BG_HEAD};font-size:11px;white-space:nowrap;`;
+  const tdStyle = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;height:28px;`;
   const nameTd  = `border:${BORDER};padding:4px 6px;text-align:center;font-size:11px;`;
   const th = (v, s='') => `<th style="${thStyle}${s}">${v}</th>`;
   const td = (v, s='') => `<td style="${tdStyle}${s}">${v}</td>`;
@@ -6052,7 +5937,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
 
     // 분기별 금액 계산 (Q1=대기)
     const bonbuSetting = deptFundSettings[bonbu] || {type:'본부장'};
-    const bonbuIsNone = !bonbuSetting.type || bonbuSetting.type === '' || bonbuSetting.type === '없음';
+    const bonbuIsNone = bonbuSetting.type === '' || bonbuSetting.type === '없음';
     const bonbuExtraList = (deptFundSettings[bonbu]||{}).extra || [];
     // 겸직으로 이 본부의 본부장인 사람 (전체 직원에서 탐색)
     const bonbuHeadConc = employees.find(e=>
@@ -6060,48 +5945,24 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     );
     // 주소속 본부장
     const bonbuHeadMain = allEmpInBonbu.find(e=>(e.title||'').includes('본부장'));
-    // 겸직 본부장은 주소속이 다른 본부인 경우 제외 (단, 정도유아이티/대표이사 등 본부 외 소속은 허용)
-    const bonbuHeadConcMainBonbu = bonbuHeadConc ? getBonbu({dept: bonbuHeadConc.dept}) : null;
-    const bonbuHeadConcFiltered = bonbuHeadConc && bonbuHeadConcMainBonbu && bonbuHeadConcMainBonbu !== bonbu && bonbuHeadConcMainBonbu !== bonbuHeadConc.dept ? null : bonbuHeadConc;
+    // 겸직 본부장은 주소속 본부에서만 계산 (다른 본부에서는 제외)
+    const bonbuHeadConcFiltered = bonbuHeadConc && bonbuHeadConc.dept !== bonbu ? null : bonbuHeadConc;
     const bonbuHead = bonbuHeadConcFiltered || bonbuHeadMain;
     const hdDataBonbu = ((deptFundSettings[bonbu]||{}).nameData||[]).find(d=>d.rowIdx===-1);
     const headName = hdDataBonbu&&hdDataBonbu.name ? hdDataBonbu.name+(hdDataBonbu.acting?` (${hdDataBonbu.acting})`:'') : (bonbuHead ? bonbuHead.name : '');
     const bonbuNameDataList = (deptFundSettings[bonbu]||{}).nameData || [];
     const bonbuIsTeamjang = (bonbuSetting.type||'').includes('팀장');
-    const bonbuIsBuseojang = (bonbuSetting.type||'').includes('부서장') || (bonbuSetting.type||'').includes('본부장');
-    const bonbuDisabledQi = (deptFundSettings[bonbu]||{}).disabledQi || [];
+    const bonbuIsBuseojang = (bonbuSetting.type||'').includes('부서장');
     // 팀장 타입 본부 금액 계산 함수 (부서 렌더링 후 _lastQNames 채워진 뒤 호출)
     if (!window._bonbuTeamjangCalcs) window._bonbuTeamjangCalcs = {};
     const calcBonbuTeamjangAmts = () => quarters.map(([qs,qe],qi) => {
       let t=0;
-      const countedNames = new Set();
-      // 본부 extraRows 중 type=없음이지만 nameData가 있는 경우 포함
-      const bonbuExtraRowsSetting2 = (deptFundSettings[bonbu]||{}).extraRows||[];
-      bonbuExtraRowsSetting2.forEach(function(row) {
-        const rDq = [...new Set([...(row.disabledQi||[]), ...bonbuDisabledQi])];
-        if (rDq.includes(qi)) return;
-        const rNd = row.nameData||[];
-        const rDd = row.dateData||[];
-        rNd.filter(function(d){return d.qi===qi&&d.name&&!d.hidden;}).forEach(function(d){
-          if(countedNames.has(d.name)) return;
-          countedNames.add(d.name);
-          const dd = rDd.find(function(x){return x.qi===qi&&x.col===d.col;});
-          let months = qe-qs+1;
-          if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
-          const emp=employees.find(function(e){return e.name===d.name;});
-          if(emp) months=Math.min(months,getEmpMonthsInQuarter(emp,year,qs,qe));
-          t += months*40000;
-        });
-      });
       deptNames.forEach(d => {
-        const dDq = (deptFundSettings[d]||{}).disabledQi||[];
-        if (dDq.includes(qi)) return;
         const dQNames = window._lastQNames&&window._lastQNames[d]&&window._lastQNames[d][qi]||[];
         const dDateData = (deptFundSettings[d]||{}).dateData||[];
         const dEmpList = depts[d]||[];
         dQNames.forEach((obj,colIdx) => {
-          if(!obj||!obj.name||countedNames.has(obj.name)) return;
-          countedNames.add(obj.name);
+          if(!obj||!obj.name) return;
           let months = qe-qs+1;
           const dd = dDateData.find(d=>d.qi===qi&&d.name===obj.name)||dDateData.find(d=>d.qi===qi&&d.col===colIdx);
           if(dd&&dd.fullDate){const dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
@@ -6126,34 +5987,27 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (bonbuHead && getEmpMonthsInQuarter(bonbuHead,year,qs,qe)>0) {
         countedNames.add(bonbuHead.name); t += 50000;
       }
-      deptNames.filter(dk=>!dk.includes('수석전문위원')&&!dk.includes('베트남')&&dk!==bonbu).forEach(dk => {
+      deptNames.filter(dk=>!dk.includes('수석전문위원')&&!dk.includes('베트남')).forEach(dk => {
         const dkDisabledQi = (deptFundSettings[dk]||{}).disabledQi||[];
-        // 부서장칸 + 이름칸: 부서 자체 disabledQi로 skip
-        if (!dkDisabledQi.includes(qi)) {
-          const dkEmpList = depts[dk]||[];
-          const dkHead = dkEmpList.find(e=>
-            (e.dept===dk||(e.concurrent||[]).some(c=>c.dept===dk&&((c.title||'').includes('부서장')||(c.title||'').includes('부장')))) &&
-            ((e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장')||(e.concurrent||[]).some(c=>c.dept===dk&&((c.title||'').includes('부서장')||(c.title||'').includes('부장'))))
-          );
-          // 겸직 본부장(bonbuHead)이 부서장칸에 잡혀 중복 계산되지 않도록 제외
-          const dkHeadIsBonbuHead = bonbuHead && dkHead && dkHead.name === bonbuHead.name;
-          if (dkHead && !dkHeadIsBonbuHead && !countedNames.has(dkHead.name) && getEmpMonthsInQuarter(dkHead,year,qs,qe)>0) {
-            countedNames.add(dkHead.name); t += 50000;
-          }
-          // 이름칸 (_lastQNames 없으면 employees에서 직접 계산 - SW스타일 하위팀 등)
-          let qn = (window._lastQNames&&window._lastQNames[dk]&&window._lastQNames[dk][qi])||[];
-          if (!qn.length) {
-            qn = employees.filter(e=>e.dept===dk&&getEmpMonthsInQuarter(e,year,qs,qe)>0).map(e=>({name:e.name,isEmp:true}));
-          }
-          qn.forEach(obj => {
-            if (!obj||!obj.name||countedNames.has(obj.name)) return;
-            countedNames.add(obj.name); t += 50000;
-          });
+        if (dkDisabledQi.includes(qi)) return;
+        // 부서장칸
+        const dkEmpList = depts[dk]||[];
+        const dkHead = dkEmpList.find(e=>
+          (e.dept===dk||(e.concurrent||[]).some(c=>c.dept===dk&&((c.title||'').includes('부서장')||(c.title||'').includes('부장')))) &&
+          ((e.title||'').includes('부서장')||(e.title||'').includes('부장')||(e.title||'').includes('실장')||(e.concurrent||[]).some(c=>c.dept===dk&&((c.title||'').includes('부서장')||(c.title||'').includes('부장'))))
+        );
+        if (dkHead && !countedNames.has(dkHead.name) && getEmpMonthsInQuarter(dkHead,year,qs,qe)>0) {
+          countedNames.add(dkHead.name); t += 50000;
         }
-        // extraRows: 부서 disabledQi와 무관하게 row 자체 disabledQi로만 판단
+        // 이름칸
+        const qn = (window._lastQNames&&window._lastQNames[dk]&&window._lastQNames[dk][qi])||[];
+        qn.forEach(obj => {
+          if (!obj||!obj.name||countedNames.has(obj.name)) return;
+          countedNames.add(obj.name); t += 50000;
+        });
+        // extraRows headNames + nameData
         ((deptFundSettings[dk]||{}).extraRows||[]).forEach(row => {
-          const rowDq = [...(row.exDisabledQi||[]), ...(row.disabledQi||[])];
-          if (rowDq.includes(qi)) return;
+          if ((row.exDisabledQi||[]).includes(qi)) return;
           const hn = (row.headNames||[])[qi];
           if (hn && !countedNames.has(hn)) { countedNames.add(hn); t += 50000; }
           (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(d => {
@@ -6162,52 +6016,16 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         });
       });
       bonbuExtraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t+=50000; });
-      // 본부 자체 extraRows (기술서비스팀, 품질기획팀 등 추가 줄) headNames + nameData 합산
-      const bonbuExtraRowsList = (deptFundSettings[bonbu]||{}).extraRows||[];
-      bonbuExtraRowsList.forEach(function(row) {
-        const rowDq = row.disabledQi||[];
-        if (rowDq.includes(qi)) return;
-        const rowType = row.type||'없음';
-        const hn = (row.headNames||[])[qi];
-        if (hn && !countedNames.has(hn)) { countedNames.add(hn); t += 50000; }
-        (row.nameData||[]).filter(function(d){return d.qi===qi&&d.name&&!d.hidden;}).forEach(function(d) {
-          if (!countedNames.has(d.name)) { countedNames.add(d.name); t += 50000; }
-        });
-      });
       return t || null;
     });
-    if (!bonbuIsTeamjang && !bonbuIsNone) {
-      window._bonbuAmtCalcs[bonbu] = calcBonbuAmts;
-      if (!window._deptFundMemberCache) window._deptFundMemberCache = {};
-      window._deptFundMemberCache[bonbu] = () => {
-        const cache = {type:'본부장', qiMembers:{}};
-        [0,1,2,3].forEach(qi => {
-          const countedNames = new Set();
-          const members = [];
-          const qn = (window._lastQNames&&window._lastQNames[bonbu]&&window._lastQNames[bonbu][qi])||[];
-          qn.forEach(obj => {
-            if (!obj||!obj.name||countedNames.has(obj.name)) return;
-            countedNames.add(obj.name);
-            const emp = employees.find(e=>e.name===obj.name);
-            const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 3;
-            members.push({name:obj.name, amt:m*50000});
-          });
-          // employees에서 직접 (본부 소속)
-          employees.filter(e=>e.dept===bonbu).forEach(e=>{
-            if(countedNames.has(e.name)) return;
-            countedNames.add(e.name);
-            const m = getEmpMonthsInQuarter(e,year,qi*3,qi*3+2);
-            if(m>0) members.push({name:e.name, amt:m*50000});
-          });
-          cache.qiMembers[qi] = members;
-        });
-        return cache;
-      };
-    }
+    if (!bonbuIsTeamjang && !bonbuIsNone) window._bonbuAmtCalcs[bonbu] = calcBonbuAmts;
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
 
+
     // ── 본부장 테이블 ──
-    const bonbuTypeLabel = bonbuIsNone ? '' : ((deptFundSettings[bonbu]||{}).type || '본부장');    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
+    const bonbuTypeLabel = bonbuIsNone ? '' : ((deptFundSettings[bonbu]||{}).type || '본부장');
+    const bonbuDisabledQi = (deptFundSettings[bonbu]||{}).disabledQi || [];
+    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
         ${[0,1,2,3].map(qi2 => bonbuDisabledQi.includes(qi2)
@@ -6216,7 +6034,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             ? `<td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${bonbu}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getBonbuDisplayName(bonbu,0)}</td><td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="0" data-type="buseojang" data-bonbu-teamjang="${bonbuIsTeamjang?bonbu:''}" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[0]===null?'-':fmtMoney(qAmts[0])}${((bonbuExtraList||[]).some(e=>e.qi==0&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`
             : `<td colspan="3" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${bonbu}",${qi2})'>${getBonbuDisplayName(bonbu,qi2)}</td><td style="${tdStyle}text-align:right;font-weight:600;border-right:1px solid #90a4ae" data-dept="${bonbu}" data-qi="${qi2}" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(bonbuExtraList||[]).filter(e=>e.qi==qi2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${qAmts[qi2]===null?'-':fmtMoney(qAmts[qi2])}${((bonbuExtraList||[]).some(e=>e.qi==qi2&&e.type==='buseojang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`)
         ).join('')}
-        <td data-bonbu-total="${bonbu}" style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">계</td>
+        <td style="${tdStyle}font-weight:700;background:${BG_BONBU};color:${BG_BONBU_TEXT};text-align:center">계</td>
         <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;vertical-align:middle;font-weight:700;background:#fff" ondblclick="openDeptFundTypeModal('${bonbu.replace(/'/g,"\'")}',this)">${bonbuTypeLabel}</td>
       </tr>
       <tr>
@@ -6224,9 +6042,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ? ''
           : `<td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${bonbu}","bonbuHead")'>${headName}</td>`
         ).join('')}
-        <td data-bonbu-total-amt="${bonbu}" style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
+        <td style="${tdStyle}text-align:right;font-weight:700">${fmtMoney(bonbuTotal)}</td>
       </tr>
-      </tbody></table><div style="height:24px"></div>`;
+      </tbody></table>`;
     // 본부 extraRows
     const bonbuExtraRowsSetting = (deptFundSettings[bonbu]||{}).extraRows||[];
     if (bonbuExtraRowsSetting.length) {
@@ -6234,8 +6052,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const tS2 = 'border:'+B2+';padding:4px 6px;text-align:center;font-size:11px;height:28px;position:relative;';
       const nameNsE2 = 'border:'+B2+';padding:4px 6px;text-align:center;font-size:11px;height:28px;';
       const bonbuEnc = encodeURIComponent(bonbu);
+      html += '<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed"><colgroup>' + colgroup.replace(/<colgroup>|<\/colgroup>/g,'') + '</colgroup><tbody>';
       bonbuExtraRowsSetting.forEach(function(row, ri) {
-        html += '<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed"><colgroup>' + colgroup.replace(/<colgroup>|<\/colgroup>/g,'') + '</colgroup><tbody>';
         const cols = row.cols||['team','name','date'];
         const rowTypes = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return cols.includes(k);});
         const rowTypeLabel = row.type||'없음';
@@ -6247,24 +6065,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const teamOrgNames2 = row.teamOrgNames||['','','',''];
         const ndList = row.nameData||[];
         const ddList = row.dateData||[];
-        const hasDeptCol2 = rowTypes.includes('dept');
         const rowAmts = quarters.map(function(qArr,qi2){
           const qs=qArr[0],qe=qArr[1];
           if(rowTypeLabel==='없음'||exDisabledQi.includes(qi2)) return null;
           let t=0;
-          // headNames 포함 (dept 포함 조합)
-          if (hasDeptCol2) {
-            const hn = hNames2[qi2];
-            if (hn) {
-              const emp = employees.find(function(e){return e.name===hn;});
-              if (isTeamjang) {
-                const m = emp ? getEmpMonthsInQuarter(emp,year,qs,qe) : 3;
-                t += m * 40000;
-              } else if (isBuseojang) {
-                t += 50000;
-              }
-            }
-          }
           [0,1,2,3].forEach(function(ci){
             const nd=ndList.find(function(d){return d.qi===qi2&&d.col===ci;});
             if(!nd||!nd.name) return;
@@ -6295,10 +6099,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             const bg2=BG_DEPT_HEADER;
             html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellOrg2(qi2);const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(orgNames[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">-</td>';}).join('')+'<td style="'+tS2+'background:'+BG_DEPT_HEADER+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='bonbujang'||colType==='deptjang'){
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';const hT2=(row.headTitles||[])[qi2];const hA2=(row.headActing||[])[qi2];const hD2=hNames2[qi2]?(hNames2[qi2]+(hT2?' <span style="color:#3b82f6;font-weight:500">('+hT2+')</span>':'')+(hA2?' <span style="color:#3b82f6;font-size:10px">('+hA2+')</span>':'')):'';return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadModal(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+hD2+'</td>';}).join('')+'<td style="'+tS2+'text-align:right;font-weight:700">'+(isTeamjang?'-':rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';const hT2=(row.headTitles||[])[qi2];const hA2=(row.headActing||[])[qi2];const hD2=hNames2[qi2]?(hNames2[qi2]+(hT2?' <span style="color:#3b82f6;font-weight:500">('+hT2+')</span>':'')+(hA2?' <span style="color:#3b82f6;font-size:10px">('+hA2+')</span>':'')):'';return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadModal(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+hD2+'</td>';}).join('')+'<td style="'+tS2+'text-align:right;font-weight:700">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
           } else if(colType==='team'){
             const bg2=BG_TEAM_AMT;
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellTeam2(qi2);const amt=(isTeamjang||isBuseojang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';const qAttr=(isTeamjang||isBuseojang)?' data-extra-buseojang-qi="'+bonbu+'-'+ri+'-'+qi2+'"':'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraTeamOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(teamOrgNames2[qi2]||'')+'</td><td'+qAttr+' style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellTeam2(qi2);const amt=isTeamjang&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraTeamOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(teamOrgNames2[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='name'){
             const hasOrgAbove2 = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
             const totalRowspan2 = hasDate2 ? 2 : 1;
@@ -6308,85 +6112,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                 return'<td colspan="4" rowspan="'+totalRowspan2+'" style="'+nameNsE2+'background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreExtraDisabled(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')"></td>';
               }
               return[0,1,2,3].map(function(ci){const nd=ndList.find(function(d){return d.qi===qi2&&d.col===ci;});const br=ci===3?'border-right:1px solid #90a4ae;':'';const disp=nd&&nd.name?nd.name+(nd.title?' <span style="color:#3b82f6;font-weight:500">('+nd.title+')</span>':'')+(nd.acting?' <span style="color:#3b82f6;font-size:10px">('+nd.acting+')</span>':''):'';return'<td style="'+nameNsE2+br+'cursor:pointer" data-dept="'+bonbu+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraNameCell(this)">'+disp+'</td>';}).join('');
-            }).join('')+'<td '+(isTeamjang||isBuseojang?'data-extra-buseojang-rowtotal="'+bonbu+'-'+ri+'" ':'')+' rowspan="'+totalRowspan2+'" style="'+nameNsE2+'text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
+            }).join('')+'<td rowspan="'+totalRowspan2+'" style="'+nameNsE2+'text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
           } else if(colType==='date'){
             const allDisabled2=[0,1,2,3].every(function(qi2){return exDisabledQi.includes(qi2);});
             if(allDisabled2) return;
             html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';return[0,1,2,3].map(function(ci){const dd=ddList.find(function(d){return d.qi===qi2&&d.col===ci;});const br=ci===3?'border-right:1px solid #90a4ae;':'';const cc=dd&&dd.date?'<span style="color:'+(dd.type==='join'||dd.type==='from'?'#3b82f6':'#ef4444')+';font-size:10px">'+dd.date+' '+(typeMap2[dd.type]||dd.type)+'</span>':'';return'<td style="'+nameNsE2+br+'cursor:pointer" data-dept="'+bonbu+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraDateCell(this)">'+cc+'</td>';}).join('');}).join('')+(hasName2?'':'<td style="'+nameNsE2+'"></td>')+noteTd2+'</tr>';
           }
         });
-        html += '</tbody></table><div style="height:24px"></div>';
-        // 렌더링 후 재계산 등록 (_lastQNames 채워진 뒤 호출)
-        if (!window._extraBuseojangCalcs) window._extraBuseojangCalcs = {};
-        const bonbuRowKey = bonbu+'-'+ri;
-        const bonbuRowOrgNames = row.orgNames||[row.name||'',row.name||'',row.name||'',row.name||''];
-        const bonbuRowTeamOrgNames = row.teamOrgNames||['','','',''];
-        const bonbuRowNdList = ndList;
-        const bonbuRowDdList = ddList;
-        const bonbuRowIsTeamjang = isTeamjang;
-        const bonbuRowIsBuseojang = isBuseojang;
-        const bonbuRowDisabledQi = exDisabledQi;
-        window._extraBuseojangCalcs[bonbuRowKey] = (function(rOrgNames, rTeamOrgNames, rNdList, rDdList, rIsTeamjang, rIsBuseojang, rDisabledQi, rHeadNames, rCols) {
-          return function() {
-            const allVals = rOrgNames.concat(rTeamOrgNames).filter(function(n){return n;});
-            const fallback = allVals[0]||'';
-            const effOrg = rOrgNames.map(function(n){return n||fallback;});
-            const effTeam = rTeamOrgNames.map(function(n){return n||fallback;});
-            return quarters.map(function(qArr, qi2) {
-              var qs=qArr[0], qe=qArr[1];
-              if (rDisabledQi.includes(qi2)) return null;
-              var t = 0;
-              var countedNames = new Set();
-              // headNames (부서장) 포함
-              var hasDeptCol = rCols.includes('dept');
-              if (hasDeptCol) {
-                var rawHn = rHeadNames[qi2];
-                var fallbackHn = rHeadNames.find(function(n){return n;})||'';
-                var hn = rawHn || fallbackHn;
-                if (hn && !countedNames.has(hn)) {
-                  countedNames.add(hn);
-                  if (rIsTeamjang) {
-                    var hEmp = employees.find(function(e){return e.name===hn;});
-                    var hm = hEmp ? getEmpMonthsInQuarter(hEmp,year,qs,qe) : (qe-qs+1);
-                    t += hm*40000;
-                  } else { t += 50000; }
-                }
-              }
-              // nameData 기반
-              rNdList.filter(function(d){return d.qi===qi2&&d.col!==undefined&&d.name;}).forEach(function(d){
-                if(countedNames.has(d.name)) return;
-                countedNames.add(d.name);
-                if (rIsTeamjang) {
-                  var dd = rDdList.find(function(x){return x.qi===qi2&&x.col===d.col;});
-                  var months = qe-qs+1;
-                  if(dd&&dd.fullDate){var dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
-                  t += months*40000;
-                } else { t += 50000; }
-              });
-              // orgNames/teamOrgNames 팀의 _lastQNames 포함
-              var allOrgs = effOrg.concat(effTeam).filter(function(n){return n;}).filter(function(n,i,a){return a.indexOf(n)===i;});
-              allOrgs.forEach(function(orgName) {
-                var orgDq = (deptFundSettings[orgName]||{}).disabledQi||[];
-                if (orgDq.includes(qi2)) return;
-                var qn = (window._lastQNames&&window._lastQNames[orgName]&&window._lastQNames[orgName][qi2])||[];
-                if (!qn.length) {
-                  qn = employees.filter(function(e){return e.dept===orgName&&getEmpMonthsInQuarter(e,year,qs,qe)>0;}).map(function(e){return {name:e.name,isEmp:true};});
-                }
-                qn.forEach(function(obj) {
-                  if(!obj||!obj.name||countedNames.has(obj.name)) return;
-                  countedNames.add(obj.name);
-                  if (rIsTeamjang) {
-                    var emp2 = employees.find(function(e){return e.name===obj.name;});
-                    var m2 = emp2 ? getEmpMonthsInQuarter(emp2,year,qs,qe) : (qe-qs+1);
-                    t += m2*40000;
-                  } else { t += 50000; }
-                });
-              });
-              return t||null;
-            });
-          };
-        })(bonbuRowOrgNames, bonbuRowTeamOrgNames, bonbuRowNdList, bonbuRowDdList, bonbuRowIsTeamjang, bonbuRowIsBuseojang, bonbuRowDisabledQi, row.headNames||['','','',''], row.cols||[]);
       });
+      html += '</tbody></table><div style="height:12px"></div>';
     }
 
     // ── 부서별 테이블 ──
@@ -6477,7 +6211,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           else nameObjs.push(newObj);
         });
         // 일반 추가 인원 (insertBefore 없고 Firebase 직원 아닌 것 또는 hidden된 Firebase 직원 이름)
-        nameDataList.filter(d=>d.qi===qi&&d.name&&!d.insertBefore&&!d.acting&&!d.hidden&&!empNameSet.has(d.name)&&!allEmpNameSet.has(d.name)).forEach(nd => {
+        nameDataList.filter(d=>d.qi===qi&&d.name&&!d.insertBefore&&!d.acting&&!d.hidden&&!empNameSet.has(d.name)).forEach(nd => {
           const actTag = nd.acting ? '<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>' : '';
           nameObjs.push({display:nd.name+actTag, isEmp:false, name:nd.name, nd});
         });
@@ -6531,8 +6265,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         let globalNoteRendered = false;
 
         rows.forEach(function({row, ri, sourceDept}) {
-          // 각 extra row를 독립 테이블로 시작
-          result.push('<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">'+colgroup+'<tbody>');
           const cols = row.cols || ['team','name','date'];
           const rowTypes = ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(function(k){return cols.includes(k);});
           const rowTypeLabel = row.type||'없음';
@@ -6554,25 +6286,18 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             const qs = qArr[0], qe = qArr[1];
             if (rowTypeLabel==='없음' || exDisabledQi.includes(qi2)) return null;
             let t = 0;
-            // headNames 포함 (dept 포함 조합)
-            if (hasDeptCol) {
+            // deptjang headNames 포함 (dept 포함 조합, 팀장 비고)
+            if (hasDeptCol && isTeamjang) {
               const hn = hNames[qi2];
               if (hn) {
                 const emp = employees.find(function(e){return e.name===hn;});
-                if (isTeamjang) {
-                  const m = emp ? getEmpMonthsInQuarter(emp,year,qs,qe) : 3;
-                  t += m * 40000;
-                } else if (isBuseojang) {
-                  t += 50000;
-                }
+                const m = emp ? getEmpMonthsInQuarter(emp,year,qs,qe) : 3;
+                t += m * 40000;
               }
             }
-            // nameData 기반 계산
-            const countedNames = new Set();
             [0,1,2,3].forEach(function(ci) {
               const nd = ndList.find(function(d){return d.qi===qi2&&d.col===ci;});
-              if (!nd||!nd.name||countedNames.has(nd.name)) return;
-              countedNames.add(nd.name);
+              if (!nd||!nd.name) return;
               const dd = ddList.find(function(d){return d.qi===qi2&&d.col===ci;});
               if (isTeamjang) {
                 let months = qe-qs+1;
@@ -6584,25 +6309,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                 if(active) t += 50000;
               }
             });
-            // 부서장 타입: orgNames/teamOrgNames에 해당하는 팀의 _lastQNames도 포함
-            if (isBuseojang) {
-              var allVals2 = (orgNames||[]).concat(teamOrgNames||[]).filter(function(n){return n;});
-              var fallback2 = allVals2[0]||'';
-              var effOrg = (orgNames||[]).map(function(n){return n||fallback2;});
-              var effTeam = (teamOrgNames||[]).map(function(n){return n||fallback2;});
-              var allOrgNames = effOrg.concat(effTeam).filter(function(n){return n;});
-              var uniqueOrgs = allOrgNames.filter(function(n,i,a){return a.indexOf(n)===i;});
-              uniqueOrgs.forEach(function(orgName) {
-                var orgDq = (deptFundSettings[orgName]||{}).disabledQi||[];
-                if (orgDq.includes(qi2)) return;
-                var qn = (window._lastQNames&&window._lastQNames[orgName]&&window._lastQNames[orgName][qi2])||[];
-                qn.forEach(function(obj) {
-                  if (!obj||!obj.name||countedNames.has(obj.name)) return;
-                  countedNames.add(obj.name);
-                  t += 50000;
-                });
-              });
-            }
             return t||null;
           });
           const rowTotal = rowAmts.reduce(function(s,v){return s+(v||0);},0);
@@ -6638,11 +6344,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
                 if (exDisabledQi.includes(qi2)) return disabledCellOrg(qi2);
                 const btn = qi2===0 ? menuBtn : '';
-                const deptAmt = (isBuseojang||isTeamjang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';
-                const deptAmtAttr = isBuseojang&&qi2===0?' data-extra-buseojang-total="'+sourceDept+'-'+ri+'"':'';
-                const deptQAttr = isBuseojang?' data-extra-buseojang-qi="'+sourceDept+'-'+ri+'-'+qi2+'"':'';
                 return '<td colspan="3" style="'+tS+'font-weight:600;background:'+bg+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+btn+(orgNames[qi2]||'')+'</td>'+
-                  '<td'+deptQAttr+' style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+deptAmt+'</td>';
+                  '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">-</td>';
               }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">계</td>'+noteTd+'</tr>');
             } else if (colType==='bonbujang'||colType==='deptjang') {
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
@@ -6656,11 +6359,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               const bg = BG_TEAM_AMT;
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
                 if (exDisabledQi.includes(qi2)) return disabledCellTeam(qi2);
-                const teamAmt = (isTeamjang||isBuseojang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';
-                const teamQAttr = (isBuseojang||isTeamjang)?' data-extra-buseojang-qi="'+sourceDept+'-'+ri+'-'+qi2+'"':'';
+                const amt = isTeamjang && rowAmts[qi2]!==null ? rowAmts[qi2].toLocaleString() : '-';
                 const btn = qi2===0 ? menuBtn : '';
                 return '<td colspan="3" style="'+tS+'font-weight:600;background:'+bg+';cursor:pointer" ondblclick="openExtraTeamOrgEdit(decodeURIComponent(\x27'+deptEnc+'\x27),'+ri+','+qi2+')">'+btn+(teamOrgNames[qi2]||'')+'</td>'+
-                  '<td'+teamQAttr+' style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+teamAmt+'</td>';
+                  '<td style="'+tS+'background:'+bg+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';
               }).join('')+'<td style="'+tS+'background:'+bg+';text-align:center;font-weight:600">계</td>'+noteTd+'</tr>');
             } else if (colType==='name') {
               const hasOrgAbove = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
@@ -6676,7 +6378,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
                   const disp = nd&&nd.name ? nd.name+(nd.title?' <span style="color:#3b82f6;font-weight:500">('+nd.title+')</span>':'')+(nd.acting?' <span style="color:#3b82f6;font-size:10px">('+nd.acting+')</span>':'') : '';
                   return '<td style="'+nameNsE+br+'cursor:pointer" data-dept="'+dept+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-col="'+ci+'" ondblclick="openExtraNameCell(this)">'+disp+'</td>';
                 }).join('');
-              }).join('')+'<td data-extra-buseojang-rowtotal="'+sourceDept+'-'+ri+'" data-teamjang-extra-total="'+sourceDept+'-'+ri+'" rowspan="'+totalRowspan+'" style="'+nameNsE+'text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd+'</tr>');
+              }).join('')+'<td rowspan="'+totalRowspan+'" style="'+nameNsE+'text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">'+(rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd+'</tr>');
             } else if (colType==='date') {
               const hasOrgAbove = rowTypes.some(function(k){return k==='bonbu'||k==='dept'||k==='team';});
               const allDisabled = [0,1,2,3].every(function(qi2){return exDisabledQi.includes(qi2);});
@@ -6694,8 +6396,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               }).join('')+(hasName?'':'<td style="'+nameNsE+'"></td>')+noteTd+'</tr>');
             }
           });
-          // 각 extra row 독립 테이블 닫기 + 아래 여백
-          result.push('</tbody></table><div style="height:24px"></div>');
         });
         return result.join('');
       };
@@ -6750,15 +6450,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (!window._deptBuseojangCalcs) window._deptBuseojangCalcs = {};
       const calcBAmts = () => quarters.map(([qs,qe],qi) => {
         if (deptIsNone || (!isTypeBonbu && !isTypeBuseojang)) return null;
-        if (disabledQi.includes(qi)) return null;
         let t = 0;
         const countedNames = new Set();
         // 부서장칸 (deptHead)
-        // 겸직 본부장이 부서장으로도 잡히면 본부장 금액에 이미 포함됐으므로 제외
-        const deptHeadIsBonbuHead = deptHead && employees.some(e=>
-          e.name===deptHead.name && (e.title||'').includes('본부장')
-        );
-        if (deptHead && !deptHeadIsBonbuHead && !countedNames.has(deptHead.name) && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) {
+        if (deptHead && !countedNames.has(deptHead.name) && getEmpMonthsInQuarter(deptHead,year,qs,qe)>0) {
           countedNames.add(deptHead.name); t += 50000;
         }
         // 해당 부서(+하위팀) 이름칸 _lastQNames 합산
@@ -6771,172 +6466,23 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             if (!obj||!obj.name||countedNames.has(obj.name)) return;
             countedNames.add(obj.name); t += 50000;
           });
-          // 하위팀 extraRows의 nameData도 합산 (type=없음 포함, disabledQi 체크)
-          ((deptFundSettings[dk]||{}).extraRows||[]).forEach(function(row) {
-            const rowDq = row.disabledQi||[];
-            if (rowDq.includes(qi)) return;
-            (row.nameData||[]).filter(function(d){return d.qi===qi&&d.name&&!d.hidden;}).forEach(function(d) {
-              if (!countedNames.has(d.name)) { countedNames.add(d.name); t += 50000; }
-            });
-            const hn = (row.headNames||[])[qi];
-            if (hn && !countedNames.has(hn)) { countedNames.add(hn); t += 50000; }
-          });
         });
-        // extraRows headNames + nameData (본부 extraRows 중 이 dept를 orgNames로 가진 것도 포함)
+        // extraRows headNames + nameData
         const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
-        const guestExtraRowsB = [];
-        Object.keys(deptFundSettings).forEach(od => {
-          if (od===dept) return;
-          ((deptFundSettings[od]||{}).extraRows||[]).forEach(row => {
-            if ((row.orgNames||[]).some(n=>n===dept)) guestExtraRowsB.push(row);
-          });
-        });
-        [...extraRows, ...guestExtraRowsB].forEach(row => {
+        extraRows.forEach(row => {
           if ((row.exDisabledQi||[]).includes(qi)) return;
           const rt = row.type||'없음';
-          if (rt==='없음') return;
-          // nameData 포함
-          (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(d=>{ if(!countedNames.has(d.name)){countedNames.add(d.name);t+=50000;} });
-          const hn=(row.headNames||[])[qi];
-          if(hn&&!countedNames.has(hn)){countedNames.add(hn);t+=50000;}
-          // orgNames/teamOrgNames에 해당하는 팀의 _lastQNames도 포함
-          const fbAll = (row.orgNames||[]).concat(row.teamOrgNames||[]).filter(n=>n);
-          const fb = fbAll[0]||row.name||'';
-          const effOrgNames = (row.orgNames||[row.name||'',row.name||'',row.name||'',row.name||'']).map(n=>n||fb);
-          const effTeamNames = (row.teamOrgNames||['','',''  ,'']).map(n=>n||fb);
-          const allExtraOrgs = effOrgNames.concat(effTeamNames).filter(n=>n)
-            .filter((n,i,a)=>a.indexOf(n)===i);
-          allExtraOrgs.forEach(orgName => {
-            const orgDq = (deptFundSettings[orgName]||{}).disabledQi||[];
-            if (orgDq.includes(qi)) return;
-            const qn = (window._lastQNames&&window._lastQNames[orgName]&&window._lastQNames[orgName][qi])||[];
-            qn.forEach(obj => {
-              if (!obj||!obj.name||countedNames.has(obj.name)) return;
-              countedNames.add(obj.name); t+=50000;
-            });
-          });
+          const hasDept = (row.cols||[]).includes('dept');
+          if (rt==='부서장'||rt==='본부장'||(hasDept&&rt==='팀장')) {
+            (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(d=>{ if(!countedNames.has(d.name)){countedNames.add(d.name);t+=50000;} });
+            const hn=(row.headNames||[])[qi];
+            if(hn&&!countedNames.has(hn)){countedNames.add(hn);t+=50000;}
+          }
         });
         extraList.filter(e=>e.qi===qi&&e.type==='buseojang').forEach(()=>{ t+=50000; });
         return t || null;
       });
-      if ((isTypeBuseojang||isTypeBonbu) && !isTypeTeamjang) {
-        window._deptBuseojangCalcs[dept] = calcBAmts;
-        // 인원별 금액 캐시: 마이페이지용
-        if (!window._deptFundMemberCache) window._deptFundMemberCache = {};
-        window._deptFundMemberCache[dept] = () => {
-          const cache = {type:'부서장', qiMembers:{}};
-          [0,1,2,3].forEach(qi => {
-            const countedNames = new Set();
-            const members = [];
-            // _lastQNames 기반 인원
-            const qn = (window._lastQNames&&window._lastQNames[dept]&&window._lastQNames[dept][qi])||[];
-            qn.forEach(obj => {
-              if (!obj||!obj.name||countedNames.has(obj.name)) return;
-              countedNames.add(obj.name);
-              const emp = employees.find(e=>e.name===obj.name);
-              const m = emp ? getEmpMonthsInQuarter(emp,year,qi*3,qi*3+2) : 3;
-              members.push({name:obj.name, amt:m*50000});
-            });
-            // extraRows nameData/headNames
-            const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
-            const guestExtraRows = [];
-            Object.keys(deptFundSettings).forEach(od => {
-              if (od===dept) return;
-              ((deptFundSettings[od]||{}).extraRows||[]).forEach(row => {
-                if ((row.orgNames||[]).some(n=>n===dept)) guestExtraRows.push(row);
-              });
-            });
-            [...extraRows,...guestExtraRows].forEach(row => {
-              if ((row.exDisabledQi||[]).includes(qi)||(row.type||'없음')==='없음') return;
-              (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(d=>{
-                if(!countedNames.has(d.name)){countedNames.add(d.name);members.push({name:d.name,amt:50000});}
-              });
-              const hn=(row.headNames||[])[qi];
-              if(hn&&!countedNames.has(hn)){countedNames.add(hn);members.push({name:hn,amt:50000});}
-            });
-            cache.qiMembers[qi] = members;
-          });
-          return cache;
-        };
-      }
-      // extra row 부서장/팀장 타입 재계산 등록
-      if (!window._extraBuseojangCalcs) window._extraBuseojangCalcs = {};
-      ((deptFundSettings[dept]||{}).extraRows||[]).forEach(function(row, ri) {
-        const rowT = row.type||'없음';
-        if (rowT==='없음') return;
-        const key = dept+'-'+ri;
-        const rowOrgNames = (row.orgNames||[row.name||'',row.name||'',row.name||'',row.name||'']);
-        const rowTeamOrgNames = row.teamOrgNames||['','','',''];
-        window._extraBuseojangCalcs[key] = function() {
-          // orgNames/teamOrgNames 빈 분기는 전체 배열 통합에서 첫 유효값으로 fallback
-          const allVals = rowOrgNames.concat(rowTeamOrgNames).filter(function(n){return n;});
-          const fallback = allVals[0]||'';
-          const effectiveOrgNames = rowOrgNames.map(function(n){return n||fallback;});
-          const effectiveTeamOrgNames = rowTeamOrgNames.map(function(n){return n||fallback;});
-          return quarters.map(function(qArr, qi2) {
-            var qs=qArr[0], qe=qArr[1];
-            if ((row.disabledQi||[]).includes(qi2)) return null;
-            var t = 0;
-            var isExtraTeamjang = rowT==='팀장';
-            var isExtraBuseojang = rowT==='부서장'||rowT==='본부장';
-            var countedNames = new Set();
-            // headNames (부서장) 포함
-            var hasDeptCol = (row.cols||[]).includes('dept');
-            if (hasDeptCol) {
-              var rawHn = (row.headNames||[])[qi2];
-              var fallbackHn = (row.headNames||[]).find(function(n){return n;})||'';
-              var hn = rawHn || fallbackHn;
-              if (hn && !countedNames.has(hn)) {
-                countedNames.add(hn);
-                if (isExtraTeamjang) {
-                  var hEmp = employees.find(function(e){return e.name===hn;});
-                  var hm = hEmp ? getEmpMonthsInQuarter(hEmp,year,qs,qe) : (qe-qs+1);
-                  t += hm*40000;
-                } else {
-                  t += 50000;
-                }
-              }
-            }
-            // nameData 기반
-            (row.nameData||[]).filter(function(d){return d.qi===qi2&&d.name&&!d.hidden;}).forEach(function(d){
-              if (countedNames.has(d.name)) return;
-              countedNames.add(d.name);
-              if (isExtraTeamjang) {
-                var dd = (row.dateData||[]).find(function(x){return x.qi===qi2&&x.col===d.col;});
-                var months = qe-qs+1;
-                if (dd&&dd.fullDate){var dtM=new Date(dd.fullDate).getMonth();if(dd.type==='leave'||dd.type==='to')months=Math.max(0,Math.min(dtM,qe)-qs+1);else if(dd.type==='join'||dd.type==='from')months=Math.max(0,qe-Math.max(dtM,qs)+1);}
-                t += months*40000;
-              } else {
-                t += 50000;
-              }
-            });
-            // orgNames/teamOrgNames에 해당하는 팀의 _lastQNames 포함
-            var allOrgs = effectiveOrgNames.concat(effectiveTeamOrgNames).filter(function(n){return n;})
-              .filter(function(n,i,a){return a.indexOf(n)===i;});
-            allOrgs.forEach(function(orgName) {
-              var orgDq = (deptFundSettings[orgName]||{}).disabledQi||[];
-              if (orgDq.includes(qi2)) return;
-              var qn = (window._lastQNames&&window._lastQNames[orgName]&&window._lastQNames[orgName][qi2])||[];
-              // _lastQNames에 없으면 (베트남 등 skip된 부서) employees에서 직접 계산
-              if (!qn.length) {
-                qn = employees.filter(function(e){return e.dept===orgName&&getEmpMonthsInQuarter(e,year,qs,qe)>0;}).map(function(e){return {name:e.name,isEmp:true};});
-              }
-              qn.forEach(function(obj) {
-                if (!obj||!obj.name||countedNames.has(obj.name)) return;
-                countedNames.add(obj.name);
-                if (isExtraTeamjang) {
-                  var empData2 = employees.find(function(e){return e.name===obj.name;});
-                  var months2 = empData2 ? getEmpMonthsInQuarter(empData2,year,qs,qe) : (qe-qs+1);
-                  t += months2*40000;
-                } else {
-                  t += 50000;
-                }
-              });
-            });
-            return t||null;
-          });
-        };
-      });
+      if ((isTypeBuseojang||isTypeBonbu) && !isTypeTeamjang) window._deptBuseojangCalcs[dept] = calcBAmts;
       const bTotal = 0;
 
       // tAmts: _lastQNames 기반으로 재계산 (렌더링 후 업데이트)
@@ -6944,29 +6490,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       if (!window._deptTeamjangCalcs) window._deptTeamjangCalcs = {};
       const calcTAmts = () => quarters.map(([qs,qe],qi) => {
         if (deptIsNone || !isTypeTeamjang) return null;
-        if (disabledQi.includes(qi)) return null;
-        // SW스타일: 하위팀이 사용 중인 분기는 하위팀 테이블에서 처리, 미사용 분기만 초록줄에 표기
-        if (['SW지원부','GIS SW영업부'].includes(dept)) {
-          const swSub = Object.keys(deptFundSettings).find(d=>{
-            const o=departments.find(x=>x.name===d);
-            return o&&o.parent===(departments.find(x=>x.name===dept)||{}).id;
-          });
-          const swSubDq = swSub ? ((deptFundSettings[swSub]||{}).disabledQi||[]) : [];
-          if (!swSubDq.includes(qi)) return null;
-          // 미사용 분기: 부서 전체 직원(하위팀 포함) 직접 계산
-          const deptObj = departments.find(x=>x.name===dept);
-          const allSubEmps = deptObj ? employees.filter(e=>{
-            if (e.dept===dept) return true;
-            const eDeptObj = departments.find(x=>x.name===e.dept);
-            return eDeptObj && eDeptObj.parent===deptObj.id;
-          }) : employees.filter(e=>e.dept===dept);
-          let t2=0;
-          allSubEmps.forEach(e=>{
-            const m=getEmpMonthsInQuarter(e,year,qs,qe);
-            if(m>0) t2+=m*40000;
-          });
-          return t2||null;
-        }
         let t = 0;
         const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
         const deptAndSubs = [dept, ...subTeamEmps.map(e=>e.dept).filter((d,i,a)=>a.indexOf(d)===i)];
@@ -6983,7 +6506,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           qn.forEach(obj => {
             if (!obj||!obj.name||countedNames.has(obj.name)) return;
             countedNames.add(obj.name);
-            let m = qe - qs + 1;
+            const emp = employees.find(e=>e.name===obj.name);
+            let m = emp ? getEmpMonthsInQuarter(emp,year,qs,qe) : 3;
             // dateData 날짜칸 체크
             const dd = dateDataList.find(d=>d.name===obj.name&&d.qi===qi);
             if (dd&&dd.fullDate) {
@@ -6991,42 +6515,35 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               if (dd.type==='leave'||dd.type==='to') m=Math.max(0,Math.min(dtM,qe)-qs+1);
               else if (dd.type==='join'||dd.type==='from') m=Math.max(0,qe-Math.max(dtM,qs)+1);
             }
-            // Firebase 직원: getEmpMonthsInQuarter로 육아휴직/입퇴사 반영 (calcNameMonths와 동일)
-            const emp = employees.find(e=>e.name===obj.name);
-            if (emp) m = Math.min(m, getEmpMonthsInQuarter(emp,year,qs,qe));
             t += m * 40000;
           });
         });
-        // extraRows는 _extraBuseojangCalcs에서 별도 처리하므로 여기서 합산하지 않음
+        // extraRows 팀장 type
+        const extraRows = (deptFundSettings[dept]||{}).extraRows||[];
+        extraRows.forEach(row => {
+          if ((row.exDisabledQi||[]).includes(qi)) return;
+          if ((row.type||'없음')==='팀장') {
+            // 이름칸
+            (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(()=>{ t+=120000; });
+            // team 칸의 headNames (팀장)
+            const hasDept = (row.cols||[]).includes('dept');
+            const hn=(row.headNames||[])[qi];
+            if (hn) {
+              if (hasDept) {
+                // 부서+부서장+팀+이름+날짜 조합: deptjang headNames → 재직월수×4만
+                const emp = employees.find(e=>e.name===hn);
+                const m = emp ? getEmpMonthsInQuarter(emp,year,qs,qe) : 3;
+                t += m * 40000;
+              } else {
+                t += 120000;
+              }
+            }
+          }
+        });
         extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
         return t || null;
       });
-      if (isTypeTeamjang) {
-        window._deptTeamjangCalcs[dept] = calcTAmts;
-        if (!window._deptFundMemberCache) window._deptFundMemberCache = {};
-        window._deptFundMemberCache[dept] = () => {
-          const cache = {type:'팀장', qiMembers:{}};
-          [0,1,2,3].forEach(qi => {
-            const qn = (window._lastQNames&&window._lastQNames[dept]&&window._lastQNames[dept][qi])||[];
-            const members = [];
-            const countedNames = new Set();
-            qn.forEach(obj => {
-              if (!obj||!obj.name||countedNames.has(obj.name)) return;
-              countedNames.add(obj.name);
-              const emp = employees.find(e=>e.name===obj.name);
-              // 월별 금액
-              const monthAmts = {};
-              for(let mo=qi*3+1;mo<=qi*3+3;mo++){
-                const m = emp ? getEmpMonthsInQuarter(emp,year,mo-1,mo-1) : 1;
-                monthAmts[mo] = m*40000;
-              }
-              members.push({name:obj.name, monthAmts});
-            });
-            cache.qiMembers[qi] = members;
-          });
-          return cache;
-        };
-      }
+      if (isTypeTeamjang) window._deptTeamjangCalcs[dept] = calcTAmts;
       const tTotal = 0;
       // 팀 단위 조직 (부서장 없고 하위팀 없음) → 이름만 표시
       if (!deptHead && !hasSubTeams) {
@@ -7075,7 +6592,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const dateDataT = (deptFundSettings[dept]||{}).dateData||[];
           const items = calcNameMonths(qNamesT[qi], qi, dateDataT);
           let t = items.reduce((s,x)=>s+x.months*40000, 0);
-          // extraRows는 _extraBuseojangCalcs에서 별도 처리하므로 여기서 합산하지 않음
+          // extraRows 중 팀장 type
+          const extraRowsT = (deptFundSettings[dept]||{}).extraRows||[];
+          extraRowsT.forEach(row => {
+            if ((row.type||'없음')!=='팀장') return;
+            if ((row.exDisabledQi||[]).includes(qi)) return;
+            t += (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).length * 120000;
+            const hn = (row.headNames||[])[qi];
+            if (hn) t += 120000;
+          });
           extraList.filter(e=>e.qi===qi&&e.type==='teamjang').forEach(()=>{ t+=120000; });
           return t || null;
         });
@@ -7095,8 +6620,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             ${[0,1,2,3].map(qi2 => disabledQi.includes(qi2)
               ? `<td colspan="4" rowspan="${1+pairT*2}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick='confirmRestoreDisabled("${dept}",${qi2})'></td>`
               : (qi2===0
-                ? `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="teamjang">${tAmtsT[0]===null?'-':fmtMoney(tAmtsT[0])}</td>`
-                : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",${qi2})'>${getDeptDisplayName(dept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="${qi2}" data-type="teamjang">${tAmtsT[qi2]===null?'-':fmtMoney(tAmtsT[qi2])}</td>`)
+                ? `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[0]===null?'-':fmtMoney(tAmtsT[0])}</td>`
+                : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",${qi2})'>${getDeptDisplayName(dept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae">${tAmtsT[qi2]===null?'-':fmtMoney(tAmtsT[qi2])}</td>`)
             ).join('')}
             <td style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center">계</td>
             ${noteCellT}
@@ -7109,14 +6634,14 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               if (disabledQi.includes(qi2)) return '';
               return Array.from({length:4},(_,ci)=>{const n=rowByQ[qi2][ci];const obj=n?(typeof n==='object'?n:{display:n,isEmp:true}):{display:'',isEmp:false};const ndIdx=obj.name?nameDataList.findIndex(d=>d.qi===qi2&&d.name===obj.name&&!d.hidden&&(d.acting||d.insertBefore)):-1;return `<td style="${nameNsT}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi2}" data-rowidx="${ri}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;}).join('');
             }).join('')}
-            <td data-teamjang-total="${dept}" rowspan="${[0,1,2,3].filter(qi2=>!disabledQi.includes(qi2)).length>0?pairT*2:1}" style="${nameNsT}text-align:right;font-weight:600;vertical-align:middle">${ri===0?fmtMoney(tTotal):''}</td>
+            <td rowspan="${[0,1,2,3].filter(qi2=>!disabledQi.includes(qi2)).length>0?pairT*2:1}" style="${nameNsT}text-align:right;font-weight:600;vertical-align:middle">${ri===0?fmtMoney(tTotal):''}</td>
           </tr>
           ${allDisabledRow ? '' : `<tr>
             ${[0,1,2,3].map(qi2=>disabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(dept,qi2,ri,ci,nameNsT,qNamesT[qi2],nameDataList)).join('')).join('')}
           </tr>`}`;
           }).join('')}
-          </tbody></table><div style='height:24px'></div>
-          ${renderExtraRows()}`;
+          ${renderExtraRows()}
+          </tbody></table><div style='height:12px'></div>`;
         return;
       }
 
@@ -7141,15 +6666,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           ${colgroup}<tbody>
           <tr style="background:${BG_DEPT_HEADER}">
             ${sfDeptCells}
-            <td data-total-dept="${dept}" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
+            <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
             <td rowspan="2" style="${tdStyle}text-align:center;cursor:pointer;font-size:11px;font-weight:700;vertical-align:middle;background:#fff;color:#111" ondblclick='openDeptFundTypeModal("${dept}",this)'>${typeLabel}</td>
           </tr>
           <tr>
             ${sfHeadCells}
-            <td data-buseojang-total="${dept}" style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
+            <td style="${tdStyle}text-align:right;font-weight:600">${bTotal?fmtMoney(bTotal):'-'}</td>
           </tr>
-          </tbody></table><div style='height:24px'></div>
-          ${renderExtraRows()}`;
+          ${renderExtraRows()}
+          </tbody></table><div style='height:12px'></div>`;
         return;
       }
 
@@ -7239,7 +6764,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           swSubTAmts = quarters.map(([qs2,qe2],qi2)=>{
             if ((swSubSetting.type||'').includes('없음')) return null;
             if (isTypeBuseojang || isTypeBonbu) return null;
-            if (swSubDisabledQi.includes(qi2)) return null;
             const swSubDateData = (swSubSetting||{}).dateData||[];
             const items = calcNameMonths(swSubQNames[qi2], qi2, swSubDateData);
             let t = items.reduce((s,x)=>s+x.months*40000, 0);
@@ -7272,7 +6796,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       }
       // 부서칸 합산금액
       const mergedAmts = quarters.map(([qs,qe],qi)=>{
-        if (isTypeTeamjang) return null; // 팀장 비고: 초록줄 금액 표기 안함
+        if (isTypeTeamjang && !isTypeBuseojang && !isTypeBonbu) return null; // 팀장: 녹색줄 -
         if (isTypeBuseojang || isTypeBonbu) {
           // SW스타일 부서장: Firebase 직원 기준으로 직접 계산
           if (isSWStyle) {
@@ -7289,12 +6813,16 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       const mergedTotal = mergedAmts.reduce((s,v)=>s+(v||0),0);
       // dept 포함 extraRows 행 수 (비고 합치기 대상)
-      const extraRowsTrsForNote = 0; // extra row는 독립 테이블로 분리됨
+      const extraRowsTrsForNote = ((deptFundSettings[dept]||{}).extraRows||[]).reduce((s,row)=>{
+        const c = row.cols||['name','date'];
+        if (!c.includes('dept')) return s;
+        return s + ['bonbu','bonbujang','dept','deptjang','team','name','date'].filter(k=>c.includes(k)).length;
+      }, 0);
       // noteRowspan 계산 (설계 기준)
       const calcNoteRowspan = () => {
         // 파란줄(본부장): 2 → 별도 처리
-        // 초록줄(부서장) 단독, deptHead 없음: 2
-        if (isTypeBuseojang && !isTypeTeamjang && !hasSubTeams && !deptHead) return 2 + extraRowsTrsForNote;
+        // 초록줄(부서장) 일반: 2
+        if (isTypeBuseojang && !isTypeTeamjang) return 2 + extraRowsTrsForNote;
         // 하늘줄(팀장) 단독(deptHead 없음): 1+pairCount*2
         if (isTypeTeamjang && !deptHead && !hasSubTeams) return 1 + pairCount*2;
         // 예외1: 부서장 있고 팀 없음 → 초록+부서장+하늘+이름+날짜
@@ -7325,7 +6853,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               ? `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",0)'><button onclick="openDeptMenu(this.dataset.d,event)" data-d="${dept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>${getDeptDisplayName(dept,0)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="0" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==0&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[0]!==null?fmtMoney(mergedAmts[0]):'-'}</td>`
               : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${dept}",${qi2})'>${getDeptDisplayName(dept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_DEPT_HEADER};border-right:1px solid #90a4ae" data-dept="${dept}" data-qi="${qi2}" data-type="buseojang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='buseojang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${mergedAmts[qi2]!==null?fmtMoney(mergedAmts[qi2]):'-'}</td>`)
           ).join('')}
-          <td data-total-dept="${dept}" style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
+          <td style="${tdStyle}font-weight:600;background:${BG_DEPT_HEADER};text-align:center">계</td>
           ${swNoteCellHtml}
         </tr>
         <tr>
@@ -7338,7 +6866,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             const disp=nm?nm+ttl+'<span style=\'color:#3b82f6;font-weight:500\'> (부서장)</span>'+act:'';
             return `<td colspan="4" style="${tdStyle}text-align:center;border-right:1px solid #90a4ae;cursor:pointer" ondblclick='openHeadNameModal("${dept}","deptHead")'>${disp}</td>`;
           }).join('')}
-          <td data-buseojang-total="${dept}" style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&(isSWStyle?mergedTotal:bTotal)?fmtMoney(isSWStyle?mergedTotal:bTotal):'-'}</td>
+          <td style="${tdStyle}text-align:right;font-weight:600">${(isTypeBuseojang||isTypeBonbu)&&(isSWStyle?mergedTotal:bTotal)?fmtMoney(isSWStyle?mergedTotal:bTotal):'-'}</td>
         </tr>
         ${isSWStyle && swSubDept ? `
         <tr style="background:${BG_TEAM_AMT}">
@@ -7346,7 +6874,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             ? `<td colspan="4" rowspan="${1+swSubPair*2}" style="${tdStyle}background:#94a3b8;color:#fff;text-align:center;border-right:1px solid #78909c;cursor:pointer;vertical-align:middle;font-weight:700" ondblclick="confirmRestoreDisabled('${swSubDept}',${qi2})"></td>`
             : `<td colspan="3" style="${tdStyle}font-weight:600;background:${BG_TEAM_AMT};text-align:center;cursor:pointer" ondblclick='openDeptNameModal("${swSubDept}",${qi2})'>${qi2===0?`<button onclick="openDeptMenu('${swSubDept}',event)" data-d="${swSubDept}" style="float:left;padding:1px 5px;font-size:10px;border-radius:3px;border:1px solid #94a3b8;background:#f1f5f9;cursor:pointer;margin-right:4px;line-height:1.4">☰</button>`:''}${getDeptDisplayName(swSubDept,qi2)}</td><td style="${tdStyle}text-align:right;background:${BG_TEAM_AMT};border-right:1px solid #90a4ae" data-dept="${swSubDept}" data-qi="${qi2}" data-type="teamjang" ondblclick='openAmtModal(this)'>${swSubTAmts[qi2]!==null?fmtMoney(swSubTAmts[qi2]):'-'}</td>`
           ).join('')}
-          <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
+          <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;font-weight:700">${swSubTTotal?fmtMoney(swSubTTotal):'-'}</td>
         </tr>
         ${swSubNameRows.map((rowByQ,rowIdx)=>`
         <tr>
@@ -7368,7 +6896,6 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               : `<td colspan="3" style="${tdStyle}background:${BG_TEAM_AMT};font-weight:600;text-align:center">${teamHead?teamHead.name+'<span style=\'color:#3b82f6;font-weight:500\'> (팀장)</span>':''}</td><td style="${tdStyle}background:${BG_TEAM_AMT};text-align:right;border-right:1px solid #78909c" data-dept="${dept}" data-qi="${qi2}" data-type="teamjang" ondblclick='openAmtModal(this)' title="${(extraList||[]).filter(e=>e.qi==qi2&&e.type==='teamjang').map(e=>e.name+(e.memo?'('+e.memo+')':'')).join('\n')}">${isTypeTeamjang&&tAmts[qi2]!==null?fmtMoney(tAmts[qi2]):'-'}${((extraList||[]).some(e=>e.qi==qi2&&e.type==='teamjang'))?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#f59e0b;border-radius:50%;display:inline-block"></span>':''}</td>`)
           ).join('')}
           <td style="${tdStyle}background:${BG_TEAM_AMT};text-align:center;font-weight:600">계</td>
-          ${parentDept && parentDept.name && (() => { const ps = deptFundSettings[parentDept.name]||{}; return (ps.type||'').includes('부서장')||(ps.type||'').includes('본부장'); })() ? `<td rowspan="${1+pairCount*2}" style="${tdStyle}border-left:1px solid #b0bec5;background:#fff"></td>` : ''}
         </tr>
 ${nameRows.map((rowByQ, rowIdx) => `
         <tr>
@@ -7381,21 +6908,18 @@ ${nameRows.map((rowByQ, rowIdx) => `
               return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi2}" data-rowidx="${rowIdx}" data-col="${ci}" data-is-emp="${obj.isEmp?1:0}" data-nd-idx="${ndIdx}" ondblclick='openNameCell(this)'>${obj.display}</td>`;
             }).join('');
           }).join('')}
-          ${rowIdx===0 ? `<td data-teamjang-total="${dept}" rowspan="${[0,1,2,3].filter(qi2=>!disabledQi.includes(qi2)).length>0?pairCount*2:1}" style="${nameNs}text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">${isTypeTeamjang&&tTotal?fmtMoney(tTotal):''}</td>` : ''}
+          ${rowIdx===0 ? `<td rowspan="${[0,1,2,3].filter(qi2=>!disabledQi.includes(qi2)).length>0?pairCount*2:1}" style="${nameNs}text-align:right;font-weight:700;vertical-align:middle;border-left:1px solid #b0bec5">${isTypeTeamjang&&tTotal?fmtMoney(tTotal):''}</td>` : ''}
         </tr>
         ${[0,1,2,3].every(qi2=>disabledQi.includes(qi2)) ? '' : `<tr>
           ${[0,1,2,3].map(qi2=>disabledQi.includes(qi2)?'':[0,1,2,3].map(ci=>renderDateTd(dept,qi2,rowIdx,ci,nameNs,qNames[qi2],nameDataList)).join('')).join('')}
         </tr>`}`).join('')}
         `}
-        </tbody></table><div style='height:24px'></div>
-        ${renderExtraRows()}`;
+        ${renderExtraRows()}
+        </tbody></table><div style='height:12px'></div>`;
     });
   });
 
   container.innerHTML = html;
-
-  // 모든 calc 완료 후 직접 합산할 sums 초기화
-  const _finalSums = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
 
   // 팀장 타입 본부 금액 업데이트
   if (window._bonbuTeamjangCalcs) {
@@ -7406,14 +6930,14 @@ ${nameRows.map((rowByQ, rowIdx) => `
         const cell = container.querySelector(`td[data-dept="${bonbu}"][data-qi="${qi}"][data-type="buseojang"]`);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
       });
-      const bonbuTotalAmtCell = container.querySelector(`td[data-bonbu-total-amt="${bonbu}"]`);
-      if (bonbuTotalAmtCell) bonbuTotalAmtCell.textContent = total ? total.toLocaleString() : '-';
-      amts.forEach((v,qi) => { _finalSums['팀장'][qi] += (v||0); });
+      const bonbuRow = container.querySelector(`td[data-dept="${bonbu}"][data-qi="0"][data-type="buseojang"]`)?.closest('tr');
+      const nextRow = bonbuRow?.nextElementSibling;
+      if (nextRow) { const lastTd=nextRow.querySelector('td:last-child'); if(lastTd&&!lastTd.dataset.dept)lastTd.textContent=total?total.toLocaleString():'-'; }
     });
     window._bonbuTeamjangCalcs = {};
   }
 
-  // 본부장 타입 본부 금액 업데이트
+  // 본부장 타입 본부 금액 업데이트 (_lastQNames 기반)
   if (window._bonbuAmtCalcs) {
     Object.entries(window._bonbuAmtCalcs).forEach(([bonbu, calcFn]) => {
       const amts = calcFn();
@@ -7422,14 +6946,14 @@ ${nameRows.map((rowByQ, rowIdx) => `
         const cell = container.querySelector(`td[data-dept="${bonbu}"][data-qi="${qi}"][data-type="buseojang"]`);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
       });
-      const bonbuTotalAmtCell2 = container.querySelector(`td[data-bonbu-total-amt="${bonbu}"]`);
-      if (bonbuTotalAmtCell2) bonbuTotalAmtCell2.textContent = total ? total.toLocaleString() : '-';
-      amts.forEach((v,qi) => { _finalSums['본부장'][qi] += (v||0); });
+      const bonbuRow = container.querySelector(`td[data-dept="${bonbu}"][data-qi="0"][data-type="buseojang"]`)?.closest('tr');
+      const nextRow = bonbuRow?.nextElementSibling;
+      if (nextRow) { const lastTd=nextRow.querySelector('td:last-child'); if(lastTd&&!lastTd.dataset.dept)lastTd.textContent=total?total.toLocaleString():'-'; }
     });
     window._bonbuAmtCalcs = {};
   }
 
-  // 부서장 타입 부서 금액 업데이트
+  // 부서장 타입 부서 금액 업데이트 (_lastQNames 기반)
   if (window._deptBuseojangCalcs) {
     Object.entries(window._deptBuseojangCalcs).forEach(([dept, calcFn]) => {
       const amts = calcFn();
@@ -7438,312 +6962,44 @@ ${nameRows.map((rowByQ, rowIdx) => `
         const cell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
         if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
       });
-      const buseojangTotalCell = container.querySelector(`td[data-buseojang-total="${dept}"]`);
-      if (buseojangTotalCell) buseojangTotalCell.textContent = total ? total.toLocaleString() : '-';
-      amts.forEach((v,qi) => { _finalSums['부서장'][qi] += (v||0); });
+      // 합계 셀
+      const cells = container.querySelectorAll(`td[data-dept="${dept}"][data-type="buseojang"]`);
+      const firstCell = cells[0];
+      if (firstCell) {
+        const row = firstCell.closest('tr');
+        const lastTd = row?.querySelector('td:last-child');
+        if (lastTd && !lastTd.dataset.dept) lastTd.textContent = total ? total.toLocaleString() : '-';
+      }
     });
     window._deptBuseojangCalcs = {};
   }
 
-  // 팀장 타입 부서 금액 업데이트
+  // 팀장 타입 부서 금액 업데이트 (_lastQNames 기반)
   if (window._deptTeamjangCalcs) {
     Object.entries(window._deptTeamjangCalcs).forEach(([dept, calcFn]) => {
       const amts = calcFn();
       const total = amts.reduce((s,v)=>s+(v||0),0);
       [0,1,2,3].forEach(qi => {
-        const teamCell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="teamjang"]`);
-        if (teamCell) {
-          const extra=teamCell.querySelector('span');
-          teamCell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString();
-          if(extra) teamCell.appendChild(extra);
-        } else {
-          const buseoCell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
-          if (buseoCell) { const extra=buseoCell.querySelector('span'); buseoCell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra) buseoCell.appendChild(extra); }
-        }
+        // 팀장 셀 또는 부서장 셀(팀장 비고인 부서) 모두 업데이트
+        const cell = container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="teamjang"]`)
+          || container.querySelector(`td[data-dept="${dept}"][data-qi="${qi}"][data-type="buseojang"]`);
+        if (cell) { const extra=cell.querySelector('span'); cell.textContent=amts[qi]===null?'-':amts[qi].toLocaleString(); if(extra)cell.appendChild(extra); }
       });
-      const teamjangTotalCell = container.querySelector(`td[data-teamjang-total="${dept}"]`);
-      if (teamjangTotalCell) teamjangTotalCell.textContent = total ? total.toLocaleString() : '';
-      if (!teamjangTotalCell) {
-        const buseojangTotalCell = container.querySelector(`td[data-buseojang-total="${dept}"]`);
-        if (buseojangTotalCell) buseojangTotalCell.textContent = total ? total.toLocaleString() : '-';
+      // 합계 셀
+      const teamCell = container.querySelector(`td[data-dept="${dept}"][data-qi="0"][data-type="teamjang"]`)
+        || container.querySelector(`td[data-dept="${dept}"][data-qi="0"][data-type="buseojang"]`);
+      if (teamCell) {
+        const row = teamCell.closest('tr');
+        const lastTd = row?.querySelector('td:last-child');
+        if (lastTd && !lastTd.dataset.dept) lastTd.textContent = total ? total.toLocaleString() : '-';
       }
-      amts.forEach((v,qi) => { _finalSums['팀장'][qi] += (v||0); });
     });
     window._deptTeamjangCalcs = {};
   }
-
-  if (window._extraBuseojangCalcs) {
-    Object.entries(window._extraBuseojangCalcs).forEach(([key, calcFn]) => {
-      const amts = calcFn();
-      const total = amts.reduce((s,v)=>s+(v||0),0);
-      amts.forEach((amt, qi2) => {
-        const cell = container.querySelector(`td[data-extra-buseojang-qi="${key}-${qi2}"]`);
-        if (cell) cell.textContent = amt!==null ? amt.toLocaleString() : '-';
-      });
-      const totalCell = container.querySelector(`td[data-extra-buseojang-rowtotal="${key}"]`);
-      if (totalCell) totalCell.textContent = total ? total.toLocaleString() : '-';
-      // 비고 셀로 타입 판단해서 누적
-      if (totalCell) {
-        const eTr = totalCell.closest('tr');
-        const eRemark = eTr ? [...eTr.querySelectorAll('td')].find(td=>['본부장','부서장','팀장'].includes(td.textContent.trim())) : null;
-        const eType = eRemark?.textContent.trim();
-        if (eType && _finalSums[eType]) amts.forEach((v,qi) => { _finalSums[eType][qi] += (v||0); });
-      }
-    });
-    window._extraBuseojangCalcs = {};
-  }
-
-  // 직책별 금액 요약: 모든 calc 완료 후 DOM에서 읽기
-  window._deptFundSettingsCache = deptFundSettings;
-  window._deptFundFinalSums = _finalSums;
-  window._deptFundMemberCacheSnapshot = window._deptFundMemberCache || {};
-  // 조회 버튼 클릭 시에만 요약 표시 (자동 표시 안함)
-  if (window._deptFundSummaryVisible) {
-    renderDeptFundSummary(container, _finalSums);
-  }
 }
 
-function toggleDeptFundSummary() {
-  window._deptFundSummaryVisible = !window._deptFundSummaryVisible;
-  const btn = document.getElementById('deptfund-summary-btn');
-  const container = document.getElementById('deptfund-content');
-  if (window._deptFundSummaryVisible) {
-    if (btn) { btn.style.background = '#3b82f6'; btn.style.color = '#fff'; }
-    renderDeptFundSummary(container, window._deptFundFinalSums || null);
-  } else {
-    if (btn) { btn.style.background = '#fff'; btn.style.color = '#3b82f6'; }
-    const s1 = document.getElementById('deptfund-summary');
-    const s2 = document.getElementById('deptfund-org-summary');
-    if (s1) s1.remove();
-    if (s2) s2.remove();
-  }
-}
-
-function renderDeptFundSummary(container, allSums) {
-  const existing = document.getElementById('deptfund-summary');
-  if (existing) existing.remove();
-
-  const parseNum = s => parseInt((s||'').replace(/,/g,''))||0;
-  const qLabels = ['01~03월','04~06월','07~09월','10~12월'];
-  const types = ['본부장','부서장','팀장'];
-  const typeColors = {'본부장':'#dbeafe','부서장':'#bbf7d0','팀장':'#f1f5f9'};
-  const sums = {본부장:[0,0,0,0], 부서장:[0,0,0,0], 팀장:[0,0,0,0]};
-
-  // 비고 셀(본부장/부서장/팀장) 기준으로 같은 테이블의 분기별 금액 합산
-  const allTables = [...container.querySelectorAll('table')].filter(t=>!t.closest('#deptfund-summary'));
-
-  allTables.forEach(table => {
-    // 비고 셀 찾기 (이전 형제가 '계'인 것)
-    const remarkTd = [...table.querySelectorAll('td')].find(td => {
-      if (!types.includes(td.textContent.trim())) return false;
-      return td.previousElementSibling?.textContent.trim() === '계';
-    });
-    if (!remarkTd) return;
-    const typeText = remarkTd.textContent.trim();
-
-    // 분기별 금액 셀: 숫자값이 있는 셀 중 합계 셀 제외
-    const isTotal = td => td.hasAttribute('data-teamjang-total') || 
-                          td.hasAttribute('data-buseojang-total') || 
-                          td.hasAttribute('data-bonbu-total-amt') ||
-                          td.hasAttribute('data-extra-buseojang-rowtotal') ||
-                          td.hasAttribute('data-bonbu-total');
-    const allNumCells = [...table.querySelectorAll('td')].filter(td => {
-      if (td.querySelector('button')) return false;
-      if (isTotal(td)) return false;
-      const txt = td.textContent.trim().replace(/,/g,'');
-      return /^\d+$/.test(txt) && parseInt(txt) > 0;
-    });
-    // 마지막 셀이 합계이면 제외 (합계 속성 없어도 마지막 숫자 셀이 합계인 경우)
-    const amtCells = allNumCells;
-
-    // 마지막 셀이 합계이면 제외, 앞의 4개가 Q1~Q4
-    // data-qi 있는 경우만 읽기
-    const withQi = amtCells.filter(td => td.getAttribute('data-qi') !== null);
-    if (withQi.length >= 1) {
-      [0,1,2,3].forEach(qi => {
-        const cell = withQi.find(td => td.getAttribute('data-qi') === String(qi));
-        sums[typeText][qi] += parseNum(cell?.textContent);
-      });
-    } else {
-      // data-qi 없는 경우: extraRow 등 - 순서대로 Q1~Q4 (최대 4개)
-      amtCells.slice(0, 4).forEach((td, qi) => { sums[typeText][qi] += parseNum(td.textContent); });
-    }
-  });
-
-  const fmtM = v => v ? v.toLocaleString() : '-';
-  const tdS = 'border:1px solid #e2e8f0;padding:6px 12px;text-align:right;font-size:12px;';
-  const thS = 'border:1px solid #e2e8f0;padding:6px 12px;text-align:center;font-size:12px;font-weight:600;background:#f1f5f9;';
-
-  const summaryHtml = `
-  <div id="deptfund-summary" style="margin-bottom:12px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
-    <div style="padding:8px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#374151">📊 직책별 운영비 요약</div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead><tr>
-        <th style="${thS}width:80px">구분</th>
-        ${qLabels.map(q=>`<th style="${thS}">${q}</th>`).join('')}
-        <th style="${thS}">합계</th>
-      </tr></thead>
-      <tbody>
-        ${types.map(t=>{
-          const total=sums[t].reduce((s,v)=>s+v,0);
-          return `<tr>
-            <td style="${tdS}text-align:center;font-weight:600;background:${typeColors[t]}">${t}</td>
-            ${sums[t].map(v=>`<td style="${tdS}">${fmtM(v)}</td>`).join('')}
-            <td style="${tdS}font-weight:700">${fmtM(total)}</td>
-          </tr>`;
-        }).join('')}
-        <tr style="background:#f8fafc">
-          <td style="${tdS}text-align:center;font-weight:700">합계</td>
-          ${[0,1,2,3].map(qi=>`<td style="${tdS}font-weight:700">${fmtM(types.reduce((s,t)=>s+sums[t][qi],0))}</td>`).join('')}
-          <td style="${tdS}font-weight:700;color:var(--ac)">${fmtM(types.reduce((s,t)=>s+sums[t].reduce((a,b)=>a+b,0),0))}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>`;
-
-  // 조직별 대표자 요약 데이터 수집
-  const orgRows = [];
-
-  // employees에서 조직 대표자 찾기
-  const findOrgHead = (dept) => {
-    // nameData acting 대행자 우선
-    const settings = window._deptFundSettingsCache || {};
-    const nd = (settings[dept]?.nameData||[]).find(d => d.acting && d.name);
-    if (nd) return nd.name;
-    // employees title 대행자
-    const acting = employees.find(e => e.dept===dept && (e.title||'').includes('대행'));
-    if (acting) return acting.name;
-    // 팀장/부서장/본부장
-    const head = employees.find(e => e.dept===dept && (
-      (e.title||'').includes('팀장') || (e.title||'').includes('부서장') ||
-      (e.title||'').includes('본부장') || (e.title||'').includes('부장') || (e.title||'').includes('소장')
-    ));
-    if (head) return head.name;
-    // 겸직으로 해당 부서 대표자
-    const conc = employees.find(e => (e.concurrent||[]).some(c => c.dept===dept && (
-      (c.title||'').includes('팀장') || (c.title||'').includes('부서장') || (c.title||'').includes('본부장')
-    )));
-    return conc ? conc.name : '';
-  };
-
-  allTables.forEach(table => {
-    const remarkTd = [...table.querySelectorAll('td')].find(td =>
-      types.includes(td.textContent.trim()) && td.previousElementSibling?.textContent.trim() === '계'
-    );
-    if (!remarkTd) return;
-    const typeText = remarkTd.textContent.trim();
-
-    let orgName = '';
-    let headName = '';
-
-    if (typeText === '본부장') {
-      const bonbuCell = table.querySelector('td[data-bonbu-total-amt]');
-      orgName = bonbuCell?.getAttribute('data-bonbu-total-amt') || '';
-      headName = findOrgHead(orgName);
-    } else {
-      // data-teamjang-total 또는 data-buseojang-total에서 조직명
-      const totalCell = table.querySelector('td[data-teamjang-total]') || table.querySelector('td[data-buseojang-total]');
-      // 팀장 타입 본부: data-bonbu-total-amt
-      const bonbuAmtCell = table.querySelector('td[data-bonbu-total-amt]');
-      if (totalCell) {
-        orgName = totalCell.getAttribute('data-teamjang-total') || totalCell.getAttribute('data-buseojang-total') || '';
-        headName = findOrgHead(orgName);
-      } else if (bonbuAmtCell) {
-        orgName = bonbuAmtCell.getAttribute('data-bonbu-total-amt') || '';
-        headName = findOrgHead(orgName);
-      } else {
-        // extraRow: data-extra-buseojang-rowtotal
-        // extraRow: 테이블 내 data-extra-buseojang-rowtotal 셀에서 조직명
-      const extraCell = [...table.querySelectorAll('td[data-extra-buseojang-rowtotal]')].find(td => {
-        // 이 extraRow의 비고가 typeText와 일치하는지 확인 (같은 테이블이므로 그냥 사용)
-        return true;
-      });
-      if (extraCell) {
-        const key = extraCell.getAttribute('data-extra-buseojang-rowtotal');
-        const parentDept = key ? key.replace(/-[0-9]+$/, '') : '';
-        const ri = parseInt((key||'').split('-').pop())||0;
-        const settings = window._deptFundSettingsCache || {};
-        const row = (settings[parentDept]?.extraRows||[])[ri];
-        orgName = (row?.orgNames||[])[0] || (row?.teamOrgNames||[])[0] || parentDept;
-        // headNames 또는 nameData 첫번째에서 대표자 이름 읽기
-        const hn = (row?.headNames||[]).find(h=>h);
-        const nd = (row?.nameData||[]).filter(d=>d.name&&!d.hidden).sort((a,b)=>a.qi-b.qi||a.col-b.col)[0];
-        headName = hn || nd?.name || findOrgHead(orgName);
-      }
-      }
-      // employees에서 못 찾으면 DOM에서 (팀장대행)/(팀장)/(부서장) 셀
-      if (!headName) {
-        const headTd = [...table.querySelectorAll('td')].find(td =>
-          td.textContent.trim().includes('(팀장대행)') || td.textContent.trim().includes('(부서장대행)')
-        ) || [...table.querySelectorAll('td')].find(td => {
-          const txt = td.textContent.trim();
-          return txt.includes('(팀장)') || txt.includes('(부서장)') || txt.includes('(부장)');
-        });
-        headName = headTd ? headTd.textContent.trim().replace(/\(.*?\)/g,'').trim() : '';
-      }
-    }
 
 
-    // 분기별 금액
-    const isTotal2 = td => td.hasAttribute('data-teamjang-total') || td.hasAttribute('data-buseojang-total') ||
-                          td.hasAttribute('data-bonbu-total-amt') || td.hasAttribute('data-extra-buseojang-rowtotal') ||
-                          td.hasAttribute('data-bonbu-total');
-    const amtCells2 = [...table.querySelectorAll('td')].filter(td => {
-      if (td.querySelector('button') || isTotal2(td)) return false;
-      const txt = td.textContent.trim().replace(/,/g,'');
-      return /^\d+$/.test(txt) && parseInt(txt) > 0;
-    });
-    const withQi2 = amtCells2.filter(td => td.getAttribute('data-qi') !== null);
-    const qAmts = [0,0,0,0];
-    if (withQi2.length >= 1) {
-      [0,1,2,3].forEach(qi => {
-        const cell = withQi2.find(td => td.getAttribute('data-qi') === String(qi));
-        qAmts[qi] = parseNum(cell?.textContent);
-      });
-    } else {
-      amtCells2.slice(0,4).forEach((td,qi) => { qAmts[qi] = parseNum(td.textContent); });
-    }
-    const total = qAmts.reduce((s,v)=>s+v,0);
-    if (total > 0 || orgName) orgRows.push({orgName, headName, typeText, qAmts, total});
-  });
-
-  const orgTdS = 'border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;';
-  const orgThS = 'border:1px solid #e2e8f0;padding:5px 10px;text-align:center;font-size:11px;font-weight:600;background:#f1f5f9;';
-  const qLabels2 = ['1~3월','4~6월','7~9월','10~12월'];
-  const grandTotal = [0,0,0,0];
-  orgRows.forEach(r => r.qAmts.forEach((v,qi) => { grandTotal[qi] += v; }));
-  const grandSum = grandTotal.reduce((s,v)=>s+v,0);
-
-  const orgSummaryHtml = `
-  <div id="deptfund-org-summary" style="margin-top:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
-    <div style="padding:8px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#374151">📋 조직별 운영비 요약</div>
-    <table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead><tr>
-        <th style="${orgThS}">조직명</th>
-        <th style="${orgThS}">이름</th>
-        <th style="${orgThS}">구분</th>
-        ${qLabels2.map(q=>`<th style="${orgThS}">${q}</th>`).join('')}
-        <th style="${orgThS}">합계</th>
-      </tr></thead>
-      <tbody>
-        ${orgRows.map(r=>`<tr>
-          <td style="${orgTdS}">${r.orgName}</td>
-          <td style="${orgTdS}text-align:center">${r.headName}</td>
-          <td style="${orgTdS}text-align:center;background:${typeColors[r.typeText]||''}">${r.typeText}</td>
-          ${r.qAmts.map(v=>`<td style="${orgTdS}text-align:right">${fmtM(v)}</td>`).join('')}
-          <td style="${orgTdS}text-align:right;font-weight:700">${fmtM(r.total)}</td>
-        </tr>`).join('')}
-        <tr style="background:#f8fafc;font-weight:700">
-          <td style="${orgTdS}" colspan="3">합계</td>
-          ${grandTotal.map(v=>`<td style="${orgTdS}text-align:right">${fmtM(v)}</td>`).join('')}
-          <td style="${orgTdS}text-align:right;color:var(--ac)">${fmtM(grandSum)}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>`;
-
-  container.insertAdjacentHTML('afterbegin', summaryHtml + orgSummaryHtml);
-}
 
 function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
   const dd = getDateData(dept, qi, rowIdx, col);
@@ -7754,17 +7010,17 @@ function renderDateTd(dept, qi, rowIdx, col, nameNs, qNamesArr, nameDataList) {
   // hiddenDates 체크
   const hiddenDates = (deptFundSettings[dept]||{}).hiddenDates||[];
   if (hiddenDates.includes(qi+'_'+col)) return `<td style="${nameNs}text-align:center;cursor:pointer" data-dept="${dept}" data-qi="${qi}" data-rowidx="${rowIdx}" data-col="${col}" ondblclick='openDateCell(this)'></td>`;
-  // dateData 없으면 Firebase 직원 입사/퇴사 자동 표기
-  if (!dd) {
+  // dateData 없으면 Firebase 직원 입사/퇴사 자동 표기 (rowIdx=0 행에서만)
+  if (!dd && rowIdx === 0) {
     const year2 = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
     const qRanges = [[0,2],[3,5],[6,8],[9,11]];
     const [qs2,qe2] = qRanges[qi];
-    // rowIdx*4+col 위치 직원 이름
-    const nameObj = qNamesArr && qNamesArr[rowIdx*4+col];
+    // col 위치 직원 이름
+    const nameObj = qNamesArr && qNamesArr[col];
     const empName = nameObj ? (typeof nameObj==='object'?nameObj.name:String(nameObj).replace(/<[^>]*>/g,'').trim()) : null;
     if (empName) {
       // 해당 직원의 입사/퇴사일이 이 분기에 해당하는지만 체크
-      const emp = (employees||[]).find(e=>e.name===empName);
+      const emp = (employees||[]).find(e=>e.name===empName&&e.dept===dept);
       if (emp) {
         const jd=parseLocalDate(emp.joindate);
         if (jd&&jd.getFullYear()===year2&&jd.getMonth()>=qs2&&jd.getMonth()<=qe2)
@@ -7784,17 +7040,7 @@ function getNameData(dept, qi, rowIdx, col) {
   return ((deptFundSettings[dept]||{}).nameData||[]).find(d=>d.qi===qi&&d.col===col);
 }
 function getDateData(dept, qi, rowIdx, col) {
-  const dateData = ((deptFundSettings[dept]||{}).dateData||[]);
-  // 해당 col 위치 이름 확인
-  const qNames = window._lastQNames?.[dept]?.[qi];
-  const nameAtCol = qNames ? (qNames[rowIdx*4+col]?.name || '') : '';
-  // name 필드 있는 dateData: 이름으로 매칭
-  if (nameAtCol) {
-    const byName = dateData.find(d=>d.qi===qi&&d.name&&d.name===nameAtCol);
-    if (byName) return byName;
-  }
-  // name 필드 없는 dateData: rowIdx+col로 매칭
-  return dateData.find(d=>d.qi===qi&&!d.name&&d.rowIdx===rowIdx&&d.col===col);
+  return ((deptFundSettings[dept]||{}).dateData||[]).find(d=>d.qi===qi&&d.rowIdx===rowIdx&&d.col===col);
 }
 function getDateNote(dept, qi, rowIdx, col) {
   const d = getDateData(dept, qi, rowIdx, col);
@@ -8787,200 +8033,24 @@ async function exportDeptFundExcel() {
   const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('부서장운영비');
+  const border = {top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
+  const center = {horizontal:'center',vertical:'middle'};
+  const right = {horizontal:'right',vertical:'middle'};
+  const green = {type:'pattern',pattern:'solid',fgColor:{argb:'FFD9E5CC'}};
 
-  const THIN = {style:'thin', color:{argb:'FF90A4AE'}};
-  const THICK = {style:'medium', color:{argb:'FF78909C'}};
-  const border = (right, bottom) => ({
-    top:{style:'thin',color:{argb:'FFB0BEC5'}},
-    left:{style:'thin',color:{argb:'FFB0BEC5'}},
-    bottom: bottom||{style:'thin',color:{argb:'FFB0BEC5'}},
-    right: right||{style:'thin',color:{argb:'FFB0BEC5'}}
-  });
-  const thickRight = border({style:'medium',color:{argb:'FF78909C'}});
-  const center = {horizontal:'center',vertical:'middle',wrapText:false};
-  const right_align = {horizontal:'right',vertical:'middle'};
-
-  // 배경색
-  const BG_HEAD   = {type:'pattern',pattern:'solid',fgColor:{argb:'FFF1F5F9'}};
-  const BG_BONBU  = {type:'pattern',pattern:'solid',fgColor:{argb:'FF93C5FD'}};
-  const BG_DEPT   = {type:'pattern',pattern:'solid',fgColor:{argb:'FFE8EDF2'}};
-  const BG_GREEN  = {type:'pattern',pattern:'solid',fgColor:{argb:'FFBBF7D0'}};
-  const BG_BLUE   = {type:'pattern',pattern:'solid',fgColor:{argb:'FFDBEAFE'}};
-  const BG_GRAY   = {type:'pattern',pattern:'solid',fgColor:{argb:'FF94A3B8'}};
-  const BG_WHITE  = {type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFFFF'}};
-
-  // 컬럼 너비: 소속(2)+금액(2) × 4분기 + 합계 + 구분 + 비고 = 18컬럼
-  // 각 분기: 소속2col + 금액2col → 실제로 소속4col + 금액1col × 4분기
-  // 화면: colspan=2 소속, colspan=2 금액 → 엑셀: 2+2+2+2+2+2+2+2 + 합계 + 구분 + 비고 = 18col
-  const COL_W = 7;
-  ws.columns = Array.from({length:18}, (_,i) => {
-    if(i===16) return {width:13}; // 합계
-    if(i===17) return {width:7};  // 구분
-    // 소속칸(i%4===0,1): 넓게, 금액칸(i%4===2,3): 보통
-    return {width: i%4===0||i%4===1 ? 12 : 10};
-  });
-
-  // 총 열 수: 분기4 × 4col + 합계1 + 구분1 + 비고1 = 18
-  const TOTAL_COLS = 18;
-  const toCol = (n) => {
-    let s=''; let r=n;
-    while(r>0){s=String.fromCharCode(64+(r%26||26))+s;r=Math.floor((r-1)/26);}
-    return s;
-  };
-
-  // 작성일자
-  const today = new Date();
-  const dateStr = `작성일자: ${year}. ${String(today.getMonth()+1).padStart(2,'0')}. ${String(today.getDate()).padStart(2,'0')}.`;
-  ws.addRow([...Array(17).fill(''), dateStr]);
-  ws.getRow(1).getCell(18).alignment = {horizontal:'right'};
-  ws.getRow(1).height = 16;
+  ws.columns = [{width:16},{width:14},{width:14},{width:14},{width:14},{width:16},{width:14},{width:10},{width:14}];
 
   // 제목
   ws.addRow([`${year}년 부서장/팀장 운영비`]);
-  ws.mergeCells(`A2:${toCol(TOTAL_COLS)}2`);
-  ws.getCell('A2').font = {bold:true, size:14};
-  ws.getCell('A2').alignment = center;
-  ws.getRow(2).height = 28;
+  ws.mergeCells('A1:I1');
+  ws.getCell('A1').font = {bold:true,size:14};
+  ws.getCell('A1').alignment = center;
+  ws.getRow(1).height = 28;
 
-  // 헤더행
-  // 소속(2) Q1금액(2) 소속(2) Q2금액(2) 소속(2) Q3금액(2) 소속(2) Q4금액(2) 합계(1) 구분(1) 비고(1)
-  const hRow = ws.addRow([]);
-  ws.mergeCells('A3:B3'); ws.getCell('A3').value='소속';
-  ws.mergeCells('C3:D3'); ws.getCell('C3').value='01월~03월';
-  ws.mergeCells('E3:F3'); ws.getCell('E3').value='소속';
-  ws.mergeCells('G3:H3'); ws.getCell('G3').value='04월~06월';
-  ws.mergeCells('I3:J3'); ws.getCell('I3').value='소속';
-  ws.mergeCells('K3:L3'); ws.getCell('K3').value='07월~09월';
-  ws.mergeCells('M3:N3'); ws.getCell('M3').value='소속';
-  ws.mergeCells('O3:P3'); ws.getCell('O3').value='10월~12월';
-  ws.getCell('Q3').value='구분';
-  ws.getCell('R3').value='비고';
-  for(let c=1;c<=TOTAL_COLS;c++){
-    const cell = ws.getRow(3).getCell(c);
-    cell.fill = BG_HEAD;
-    cell.font = {bold:true, size:10};
-    cell.alignment = center;
-    cell.border = border(c===4||c===8||c===12||c===16?{style:'medium',color:{argb:'FF78909C'}}:undefined);
-  }
-  ws.getRow(3).height = 18;
-
-  let wsRow = 4;
-
-  // 안내문 배너 추가
-  const bannerLines = [
-    {text:'1. 본부장운영비/부서장운영비/팀운영비 예산 편성 기준(21.04.01개정)*본부장운영비 신설', bold:true},
-    {text:'ⓐ본부장운영비 (분기/1인/5만원, 본부장,인턴,정직원 포함)'},
-    {text:'ⓑ본부 내 팀장이 없는 경우 매월 본부장 및 해당 팀원 월/1인/4만원'},
-    {text:'ⓒ본부원이 없을 경우 본부장운영비는 지원하지 않음'},
-    {text:'ⓓ베트남지사에 파견된 본부장의 본부장운영비는 파견된 본부장에게 위임'},
-    {text:'ⓔ부서장운영비 (분기/1인/5만원, 부서장,인턴,정직원 포함)'},
-    {text:'ⓕ부서 내 팀장이 없는 경우 매월 부서장 및 해당 팀원 월/1인/4만원'},
-    {text:'ⓖ부서원이 없을 경우 부서장운영비는 지원하지 않음(부득이한 사유 발생 또는 조직의 특성에 따라 본부장간의 합의를 통해 운영비를 별도로 책정할 수 있다.)'},
-    {text:'ⓗ베트남지사에 파견된 부서장의 부서장운영비는 파견된 부서장에게 위임'},
-    {text:'ⓘ친목도모 및 화합을 위한 회식(식사,스포츠,문화행사관람)의 목적으로만 사용가능하며 물품의 구매(선물포함), 현금성상품권 구매 등의 용도로 사용이 불가함'},
-    {text:'ⓙ팀장이 없는 부서장 운영비는 팀장 운영비와 비교하여 지원 규모가 큰 항목을 적용(단, 중복지원 불가)'},
-    {text:'2. 규정에 없는 지시사항', bold:true},
-    {text:'ⓐ육아휴직자는 모든 운영비에서 제외'},
-    {text:'ⓑ팀장 또는 부서장이 육아휴직일 때 일반적인 사항은 부서장 또는 본부장 운영비에 편입'},
-    {text:'ⓒ팀장 또는 부서장이 육아휴직, 퇴사 예정 등 장기간 부재일 경우 팀장 또는 부서장 운영비 대체자가 운영(해당 본부장 확인 필요)'},
-    {text:'ⓓ팀장 또는 부서장이 장기근속 및 기타 사유로 한달이상 부재일 경우 팀장 및 부서장 운영비는 소속 팀원 및 부서원들에게 운영비 사용에 관한 위임은 가능. 단, 정산은 팀장 및 부서장이 해야 함'},
-    {text:'※ 21.04 월부터 상한가,하한가 적용 삭제'},
-  ];
-  const BG_BANNER = {type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF9EC'}};
-  bannerLines.forEach(line => {
-    const bRow = ws.addRow([line.text]);
-    ws.mergeCells(wsRow, 1, wsRow, TOTAL_COLS);
-    const cell = bRow.getCell(1);
-    cell.font = {bold: line.bold||false, size:10, color:{argb: line.bold?'FF374151':'FFDC2626'}};
-    cell.fill = BG_BANNER;
-    cell.alignment = {horizontal:'left', vertical:'middle', wrapText:false};
-    cell.border = {
-      top:{style:'thin',color:{argb:'FFFDE68A'}},
-      left:{style:'thin',color:{argb:'FFFDE68A'}},
-      bottom:{style:'thin',color:{argb:'FFFDE68A'}},
-      right:{style:'thin',color:{argb:'FFFDE68A'}}
-    };
-    bRow.height = 15;
-    wsRow++;
-  });
-  wsRow++; // 배너 후 빈 행
-
-  // DOM에서 테이블 데이터 읽기
-  const container = document.getElementById('deptfund-content');
-  const tables = container.querySelectorAll('table');
-
-  tables.forEach(table => {
-    const rows = table.querySelectorAll('tr');
-    rows.forEach(tr => {
-      const tds = tr.querySelectorAll('td,th');
-      if(!tds.length) return;
-
-      // 행 데이터 수집
-      const rowData = [];
-      tds.forEach(td => {
-        const cs = parseInt(td.getAttribute('colspan')||'1');
-        const rs = parseInt(td.getAttribute('rowspan')||'1');
-        // ☰ 버튼 텍스트 제거 후 추출
-        const clone = td.cloneNode(true);
-        clone.querySelectorAll('button').forEach(b=>b.remove());
-        const text = clone.innerText.trim().replace(/\n/g,' ');
-        const style = td.getAttribute('style')||'';
-        let bg = 'FFFFFFFF';
-        if(style.includes('93c5fd')||style.includes('93C5FD')) bg='FF93C5FD';
-        else if(style.includes('bbf7d0')||style.includes('BBF7D0')) bg='FFBBF7D0';
-        else if(style.includes('dbeafe')||style.includes('DBEAFE')) bg='FFDBEAFE';
-        else if(style.includes('e8edf2')||style.includes('E8EDF2')) bg='FFE8EDF2';
-        else if(style.includes('94a3b8')||style.includes('94A3B8')) bg='FF94A3B8';
-        else if(style.includes('f1f5f9')||style.includes('F1F5F9')) bg='FFF1F5F9';
-        const isRight = style.includes('right') && !style.includes('border-right');
-        const isBold = style.includes('font-weight:700')||style.includes('font-weight:600');
-        rowData.push({text, cs, rs, bg, isRight, isBold});
-      });
-
-      // 엑셀 행 작성
-      const eRow = ws.getRow(wsRow);
-      let col = 1;
-      rowData.forEach(d => {
-        // 빈 셀 skip (이미 병합된 셀)
-        while(col<=TOTAL_COLS && eRow.getCell(col).isMerged) col++;
-        if(col>TOTAL_COLS) return;
-
-        const cell = eRow.getCell(col);
-        // 숫자 변환
-        const numVal = d.text.replace(/,/g,'');
-        if(/^-?\d+$/.test(numVal) && d.text !== '-') {
-          cell.value = parseInt(numVal);
-          cell.numFmt = '#,##0';
-        } else {
-          cell.value = d.text === '-' ? '-' : d.text;
-        }
-        cell.alignment = d.isRight ? right_align : center;
-        cell.font = {bold: d.isBold, size:10};
-        cell.fill = {type:'pattern',pattern:'solid',fgColor:{argb:d.bg}};
-
-        // border
-        const isQBorder = col===4||col===8||col===12||col===16;
-        cell.border = border(
-          isQBorder ? {style:'medium',color:{argb:'FF78909C'}} : {style:'thin',color:{argb:'FFB0BEC5'}},
-          {style:'thin',color:{argb:'FFB0BEC5'}}
-        );
-
-        // 병합
-        if(d.cs>1||d.rs>1) {
-          const endCol = Math.min(col+d.cs-1, TOTAL_COLS);
-          const endRow = wsRow+d.rs-1;
-          if(endCol>col||endRow>wsRow) {
-            ws.mergeCells(wsRow, col, endRow, endCol);
-          }
-        }
-        col += d.cs;
-      });
-      eRow.height = 18;
-      wsRow++;
-    });
-    // 본부 간 구분선 (빈 행)
-    wsRow++;
-  });
+  ws.addRow(['소속','01월~03월','04월~06월','07월~09월','10월~12월','소속','구분','비고']);
+  const hr = ws.getRow(2);
+  hr.eachCell(cell => { cell.border=border; cell.fill=green; cell.font={bold:true}; cell.alignment=center; });
+  hr.height = 20;
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
@@ -10213,496 +9283,6 @@ function renderMypageFundTable(org, year, usageData, key) {
   }
 }
 
-function getMypageFundMembers(org, year, mode) {
-  const dept = org.dept;
-  const activeQis = org.activeQis || [0,1,2,3];
-  const allSettings = window._mypageAllSettings || {};
-  const quarters = [[0,2],[3,5],[6,8],[9,11]];
-
-  // 탭 getQNames와 동일한 로직: 해당 부서의 qi별 인원 객체 배열 반환
-  const getQNamesForDept = (deptKey, qi) => {
-    const s = allSettings[deptKey] || {};
-    const nameDataList = s.nameData || [];
-    const [qs, qe] = quarters[qi];
-    const empList = employees.filter(e => e.dept === deptKey && getEmpMonthsInQuarter(e, year, qs, qe) > 0);
-    const allEmpNameSet = new Set(empList.map(e => e.name));
-
-    let objs = empList.map(e => {
-      if (nameDataList.some(d => d.qi===qi && d.name===e.name && d.hidden)) return null;
-      return { name: e.name, isEmp: true };
-    }).filter(Boolean);
-
-    const empNameSet = new Set(objs.map(o => o.name));
-
-    // acting 인원 acting 표시 (이미 포함된 경우 skip — 이름 중복 없이)
-    nameDataList.filter(d => d.qi===qi && d.acting && d.name && empNameSet.has(d.name) && !d.insertBefore).forEach(nd => {
-      // 이미 objs에 있으니 중복 추가 안함
-    });
-
-    // insertBefore: 특정 직원 앞에 끼워넣기
-    nameDataList.filter(d => d.qi===qi && d.insertBefore && d.name && !empNameSet.has(d.name)).forEach(nd => {
-      const idx = objs.findIndex(o => o.name === nd.insertBefore);
-      const newObj = { name: nd.name, isEmp: false };
-      if (idx >= 0) objs.splice(idx, 0, newObj);
-      else objs.push(newObj);
-    });
-
-    // 일반 추가 인원 (insertBefore 없고, Firebase 직원 아닌 것, hidden 아닌 것)
-    nameDataList.filter(d => d.qi===qi && d.name && !d.insertBefore && !d.acting && !d.hidden && !empNameSet.has(d.name) && !allEmpNameSet.has(d.name)).forEach(nd => {
-      objs.push({ name: nd.name, isEmp: false });
-    });
-
-    return objs;
-  };
-
-  // 본부 산하 모든 하위 부서 재귀 수집 (2단계: 부서, 3단계: 부서>팀 모두 포함)
-  const getAllChildDepts = (deptName) => {
-    const deptObj = departments.find(d => d.name===deptName);
-    if (!deptObj) return [];
-    const result = [];
-    const collect = (parentId) => {
-      departments.filter(d => d.parent===parentId).forEach(d => {
-        result.push(d.name);
-        collect(d.id); // 재귀: 팀의 하위도 수집
-      });
-    };
-    collect(deptObj.id);
-    return result;
-  };
-
-  // extraRow 기반 org
-  if (org.isExtra && org.extraRow) {
-    const row = org.extraRow;
-    if (mode === 'monthly') {
-      const memberMap = {};
-      activeQis.forEach(qi => {
-        const hn = (row.headNames||[])[qi] || '';
-        const ndList = (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden);
-        const seen = new Set();
-        const names = [];
-        if (hn && !seen.has(hn)) { names.push(hn); seen.add(hn); }
-        ndList.forEach(d => { if (!seen.has(d.name)) { names.push(d.name); seen.add(d.name); } });
-        names.forEach(name => {
-          if (!memberMap[name]) memberMap[name] = {};
-          const emp = employees.find(e => e.name===name);
-          for (let mo=qi*3+1; mo<=qi*3+3; mo++) {
-            const m = emp ? getEmpMonthsInQuarter(emp, year, mo-1, mo-1) : 1;
-            if (m > 0) memberMap[name][mo] = m * 40000;
-          }
-        });
-      });
-      return Object.entries(memberMap).map(([name, monthAmts]) => {
-        const full = {};
-        for (let mo=1; mo<=12; mo++) full[mo] = monthAmts[mo] || 0;
-        return { name, monthAmts: full, total: Object.values(full).reduce((s,v)=>s+v,0) };
-      });
-    } else {
-      const memberMap = {};
-      activeQis.forEach(qi => {
-        const hn = (row.headNames||[])[qi] || '';
-        const ndList = (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden);
-        const seen = new Set();
-        const names = [];
-        if (hn && !seen.has(hn)) { names.push(hn); seen.add(hn); }
-        ndList.forEach(d => { if (!seen.has(d.name)) { names.push(d.name); seen.add(d.name); } });
-        names.forEach(name => {
-          if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
-          const emp = employees.find(e => e.name===name);
-          const m = emp ? getEmpMonthsInQuarter(emp, year, qi*3, qi*3+2) : 3;
-          if (m > 0) memberMap[name][qi] = 50000;
-        });
-      });
-      return Object.entries(memberMap).map(([name, qiAmts]) => ({
-        name, qiAmts, total: Object.values(qiAmts).reduce((s,v)=>s+v,0)
-      }));
-    }
-  }
-
-  // 팀장 타입 (월별): 부서 직원 + nameData 추가인원
-  if (mode === 'monthly') {
-    const memberMap = {};
-    activeQis.forEach(qi => {
-      const [qs, qe] = quarters[qi];
-      const s = allSettings[dept] || {};
-
-      // 부서장 본인 (탭에서 부서장칸에 별도 표시 — getQNamesForDept에 포함 안됨)
-      const deptEmpList = employees.filter(e => e.dept===dept);
-      const deptHead = deptEmpList.find(e =>
-        (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
-        (e.title||'').includes('실장') || (e.title||'').includes('팀장')
-      );
-      // nameData rowIdx=-1: 부서장칸 대행자 지정
-      const hdData = (s.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
-      const headName = hdData?.name || (deptHead ? deptHead.name : '');
-
-      // 1) 이 dept 팀원 (부서장 제외)
-      let objs = getQNamesForDept(dept, qi).filter(o => o.name !== headName);
-
-      // 2) 항상 산하 모든 부서/팀 수집 (3단계 재귀)
-      const childDepts2 = getAllChildDepts(dept);
-      if (childDepts2.length > 0) {
-        const merged = [];
-        const seenNames = new Set(objs.map(o=>o.name));
-        objs.forEach(o => merged.push(o));
-        childDepts2.forEach(cd => {
-          // 각 하위 부서/팀의 부서장/팀장 추가
-          const cdEmpList = employees.filter(e => e.dept===cd);
-          const cdHead = cdEmpList.find(e =>
-            (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
-            (e.title||'').includes('실장') || (e.title||'').includes('팀장')
-          );
-          const cdS = allSettings[cd] || {};
-          const cdHdData = (cdS.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
-          const cdHeadName = cdHdData?.name || (cdHead ? cdHead.name : '');
-          if (cdHeadName && !seenNames.has(cdHeadName)) {
-            merged.push({ name: cdHeadName, isEmp: true });
-            seenNames.add(cdHeadName);
-          }
-          getQNamesForDept(cd, qi).forEach(o => {
-            if (!seenNames.has(o.name)) { merged.push(o); seenNames.add(o.name); }
-          });
-          // 산하 부서의 extraRows nameData도 포함
-          (cdS.extraRows||[]).forEach(row => {
-            const rowOrgName2 = (row.orgNames||[]).find(n=>n);
-            const rowHasDateData2 = !!(row.dateData?.length);
-            if (rowOrgName2 && !departments.find(d=>d.name===rowOrgName2) && !rowHasDateData2) return;
-            if ((row.disabledQi||[]).includes(qi)) return;
-            (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => {
-              if (!seenNames.has(d.name)) {
-                merged.push({ name: d.name, isEmp: false, dateData: row.dateData||[] });
-                seenNames.add(d.name);
-              }
-            });
-          });
-        });
-        objs = merged;
-      }
-
-      // 3) 부서장 본인을 맨 앞에 추가 (중복 방지)
-      const allObjs = [];
-      const seenAll = new Set();
-      if (headName && !seenAll.has(headName)) {
-        const hEmp = employees.find(e => e.name===headName);
-        const hm = hEmp ? getEmpMonthsInQuarter(hEmp, year, qs, qe) : 1;
-        if (hm > 0) { allObjs.push({ name: headName, isEmp: !!hEmp }); seenAll.add(headName); }
-      }
-      objs.forEach(o => { if (!seenAll.has(o.name)) { allObjs.push(o); seenAll.add(o.name); } });
-
-      const dateDataList = (allSettings[dept]?.dateData || []);
-
-      // extraRow nameData 추가
-      const extraRowObjs = [];
-      const extraRowSeenNames = new Set(allObjs.map(o=>o.name));
-      const deptChildDepts = new Set(getAllChildDepts(dept));
-      deptChildDepts.add(dept);
-      (allSettings[dept]?.extraRows||[]).forEach(row => {
-        if ((row.disabledQi||[]).includes(qi)) return;
-        const orgName = (row.orgNames||[]).find(n=>n);
-        const hasDateData = !!(row.dateData?.length);
-        const orgInDepts = orgName && !!departments.find(d=>d.name===orgName);
-        // orgNames가 departments에 없고 dateData도 없으면 제외
-        if (orgName && !orgInDepts && !hasDateData) return;
-        // orgNames가 departments에 없고 dateData 있어도 dept에 산하팀 없으면 제외 (박종서 케이스)
-        if (orgName && !orgInDepts && hasDateData) {
-          const deptHasChildren = getAllChildDepts(dept).length > 0;
-          if (!deptHasChildren) return;
-        }
-        const rowDateData = row.dateData || [];
-        if (!row.type || row.type === '없음') {
-          const hasDateData = !!(row.dateData?.length);
-          const hasChildEmp = (row.nameData||[]).some(d => {
-            const emp = employees.find(e=>e.name===d.name);
-            return emp && deptChildDepts.has(emp.dept);
-          });
-          if (!hasDateData && !hasChildEmp) return;
-        }
-        (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => {
-          if (!extraRowSeenNames.has(d.name)) {
-            extraRowObjs.push({ name: d.name, isEmp: false, dateData: rowDateData });
-            extraRowSeenNames.add(d.name);
-          }
-        });
-      });
-
-      [...allObjs.map(o=>({...o, dateData: o.dateData || dateDataList})), ...extraRowObjs].forEach(o => {
-        if (!memberMap[o.name]) memberMap[o.name] = {};
-        const emp = employees.find(e => e.name===o.name);
-        for (let mo=qi*3+1; mo<=qi*3+3; mo++) {
-          let m;
-          if (emp) {
-            m = getEmpMonthsInQuarter(emp, year, mo-1, mo-1);
-          } else {
-            // name으로 먼저 찾기
-            let dd = (o.dateData||[]).find(d => d.name===o.name && d.qi===qi);
-            if (!dd) {
-              // name 없는 dateData: col로 매칭 (같은 qi의 인원 순서로)
-              const qiObjs = allObjs.filter((oo,idx) => {
-                // 같은 qi에서 이 인원의 인덱스 찾기
-                return oo.name === o.name;
-              });
-              const oIdx = allObjs.indexOf(o);
-              dd = (o.dateData||[]).find(d => d.col===oIdx && d.qi===qi);
-              if (!dd) {
-                // col이 nameData 순서와 매칭
-                const qiNames = (window._lastQNames?.[dept]?.[qi] || []).map(x=>x.name);
-                const nameIdx = qiNames.indexOf(o.name);
-                if (nameIdx >= 0) {
-                  dd = (o.dateData||[]).find(d => d.col===nameIdx && d.qi===qi);
-                }
-                // 산하 팀에서도 찾기
-                if (!dd) {
-                  getAllChildDepts(dept).forEach(cd => {
-                    if (dd) return;
-                    const cdQiNames = (window._lastQNames?.[cd]?.[qi] || []).map(x=>x.name);
-                    const cdIdx = cdQiNames.indexOf(o.name);
-                    if (cdIdx >= 0) {
-                      dd = (allSettings[cd]?.dateData||[]).find(d => d.col===cdIdx && d.qi===qi);
-                    }
-                  });
-                }
-              }
-            }
-            if (dd) {
-              const fullDate = dd.fullDate ? new Date(dd.fullDate) : null;
-              const moDate = fullDate ? fullDate.getMonth()+1 : null;
-              if (dd.type === 'leave' || dd.type === 'to') {
-                m = moDate && mo <= moDate ? 1 : 0;
-              } else if (dd.type === 'join') {
-                m = moDate && mo >= moDate ? 1 : 0;
-              } else {
-                m = 1;
-              }
-            } else {
-              m = 1;
-            }
-          }
-          if (m > 0) memberMap[o.name][mo] = m * 40000;
-        }
-      });
-    });
-    return Object.entries(memberMap).map(([name, monthAmts]) => {
-      const full = {};
-      for (let mo=1; mo<=12; mo++) full[mo] = monthAmts[mo] || 0;
-      return { name, monthAmts: full, total: Object.values(full).reduce((s,v)=>s+v,0) };
-    });
-
-  } else {
-    // 부서장/본부장 타입 (분기별)
-    const memberMap = {};
-    activeQis.forEach(qi => {
-      const s = allSettings[dept] || {};
-      const nameDataList = s.nameData || [];
-      const [qs, qe] = quarters[qi];
-      const countedNames = new Set(); // qi별로 초기화
-
-      // 본부장 타입: 본부 산하 모든 부서/팀 (3단계까지 재귀 수집)
-      const childDepts = getAllChildDepts(dept);
-
-      const addMember = (name) => {
-        if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
-        if (countedNames.has(name)) return;
-        countedNames.add(name);
-        const emp = employees.find(e => e.name===name);
-        const m = emp ? getEmpMonthsInQuarter(emp, year, qs, qe) : 3;
-        if (m > 0) memberMap[name][qi] = 50000;
-      };
-
-      const addMemberForce = (name) => {
-        // countedNames 무시하고 qi별 금액 항상 설정 (extraRow 인원용)
-        if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
-        const emp = employees.find(e => e.name===name);
-        const m = emp ? getEmpMonthsInQuarter(emp, year, qs, qe) : 3;
-        if (m > 0) memberMap[name][qi] = 50000;
-      };
-
-      if (childDepts.length > 0) {
-        // 본부장 타입: 본부장 본인 + 각 부서장 + 각 팀원
-        // 본부장 본인 (rowIdx=-1 nameData 또는 employees에서)
-        const hdData = nameDataList.find(d => d.rowIdx===-1 && d.qi===qi);
-        const bonbuHead = hdData?.name || (() => {
-          const h = employees.find(e => e.dept===dept && (
-            (e.title||'').includes('본부장') || (e.title||'').includes('부서장') ||
-            (e.title||'').includes('부장') || (e.title||'').includes('실장') ||
-            (e.title||'').includes('팀장') || (e.title||'').includes('소장')
-          ));
-          return h ? h.name : '';
-        })();
-        if (bonbuHead) addMember(bonbuHead);
-
-        childDepts.forEach(cd => {
-          if (cd.includes('베트남')) return; // 베트남 관련 부서 제외
-          const cdDq = (allSettings[cd]||{}).disabledQi || [];
-          const cdS = allSettings[cd] || {};
-
-          // cd 자체가 disabled여도 extraRows는 별도 체크
-          if (!cdDq.includes(qi)) {
-            // 부서장/팀장 (직책명 포함)
-            const cdEmpList = employees.filter(e => e.dept===cd);
-            const cdHead = cdEmpList.find(e =>
-              (e.title||'').includes('부서장') || (e.title||'').includes('부장') ||
-              (e.title||'').includes('실장') || (e.title||'').includes('팀장')
-            );
-            // nameData rowIdx=-1 대행자 우선
-            const cdHdData = (cdS.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
-            const cdHeadName = cdHdData?.name || (cdHead ? cdHead.name : '');
-            if (cdHeadName) addMember(cdHeadName);
-            // 팀원 (getQNamesForDept: 직원 + nameData 추가인원)
-            getQNamesForDept(cd, qi).forEach(o => addMember(o.name));
-          }
-          // extraRows는 cd disabledQi 무관하게 row별로 체크
-          (cdS.extraRows||[]).forEach(row => {
-            // orgNames가 departments에 없고 dateData도 없으면 폐지된 조직 → 제외
-            const rowOrgName = (row.orgNames||[]).find(n=>n);
-            const rowHasDateData = !!(row.dateData?.length);
-            if (rowOrgName && !departments.find(d=>d.name===rowOrgName) && !rowHasDateData) return;
-            if (!row.type || row.type === '없음') {
-              const hasDateData = !!(row.dateData?.length);
-              // cd의 부모가 dept이면 포함 (기술서비스팀 → 연구2팀 → AI GIS 연구부 케이스)
-              const cdObj = departments.find(d=>d.name===cd);
-              const cdParent = departments.find(d=>d.id===cdObj?.parent);
-              const cdParentIsDept = cdParent?.name === dept;
-              // 인원이 전체 본부(dept) 산하 부서 소속이면 포함
-              const hasChildEmp = (row.nameData||[]).some(d => {
-                const emp = employees.find(e=>e.name===d.name);
-                return emp && childDepts.includes(emp.dept);
-              });
-              if (!hasDateData && !hasChildEmp && !cdParentIsDept) return;
-            }
-            if ((row.disabledQi||[]).includes(qi)) return;
-            const hn = (row.headNames||[])[qi];
-            if (hn) addMemberForce(hn);
-            (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => addMemberForce(d.name));
-          });
-        });
-
-        // 본부 자체 extraRows headNames + nameData
-        (s.extraRows||[]).forEach(row => {
-          // orgNames가 departments에 없고 dateData도 없으면 폐지된 조직 → 제외
-          const rowOrgName = (row.orgNames||[]).find(n=>n);
-          const rowHasDateData = !!(row.dateData?.length);
-          if (rowOrgName && !departments.find(d=>d.name===rowOrgName) && !rowHasDateData) return;
-          if (!row.type || row.type === '없음') {
-            const hasDateData = !!(row.dateData?.length);
-            const hasChildEmp = (row.nameData||[]).some(d => {
-              const emp = employees.find(e=>e.name===d.name);
-              return emp && childDepts.includes(emp.dept);
-            });
-            if (!hasDateData && !hasChildEmp) return;
-          }
-          if ((row.disabledQi||[]).includes(qi)) return;
-          const hn = (row.headNames||[])[qi];
-          if (hn) addMemberForce(hn);
-          (row.nameData||[]).filter(d => d.qi===qi && d.name && !d.hidden).forEach(d => addMemberForce(d.name));
-        });
-
-        // extra 인원 (buseojang 타입)
-        (s.extra||[]).filter(e => e.qi===qi && e.type==='buseojang' && e.name).forEach(e => addMember(e.name));
-
-      } else {
-        // 부서장 타입 (산하 팀 없음): 부서장 본인 + 팀원
-        const deptEmpList = employees.filter(e => e.dept===dept || (e.concurrent||[]).some(c=>c.dept===dept));
-        const deptHead = deptEmpList.find(e => {
-          const title = e.dept===dept ? (e.title||'') : ((e.concurrent||[]).find(c=>c.dept===dept)?.title||'');
-          return title.includes('부서장') || title.includes('부장') || title.includes('실장') || title.includes('팀장') || title.includes('본부장');
-        });
-        if (deptHead) addMember(deptHead.name);
-        getQNamesForDept(dept, qi).forEach(o => addMember(o.name));
-
-        // extra 인원 (buseojang 타입)
-        (s.extra||[]).filter(e => e.qi===qi && e.type==='buseojang' && e.name).forEach(e => addMember(e.name));
-      }
-    });
-    return Object.entries(memberMap).map(([name, qiAmts]) => ({
-      name, qiAmts, total: Object.values(qiAmts).reduce((s,v)=>s+v,0)
-    }));
-  }
-}
-
-
-async function openFundUsageModal(orgKey, period, rowIdx, year, mode='monthly') {
-  // 기존 모달 제거
-  document.getElementById('fund-usage-modal')?.remove();
-
-  const usageDocId = `deptfund_usage_${year}`;
-  let usageData = {};
-  try {
-    const doc = await firebase.firestore().collection('settings').doc(usageDocId).get();
-    usageData = doc.data() || {};
-  } catch(e) {}
-
-  const orgUsage = usageData[orgKey] || {};
-  const periodUsage = orgUsage[period] || [];
-  const entry = periodUsage[rowIdx] || {date:'',memo:'',amt:''};
-  const periodLabel = mode==='monthly' ? `${period}월` : ['1~3월','4~6월','7~9월','10~12월'][period];
-
-  const modal = document.createElement('div');
-  modal.id = 'fund-usage-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:9999';
-  modal.innerHTML = `
-    <div style="background:#fff;border-radius:12px;padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.18)">
-      <div style="font-size:15px;font-weight:700;margin-bottom:16px">💰 사용 내역 입력 (${periodLabel})</div>
-      <div style="margin-bottom:12px">
-        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px">날짜</label>
-        <input type="date" id="fund-usage-date" value="${entry.date||''}" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-      </div>
-      <div style="margin-bottom:12px">
-        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px">내용</label>
-        <input type="text" id="fund-usage-memo" value="${entry.memo||''}" placeholder="예: 팀 회식" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-      </div>
-      <div style="margin-bottom:16px">
-        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px">금액</label>
-        <input type="number" id="fund-usage-amt" value="${entry.amt||''}" placeholder="0" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-      </div>
-      <div style="display:flex;gap:8px">
-        <button onclick="saveFundUsage('${orgKey}',${period},${rowIdx},'${year}','${mode}')" style="flex:1;padding:10px;background:var(--ac);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">저장</button>
-        <button onclick="deleteFundUsage('${orgKey}',${period},${rowIdx},'${year}','${mode}')" style="padding:10px 14px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;cursor:pointer;font-weight:600${entry.amt?'':'display:none'}">삭제</button>
-        <button onclick="document.getElementById('fund-usage-modal').remove()" style="padding:10px 14px;background:#f1f5f9;color:#374151;border:none;border-radius:8px;cursor:pointer">취소</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-}
-
-async function saveFundUsage(orgKey, period, rowIdx, year, mode) {
-  const date = document.getElementById('fund-usage-date')?.value || '';
-  const memo = document.getElementById('fund-usage-memo')?.value || '';
-  const amt = parseInt(document.getElementById('fund-usage-amt')?.value) || 0;
-  if (!amt) { showToast('금액을 입력하세요'); return; }
-
-  const usageDocId = `deptfund_usage_${year}`;
-  try {
-    const doc = await firebase.firestore().collection('settings').doc(usageDocId).get();
-    const usageData = doc.data() || {};
-    if (!usageData[orgKey]) usageData[orgKey] = {};
-    if (!usageData[orgKey][period]) usageData[orgKey][period] = [];
-    usageData[orgKey][period][rowIdx] = {date, memo, amt};
-    await firebase.firestore().collection('settings').doc(usageDocId).set(usageData);
-    document.getElementById('fund-usage-modal')?.remove();
-    showToast('✅ 저장되었습니다');
-    const empName = employees.find(e=>e.id===state.myEmail)?.name || '';
-    await renderMypageDeptFundYear(empName);
-  } catch(e) {
-    showToast('❌ 저장 오류');
-    console.error(e);
-  }
-}
-
-async function deleteFundUsage(orgKey, period, rowIdx, year, mode) {
-  const usageDocId = `deptfund_usage_${year}`;
-  try {
-    const doc = await firebase.firestore().collection('settings').doc(usageDocId).get();
-    const usageData = doc.data() || {};
-    if (usageData[orgKey]?.[period]) {
-      usageData[orgKey][period].splice(rowIdx, 1);
-      await firebase.firestore().collection('settings').doc(usageDocId).set(usageData);
-    }
-    document.getElementById('fund-usage-modal')?.remove();
-    showToast('🗑️ 삭제되었습니다');
-    const empName = employees.find(e=>e.id===state.myEmail)?.name || '';
-    await renderMypageDeptFundYear(empName);
-  } catch(e) {
-    showToast('❌ 삭제 오류');
-  }
-}
 
 function showPage(id, el) {
   const target = document.getElementById('page-'+id);
@@ -10959,6 +9539,79 @@ if (!state.kpis.length) {
   setupAuthListener();
 })();
 </script>
+
+        <div style="overflow-y:auto;flex:1">
+        <!-- 기본 정보 -->
+        <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div id="my-avatar" style="width:60px;height:60px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden"></div>
+            <div>
+              <div id="my-name" style="font-size:18px;font-weight:700"></div>
+              <div id="my-info" style="font-size:13px;color:#64748b;margin-top:4px"></div>
+              <div id="my-tenure" style="font-size:13px;color:#3b82f6;margin-top:2px;font-weight:600"></div>
+            </div>
+          </div>
+        </div>
+        <!-- 복리후생 -->
+        <div style="padding:20px 24px">
+          <div style="font-size:15px;font-weight:700;margin-bottom:16px">🎁 복리후생 현황</div>
+          <div id="my-welfare-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 마이페이지 모달 -->
+  <div id="mypage-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:16px;width:680px;max-width:95vw;max-height:90vh;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);display:flex;flex-direction:column">
+      <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:17px;font-weight:700">👤 마이페이지</div>
+        <button onclick="closeMyPage()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#94a3b8">×</button>
+      </div>
+      <div style="overflow-y:auto;flex:1">
+        <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div id="my-avatar" style="width:60px;height:60px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden"></div>
+            <div>
+              <div id="my-name" style="font-size:18px;font-weight:700"></div>
+              <div id="my-info" style="font-size:13px;color:#64748b;margin-top:4px"></div>
+              <div id="my-tenure" style="font-size:13px;color:#3b82f6;margin-top:2px;font-weight:600"></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:20px 24px">
+          <div style="font-size:15px;font-weight:700;margin-bottom:16px">🎁 복리후생 현황</div>
+          <div id="my-welfare-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 마이페이지 모달 -->
+  <div id="mypage-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:16px;width:680px;max-width:95vw;max-height:90vh;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);display:flex;flex-direction:column">
+      <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:17px;font-weight:700">&#128100; 마이페이지</div>
+        <button onclick="closeMyPage()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#94a3b8">&#215;</button>
+      </div>
+      <div style="overflow-y:auto;flex:1">
+        <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div id="my-avatar" style="width:60px;height:60px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden"></div>
+            <div>
+              <div id="my-name" style="font-size:18px;font-weight:700"></div>
+              <div id="my-info" style="font-size:13px;color:#64748b;margin-top:4px"></div>
+              <div id="my-tenure" style="font-size:13px;color:#3b82f6;margin-top:2px;font-weight:600"></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:20px 24px">
+          <div style="font-size:15px;font-weight:700;margin-bottom:16px">&#127873; 복리후생 현황</div>
+          <div id="my-welfare-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
  
