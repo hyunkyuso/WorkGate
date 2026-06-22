@@ -10761,7 +10761,7 @@ async function saveFundUsage(orgKey, period, rowIdx, year, mode) {
     }
     const usageData = window._mypageUsageCache[year];
     if (!usageData[orgKey]) usageData[orgKey] = {};
-    if (!usageData[orgKey][period]) usageData[orgKey][period] = [];
+    if (!usageData[orgKey][period]) usageData[orgKey][period] = {};
     usageData[orgKey][period][rowIdx] = {date, memo, amt};
     // 화면 먼저 업데이트
     document.getElementById('fund-usage-modal')?.remove();
@@ -10786,7 +10786,7 @@ async function deleteFundUsage(orgKey, period, rowIdx, year, mode) {
     }
     const usageData = window._mypageUsageCache[year];
     if (usageData[orgKey]?.[period]) {
-      usageData[orgKey][period].splice(rowIdx, 1);
+      delete usageData[orgKey][period][rowIdx];
     }
     // 화면 먼저 업데이트
     document.getElementById('fund-usage-modal')?.remove();
