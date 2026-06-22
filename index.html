@@ -9876,7 +9876,6 @@ async function renderMypageDeptFund(emp, container) {
       <div style="font-size:15px;font-weight:700">💰 부서장운영비</div>
       <select id="mypage-fund-year" onchange="renderMypageDeptFundYear('${emp.name}','${emp.id}')" style="padding:4px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
         <option value="${curYear}">${curYear}년</option>
-        <option value="${curYear-1}">${curYear-1}년</option>
       </select>
     </div>
     <div id="mypage-fund-tables"></div>
@@ -10041,6 +10040,19 @@ async function renderMypageDeptFundYear(empName, empId) {
     return;
   }
 
+  // 본부→부서→팀 순으로 정렬
+  const orgLevelOrder = (orgName) => {
+    const dept = departments.find(d => d.name === orgName);
+    if (!dept) return 2; // extraRow 등
+    if (!dept.parent) return 0; // 본부 (최상위)
+    const parent = departments.find(d => d.id === dept.parent);
+    if (!parent || !parent.parent) return 1; // 부서
+    return 2; // 팀
+  };
+  const sortedOrgs = [...processedOrgs.entries()].sort((a, b) => {
+    return orgLevelOrder(a[1].dept) - orgLevelOrder(b[1].dept);
+  });
+
   tablesDiv.innerHTML = '';
 
   // 사용 내역 로드 (캐시 우선)
@@ -10058,7 +10070,7 @@ async function renderMypageDeptFundYear(empName, empId) {
   }
 
   // 각 조직별 테이블 렌더
-  for (const [key, org] of processedOrgs) {
+  for (const [key, org] of sortedOrgs) {
     const div = document.createElement('div');
     div.style.cssText = 'margin-bottom:20px;background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden';
     div.innerHTML = renderMypageFundTable(org, year, usageData, key);
@@ -10269,7 +10281,18 @@ function getMypageFundMembers(org, year, mode) {
     const s = allSettings[deptKey] || {};
     const nameDataList = s.nameData || [];
     const [qs, qe] = quarters[qi];
-    const empList = employees.filter(e => e.dept === deptKey && getEmpMonthsInQuarter(e, year, qs, qe) > 0);
+    const TITLE_ORD_M = {'본부장':0,'부서장':1,'실장':1,'팀장':2};
+    const POS_ORD_M = {'부장':0,'차장':1,'과장':2,'대리':3,'주임':4,'사원':5};
+    const empList = employees.filter(e => e.dept === deptKey && getEmpMonthsInQuarter(e, year, qs, qe) > 0)
+      .sort((a,b) => {
+        const ta = TITLE_ORD_M[a.title||''] ?? 99, tb = TITLE_ORD_M[b.title||''] ?? 99;
+        if (ta !== tb) return ta - tb;
+        const pa = POS_ORD_M[a.position||''] ?? 99, pb = POS_ORD_M[b.position||''] ?? 99;
+        if (pa !== pb) return pa - pb;
+        // 입사순
+        const da = a.joindate||'9999', db = b.joindate||'9999';
+        return da < db ? -1 : da > db ? 1 : 0;
+      });
     const allEmpNameSet = new Set(empList.map(e => e.name));
 
     let objs = empList.map(e => {
