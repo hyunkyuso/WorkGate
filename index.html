@@ -10119,10 +10119,10 @@ function renderMypageFundTable(org, year, usageData, key) {
     const grandTotal = monthTotals.reduce((s,v)=>s+v,0);
 
     // 사용 내역 행들
-    const maxUsageRows = months.reduce((max, mo) => Math.max(max, (usage[mo]||[]).length + 1), 1);
+    const maxUsageRows = months.reduce((max, mo) => Math.max(max, Object.values(usage[mo]||{}).filter(Boolean).length + 1), 1);
     const usageRows = Array.from({length: maxUsageRows}, (_, ri) => {
       const rowHtml = months.map(mo => {
-        const entries = usage[mo] || [];
+        const entries = usage[mo] || {};
         const entry = entries[ri];
         if (entry) {
           return `<td style="border:1px solid #e2e8f0;padding:2px 4px;font-size:11px;text-align:right;cursor:pointer" onclick="openFundUsageModal('${key}',${mo},${ri},'${year}')"><div style="font-size:10px;color:#64748b;text-align:center">${entry.memo||''}</div><div>${entry.amt.toLocaleString()}</div></td>`;
@@ -10132,7 +10132,7 @@ function renderMypageFundTable(org, year, usageData, key) {
           return `<td style="border:1px solid #e2e8f0;padding:2px 4px;font-size:11px;text-align:center"><button onclick="openFundUsageModal('${key}',${mo},${ri},'${year}')" style="font-size:10px;padding:2px 4px;border:none;background:none;cursor:pointer;color:#cbd5e1">+</button></td>`;
         }
       }).join('');
-      const rowTotal = months.reduce((s,mo)=>s+((usage[mo]||[])[ri]?.amt||0),0);
+      const rowTotal = months.reduce((s,mo)=>s+((usage[mo]||{})[ri]?.amt||0),0);
       const labelCell = `<td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;color:#f59e0b;font-weight:600;text-align:center">${ri===0?'사용':''}</td>`;
       const totalCell = `<td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;text-align:right;background:#fafafa">${rowTotal?rowTotal.toLocaleString():'-'}</td>`;
       return `<tr>${labelCell}${rowHtml}${totalCell}</tr>`;
@@ -10141,7 +10141,7 @@ function renderMypageFundTable(org, year, usageData, key) {
     // 잔액
     const monthBalances = months.map(mo => {
       const alloc = monthTotals[mo-1];
-      const used = (usage[mo]||[]).reduce((s,e)=>s+(e.amt||0),0);
+      const used = Object.values(usage[mo]||{}).filter(Boolean).reduce((s,e)=>s+(e.amt||0),0);
       return alloc - used;
     });
 
@@ -10207,14 +10207,14 @@ function renderMypageFundTable(org, year, usageData, key) {
     const qiTotals = [0,1,2,3].map(qi => members.reduce((s,m)=>s+(m.qiAmts[qi]||0),0));
     const grandTotal = qiTotals.reduce((s,v)=>s+v,0);
 
-    const maxUsageRows = [0,1,2,3].reduce((max,qi) => Math.max(max,(usage[qi]||[]).length+1),1);
+    const maxUsageRows = [0,1,2,3].reduce((max,qi) => Math.max(max,Object.values(usage[qi]||{}).filter(Boolean).length+1),1);
     const usageRows = Array.from({length:maxUsageRows},(_,ri) => `
       <tr>
         <td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;color:#f59e0b;font-weight:600;text-align:center">${ri===0?'사용':''}</td>
         ${[0,1,2,3].map(qi => {
           const active = org.activeQis.includes(qi);
           if (!active) return `<td style="border:1px solid #e2e8f0;background:#f1f5f9"></td>`;
-          const entries = usage[qi]||[];
+          const entries = usage[qi]||{};
           const entry = entries[ri];
           return `<td style="border:1px solid #e2e8f0;padding:2px 4px;font-size:11px;text-align:right">
             ${entry
@@ -10226,13 +10226,13 @@ function renderMypageFundTable(org, year, usageData, key) {
           </td>`;
         }).join('')}
         <td style="border:1px solid #e2e8f0;padding:4px 6px;font-size:11px;text-align:right;background:#fafafa">
-          ${([0,1,2,3].reduce((s,qi)=>s+((usage[qi]||[])[ri]?.amt||0),0)||0).toLocaleString()||'-'}
+          ${([0,1,2,3].reduce((s,qi)=>s+((usage[qi]||{})[ri]?.amt||0),0)||0).toLocaleString()||'-'}
         </td>
       </tr>`).join('');
 
     const qiBalances = [0,1,2,3].map(qi => {
       const alloc = qiTotals[qi];
-      const used = (usage[qi]||[]).reduce((s,e)=>s+(e.amt||0),0);
+      const used = Object.values(usage[qi]||{}).filter(Boolean).reduce((s,e)=>s+(e.amt||0),0);
       return alloc - used;
     });
 
