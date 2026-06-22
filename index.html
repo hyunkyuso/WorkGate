@@ -1172,10 +1172,15 @@ let state = {
 function setupAuthListener() {
   auth.onAuthStateChanged(async (user) => {
     if (user) {
+      // 도메인 체크
+      if (!user.email.endsWith('@jungdouit.com')) {
+        showToast('❌ 정도유아이티 임직원만 로그인할 수 있습니다.');
+        await auth.signOut();
+        return;
+      }
       state.user = { name: user.displayName, email: user.email, picture: user.photoURL };
       state.accessToken = await user.getIdToken();
       await loginSuccess(user.displayName, user.photoURL, user.email);
-      // Firestore 실시간 리스너 — 내 권한 변경 감지
       startMyRoleListener(user.email);
     } else {
       document.getElementById('login-screen').style.display = 'flex';
@@ -11008,7 +11013,7 @@ if (!state.kpis.length) {
   auth = firebase.auth();
   setupAuthListener();
 })();
-</script> 
+</script>
 </body>
 </html>
  
