@@ -10038,13 +10038,19 @@ async function renderMypageDeptFundYear(empName, empId) {
 
   tablesDiv.innerHTML = '';
 
-  // 사용 내역 로드
+  // 사용 내역 로드 (캐시 우선)
   const usageDocId = `deptfund_usage_${year}`;
   let usageData = {};
-  try {
-    const uDoc = await firebase.firestore().collection('settings').doc(usageDocId).get();
-    usageData = uDoc.data() || {};
-  } catch(e) { usageData = {}; }
+  if (window._mypageUsageCache?.[year]) {
+    usageData = window._mypageUsageCache[year];
+  } else {
+    try {
+      const uDoc = await firebase.firestore().collection('settings').doc(usageDocId).get();
+      usageData = uDoc.data() || {};
+      window._mypageUsageCache = window._mypageUsageCache || {};
+      window._mypageUsageCache[year] = usageData;
+    } catch(e) { usageData = {}; }
+  }
 
   // 각 조직별 테이블 렌더
   for (const [key, org] of processedOrgs) {
@@ -10709,11 +10715,16 @@ async function saveFundUsage(orgKey, period, rowIdx, year, mode) {
     if (!usageData[orgKey]) usageData[orgKey] = {};
     if (!usageData[orgKey][period]) usageData[orgKey][period] = [];
     usageData[orgKey][period][rowIdx] = {date, memo, amt};
-    await firebase.firestore().collection('settings').doc(usageDocId).set(usageData);
+    // usageData 캐시 저장
+    window._mypageUsageCache = window._mypageUsageCache || {};
+    window._mypageUsageCache[year] = usageData;
+    // 화면 먼저 업데이트
     document.getElementById('fund-usage-modal')?.remove();
     showToast('✅ 저장되었습니다');
-    const empName = employees.find(e=>e.id===state.myEmail)?.name || '';
-    await renderMypageDeptFundYear(empName);
+    const empKey = window._mypageCurrentEmpKey;
+    if (empKey) renderMypageDeptFundYear(empKey.name, empKey.id);
+    // 백그라운드 저장
+    firebase.firestore().collection('settings').doc(usageDocId).set(usageData);
   } catch(e) {
     showToast('❌ 저장 오류');
     console.error(e);
@@ -10727,12 +10738,17 @@ async function deleteFundUsage(orgKey, period, rowIdx, year, mode) {
     const usageData = doc.data() || {};
     if (usageData[orgKey]?.[period]) {
       usageData[orgKey][period].splice(rowIdx, 1);
-      await firebase.firestore().collection('settings').doc(usageDocId).set(usageData);
     }
+    // usageData 캐시 저장
+    window._mypageUsageCache = window._mypageUsageCache || {};
+    window._mypageUsageCache[year] = usageData;
+    // 화면 먼저 업데이트
     document.getElementById('fund-usage-modal')?.remove();
     showToast('🗑️ 삭제되었습니다');
-    const empName = employees.find(e=>e.id===state.myEmail)?.name || '';
-    await renderMypageDeptFundYear(empName);
+    const empKey = window._mypageCurrentEmpKey;
+    if (empKey) renderMypageDeptFundYear(empKey.name, empKey.id);
+    // 백그라운드 저장
+    firebase.firestore().collection('settings').doc(usageDocId).set(usageData);
   } catch(e) {
     showToast('❌ 삭제 오류');
   }
