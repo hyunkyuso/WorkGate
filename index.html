@@ -5847,7 +5847,8 @@ async function createNextYearSettings() {
     // type, buseojang, teamjang 복사 (빈 문자열 포함)
     // 본부 settings: type이 없으면 '본부장'이 기본값
     const isBonbu = Object.keys(window._depts||{}).some(d => getBonbu({dept:d}) === dept && d === dept);
-    ns.type = s.type !== undefined && s.type !== '' ? s.type : (isBonbu ? '본부장' : '');
+    const prevType = s.type || '';
+    ns.type = (prevType === '없음' || prevType === '') ? prevType : prevType;
     ns.buseojang = s.buseojang !== undefined ? s.buseojang : false;
     ns.teamjang = s.teamjang !== undefined ? s.teamjang : false;
     // disabledQi 초기화 (새해엔 미사용 없음)
