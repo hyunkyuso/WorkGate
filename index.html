@@ -7013,6 +7013,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const qn = (window._lastQNames&&window._lastQNames[dk]&&window._lastQNames[dk][qi])||[];
           qn.forEach(obj => {
             if (!obj||!obj.name||countedNames.has(obj.name)) return;
+            // noAmt 플래그: 금액 제외
+            const ndCheck = ((deptFundSettings[dk]||{}).nameData||[]).find(d=>d.qi===qi&&d.name===obj.name&&d.noAmt);
+            if (ndCheck) return;
             countedNames.add(obj.name);
             let m = qe - qs + 1;
             // dateData 날짜칸 체크
