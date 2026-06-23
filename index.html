@@ -5852,8 +5852,9 @@ async function createNextYearSettings() {
     ns.teamjang = s.teamjang !== undefined ? s.teamjang : false;
     // disabledQi 초기화 (새해엔 미사용 없음)
     ns.disabledQi = [];
-    // extra 초기화
-    ns.extra = [];
+    // extra: Q4 항목을 Q1~Q4로 복사
+    const prevExtra = (s.extra || []).filter(e => e.qi === QI_PREV);
+    ns.extra = [0,1,2,3].flatMap(qi => prevExtra.map(e => ({...e, qi})));
     // deptDisplayNames: Q4 값을 Q1~Q4 전체로 복사
     if (s.deptDisplayNames) {
       const q4Name = s.deptDisplayNames[QI_PREV] || s.deptDisplayNames['3'] || '';
