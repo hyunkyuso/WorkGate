@@ -7758,8 +7758,18 @@ function renderDeptFundSummary(container, allSums) {
 
     if (typeText === '본부장') {
       const bonbuCell = table.querySelector('td[data-bonbu-total-amt]');
-      orgName = bonbuCell?.getAttribute('data-bonbu-total-amt') || '';
-      headName = findOrgHead(orgName);
+      const bonbujangCell = table.querySelector('td[data-type="bonbujang-total"]');
+      if (bonbuCell) {
+        orgName = bonbuCell.getAttribute('data-bonbu-total-amt') || '';
+        headName = findOrgHead(orgName);
+      } else if (bonbujangCell) {
+        const bonbu = bonbujangCell.getAttribute('data-bonbu') || '';
+        const ri = parseInt(bonbujangCell.getAttribute('data-extra-ri')||'0');
+        const row = (deptFundSettings[bonbu]?.extraRows||[])[ri];
+        // Q3/Q4 중 활성 분기의 orgNames 사용
+        orgName = (row?.orgNames||[]).find(n=>n) || bonbu;
+        headName = (row?.headNames||[]).find(h=>h) || findOrgHead(orgName);
+      }
     } else {
       // data-teamjang-total 또는 data-buseojang-total에서 조직명
       const totalCell = table.querySelector('td[data-teamjang-total]') || table.querySelector('td[data-buseojang-total]');
