@@ -6198,21 +6198,18 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       // 본부 자체 extraRows (기술서비스팀, 품질기획팀 등 추가 줄) headNames + nameData 합산
       const bonbuExtraRowsList = (deptFundSettings[bonbu]||{}).extraRows||[];
       bonbuExtraRowsList.forEach(function(row) {
-        const rowDq = row.disabledQi||[];
+        const rowDq = [...(row.disabledQi||[]), ...(row.exDisabledQi||[])];
         if (rowDq.includes(qi)) return;
         const cols = row.cols||[];
-        const rowType = row.type||'없음';
-        // bonbu/bonbujang colType: headNames에서 이름 포함
         const hn = (row.headNames||[])[qi];
         if (hn && !countedNames.has(hn)) { countedNames.add(hn); t += 50000; }
-        // nameData 포함
         (row.nameData||[]).filter(function(d){return d.qi===qi&&d.name&&!d.hidden;}).forEach(function(d) {
           if (!countedNames.has(d.name)) { countedNames.add(d.name); t += 50000; }
         });
-        // orgNames: bonbu colType일 때 조직 내 직원도 포함
+        // orgNames: bonbu/dept colType이고 본부 자신이 아닌 경우만 직원 포함
         if (cols.includes('bonbu')||cols.includes('dept')) {
-          const orgName = (row.orgNames||[])[qi]||(row.orgNames||[])[0];
-          if (orgName) {
+          const orgName = (row.orgNames||[])[qi];
+          if (orgName && orgName !== bonbu) {
             const orgQn = (window._lastQNames&&window._lastQNames[orgName]&&window._lastQNames[orgName][qi])||[];
             orgQn.forEach(obj => {
               if (!obj||!obj.name||countedNames.has(obj.name)) return;
