@@ -6145,8 +6145,26 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     });
     if (bonbuIsTeamjang) window._bonbuTeamjangCalcs[bonbu] = calcBonbuTeamjangAmts;
 
-    // qAmts: 렌더링 후 _lastQNames 기반으로 재계산
-    const qAmts = [null, null, null, null];
+    // bonbuIsTeamjang이어도 extraRows에 본부장 type이 있으면 별도 계산 등록
+    if (bonbuIsTeamjang && hasBonbuTypeExtraAny) {
+      if (!window._bonbuExtraAmtCalcs) window._bonbuExtraAmtCalcs = {};
+      window._bonbuExtraAmtCalcs[bonbu] = () => quarters.map(([qs,qe],qi) => {
+        const bonbuDisabledQi = (deptFundSettings[bonbu]||{}).disabledQi||[];
+        if (bonbuDisabledQi.includes(qi)) return null;
+        let t = 0;
+        const countedNames2 = new Set();
+        ((deptFundSettings[bonbu]||{}).extraRows||[]).forEach(row => {
+          if (!(row.type||'').includes('본부장')) return;
+          if ((row.disabledQi||[]).includes(qi)) return;
+          const hn = (row.headNames||[])[qi];
+          if (hn && !countedNames2.has(hn)) { countedNames2.add(hn); t += 50000; }
+          (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden).forEach(d => {
+            if (!countedNames2.has(d.name)) { countedNames2.add(d.name); t += 50000; }
+          });
+        });
+        return t || null;
+      });
+    }
     if (!window._bonbuAmtCalcs) window._bonbuAmtCalcs = {};
     const calcBonbuAmts = () => quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
@@ -6224,7 +6242,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       return t || null;
     });
     const hasBonbuTypeExtraAny = ((deptFundSettings[bonbu]||{}).extraRows||[]).some(r=>(r.type||'').includes('본부장'));
-    if (!bonbuIsNone && (!bonbuIsTeamjang || hasBonbuTypeExtraAny)) {
+    if (!bonbuIsNone && !bonbuIsTeamjang) {
       window._bonbuAmtCalcs[bonbu] = calcBonbuAmts;
       if (!window._deptFundMemberCache) window._deptFundMemberCache = {};
       window._deptFundMemberCache[bonbu] = () => {
@@ -6341,9 +6359,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           if(isFirst2) noteRendered2=true;
           if(colType==='bonbu'||colType==='dept'){
             const bg2 = colType==='bonbu' ? BG_BONBU_HEADER : BG_DEPT_HEADER;
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellOrg2(qi2);const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(orgNames[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">-</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellOrg2(qi2);const btn2=qi2===0?menuBtn2:'';const amtAttr=isBuseojang?' data-bonbu="'+bonbu+'" data-extra-ri="'+ri+'" data-qi="'+qi2+'" data-type="bonbujang-amt"':'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(orgNames[qi2]||'')+'</td><td'+amtAttr+' style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">-</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='bonbujang'||colType==='deptjang'){
-            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';const hT2=(row.headTitles||[])[qi2];const hA2=(row.headActing||[])[qi2];const hD2=hNames2[qi2]?(hNames2[qi2]+(hT2?' <span style="color:#3b82f6;font-weight:500">('+hT2+')</span>':'')+(hA2?' <span style="color:#3b82f6;font-size:10px">('+hA2+')</span>':'')):'';return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadModal(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+hD2+'</td>';}).join('')+'<td style="'+tS2+'text-align:right;font-weight:700">'+(isTeamjang?'-':rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
+            html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';const hT2=(row.headTitles||[])[qi2];const hA2=(row.headActing||[])[qi2];const hD2=hNames2[qi2]?(hNames2[qi2]+(hT2?' <span style="color:#3b82f6;font-weight:500">('+hT2+')</span>':'')+(hA2?' <span style="color:#3b82f6;font-size:10px">('+hA2+')</span>':'')):'';return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadModal(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+hD2+'</td>';}).join('')+'<td data-bonbu="'+bonbu+'" data-extra-ri="'+ri+'" data-type="bonbujang-total" style="'+tS2+'text-align:right;font-weight:700">'+(isTeamjang?'-':rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
           } else if(colType==='team'){
             const bg2=BG_TEAM_AMT;
             html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellTeam2(qi2);const amt=(isTeamjang||isBuseojang)&&rowAmts[qi2]!==null?rowAmts[qi2].toLocaleString():'-';const btn2=qi2===0?menuBtn2:'';const qAttr=(isTeamjang||isBuseojang)?' data-extra-buseojang-qi="'+bonbu+'-'+ri+'-'+qi2+'"':'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraTeamOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(teamOrgNames2[qi2]||'')+'</td><td'+qAttr+' style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">'+amt+'</td>';}).join('')+'<td style="'+tS2+'background:'+bg2+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
@@ -7462,6 +7480,27 @@ ${nameRows.map((rowByQ, rowIdx) => `
       amts.forEach((v,qi) => { _finalSums['팀장'][qi] += (v||0); });
     });
     window._bonbuTeamjangCalcs = {};
+  }
+
+  // bonbuIsTeamjang + extraRows 본부장 금액 업데이트
+  if (window._bonbuExtraAmtCalcs) {
+    Object.entries(window._bonbuExtraAmtCalcs).forEach(([bonbu, calcFn]) => {
+      const amts = calcFn();
+      const total = amts.reduce((s,v)=>s+(v||0),0);
+      // extraRows의 bonbujang 칸에 금액 표시
+      const extraRows = (deptFundSettings[bonbu]||{}).extraRows||[];
+      extraRows.forEach((row, ri) => {
+        if (!(row.type||'').includes('본부장')) return;
+        [0,1,2,3].forEach(qi => {
+          const cell = container.querySelector(`td[data-bonbu="${bonbu}"][data-extra-ri="${ri}"][data-qi="${qi}"][data-type="bonbujang-amt"]`);
+          if (cell) { cell.textContent = amts[qi]===null?'-':amts[qi].toLocaleString(); }
+        });
+        const totalCell = container.querySelector(`td[data-bonbu="${bonbu}"][data-extra-ri="${ri}"][data-type="bonbujang-total"]`);
+        if (totalCell) totalCell.textContent = total ? total.toLocaleString() : '-';
+      });
+      amts.forEach((v,qi) => { _finalSums['본부장'][qi] += (v||0); });
+    });
+    window._bonbuExtraAmtCalcs = {};
   }
 
   // 본부장 타입 본부 금액 업데이트
