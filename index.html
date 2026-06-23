@@ -6238,8 +6238,15 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             if (!countedNames2.has(d.name)) { countedNames2.add(d.name); t += 50000; }
           });
         });
-        // 하위 부서 직원 포함 (_lastQNames 기반)
+        // 겸직 본부장 제외 목록 (headNames에 있는 이름)
+        const excludeNames = new Set();
+        ((deptFundSettings[bonbu]||{}).extraRows||[]).forEach(row => {
+          if (!(row.type||'').includes('본부장')) return;
+          (row.headNames||[]).forEach(hn => { if(hn) excludeNames.add(hn); });
+        });
+        // 주소속 본부장도 제외
         const bonbuHead = employees.find(e=>e.dept===bonbu&&(e.title||'').includes('본부장'));
+        if (bonbuHead) excludeNames.add(bonbuHead.name);
         Object.keys(deptFundSettings).forEach(dk => {
           if (getBonbu({dept:dk}) !== bonbu) return;
           const dkDq = (deptFundSettings[dk]||{}).disabledQi||[];
@@ -6247,7 +6254,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const qn = (window._lastQNames&&window._lastQNames[dk]&&window._lastQNames[dk][qi])||[];
           qn.forEach(obj => {
             if (!obj||!obj.name||countedNames2.has(obj.name)) return;
-            if (bonbuHead && obj.name === bonbuHead.name) return; // 겸직 본부장 제외
+            if (excludeNames.has(obj.name)) return;
             countedNames2.add(obj.name); t += 50000;
           });
         });
