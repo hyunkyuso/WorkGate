@@ -6245,11 +6245,17 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const excludeNames = new Set();
         ((deptFundSettings[bonbu]||{}).extraRows||[]).forEach(row => {
           if (!(row.type||'').includes('본부장')) return;
+          // disabledQi 관계없이 headNames는 항상 제외
           (row.headNames||[]).forEach(hn => { if(hn) excludeNames.add(hn); });
         });
         // 주소속 본부장도 제외
         const bonbuHead = employees.find(e=>e.dept===bonbu&&(e.title||'').includes('본부장'));
         if (bonbuHead) excludeNames.add(bonbuHead.name);
+        // 이 분기가 비활성이면 하위 부서 직원 포함 안 함
+        const anyActiveExtraRow = ((deptFundSettings[bonbu]||{}).extraRows||[]).some(row =>
+          (row.type||'').includes('본부장') && !(row.disabledQi||[]).includes(qi)
+        );
+        if (!anyActiveExtraRow) return t || null;
         Object.keys(deptFundSettings).forEach(dk => {
           if (getBonbu({dept:dk}) !== bonbu) return;
           const dkDq = (deptFundSettings[dk]||{}).disabledQi||[];
