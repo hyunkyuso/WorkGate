@@ -10564,7 +10564,8 @@ function getMypageFundMembers(org, year, mode) {
       if (headName && !seenAll.has(headName)) {
         const hEmp = employees.find(e => e.name===headName);
         const hm = hEmp ? getEmpMonthsInQuarter(hEmp, year, qs, qe) : 1;
-        if (hm > 0) { allObjs.push({ name: headName, isEmp: !!hEmp }); seenAll.add(headName); }
+        const hdNoAmt = (s.nameData||[]).find(d=>d.qi===qi&&d.name===headName&&d.noAmt);
+        if (hm > 0 && !hdNoAmt) { allObjs.push({ name: headName, isEmp: !!hEmp }); seenAll.add(headName); }
       }
       objs.forEach(o => { if (!seenAll.has(o.name)) { allObjs.push(o); seenAll.add(o.name); } });
 
@@ -11158,6 +11159,6 @@ if (!state.kpis.length) {
   setupAuthListener();
 })();
 </script>
-</body> 
+</body>
 </html>
  
