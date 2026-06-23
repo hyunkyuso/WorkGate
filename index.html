@@ -6026,6 +6026,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
   const BG_BONBU_TEXT = '#1e3a5f'; // 본부 텍스트: 짙은 남색
   const BG_DEPT  = '#e8edf2';    // 부서(소속행 제외): 옅은 회색(더 보이게)
   const BG_DEPT_HEADER = '#bbf7d0'; // 소속 들어간 줄: 더 옅은 초록
+  const BG_BONBU_HEADER = '#bfdbfe'; // 본부 줄: 옅은 파랑
   const BG_TEAM_AMT = '#dbeafe';  // 팀장 금액 행: 옅은 파랑
   const BG_HEAD  = '#f1f5f9';    // 헤더
   const thStyle = `border:${BORDER};padding:5px 8px;text-align:center;background:${BG_HEAD};font-size:11px;white-space:nowrap;position:sticky;top:0;z-index:2;`;
@@ -6322,7 +6323,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           const noteTd2=isFirst2?'<td rowspan="'+totalTrs2+'" style="'+tS2+'font-size:11px;font-weight:700;vertical-align:middle;cursor:pointer;background:#fff;color:#111" ondblclick="openExtraTypeModal(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+')">'+(rowTypeLabel==='없음'?'':rowTypeLabel)+'</td>':'';
           if(isFirst2) noteRendered2=true;
           if(colType==='bonbu'||colType==='dept'){
-            const bg2=BG_DEPT_HEADER;
+            const bg2 = colType==='bonbu' ? BG_BONBU_HEADER : BG_DEPT_HEADER;
             html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return disabledCellOrg2(qi2);const btn2=qi2===0?menuBtn2:'';return'<td colspan="3" style="'+tS2+'font-weight:600;background:'+bg2+';cursor:pointer" ondblclick="openExtraOrgEdit(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+btn2+(orgNames[qi2]||'')+'</td><td style="'+tS2+'background:'+bg2+';border-right:1px solid #90a4ae;text-align:right">-</td>';}).join('')+'<td style="'+tS2+'background:'+BG_DEPT_HEADER+';text-align:center;font-weight:600">계</td>'+noteTd2+'</tr>';
           } else if(colType==='bonbujang'||colType==='deptjang'){
             html+='<tr>'+[0,1,2,3].map(function(qi2){if(exDisabledQi.includes(qi2))return'';const hT2=(row.headTitles||[])[qi2];const hA2=(row.headActing||[])[qi2];const hD2=hNames2[qi2]?(hNames2[qi2]+(hT2?' <span style="color:#3b82f6;font-weight:500">('+hT2+')</span>':'')+(hA2?' <span style="color:#3b82f6;font-size:10px">('+hA2+')</span>':'')):'';return'<td colspan="4" style="'+tS2+'border-right:1px solid #90a4ae;cursor:pointer" ondblclick="openExtraHeadModal(decodeURIComponent(\x27'+bonbuEnc+'\x27),'+ri+','+qi2+')">'+hD2+'</td>';}).join('')+'<td style="'+tS2+'text-align:right;font-weight:700">'+(isTeamjang?'-':rowTotal?rowTotal.toLocaleString():'-')+'</td>'+noteTd2+'</tr>';
@@ -6664,7 +6665,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             if (isFirst) noteRendered = true;
 
             if (colType==='bonbu'||colType==='dept') {
-              const bg = BG_DEPT_HEADER;
+              const bg = colType==='bonbu' ? BG_BONBU_HEADER : BG_DEPT_HEADER;
               result.push('<tr>' + [0,1,2,3].map(function(qi2){
                 if (exDisabledQi.includes(qi2)) return disabledCellOrg(qi2);
                 const btn = qi2===0 ? menuBtn : '';
@@ -8232,7 +8233,7 @@ function openDeptMenu(dept, event) {
     ? (((deptFundSettings[dept]||{}).extraRows||[])[extraRiNum]?.disabledQi||[])
     : ((deptFundSettings[dept]||{}).disabledQi||[]);
   let html = '<div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e2e8f0">' + dept + '</div>';
-  html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});openAddRowModal(decodeURIComponent(\'' + denc + '\'))" style="width:100%;padding:6px 10px;margin-bottom:8px;border-radius:6px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer;font-size:12px;font-weight:600;text-align:left">+ 줄 추가</button>';
+  html += '<button onclick="document.querySelectorAll(\'.dept-menu-popup\').forEach(function(el){el.remove();});openAddRowModal(decodeURIComponent(\'' + denc + '\'),' + (isExtra ? extraRiNum + 1 : -1) + ')" style="width:100%;padding:6px 10px;margin-bottom:8px;border-radius:6px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer;font-size:12px;font-weight:600;text-align:left">+ 줄 추가</button>';
   html += '<div style="font-size:11px;color:#64748b;margin-bottom:4px">미사용 분기</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
   [0,1,2,3].forEach(function(qi) {
@@ -8313,7 +8314,7 @@ function openExtraHeadModal(dept, ri, qi) {
   setTimeout(() => document.getElementById('hn-name')?.focus(), 50);
 }
 
-function openAddRowModal(dept) {
+function openAddRowModal(dept, insertIdx) {
   const checks = [
     {id:'ck-bonbu', label:'본부칸', key:'bonbu'},
     {id:'ck-bonbujang', label:'본부장칸', key:'bonbujang'},
@@ -8368,7 +8369,12 @@ function openAddRowModal(dept) {
     const disabledQi = [];
     if (!deptFundSettings[dept]) deptFundSettings[dept] = {};
     if (!deptFundSettings[dept].extraRows) deptFundSettings[dept].extraRows = [];
-    deptFundSettings[dept].extraRows.push({cols: selected, name: orgName, headName, type: rowType, disabledQi});
+    const newRow = {cols: selected, name: orgName, headName, type: rowType, disabledQi};
+    if (insertIdx !== undefined && insertIdx >= 0 && insertIdx <= deptFundSettings[dept].extraRows.length) {
+      deptFundSettings[dept].extraRows.splice(insertIdx, 0, newRow);
+    } else {
+      deptFundSettings[dept].extraRows.push(newRow);
+    }
     saveDeptFundSettings(); modal.remove(); setTimeout(_renderDeptFund,50); });
 
   setTimeout(()=>document.getElementById('ar-orgname')?.focus(), 50);
