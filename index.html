@@ -10555,9 +10555,6 @@ function getMypageFundMembers(org, year, mode) {
         const seenNames = new Set(objs.map(o=>o.name));
         objs.forEach(o => merged.push(o));
         childDepts2.forEach(cd => {
-          // 하위 부서의 disabledQi 체크
-          const cdDisabledQi = (allSettings[cd]||{}).disabledQi||[];
-          if (cdDisabledQi.includes(qi)) return;
           // 각 하위 부서/팀의 부서장/팀장 추가
           const cdEmpList = employees.filter(e => e.dept===cd);
           const cdHead = cdEmpList.find(e =>
@@ -10567,7 +10564,8 @@ function getMypageFundMembers(org, year, mode) {
           const cdS = allSettings[cd] || {};
           const cdHdData = (cdS.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
           const cdHeadName = cdHdData?.name || (cdHead ? cdHead.name : '');
-          if (cdHeadName && !seenNames.has(cdHeadName)) {
+          const cdHeadHidden = (cdS.nameData||[]).find(d=>d.qi===qi&&d.name===cdHeadName&&d.hidden);
+          if (cdHeadName && !seenNames.has(cdHeadName) && !cdHeadHidden) {
             merged.push({ name: cdHeadName, isEmp: true });
             seenNames.add(cdHeadName);
           }
