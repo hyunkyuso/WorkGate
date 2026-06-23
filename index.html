@@ -6231,7 +6231,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         const countedNames2 = new Set();
         ((deptFundSettings[bonbu]||{}).extraRows||[]).forEach(row => {
           if (!(row.type||'').includes('본부장')) return;
-          if ((row.disabledQi||[]).includes(qi)) return;
+          const rowDq = row.disabledQi||[];
+          if (bonbu==='AI전략기획본부') console.log('[check] qi='+qi+' rowDq='+JSON.stringify(rowDq)+' includes='+rowDq.includes(qi));
+          if (rowDq.includes(qi)) return;
           // headNames는 겸직 본부장이므로 중복 방지용으로만 추가, 금액 계산 제외
           const hn = (row.headNames||[])[qi];
           if (hn) countedNames2.add(hn);
@@ -11142,6 +11144,6 @@ if (!state.kpis.length) {
   setupAuthListener();
 })();
 </script>
-</body> 
+</body>
 </html>
  
