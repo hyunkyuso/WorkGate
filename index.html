@@ -6150,9 +6150,12 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     if (!window._bonbuAmtCalcs) window._bonbuAmtCalcs = {};
     const calcBonbuAmts = () => quarters.map(([qs,qe],qi) => {
       if (bonbuIsNone) return null;
-      if (bonbuIsTeamjang) return null;
       const bonbuDisabledQi = (deptFundSettings[bonbu]||{}).disabledQi||[];
       if (bonbuDisabledQi.includes(qi)) return null;
+      // extraRows에 본부장 type이 있는지 확인
+      const bonbuExtraRowsList2 = (deptFundSettings[bonbu]||{}).extraRows||[];
+      const hasBonbuTypeExtra = bonbuExtraRowsList2.some(r=>(r.type||'').includes('본부장')&&!(r.disabledQi||[]).includes(qi));
+      if (bonbuIsTeamjang && !hasBonbuTypeExtra) return null;
       let t = 0;
       const countedNames = new Set();
       // 본부장 본인
@@ -6220,7 +6223,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       });
       return t || null;
     });
-    if (!bonbuIsTeamjang && !bonbuIsNone) {
+    const hasBonbuTypeExtraAny = ((deptFundSettings[bonbu]||{}).extraRows||[]).some(r=>(r.type||'').includes('본부장'));
+    if (!bonbuIsNone && (!bonbuIsTeamjang || hasBonbuTypeExtraAny)) {
       window._bonbuAmtCalcs[bonbu] = calcBonbuAmts;
       if (!window._deptFundMemberCache) window._deptFundMemberCache = {};
       window._deptFundMemberCache[bonbu] = () => {
