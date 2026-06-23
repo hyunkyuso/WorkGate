@@ -10511,8 +10511,12 @@ function getMypageFundMembers(org, year, mode) {
       const hdData = (s.nameData||[]).find(d => d.rowIdx===-1 && d.qi===qi);
       const headName = hdData?.name || (deptHead ? deptHead.name : '');
 
-      // 1) 이 dept 팀원 (부서장 제외)
-      let objs = getQNamesForDept(dept, qi).filter(o => o.name !== headName);
+      // 1) 이 dept 팀원 (부서장 제외, noAmt 제외)
+      let objs = getQNamesForDept(dept, qi).filter(o => {
+        if (o.name === headName) return false;
+        const ndCheck = (s.nameData||[]).find(d=>d.qi===qi&&d.name===o.name&&d.noAmt);
+        return !ndCheck;
+      });
 
       // 2) 항상 산하 모든 부서/팀 수집 (3단계 재귀)
       const childDepts2 = getAllChildDepts(dept);
@@ -10565,6 +10569,12 @@ function getMypageFundMembers(org, year, mode) {
       objs.forEach(o => { if (!seenAll.has(o.name)) { allObjs.push(o); seenAll.add(o.name); } });
 
       const dateDataList = (allSettings[dept]?.dateData || []);
+
+      // extra 인원 (금액칸에 수동 추가된 인원) 포함
+      const extraList2 = (allSettings[dept]?.extra||[]).filter(e=>e.qi===qi&&e.type==='teamjang');
+      extraList2.forEach(e => {
+        if (!seenAll.has(e.name)) { allObjs.push({name:e.name, isEmp:false}); seenAll.add(e.name); }
+      });
 
       // extraRow nameData 추가
       const extraRowObjs = [];
