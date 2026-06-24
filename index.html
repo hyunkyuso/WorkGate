@@ -10780,10 +10780,11 @@ function getMypageFundMembers(org, year, mode) {
           }
           // extraRows는 cd disabledQi 무관하게 row별로 체크
           (cdS.extraRows||[]).forEach(row => {
-            // orgNames가 departments에 없고 dateData도 없으면 폐지된 조직 → 제외
+            // orgNames가 departments에 없고 dateData도 없고 nameData도 없으면 제외
             const rowOrgName = (row.orgNames||[]).find(n=>n);
             const rowHasDateData = !!(row.dateData?.length);
-            if (rowOrgName && !departments.find(d=>d.name===rowOrgName) && !rowHasDateData) return;
+            const rowHasNameData = (row.nameData||[]).some(d=>d.name&&!d.hidden);
+            if (rowOrgName && !departments.find(d=>d.name===rowOrgName) && !rowHasDateData && !rowHasNameData) return;
             if (!row.type || row.type === '없음') {
               const hasDateData = !!(row.dateData?.length);
               // cd의 부모가 dept이면 포함 (기술서비스팀 → 연구2팀 → AI GIS 연구부 케이스)
