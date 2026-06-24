@@ -10619,7 +10619,7 @@ function getMypageFundMembers(org, year, mode) {
         }
         if ((row.disabledQi||[]).includes(qi)) return;
         (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden&&!d.noAmt).forEach(d=>{
-          if (!selfExtraSeen.has(d.name)) { selfExtraObjs.push({name:d.name,isEmp:false}); selfExtraSeen.add(d.name); }
+          if (!selfExtraSeen.has(d.name)) { selfExtraObjs.push({name:d.name,isEmp:false,dateData:row.dateData||[]}); selfExtraSeen.add(d.name); }
         });
       });
       objs = [...objs, ...selfExtraObjs];
@@ -10688,6 +10688,7 @@ function getMypageFundMembers(org, year, mode) {
           } else {
             // name으로 먼저 찾기
             let dd = (o.dateData||[]).find(d => d.name===o.name && d.qi===qi);
+            if (o.name==='홍유주') console.log('[홍유주]', 'mo='+mo, 'qi='+qi, 'dateData='+JSON.stringify(o.dateData), 'dd='+JSON.stringify(dd));
             if (!dd) {
               // name 없는 dateData: col로 매칭 (같은 qi의 인원 순서로)
               const qiObjs = allObjs.filter((oo,idx) => {
@@ -11237,5 +11238,5 @@ if (!state.kpis.length) {
 })();
 </script>
 </body>
-</html> 
+</html>
  
