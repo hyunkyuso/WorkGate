@@ -10780,6 +10780,10 @@ function getMypageFundMembers(org, year, mode) {
             if (cdHeadName) addMember(cdHeadName);
             // 팀원 (getQNamesForDept: 직원 + nameData 추가인원)
             getQNamesForDept(cd, qi).forEach(o => addMember(o.name));
+            // employees 직접 조회 (disabledQi로 _lastQNames에 없는 경우 보완)
+            employees.filter(e=>e.dept===cd).forEach(e=>{
+              if (!countedNames.has(e.name)) addMember(e.name);
+            });
             // nameData에서 추가인원도 포함 (이직/발령으로 현재 소속이 다른 경우)
             (cdS.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden&&!d.noAmt).forEach(d=>{
               addMember(d.name);
@@ -10814,10 +10818,11 @@ function getMypageFundMembers(org, year, mode) {
 
         // 본부 자체 extraRows headNames + nameData
         (s.extraRows||[]).forEach(row => {
-          // orgNames가 departments에 없고 dateData도 없으면 폐지된 조직 → 제외
+          // orgNames가 departments에 없고 dateData도 없고 nameData도 없으면 폐지된 조직 → 제외
           const rowOrgName = (row.orgNames||[]).find(n=>n);
           const rowHasDateData = !!(row.dateData?.length);
-          if (rowOrgName && !departments.find(d=>d.name===rowOrgName) && !rowHasDateData) return;
+          const rowHasNameData2 = (row.nameData||[]).some(d=>d.name&&!d.hidden);
+          if (rowOrgName && !departments.find(d=>d.name===rowOrgName) && !rowHasDateData && !rowHasNameData2) return;
           if (!row.type || row.type === '없음') {
             const hasDateData = !!(row.dateData?.length);
             const hasChildEmp = (row.nameData||[]).some(d => {
@@ -11209,6 +11214,6 @@ if (!state.kpis.length) {
   setupAuthListener();
 })();
 </script>
-</body> 
+</body>
 </html>
  
