@@ -10780,6 +10780,10 @@ function getMypageFundMembers(org, year, mode) {
             if (cdHeadName) addMember(cdHeadName);
             // 팀원 (getQNamesForDept: 직원 + nameData 추가인원)
             getQNamesForDept(cd, qi).forEach(o => addMember(o.name));
+            // nameData에서 추가인원도 포함 (이직/발령으로 현재 소속이 다른 경우)
+            (cdS.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden&&!d.noAmt).forEach(d=>{
+              addMember(d.name);
+            });
           }
           // extraRows는 cd disabledQi 무관하게 row별로 체크
           (cdS.extraRows||[]).forEach(row => {
