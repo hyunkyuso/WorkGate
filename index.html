@@ -10604,6 +10604,7 @@ function getMypageFundMembers(org, year, mode) {
 
       // 본부/부서 자체 extraRows nameData도 포함
       const selfExtraObjs = [];
+      const selfExtraSeen = new Set(objs.map(o=>o.name));
       (s.extraRows||[]).forEach(row => {
         const rowOrgName = (row.orgNames||[]).find(n=>n);
         const rowHasDateData = !!(row.dateData?.length);
@@ -10618,10 +10619,10 @@ function getMypageFundMembers(org, year, mode) {
         }
         if ((row.disabledQi||[]).includes(qi)) return;
         (row.nameData||[]).filter(d=>d.qi===qi&&d.name&&!d.hidden&&!d.noAmt).forEach(d=>{
-          if (!seenAll.has(d.name)) { selfExtraObjs.push({name:d.name,isEmp:false}); seenAll.add(d.name); }
+          if (!selfExtraSeen.has(d.name)) { selfExtraObjs.push({name:d.name,isEmp:false}); selfExtraSeen.add(d.name); }
         });
       });
-      allObjs.push(...selfExtraObjs);
+      objs = [...objs, ...selfExtraObjs];
 
       // 3) 부서장 본인을 맨 앞에 추가 (중복 방지)
       const allObjs = [];
