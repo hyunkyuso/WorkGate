@@ -286,17 +286,22 @@ select.form-input{cursor:pointer}
         <div class="nav-item" onclick="showPage('orgview',this)"><span class="nav-icon">👁️</span> 직원 조회</div>
       </div>
       <div class="sidebar-section">
-        <div class="sidebar-section-label">기업인증현황</div>
-        <div class="nav-item" onclick="showPage('cert-dashboard',this)"><span class="nav-icon">🏆</span> 대시보드</div>
-        <div class="nav-item" onclick="showPage('cert-copyright',this)"><span class="nav-icon">©️</span> 저작권</div>
-        <div class="nav-item" onclick="showPage('cert-gs',this)"><span class="nav-icon">✅</span> GS인증</div>
-        <div class="nav-item" onclick="showPage('cert-patent',this)"><span class="nav-icon">📜</span> 특허증</div>
-        <div class="nav-item" onclick="showPage('cert-trademark',this)"><span class="nav-icon">®️</span> 상표등록증</div>
-        <div class="nav-item" onclick="showPage('cert-ogc',this)"><span class="nav-icon">🌐</span> OGC</div>
-        <div class="nav-item" onclick="showPage('cert-direct',this)"><span class="nav-icon">🏭</span> 직접생산·SW사업자</div>
-        <div class="nav-item" onclick="showPage('cert-program',this)"><span class="nav-icon">💿</span> 프로그램 인증서</div>
-        <div class="nav-item" onclick="showPage('cert-excellence',this)"><span class="nav-icon">🥇</span> 우수제품지정</div>
-        <div class="nav-item" onclick="showPage('cert-survey',this)"><span class="nav-icon">📡</span> 측량기기 성능검사</div>
+        <div class="sidebar-section-label cert-section-toggle" onclick="toggleCertMenu()" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>기업인증현황</span>
+          <span id="cert-toggle-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
+        </div>
+        <div id="cert-menu-items">
+          <div class="nav-item" onclick="showPage('cert-dashboard',this)"><span class="nav-icon">🏆</span> 대시보드</div>
+          <div class="nav-item" onclick="showPage('cert-copyright',this)"><span class="nav-icon">©️</span> 저작권</div>
+          <div class="nav-item" onclick="showPage('cert-gs',this)"><span class="nav-icon">✅</span> GS인증</div>
+          <div class="nav-item" onclick="showPage('cert-patent',this)"><span class="nav-icon">📜</span> 특허증</div>
+          <div class="nav-item" onclick="showPage('cert-trademark',this)"><span class="nav-icon">®️</span> 상표등록증</div>
+          <div class="nav-item" onclick="showPage('cert-ogc',this)"><span class="nav-icon">🌐</span> OGC</div>
+          <div class="nav-item" onclick="showPage('cert-direct',this)"><span class="nav-icon">🏭</span> 직접생산·SW사업자</div>
+          <div class="nav-item" onclick="showPage('cert-program',this)"><span class="nav-icon">💿</span> 프로그램 인증서</div>
+          <div class="nav-item" onclick="showPage('cert-excellence',this)"><span class="nav-icon">🥇</span> 우수제품지정</div>
+          <div class="nav-item" onclick="showPage('cert-survey',this)"><span class="nav-icon">📡</span> 측량기기 성능검사</div>
+        </div>
       </div>
 
       <div class="sidebar-section">
@@ -460,7 +465,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-copyright">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>저작물 명칭</th><th>등록기관</th><th>창작일</th><th>공표일</th><th>등록일</th><th>등록번호</th><th style="width:140px;white-space:nowrap">파일</th><th style="width:140px;white-space:nowrap">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>저작물 명칭</th><th>등록기관</th><th>창작일</th><th>공표일</th><th>등록일</th><th>등록번호</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
           <tbody id="tbody-copyright"></tbody>
         </table></div>
       </div>
@@ -476,7 +481,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-gs">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>기술개발명칭</th><th>등록기관</th><th>인증일자</th><th>등록번호</th><th style="width:140px;white-space:nowrap">파일</th><th style="width:140px;white-space:nowrap">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>기술개발명칭</th><th>등록기관</th><th>인증일자</th><th>등록번호</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
           <tbody id="tbody-gs"></tbody>
         </table></div>
       </div>
@@ -492,7 +497,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-patent">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>기술개발명칭</th><th>등록기관</th><th>출원일</th><th>등록일자</th><th>등록번호</th><th>비고</th><th style="width:140px;white-space:nowrap">파일</th><th style="width:140px;white-space:nowrap">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>기술개발명칭</th><th>등록기관</th><th>출원일</th><th>등록일자</th><th>등록번호</th><th>비고</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
           <tbody id="tbody-patent"></tbody>
         </table></div>
       </div>
@@ -508,7 +513,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-trademark">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>상표 명칭</th><th>등록기관</th><th>출원일</th><th>등록일</th><th>등록번호</th><th style="width:140px;white-space:nowrap">파일</th><th style="width:140px;white-space:nowrap">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>상표 명칭</th><th>등록기관</th><th>출원일</th><th>등록일</th><th>등록번호</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
           <tbody id="tbody-trademark"></tbody>
         </table></div>
       </div>
@@ -524,7 +529,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-ogc">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>상표 명칭</th><th>등록기관</th><th>유효기간</th><th style="width:140px;white-space:nowrap">파일</th><th style="width:140px;white-space:nowrap">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>상표 명칭</th><th>등록기관</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
           <tbody id="tbody-ogc"></tbody>
         </table></div>
       </div>
@@ -540,7 +545,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-direct">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>세부품명</th><th>세부품명번호</th><th>유효기간</th><th style="width:140px;white-space:nowrap">파일</th><th style="width:140px;white-space:nowrap">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>세부품명</th><th>세부품명번호</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
           <tbody id="tbody-direct"></tbody>
         </table></div>
       </div>
@@ -556,7 +561,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-program">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>등록기관</th><th>인증번호</th><th>유효기간</th><th style="width:140px;white-space:nowrap">파일</th><th style="width:140px;white-space:nowrap">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>등록기관</th><th>인증번호</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
           <tbody id="tbody-program"></tbody>
         </table></div>
       </div>
@@ -572,7 +577,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-excellence">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>지정범위</th><th>지정기간</th><th>등록기관</th><th>지정번호</th><th style="width:140px;white-space:nowrap">파일</th><th style="width:140px;white-space:nowrap">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>지정범위</th><th>지정기간</th><th>등록기관</th><th>지정번호</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
           <tbody id="tbody-excellence"></tbody>
         </table></div>
       </div>
@@ -588,7 +593,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-survey">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>검사기관</th><th>검사필증 일련번호</th><th>유효기간</th><th style="width:140px;white-space:nowrap">파일</th><th style="width:140px;white-space:nowrap">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>검사기관</th><th>검사필증 일련번호</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
           <tbody id="tbody-survey"></tbody>
         </table></div>
       </div>
