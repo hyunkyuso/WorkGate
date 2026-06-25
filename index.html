@@ -68,9 +68,6 @@ body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--t1);fo
 .sidebar{width:220px;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
 .sidebar-section{padding:16px 12px 8px}
 .sidebar-section-label{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.8px;text-transform:uppercase;padding:0 8px;margin-bottom:4px}
-.cert-section-toggle:hover{color:var(--t2)}
-#cert-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
-#cert-menu-items.collapsed{max-height:0;opacity:0}
 .nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--t2);transition:all .15s;user-select:none}
 .nav-item:hover{background:var(--surface);color:var(--t1)}
 .nav-item.active{background:var(--acd);color:var(--ac)}
@@ -285,22 +282,17 @@ select.form-input{cursor:pointer}
         <div class="nav-item" onclick="showPage('orgview',this)"><span class="nav-icon">👁️</span> 직원 조회</div>
       </div>
       <div class="sidebar-section">
-        <div class="sidebar-section-label cert-section-toggle" onclick="toggleCertMenu()" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
-          <span>기업인증현황</span>
-          <span id="cert-toggle-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
-        </div>
-        <div id="cert-menu-items">
-          <div class="nav-item" onclick="showPage('cert-dashboard',this)"><span class="nav-icon">🏆</span> 대시보드</div>
-          <div class="nav-item" onclick="showPage('cert-copyright',this)"><span class="nav-icon">©️</span> 저작권</div>
-          <div class="nav-item" onclick="showPage('cert-gs',this)"><span class="nav-icon">✅</span> GS인증</div>
-          <div class="nav-item" onclick="showPage('cert-patent',this)"><span class="nav-icon">📜</span> 특허증</div>
-          <div class="nav-item" onclick="showPage('cert-trademark',this)"><span class="nav-icon">®️</span> 상표등록증</div>
-          <div class="nav-item" onclick="showPage('cert-ogc',this)"><span class="nav-icon">🌐</span> OGC</div>
-          <div class="nav-item" onclick="showPage('cert-direct',this)"><span class="nav-icon">🏭</span> 직접생산·SW사업자</div>
-          <div class="nav-item" onclick="showPage('cert-program',this)"><span class="nav-icon">💿</span> 프로그램 인증서</div>
-          <div class="nav-item" onclick="showPage('cert-excellence',this)"><span class="nav-icon">🥇</span> 우수제품지정</div>
-          <div class="nav-item" onclick="showPage('cert-survey',this)"><span class="nav-icon">📡</span> 측량기기 성능검사</div>
-        </div>
+        <div class="sidebar-section-label">기업인증현황</div>
+        <div class="nav-item" onclick="showPage('cert-dashboard',this)"><span class="nav-icon">🏆</span> 대시보드</div>
+        <div class="nav-item" onclick="showPage('cert-copyright',this)"><span class="nav-icon">©️</span> 저작권</div>
+        <div class="nav-item" onclick="showPage('cert-gs',this)"><span class="nav-icon">✅</span> GS인증</div>
+        <div class="nav-item" onclick="showPage('cert-patent',this)"><span class="nav-icon">📜</span> 특허증</div>
+        <div class="nav-item" onclick="showPage('cert-trademark',this)"><span class="nav-icon">®️</span> 상표등록증</div>
+        <div class="nav-item" onclick="showPage('cert-ogc',this)"><span class="nav-icon">🌐</span> OGC</div>
+        <div class="nav-item" onclick="showPage('cert-direct',this)"><span class="nav-icon">🏭</span> 직접생산·SW사업자</div>
+        <div class="nav-item" onclick="showPage('cert-program',this)"><span class="nav-icon">💿</span> 프로그램 인증서</div>
+        <div class="nav-item" onclick="showPage('cert-excellence',this)"><span class="nav-icon">🥇</span> 우수제품지정</div>
+        <div class="nav-item" onclick="showPage('cert-survey',this)"><span class="nav-icon">📡</span> 측량기기 성능검사</div>
       </div>
 
       <div class="sidebar-section">
@@ -453,15 +445,143 @@ select.form-input{cursor:pointer}
         </div>
       </div>
 
-      <div id="page-cert-copyright" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">©️ 저작권</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
-      <div id="page-cert-gs" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">✅ GS인증</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
-      <div id="page-cert-patent" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">📜 특허증</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
-      <div id="page-cert-trademark" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">®️ 상표등록증</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
-      <div id="page-cert-ogc" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">🌐 OGC</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
-      <div id="page-cert-direct" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">🏭 직접생산·SW사업자</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
-      <div id="page-cert-program" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">💿 프로그램 인증서</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
-      <div id="page-cert-excellence" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">🥇 우수제품지정</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
-      <div id="page-cert-survey" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">📡 측량기기 성능검사</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
+      <!-- ══ 저작권 ══ -->
+      <div id="page-cert-copyright" class="page">
+        <div class="page-header">
+          <div><div class="page-title">©️ 무형자산(저작권/프로그램등록증)</div><div class="page-sub" id="cert-copyright-count"></div></div>
+          <div style="display:flex;gap:8px">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('copyright',this)"></label>
+            <button class="btn btn-primary btn-sm" onclick="certOpenAdd('copyright')">+ 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="tbl-copyright">
+          <thead><tr><th style="width:48px">구분</th><th>저작물 명칭</th><th>등록기관</th><th>창작일</th><th>공표일</th><th>등록일</th><th>등록번호</th><th style="width:80px">관리</th></tr></thead>
+          <tbody id="tbody-copyright"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ══ GS인증 ══ -->
+      <div id="page-cert-gs" class="page">
+        <div class="page-header">
+          <div><div class="page-title">✅ 무형자산(GS인증)</div><div class="page-sub" id="cert-gs-count"></div></div>
+          <div style="display:flex;gap:8px">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('gs',this)"></label>
+            <button class="btn btn-primary btn-sm" onclick="certOpenAdd('gs')">+ 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="tbl-gs">
+          <thead><tr><th style="width:48px">구분</th><th>기술개발명칭</th><th>등록기관</th><th>인증일자</th><th>등록번호</th><th style="width:80px">관리</th></tr></thead>
+          <tbody id="tbody-gs"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ══ 특허증 ══ -->
+      <div id="page-cert-patent" class="page">
+        <div class="page-header">
+          <div><div class="page-title">📜 무형자산(특허)</div><div class="page-sub" id="cert-patent-count"></div></div>
+          <div style="display:flex;gap:8px">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('patent',this)"></label>
+            <button class="btn btn-primary btn-sm" onclick="certOpenAdd('patent')">+ 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="tbl-patent">
+          <thead><tr><th style="width:48px">구분</th><th>기술개발명칭</th><th>등록기관</th><th>출원일</th><th>등록일자</th><th>등록번호</th><th>비고</th><th style="width:80px">관리</th></tr></thead>
+          <tbody id="tbody-patent"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ══ 상표등록증 ══ -->
+      <div id="page-cert-trademark" class="page">
+        <div class="page-header">
+          <div><div class="page-title">®️ 무형자산(상표등록증)</div><div class="page-sub" id="cert-trademark-count"></div></div>
+          <div style="display:flex;gap:8px">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('trademark',this)"></label>
+            <button class="btn btn-primary btn-sm" onclick="certOpenAdd('trademark')">+ 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="tbl-trademark">
+          <thead><tr><th style="width:48px">구분</th><th>상표 명칭</th><th>등록기관</th><th>출원일</th><th>등록일</th><th>등록번호</th><th style="width:80px">관리</th></tr></thead>
+          <tbody id="tbody-trademark"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ══ OGC ══ -->
+      <div id="page-cert-ogc" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🌐 무형자산(OGC)</div><div class="page-sub" id="cert-ogc-count"></div></div>
+          <div style="display:flex;gap:8px">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('ogc',this)"></label>
+            <button class="btn btn-primary btn-sm" onclick="certOpenAdd('ogc')">+ 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="tbl-ogc">
+          <thead><tr><th style="width:48px">구분</th><th>상표 명칭</th><th>등록기관</th><th>유효기간</th><th style="width:80px">관리</th></tr></thead>
+          <tbody id="tbody-ogc"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ══ 직접생산·SW사업자 ══ -->
+      <div id="page-cert-direct" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🏭 직접생산 및 소프트웨어사업자신고</div><div class="page-sub" id="cert-direct-count"></div></div>
+          <div style="display:flex;gap:8px">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('direct',this)"></label>
+            <button class="btn btn-primary btn-sm" onclick="certOpenAdd('direct')">+ 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="tbl-direct">
+          <thead><tr><th style="width:48px">구분</th><th>제품명</th><th>세부품명</th><th>세부품명번호</th><th>유효기간</th><th style="width:80px">관리</th></tr></thead>
+          <tbody id="tbody-direct"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ══ 프로그램 인증서 ══ -->
+      <div id="page-cert-program" class="page">
+        <div class="page-header">
+          <div><div class="page-title">💿 무형자산(프로그램인증서)</div><div class="page-sub" id="cert-program-count"></div></div>
+          <div style="display:flex;gap:8px">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('program',this)"></label>
+            <button class="btn btn-primary btn-sm" onclick="certOpenAdd('program')">+ 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="tbl-program">
+          <thead><tr><th style="width:48px">구분</th><th>제품명</th><th>등록기관</th><th>인증번호</th><th>유효기간</th><th style="width:80px">관리</th></tr></thead>
+          <tbody id="tbody-program"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ══ 우수제품지정 ══ -->
+      <div id="page-cert-excellence" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🥇 무형자산(우수제품지정)</div><div class="page-sub" id="cert-excellence-count"></div></div>
+          <div style="display:flex;gap:8px">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('excellence',this)"></label>
+            <button class="btn btn-primary btn-sm" onclick="certOpenAdd('excellence')">+ 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="tbl-excellence">
+          <thead><tr><th style="width:48px">구분</th><th>제품명</th><th>지정범위</th><th>지정기간</th><th>등록기관</th><th>지정번호</th><th style="width:80px">관리</th></tr></thead>
+          <tbody id="tbody-excellence"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ══ 측량기기 성능검사 ══ -->
+      <div id="page-cert-survey" class="page">
+        <div class="page-header">
+          <div><div class="page-title">📡 측량기기 성능검사</div><div class="page-sub" id="cert-survey-count"></div></div>
+          <div style="display:flex;gap:8px">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('survey',this)"></label>
+            <button class="btn btn-primary btn-sm" onclick="certOpenAdd('survey')">+ 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="tbl-survey">
+          <thead><tr><th style="width:48px">구분</th><th>제품명</th><th>검사기관</th><th>검사필증 일련번호</th><th>유효기간</th><th style="width:80px">관리</th></tr></thead>
+          <tbody id="tbody-survey"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ══ 기업인증현황 (대시보드 내 별도 시트) ══ -->
+      <!-- cert-dashboard는 기존 유지 -->
 
       <div id="page-orgview" class="page orgview-page">
         <div style="flex-shrink:0;margin-bottom:10px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
@@ -1184,10 +1304,28 @@ select.form-input{cursor:pointer}
   </div>
 </div>
 
+<!-- 기업인증현황 추가/수정 모달 -->
+<div id="cert-add-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('cert-add-modal')">
+  <div class="modal" style="max-width:480px;max-height:80vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title" id="cert-modal-title">추가</div>
+      <button class="modal-close" onclick="closeModal('cert-add-modal')">✕</button>
+    </div>
+    <div id="cert-modal-fields" style="padding:4px 0"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cert-add-modal')">닫기</button>
+      <button class="btn btn-primary" onclick="certSaveModal()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 토스트 -->
 <div class="toast" id="toast"></div>
 
 <!-- JS는 하단에 로드 -->
+
+<!-- SheetJS (엑셀 업로드 파싱) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -1415,9 +1553,8 @@ function initApp() {
   renderMembers();
   populateEmpFilterDept();
   renderEmployeeTable();
-  // 구글 드라이브 연동 (Firebase 토큰은 Drive API 미지원 → 데모 모드)
-  // Drive API는 별도 OAuth 설정 필요 — 현재는 파일 목록 표시 생략
   loadDemoFiles();
+  certRenderAll();
 }
 
 // ══════════════════════════════════════════════════
@@ -11277,11 +11414,195 @@ if (!state.kpis.length) {
   localStorage.setItem('wg_kpis', JSON.stringify(state.kpis));
 }
 
-// ── 기업인증현황 메뉴 접기/펼치기 ──
+
+// ══════════════════════════════════════════════════
+// 기업인증현황 — 공통 데이터 관리
+// ══════════════════════════════════════════════════
+
+const CERT_SCHEMAS = {
+  copyright: {
+    label: '저작권',
+    cols: ['저작물 명칭','등록기관','창작일','공표일','등록일','등록번호'],
+    keys: ['name','organ','created','published','registered','regNo']
+  },
+  gs: {
+    label: 'GS인증',
+    cols: ['기술개발명칭','등록기관','인증일자','등록번호'],
+    keys: ['name','organ','certDate','regNo']
+  },
+  patent: {
+    label: '특허증',
+    cols: ['기술개발명칭','등록기관','출원일','등록일자','등록번호','비고'],
+    keys: ['name','organ','applyDate','regDate','regNo','note']
+  },
+  trademark: {
+    label: '상표등록증',
+    cols: ['상표 명칭','등록기관','출원일','등록일','등록번호'],
+    keys: ['name','organ','applyDate','regDate','regNo']
+  },
+  ogc: {
+    label: 'OGC',
+    cols: ['상표 명칭','등록기관','유효기간'],
+    keys: ['name','organ','validity']
+  },
+  direct: {
+    label: '직접생산·SW사업자',
+    cols: ['제품명','세부품명','세부품명번호','유효기간'],
+    keys: ['product','detail','detailNo','validity']
+  },
+  program: {
+    label: '프로그램 인증서',
+    cols: ['제품명','등록기관','인증번호','유효기간'],
+    keys: ['name','organ','certNo','validity']
+  },
+  excellence: {
+    label: '우수제품지정',
+    cols: ['제품명','지정범위','지정기간','등록기관','지정번호'],
+    keys: ['name','scope','period','organ','designNo']
+  },
+  survey: {
+    label: '측량기기 성능검사',
+    cols: ['제품명','검사기관','검사필증 일련번호','유효기간'],
+    keys: ['name','organ','serialNo','validity']
+  }
+};
+
+function certLoadData(type) {
+  try { return JSON.parse(localStorage.getItem('wg_cert_'+type) || '[]'); } catch { return []; }
+}
+function certSaveData(type, arr) {
+  localStorage.setItem('wg_cert_'+type, JSON.stringify(arr));
+}
+
+function certRender(type) {
+  const schema = CERT_SCHEMAS[type];
+  const data = certLoadData(type);
+  const tbody = document.getElementById('tbody-'+type);
+  if (!tbody) return;
+  const countEl = document.getElementById('cert-'+type+'-count');
+  if (countEl) countEl.textContent = '총 ' + data.length + '건';
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="' + (schema.keys.length+2) + '" style="text-align:center;padding:32px;color:var(--t3)">등록된 데이터가 없습니다. 엑셀 업로드 또는 + 추가 버튼을 이용하세요.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(function(row, i) {
+    return '<tr><td style="text-align:center;color:var(--t3);font-size:12px">' + (i+1) + '</td>' +
+      schema.keys.map(function(k){ return '<td style="font-size:13px">' + (row[k]||'-') + '</td>'; }).join('') +
+      '<td style="text-align:center"><div style="display:flex;gap:4px;justify-content:center">' +
+      '<button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px;color:var(--ac);border-color:var(--ac)" onclick="certOpenEdit(\'' + type + '\',' + i + ')">수정</button>' +
+      '<button class="btn btn-danger btn-sm" style="padding:3px 8px;font-size:11px" onclick="certDelete(\'' + type + '\',' + i + ')">삭제</button>' +
+      '</div></td></tr>';
+  }).join('');
+}
+
+function certRenderAll() {
+  Object.keys(CERT_SCHEMAS).forEach(function(t){ certRender(t); });
+}
+
+var _certEditType = null, _certEditIdx = -1;
+
+function certOpenAdd(type) {
+  _certEditType = type; _certEditIdx = -1;
+  certShowModal(type, {});
+}
+
+function certOpenEdit(type, idx) {
+  _certEditType = type; _certEditIdx = idx;
+  var data = certLoadData(type);
+  certShowModal(type, data[idx] || {});
+}
+
+function certShowModal(type, row) {
+  var schema = CERT_SCHEMAS[type];
+  var isEdit = _certEditIdx >= 0;
+  document.getElementById('cert-modal-title').textContent = (isEdit ? '✏️ 수정 — ' : '+ 추가 — ') + schema.label;
+  document.getElementById('cert-modal-fields').innerHTML = schema.cols.map(function(col, i) {
+    var val = (row[schema.keys[i]] || '').toString().replace(/"/g,'&quot;');
+    return '<div style="margin-bottom:12px">' +
+      '<label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">' + col + '</label>' +
+      '<input id="cert-field-' + i + '" type="text" value="' + val + '" ' +
+      'style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none" ' +
+      'onfocus="this.style.borderColor=\'var(--ac)\'" onblur="this.style.borderColor=\'var(--border)\'" placeholder="' + col + ' 입력"></div>';
+  }).join('');
+  openModal('cert-add-modal');
+}
+
+function certSaveModal() {
+  var schema = CERT_SCHEMAS[_certEditType];
+  var row = {};
+  schema.keys.forEach(function(k,i){ row[k] = document.getElementById('cert-field-'+i).value.trim(); });
+  var data = certLoadData(_certEditType);
+  if (_certEditIdx >= 0) { data[_certEditIdx] = row; } else { data.push(row); }
+  certSaveData(_certEditType, data);
+  closeModal('cert-add-modal');
+  certRender(_certEditType);
+  showToast(_certEditIdx >= 0 ? '✅ 수정되었습니다' : '✅ 추가되었습니다');
+}
+
+function certDelete(type, idx) {
+  if (!confirm('삭제하시겠습니까?')) return;
+  var data = certLoadData(type);
+  data.splice(idx, 1);
+  certSaveData(type, data);
+  certRender(type);
+  showToast('🗑 삭제되었습니다');
+}
+
+function certUploadExcel(type, input) {
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  var schema = CERT_SCHEMAS[type];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      var headerRow = -1;
+      for (var r=0; r<raw.length; r++) {
+        var rowStr = raw[r].map(function(c){return String(c).trim();}).join('|');
+        if (rowStr.indexOf(schema.cols[0]) >= 0) { headerRow = r; break; }
+      }
+      if (headerRow < 0) { showToast('❌ 헤더를 찾을 수 없습니다.'); return; }
+      var headers = raw[headerRow].map(function(c){return String(c).trim();});
+      var colIdx = schema.cols.map(function(col){
+        return headers.findIndex(function(h){ return h === col || h.replace(/\s/g,'').indexOf(col.replace(/\s/g,'')) >= 0; });
+      });
+      var imported = [];
+      for (var r2=headerRow+1; r2<raw.length; r2++) {
+        var rowArr = raw[r2];
+        if (rowArr.every(function(c){return String(c).trim()=='';})) continue;
+        var obj = {};
+        schema.keys.forEach(function(k,i){
+          var ci = colIdx[i];
+          obj[k] = ci>=0 ? String(rowArr[ci]||'').trim() : '';
+        });
+        imported.push(obj);
+      }
+      if (!imported.length) { showToast('❌ 데이터를 찾지 못했습니다.'); return; }
+      var doAppend = confirm(imported.length + '건을 가져옵니다.\n[확인] 기존 데이터에 추가\n[취소] 기존 데이터 교체');
+      if (doAppend) {
+        var existing = certLoadData(type);
+        certSaveData(type, existing.concat(imported));
+      } else {
+        if (!confirm('기존 데이터를 모두 교체합니다. 계속할까요?')) return;
+        certSaveData(type, imported);
+      }
+      certRender(type);
+      showToast('✅ ' + imported.length + '건 업로드 완료');
+    } catch(err) {
+      console.error(err);
+      showToast('❌ 파일 읽기 오류: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 function toggleCertMenu() {
-  const items = document.getElementById('cert-menu-items');
-  const arrow = document.getElementById('cert-toggle-arrow');
-  const collapsed = items.classList.toggle('collapsed');
+  var items = document.getElementById('cert-menu-items');
+  var arrow = document.getElementById('cert-toggle-arrow');
+  var collapsed = items.classList.toggle('collapsed');
   arrow.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
 }
 
