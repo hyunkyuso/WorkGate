@@ -282,6 +282,20 @@ select.form-input{cursor:pointer}
         <div class="nav-item" onclick="showPage('orgview',this)"><span class="nav-icon">👁️</span> 직원 조회</div>
       </div>
       <div class="sidebar-section">
+        <div class="sidebar-section-label">기업인증현황</div>
+        <div class="nav-item" onclick="showPage('cert-dashboard',this)"><span class="nav-icon">🏆</span> 대시보드</div>
+        <div class="nav-item" onclick="showPage('cert-copyright',this)"><span class="nav-icon">©️</span> 저작권</div>
+        <div class="nav-item" onclick="showPage('cert-gs',this)"><span class="nav-icon">✅</span> GS인증</div>
+        <div class="nav-item" onclick="showPage('cert-patent',this)"><span class="nav-icon">📜</span> 특허증</div>
+        <div class="nav-item" onclick="showPage('cert-trademark',this)"><span class="nav-icon">®️</span> 상표등록증</div>
+        <div class="nav-item" onclick="showPage('cert-ogc',this)"><span class="nav-icon">🌐</span> OGC</div>
+        <div class="nav-item" onclick="showPage('cert-direct',this)"><span class="nav-icon">🏭</span> 직접생산·SW사업자</div>
+        <div class="nav-item" onclick="showPage('cert-program',this)"><span class="nav-icon">💿</span> 프로그램 인증서</div>
+        <div class="nav-item" onclick="showPage('cert-excellence',this)"><span class="nav-icon">🥇</span> 우수제품지정</div>
+        <div class="nav-item" onclick="showPage('cert-survey',this)"><span class="nav-icon">📡</span> 측량기기 성능검사</div>
+      </div>
+
+      <div class="sidebar-section">
         <div class="sidebar-section-label">관리</div>
         <div class="nav-item admin-only" onclick="showPage('employees',this)"><span class="nav-icon">👤</span> 직원 관리</div>
         <div class="nav-item admin-only" onclick="showPage('myinfo-history',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 정보수정 이력</div>
@@ -406,6 +420,41 @@ select.form-input{cursor:pointer}
 
       <!-- 팀원 -->
       <!-- 직원 조회 (조직도 뷰) -->
+      <div id="page-cert-dashboard" class="page">
+        <div style="padding:32px">
+          <h2 style="font-size:20px;font-weight:700;margin-bottom:24px">🏆 기업인증현황 대시보드</h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px">
+            ${[
+              {icon:'©️', label:'저작권', page:'cert-copyright'},
+              {icon:'✅', label:'GS인증', page:'cert-gs'},
+              {icon:'📜', label:'특허증', page:'cert-patent'},
+              {icon:'®️', label:'상표등록증', page:'cert-trademark'},
+              {icon:'🌐', label:'OGC', page:'cert-ogc'},
+              {icon:'🏭', label:'직접생산·SW사업자', page:'cert-direct'},
+              {icon:'💿', label:'프로그램 인증서', page:'cert-program'},
+              {icon:'🥇', label:'우수제품지정', page:'cert-excellence'},
+              {icon:'📡', label:'측량기기 성능검사', page:'cert-survey'},
+            ].map(c=>`
+              <div onclick="showPage('${c.page}',null)" style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:24px 16px;text-align:center;cursor:pointer;transition:box-shadow 0.2s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='none'">
+                <div style="font-size:32px;margin-bottom:8px">${c.icon}</div>
+                <div style="font-size:13px;font-weight:600;color:#1a1d2e">${c.label}</div>
+                <div style="font-size:12px;color:#94a3b8;margin-top:4px">0건</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div id="page-cert-copyright" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">©️ 저작권</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
+      <div id="page-cert-gs" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">✅ GS인증</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
+      <div id="page-cert-patent" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">📜 특허증</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
+      <div id="page-cert-trademark" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">®️ 상표등록증</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
+      <div id="page-cert-ogc" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">🌐 OGC</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
+      <div id="page-cert-direct" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">🏭 직접생산·SW사업자</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
+      <div id="page-cert-program" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">💿 프로그램 인증서</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
+      <div id="page-cert-excellence" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">🥇 우수제품지정</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
+      <div id="page-cert-survey" class="page"><div style="padding:32px"><h2 style="font-size:20px;font-weight:700;margin-bottom:8px">📡 측량기기 성능검사</h2><p style="color:#94a3b8;font-size:13px">준비 중입니다.</p></div></div>
+
       <div id="page-orgview" class="page orgview-page">
         <div style="flex-shrink:0;margin-bottom:10px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
           <div>
