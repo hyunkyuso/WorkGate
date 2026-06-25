@@ -292,6 +292,7 @@ select.form-input{cursor:pointer}
         </div>
         <div id="cert-menu-items">
           <div class="nav-item" onclick="showPage('cert-dashboard',this)"><span class="nav-icon">🏆</span> 대시보드</div>
+          <div class="nav-item" onclick="showPage('cert-bizcert',this)"><span class="nav-icon">🏅</span> 기업인증현황</div>
           <div class="nav-item" onclick="showPage('cert-copyright',this)"><span class="nav-icon">©️</span> 저작권</div>
           <div class="nav-item" onclick="showPage('cert-gs',this)"><span class="nav-icon">✅</span> GS인증</div>
           <div class="nav-item" onclick="showPage('cert-patent',this)"><span class="nav-icon">📜</span> 특허증</div>
@@ -452,6 +453,22 @@ select.form-input{cursor:pointer}
             `).join('')}
           </div>
         </div>
+      </div>
+
+      <!-- ══ 기업인증현황 ══ -->
+      <div id="page-cert-bizcert" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🏅 기업인증현황</div><div class="page-sub" id="cert-bizcert-count"></div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">🤖 AI 스캔 등록<input type="file" accept="image/*,.pdf" style="display:none" onchange="certAiScan('bizcert',this)"></label>
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('bizcert',this)"></label>
+            <button class="btn btn-primary btn-sm" onclick="certOpenAdd('bizcert')">+ 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="tbl-bizcert">
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>인증명</th><th>등급</th><th>인증기간</th><th>인증년수</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
+          <tbody id="tbody-bizcert"></tbody>
+        </table></div>
       </div>
 
       <!-- ══ 저작권 ══ -->
@@ -11482,6 +11499,11 @@ if (!state.kpis.length) {
 // ══════════════════════════════════════════════════
 
 const CERT_SCHEMAS = {
+  bizcert: {
+    label: '기업인증현황',
+    cols: ['인증명','등급','인증기간','인증년수'],
+    keys: ['name','grade','period','years']
+  },
   copyright: {
     label: '저작권',
     cols: ['저작물 명칭','등록기관','창작일','공표일','등록일','등록번호'],
