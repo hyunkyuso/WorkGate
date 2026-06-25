@@ -143,8 +143,8 @@ body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--t1);fo
 .table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;box-shadow:var(--shadow)}
 table{width:100%;border-collapse:collapse}
 thead{background:var(--surface)}
-th{padding:10px 14px;font-size:12px;font-weight:600;color:var(--t2);text-align:left;border-bottom:1px solid var(--border)}
-td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border)}
+th{padding:10px 14px;font-size:13px;font-weight:600;color:var(--t2);text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;font-size:14px;border-bottom:1px solid var(--border)}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--surface)}
 .progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;min-width:80px}
@@ -170,6 +170,10 @@ select.form-input{cursor:pointer}
 .toast{position:fixed;bottom:24px;right:24px;background:#1a1d2e;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;z-index:999;display:none;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.2)}
 .toast.show{display:flex;animation:slideUp .3s ease}
 @keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.cert-section-toggle:hover{color:var(--t2)}
+#cert-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
+#cert-menu-items.collapsed{max-height:0;opacity:0}
 
 /* ── DRIVE STATUS ── */
 .drive-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;border-radius:8px;margin-bottom:14px}
@@ -449,13 +453,14 @@ select.form-input{cursor:pointer}
       <div id="page-cert-copyright" class="page">
         <div class="page-header">
           <div><div class="page-title">©️ 무형자산(저작권/프로그램등록증)</div><div class="page-sub" id="cert-copyright-count"></div></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">🤖 AI 스캔 등록<input type="file" accept="image/*,.pdf" style="display:none" onchange="certAiScan('copyright',this)"></label>
             <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('copyright',this)"></label>
             <button class="btn btn-primary btn-sm" onclick="certOpenAdd('copyright')">+ 추가</button>
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-copyright">
-          <thead><tr><th style="width:48px">구분</th><th>저작물 명칭</th><th>등록기관</th><th>창작일</th><th>공표일</th><th>등록일</th><th>등록번호</th><th style="width:80px">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>저작물 명칭</th><th>등록기관</th><th>창작일</th><th>공표일</th><th>등록일</th><th>등록번호</th><th style="width:100px">관리</th></tr></thead>
           <tbody id="tbody-copyright"></tbody>
         </table></div>
       </div>
@@ -464,13 +469,14 @@ select.form-input{cursor:pointer}
       <div id="page-cert-gs" class="page">
         <div class="page-header">
           <div><div class="page-title">✅ 무형자산(GS인증)</div><div class="page-sub" id="cert-gs-count"></div></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">🤖 AI 스캔 등록<input type="file" accept="image/*,.pdf" style="display:none" onchange="certAiScan('gs',this)"></label>
             <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('gs',this)"></label>
             <button class="btn btn-primary btn-sm" onclick="certOpenAdd('gs')">+ 추가</button>
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-gs">
-          <thead><tr><th style="width:48px">구분</th><th>기술개발명칭</th><th>등록기관</th><th>인증일자</th><th>등록번호</th><th style="width:80px">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>기술개발명칭</th><th>등록기관</th><th>인증일자</th><th>등록번호</th><th style="width:100px">관리</th></tr></thead>
           <tbody id="tbody-gs"></tbody>
         </table></div>
       </div>
@@ -479,13 +485,14 @@ select.form-input{cursor:pointer}
       <div id="page-cert-patent" class="page">
         <div class="page-header">
           <div><div class="page-title">📜 무형자산(특허)</div><div class="page-sub" id="cert-patent-count"></div></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">🤖 AI 스캔 등록<input type="file" accept="image/*,.pdf" style="display:none" onchange="certAiScan('patent',this)"></label>
             <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('patent',this)"></label>
             <button class="btn btn-primary btn-sm" onclick="certOpenAdd('patent')">+ 추가</button>
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-patent">
-          <thead><tr><th style="width:48px">구분</th><th>기술개발명칭</th><th>등록기관</th><th>출원일</th><th>등록일자</th><th>등록번호</th><th>비고</th><th style="width:80px">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>기술개발명칭</th><th>등록기관</th><th>출원일</th><th>등록일자</th><th>등록번호</th><th>비고</th><th style="width:100px">관리</th></tr></thead>
           <tbody id="tbody-patent"></tbody>
         </table></div>
       </div>
@@ -494,13 +501,14 @@ select.form-input{cursor:pointer}
       <div id="page-cert-trademark" class="page">
         <div class="page-header">
           <div><div class="page-title">®️ 무형자산(상표등록증)</div><div class="page-sub" id="cert-trademark-count"></div></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">🤖 AI 스캔 등록<input type="file" accept="image/*,.pdf" style="display:none" onchange="certAiScan('trademark',this)"></label>
             <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('trademark',this)"></label>
             <button class="btn btn-primary btn-sm" onclick="certOpenAdd('trademark')">+ 추가</button>
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-trademark">
-          <thead><tr><th style="width:48px">구분</th><th>상표 명칭</th><th>등록기관</th><th>출원일</th><th>등록일</th><th>등록번호</th><th style="width:80px">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>상표 명칭</th><th>등록기관</th><th>출원일</th><th>등록일</th><th>등록번호</th><th style="width:100px">관리</th></tr></thead>
           <tbody id="tbody-trademark"></tbody>
         </table></div>
       </div>
@@ -509,13 +517,14 @@ select.form-input{cursor:pointer}
       <div id="page-cert-ogc" class="page">
         <div class="page-header">
           <div><div class="page-title">🌐 무형자산(OGC)</div><div class="page-sub" id="cert-ogc-count"></div></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">🤖 AI 스캔 등록<input type="file" accept="image/*,.pdf" style="display:none" onchange="certAiScan('ogc',this)"></label>
             <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('ogc',this)"></label>
             <button class="btn btn-primary btn-sm" onclick="certOpenAdd('ogc')">+ 추가</button>
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-ogc">
-          <thead><tr><th style="width:48px">구분</th><th>상표 명칭</th><th>등록기관</th><th>유효기간</th><th style="width:80px">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>상표 명칭</th><th>등록기관</th><th>유효기간</th><th style="width:100px">관리</th></tr></thead>
           <tbody id="tbody-ogc"></tbody>
         </table></div>
       </div>
@@ -524,13 +533,14 @@ select.form-input{cursor:pointer}
       <div id="page-cert-direct" class="page">
         <div class="page-header">
           <div><div class="page-title">🏭 직접생산 및 소프트웨어사업자신고</div><div class="page-sub" id="cert-direct-count"></div></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">🤖 AI 스캔 등록<input type="file" accept="image/*,.pdf" style="display:none" onchange="certAiScan('direct',this)"></label>
             <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('direct',this)"></label>
             <button class="btn btn-primary btn-sm" onclick="certOpenAdd('direct')">+ 추가</button>
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-direct">
-          <thead><tr><th style="width:48px">구분</th><th>제품명</th><th>세부품명</th><th>세부품명번호</th><th>유효기간</th><th style="width:80px">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>세부품명</th><th>세부품명번호</th><th>유효기간</th><th style="width:100px">관리</th></tr></thead>
           <tbody id="tbody-direct"></tbody>
         </table></div>
       </div>
@@ -539,13 +549,14 @@ select.form-input{cursor:pointer}
       <div id="page-cert-program" class="page">
         <div class="page-header">
           <div><div class="page-title">💿 무형자산(프로그램인증서)</div><div class="page-sub" id="cert-program-count"></div></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">🤖 AI 스캔 등록<input type="file" accept="image/*,.pdf" style="display:none" onchange="certAiScan('program',this)"></label>
             <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('program',this)"></label>
             <button class="btn btn-primary btn-sm" onclick="certOpenAdd('program')">+ 추가</button>
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-program">
-          <thead><tr><th style="width:48px">구분</th><th>제품명</th><th>등록기관</th><th>인증번호</th><th>유효기간</th><th style="width:80px">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>등록기관</th><th>인증번호</th><th>유효기간</th><th style="width:100px">관리</th></tr></thead>
           <tbody id="tbody-program"></tbody>
         </table></div>
       </div>
@@ -554,13 +565,14 @@ select.form-input{cursor:pointer}
       <div id="page-cert-excellence" class="page">
         <div class="page-header">
           <div><div class="page-title">🥇 무형자산(우수제품지정)</div><div class="page-sub" id="cert-excellence-count"></div></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">🤖 AI 스캔 등록<input type="file" accept="image/*,.pdf" style="display:none" onchange="certAiScan('excellence',this)"></label>
             <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('excellence',this)"></label>
             <button class="btn btn-primary btn-sm" onclick="certOpenAdd('excellence')">+ 추가</button>
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-excellence">
-          <thead><tr><th style="width:48px">구분</th><th>제품명</th><th>지정범위</th><th>지정기간</th><th>등록기관</th><th>지정번호</th><th style="width:80px">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>지정범위</th><th>지정기간</th><th>등록기관</th><th>지정번호</th><th style="width:100px">관리</th></tr></thead>
           <tbody id="tbody-excellence"></tbody>
         </table></div>
       </div>
@@ -569,13 +581,14 @@ select.form-input{cursor:pointer}
       <div id="page-cert-survey" class="page">
         <div class="page-header">
           <div><div class="page-title">📡 측량기기 성능검사</div><div class="page-sub" id="cert-survey-count"></div></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">🤖 AI 스캔 등록<input type="file" accept="image/*,.pdf" style="display:none" onchange="certAiScan('survey',this)"></label>
             <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="certUploadExcel('survey',this)"></label>
             <button class="btn btn-primary btn-sm" onclick="certOpenAdd('survey')">+ 추가</button>
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-survey">
-          <thead><tr><th style="width:48px">구분</th><th>제품명</th><th>검사기관</th><th>검사필증 일련번호</th><th>유효기간</th><th style="width:80px">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>검사기관</th><th>검사필증 일련번호</th><th>유효기간</th><th style="width:100px">관리</th></tr></thead>
           <tbody id="tbody-survey"></tbody>
         </table></div>
       </div>
@@ -1315,6 +1328,36 @@ select.form-input{cursor:pointer}
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('cert-add-modal')">닫기</button>
       <button class="btn btn-primary" onclick="certSaveModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI 스캔 로딩 모달 -->
+<div id="cert-ai-loading-modal" class="modal-backdrop" style="display:none">
+  <div class="modal" style="max-width:360px;text-align:center;padding:32px">
+    <div style="font-size:40px;margin-bottom:16px;animation:spin 1.5s linear infinite;display:inline-block">🤖</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px">AI가 문서를 분석 중...</div>
+    <div style="font-size:13px;color:var(--t2)" id="cert-ai-loading-msg">인증서 내용을 읽고 있습니다</div>
+  </div>
+</div>
+
+<!-- AI 스캔 결과 확인 모달 -->
+<div id="cert-ai-result-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('cert-ai-result-modal')">
+  <div class="modal" style="max-width:560px;max-height:85vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">🤖 AI 인식 결과 확인</div>
+      <button class="modal-close" onclick="closeModal('cert-ai-result-modal')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:12px;padding:8px 12px;background:var(--acd);border-radius:8px">
+      ✨ AI가 인식한 내용입니다. 수정 후 등록하세요.
+    </div>
+    <div id="cert-ai-result-fields"></div>
+    <div style="margin-top:8px;padding:8px 12px;background:var(--surface);border-radius:8px">
+      <div id="cert-ai-preview-img" style="text-align:center"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cert-ai-result-modal')">취소</button>
+      <button class="btn btn-primary" onclick="certAiConfirm()">✅ 등록</button>
     </div>
   </div>
 </div>
@@ -11604,6 +11647,117 @@ function toggleCertMenu() {
   var arrow = document.getElementById('cert-toggle-arrow');
   var collapsed = items.classList.toggle('collapsed');
   arrow.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+}
+
+// ── AI 스캔 등록 ──
+var _certAiType = null;
+var _certAiParsed = null;
+
+function certAiScan(type, input) {
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  _certAiType = type;
+  _certAiParsed = null;
+
+  var schema = CERT_SCHEMAS[type];
+  var isPdf = file.type === 'application/pdf';
+
+  // 로딩 모달 표시
+  document.getElementById('cert-ai-loading-msg').textContent = '인증서 내용을 읽고 있습니다...';
+  document.getElementById('cert-ai-loading-modal').style.display = 'flex';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result.split(',')[1];
+    var mediaType = file.type || (isPdf ? 'application/pdf' : 'image/jpeg');
+
+    // 각 메뉴 컬럼 안내
+    var colGuide = schema.cols.map(function(c,i){ return '"' + c + '"'; }).join(', ');
+    var keysGuide = schema.keys.map(function(k,i){ return '"' + k + '": "' + schema.cols[i] + ' 값"'; }).join(', ');
+
+    var prompt = '이 문서는 "' + schema.label + '" 인증서/등록증입니다.\n' +
+      '다음 필드를 추출하여 JSON 객체 하나로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.\n' +
+      '필드: ' + colGuide + '\n' +
+      '응답 형식: {' + keysGuide + '}\n' +
+      '값이 없거나 불명확하면 빈 문자열("")로 채우세요.';
+
+    var contentArr;
+    if (isPdf) {
+      contentArr = [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+        { type: 'text', text: prompt }
+      ];
+    } else {
+      contentArr = [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+        { type: 'text', text: prompt }
+      ];
+    }
+
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: contentArr }]
+      })
+    })
+    .then(function(res){ return res.json(); })
+    .then(function(data) {
+      document.getElementById('cert-ai-loading-modal').style.display = 'none';
+      var text = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
+      // JSON 파싱
+      var clean = text.replace(/```json|```/g,'').trim();
+      var parsed;
+      try { parsed = JSON.parse(clean); } catch(err) {
+        showToast('❌ AI 응답 파싱 실패. 수동 입력으로 등록해주세요.');
+        certOpenAdd(type);
+        return;
+      }
+      _certAiParsed = parsed;
+      // 결과 확인 모달
+      var schema2 = CERT_SCHEMAS[_certAiType];
+      document.getElementById('cert-ai-result-fields').innerHTML = schema2.cols.map(function(col,i){
+        var val = (parsed[schema2.keys[i]] || '').toString().replace(/"/g,'&quot;');
+        return '<div style="margin-bottom:10px">' +
+          '<label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">' + col + '</label>' +
+          '<input id="cert-ai-field-' + i + '" type="text" value="' + val + '" ' +
+          'style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none" ' +
+          'onfocus="this.style.borderColor=\'var(--ac)\'" onblur="this.style.borderColor=\'var(--border)\'"></div>';
+      }).join('');
+      // 이미지 미리보기 (PDF 아닐 때)
+      var previewEl = document.getElementById('cert-ai-preview-img');
+      if (!isPdf) {
+        previewEl.innerHTML = '<img src="' + e.target.result + '" style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--border);margin-top:8px">';
+      } else {
+        previewEl.innerHTML = '<div style="padding:12px;color:var(--t2);font-size:13px">📄 ' + file.name + '</div>';
+      }
+      openModal('cert-ai-result-modal');
+    })
+    .catch(function(err) {
+      document.getElementById('cert-ai-loading-modal').style.display = 'none';
+      console.error(err);
+      showToast('❌ API 오류: ' + err.message);
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function certAiConfirm() {
+  var schema = CERT_SCHEMAS[_certAiType];
+  var row = {};
+  schema.keys.forEach(function(k,i){
+    var el = document.getElementById('cert-ai-field-'+i);
+    row[k] = el ? el.value.trim() : '';
+  });
+  var data = certLoadData(_certAiType);
+  data.push(row);
+  certSaveData(_certAiType, data);
+  closeModal('cert-ai-result-modal');
+  certRender(_certAiType);
+  showToast('✅ AI 인식 결과가 등록되었습니다');
 }
 
 // ── Firebase 초기화 ──
