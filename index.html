@@ -68,6 +68,9 @@ body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--t1);fo
 .sidebar{width:220px;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
 .sidebar-section{padding:16px 12px 8px}
 .sidebar-section-label{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.8px;text-transform:uppercase;padding:0 8px;margin-bottom:4px}
+.cert-section-toggle:hover{color:var(--t2)}
+#cert-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
+#cert-menu-items.collapsed{max-height:0;opacity:0}
 .nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--t2);transition:all .15s;user-select:none}
 .nav-item:hover{background:var(--surface);color:var(--t1)}
 .nav-item.active{background:var(--acd);color:var(--ac)}
@@ -282,17 +285,22 @@ select.form-input{cursor:pointer}
         <div class="nav-item" onclick="showPage('orgview',this)"><span class="nav-icon">👁️</span> 직원 조회</div>
       </div>
       <div class="sidebar-section">
-        <div class="sidebar-section-label">기업인증현황</div>
-        <div class="nav-item" onclick="showPage('cert-dashboard',this)"><span class="nav-icon">🏆</span> 대시보드</div>
-        <div class="nav-item" onclick="showPage('cert-copyright',this)"><span class="nav-icon">©️</span> 저작권</div>
-        <div class="nav-item" onclick="showPage('cert-gs',this)"><span class="nav-icon">✅</span> GS인증</div>
-        <div class="nav-item" onclick="showPage('cert-patent',this)"><span class="nav-icon">📜</span> 특허증</div>
-        <div class="nav-item" onclick="showPage('cert-trademark',this)"><span class="nav-icon">®️</span> 상표등록증</div>
-        <div class="nav-item" onclick="showPage('cert-ogc',this)"><span class="nav-icon">🌐</span> OGC</div>
-        <div class="nav-item" onclick="showPage('cert-direct',this)"><span class="nav-icon">🏭</span> 직접생산·SW사업자</div>
-        <div class="nav-item" onclick="showPage('cert-program',this)"><span class="nav-icon">💿</span> 프로그램 인증서</div>
-        <div class="nav-item" onclick="showPage('cert-excellence',this)"><span class="nav-icon">🥇</span> 우수제품지정</div>
-        <div class="nav-item" onclick="showPage('cert-survey',this)"><span class="nav-icon">📡</span> 측량기기 성능검사</div>
+        <div class="sidebar-section-label cert-section-toggle" onclick="toggleCertMenu()" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>기업인증현황</span>
+          <span id="cert-toggle-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
+        </div>
+        <div id="cert-menu-items">
+          <div class="nav-item" onclick="showPage('cert-dashboard',this)"><span class="nav-icon">🏆</span> 대시보드</div>
+          <div class="nav-item" onclick="showPage('cert-copyright',this)"><span class="nav-icon">©️</span> 저작권</div>
+          <div class="nav-item" onclick="showPage('cert-gs',this)"><span class="nav-icon">✅</span> GS인증</div>
+          <div class="nav-item" onclick="showPage('cert-patent',this)"><span class="nav-icon">📜</span> 특허증</div>
+          <div class="nav-item" onclick="showPage('cert-trademark',this)"><span class="nav-icon">®️</span> 상표등록증</div>
+          <div class="nav-item" onclick="showPage('cert-ogc',this)"><span class="nav-icon">🌐</span> OGC</div>
+          <div class="nav-item" onclick="showPage('cert-direct',this)"><span class="nav-icon">🏭</span> 직접생산·SW사업자</div>
+          <div class="nav-item" onclick="showPage('cert-program',this)"><span class="nav-icon">💿</span> 프로그램 인증서</div>
+          <div class="nav-item" onclick="showPage('cert-excellence',this)"><span class="nav-icon">🥇</span> 우수제품지정</div>
+          <div class="nav-item" onclick="showPage('cert-survey',this)"><span class="nav-icon">📡</span> 측량기기 성능검사</div>
+        </div>
       </div>
 
       <div class="sidebar-section">
@@ -11267,6 +11275,14 @@ if (!state.kpis.length) {
     {id:3, name:'제품 출시 일정 준수율', target:95, actual:91, owner:'이개발'},
   ];
   localStorage.setItem('wg_kpis', JSON.stringify(state.kpis));
+}
+
+// ── 기업인증현황 메뉴 접기/펼치기 ──
+function toggleCertMenu() {
+  const items = document.getElementById('cert-menu-items');
+  const arrow = document.getElementById('cert-toggle-arrow');
+  const collapsed = items.classList.toggle('collapsed');
+  arrow.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
 }
 
 // ── Firebase 초기화 ──
