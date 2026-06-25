@@ -11601,6 +11601,23 @@ function certDownload(type, idx) {
   a.click();
 }
 
+function certOpenAddWithFile(type) {
+  // 파일은 _certAiFileData에 유지된 채로 수동 입력 모달 오픈
+  _certEditType = type;
+  _certEditIdx = -1;
+  var schema = CERT_SCHEMAS[type];
+  document.getElementById('cert-modal-title').textContent = '+ 추가 — ' + schema.label + ' (파일 첨부됨 📎)';
+  document.getElementById('cert-modal-fields').innerHTML = schema.cols.map(function(col, i) {
+    return '<div style="margin-bottom:12px">' +
+      '<label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">' + col + '</label>' +
+      '<input id="cert-field-' + i + '" type="text" value="" ' +
+      'style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none" ' +
+      'onfocus="this.style.borderColor=\'var(--ac)\'" onblur="this.style.borderColor=\'var(--border)\'" placeholder="' + col + ' 입력"></div>';
+  }).join('') +
+  '<div style="padding:8px 12px;background:var(--acd);border-radius:8px;font-size:12px;color:var(--ac)">📎 ' + (_certAiFileName || '파일') + ' 첨부됨</div>';
+  openModal('cert-add-modal');
+}
+
 function certOpenAdd(type) {
   _certEditType = type; _certEditIdx = -1;
   certShowModal(type, {});
@@ -11631,6 +11648,13 @@ function certSaveModal() {
   var schema = CERT_SCHEMAS[_certEditType];
   var row = {};
   schema.keys.forEach(function(k,i){ row[k] = document.getElementById('cert-field-'+i).value.trim(); });
+  // certOpenAddWithFile로 열렸을 때 파일 데이터 포함
+  if (_certAiFileData && _certEditIdx < 0) {
+    row._fileData = _certAiFileData;
+    row._fileName = _certAiFileName;
+    row._fileType = _certAiFileType;
+    _certAiFileData = null; // 사용 후 초기화
+  }
   var data = certLoadData(_certEditType);
   if (_certEditIdx >= 0) { data[_certEditIdx] = row; } else { data.push(row); }
   certSaveData(_certEditType, data);
@@ -11776,8 +11800,8 @@ function certAiScan(type, input) {
       var clean = text.replace(/```json|```/g,'').trim();
       var parsed;
       try { parsed = JSON.parse(clean); } catch(err) {
-        showToast('❌ AI 응답 파싱 실패. 수동 입력으로 등록해주세요.');
-        certOpenAdd(type);
+        showToast('⚠️ AI 인식 실패. 파일은 저장됩니다. 내용을 직접 입력해주세요.');
+        certOpenAddWithFile(type);
         return;
       }
       _certAiParsed = parsed;
@@ -11803,7 +11827,8 @@ function certAiScan(type, input) {
     .catch(function(err) {
       document.getElementById('cert-ai-loading-modal').style.display = 'none';
       console.error(err);
-      showToast('❌ API 오류: ' + err.message);
+      showToast('⚠️ API 오류. 파일은 저장됩니다. 내용을 직접 입력해주세요.');
+      certOpenAddWithFile(_certAiType);
     });
   };
   reader.readAsDataURL(file);
