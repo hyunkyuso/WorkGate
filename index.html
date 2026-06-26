@@ -11655,7 +11655,16 @@ function certLoadData(type) {
   try { return JSON.parse(localStorage.getItem('wg_cert_'+type) || '[]'); } catch { return []; }
 }
 function certSaveData(type, arr) {
-  localStorage.setItem('wg_cert_'+type, JSON.stringify(arr));
+  try {
+    localStorage.setItem('wg_cert_'+type, JSON.stringify(arr));
+  } catch(e) {
+    if (e.name === 'QuotaExceededError' || e.code === 22) {
+      showToast('❌ 저장 공간이 부족합니다. 파일 첨부 없이 저장하거나 기존 데이터를 정리해주세요.');
+    } else {
+      showToast('❌ 저장 오류: ' + e.message);
+    }
+    return;
+  }
   certUpdateDashboard();
 }
 
@@ -11802,18 +11811,18 @@ function certRenderExpiryList() {
       color = '#22c55e'; bg = '#f0fdf4';
     }
     var pct = Math.max(4, Math.round((item.diff / maxDiff) * 100));
-    return '<div style="display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--border)">' +
-      '<div style="width:100px;flex-shrink:0">' +
-        '<div style="font-size:10px;color:var(--t3);margin-bottom:2px">' + CERT_LABELS[item.type] + '</div>' +
-        '<div style="font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + item.name + '</div>' +
+    return '<div style="display:flex;align-items:center;gap:20px;padding:16px 24px;border-bottom:1px solid var(--border)">' +
+      '<div style="width:160px;flex-shrink:0">' +
+        '<div style="font-size:11px;color:var(--t3);margin-bottom:3px">' + CERT_LABELS[item.type] + '</div>' +
+        '<div style="font-size:15px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + item.name + '</div>' +
       '</div>' +
-      '<div style="flex:1;background:#f1f5f9;border-radius:999px;height:10px;overflow:hidden">' +
+      '<div style="flex:1;background:#f1f5f9;border-radius:999px;height:14px;overflow:hidden">' +
         '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:999px;transition:width .4s ease"></div>' +
       '</div>' +
-      '<div style="width:80px;text-align:right;flex-shrink:0">' +
-        '<span style="background:' + bg + ';color:' + color + ';font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px">D-' + item.diff + '</span>' +
+      '<div style="width:70px;text-align:center;flex-shrink:0">' +
+        '<span style="background:' + bg + ';color:' + color + ';font-size:13px;font-weight:700;padding:4px 12px;border-radius:6px;white-space:nowrap">D-' + item.diff + '</span>' +
       '</div>' +
-      '<div style="width:100px;text-align:right;flex-shrink:0;font-size:11px;color:var(--t3)">' + item.dateStr + '</div>' +
+      '<div style="width:130px;text-align:right;flex-shrink:0;font-size:13px;color:var(--t2);white-space:nowrap">' + item.dateStr.replace(/\s/g,'') + '</div>' +
     '</div>';
   }).join('');
   // 마지막 항목 border 제거
