@@ -11823,9 +11823,12 @@ function certRender(type) {
       : '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;opacity:0.35;cursor:default">⬇ 다운로드</button>';
     return '<tr>' +
       '<td style="text-align:center;color:var(--t3);font-size:14px;white-space:nowrap">' + (i+1) + '</td>' +
-      schema.keys.map(function(k){ 
+      schema.keys.map(function(k, ki) { 
         var v = (row[k]||'-').replace(/(\d+)\.\s+(\d)/g, '$1.&nbsp;$2');
-        return '<td style="font-size:15px;white-space:nowrap">' + v + '</td>'; 
+        var style = ki === 0 
+          ? 'font-size:15px'
+          : 'font-size:15px;white-space:nowrap';
+        return '<td style="' + style + '">' + v + '</td>'; 
       }).join('') +
       '<td style="white-space:nowrap"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:nowrap">' + viewBtn + dlBtn + '</div></td>' +
       '<td style="white-space:nowrap"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:nowrap">' +
