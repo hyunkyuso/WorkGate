@@ -11835,7 +11835,7 @@ function certRender(type) {
     return;
   }
   tbody.innerHTML = data.map(function(row, i) {
-    var hasFile = !!(row._fileUrl || row._fileData);
+    var hasFile = certGetFiles(row).length > 0;
     var viewBtn = hasFile
       ? '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="certOpenView(\'' + type + '\'' + ',' + i + ')">👁 보기</button>'
       : '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;opacity:0.35;cursor:default">👁 보기</button>';
@@ -12053,17 +12053,28 @@ var _certEditType = null, _certEditIdx = -1;
 function certOpenView(type, idx) {
   var data = certLoadData(type);
   var row = data[idx] || {};
-  var url = row._fileUrl || row._fileData;
-  if (!url) { showToast('📎 첨부 파일이 없습니다'); return; }
-  var isPdf = (row._fileType === 'application/pdf') || (row._fileName && row._fileName.toLowerCase().endsWith('.pdf'));
+  var files = certGetFiles(row);
+  if (!files.length) { showToast('📎 첨부 파일이 없습니다'); return; }
   var schema = CERT_SCHEMAS[type];
-  document.getElementById('cert-view-title').textContent = schema.label + ' — ' + (row._fileName || '첨부파일');
-  if (isPdf) {
-    document.getElementById('cert-view-body').innerHTML =
-      '<iframe src="' + url + '" style="width:100%;height:500px;border:none;border-radius:8px"></iframe>';
+  document.getElementById('cert-view-title').textContent = schema.label + ' — 첨부파일';
+
+  if (files.length === 1) {
+    var f = files[0];
+    var isPdf = f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+    document.getElementById('cert-view-body').innerHTML = isPdf
+      ? '<iframe src="' + f.url + '" style="width:100%;height:500px;border:none;border-radius:8px"></iframe>'
+      : '<img src="' + f.url + '" style="width:100%;border-radius:8px;border:1px solid var(--border)">';
   } else {
-    document.getElementById('cert-view-body').innerHTML =
-      '<img src="' + url + '" style="width:100%;border-radius:8px;border:1px solid var(--border)">';
+    // 여러 파일이면 목록 표시
+    document.getElementById('cert-view-body').innerHTML = files.map(function(f, fi) {
+      var isPdf = f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+      return '<div style="margin-bottom:12px">' +
+        '<div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px">📎 ' + f.name + '</div>' +
+        (isPdf
+          ? '<iframe src="' + f.url + '" style="width:100%;height:300px;border:none;border-radius:8px;border:1px solid var(--border)"></iframe>'
+          : '<img src="' + f.url + '" style="width:100%;border-radius:8px;border:1px solid var(--border)">') +
+      '</div>';
+    }).join('');
   }
   openModal('cert-view-modal');
 }
@@ -12071,13 +12082,16 @@ function certOpenView(type, idx) {
 function certDownload(type, idx) {
   var data = certLoadData(type);
   var row = data[idx] || {};
-  var url = row._fileUrl || row._fileData;
-  if (!url) { showToast('📎 첨부 파일이 없습니다'); return; }
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = row._fileName || ('cert_' + (idx+1));
-  a.target = '_blank';
-  a.click();
+  var files = certGetFiles(row);
+  if (!files.length) { showToast('📎 첨부 파일이 없습니다'); return; }
+  // 여러 파일이면 순서대로 모두 다운로드
+  files.forEach(function(f) {
+    var a = document.createElement('a');
+    a.href = f.url;
+    a.download = f.name;
+    a.target = '_blank';
+    a.click();
+  });
 }
 
 function certOpenAddWithFile(type) {
@@ -12091,15 +12105,149 @@ function certOpenAddWithFile(type) {
   fields.innerHTML += '<div style="padding:8px 12px;background:var(--acd);border-radius:8px;font-size:12px;color:var(--ac)">📎 ' + (_certAiFileName || '파일') + ' 첨부됨</div>';
 }
 
+// ── 파일 배열 관리 ──
+// 레거시(_fileUrl) 또는 신규(_files) 모두 지원
+function certGetFiles(row) {
+  if (row._files && row._files.length) return row._files;
+  if (row._fileUrl) return [{url: row._fileUrl, name: row._fileName || '첨부파일', type: row._fileType || ''}];
+  return [];
+}
+
+// 현재 수정 중인 행의 파일 목록 (임시 편집용)
+var _certEditFiles = [];
+
+function certRefreshFileList() {
+  var container = document.getElementById('cert-modal-files');
+  if (!container) return;
+  if (!_certEditFiles.length) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--t3);padding:8px 0">첨부된 파일이 없습니다.</div>';
+    return;
+  }
+  container.innerHTML = _certEditFiles.map(function(f, fi) {
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">' +
+      '<span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📎 ' + f.name + '</span>' +
+      '<button onclick="certViewFile(\'' + f.url + '\',\'' + f.name + '\',\'' + f.type + '\')" style="padding:3px 8px;font-size:11px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:none">보기</button>' +
+      '<button onclick="certRemoveFile(' + fi + ')" style="padding:3px 8px;font-size:11px;border:1px solid #fecaca;border-radius:5px;cursor:pointer;background:none;color:#ef4444">삭제</button>' +
+    '</div>';
+  }).join('');
+}
+
+function certViewFile(url, name, type) {
+  var isPdf = type === 'application/pdf' || name.toLowerCase().endsWith('.pdf');
+  document.getElementById('cert-view-title').textContent = name;
+  document.getElementById('cert-view-body').innerHTML = isPdf
+    ? '<iframe src="' + url + '" style="width:100%;height:500px;border:none;border-radius:8px"></iframe>'
+    : '<img src="' + url + '" style="width:100%;border-radius:8px;border:1px solid var(--border)">';
+  openModal('cert-view-modal');
+}
+
+function certRemoveFile(fi) {
+  if (!confirm('첨부파일을 삭제하시겠습니까?')) return;
+  _certEditFiles.splice(fi, 1);
+  certRefreshFileList();
+}
+
+function certAddFiles(input) {
+  var files = Array.from(input.files);
+  if (!files.length) return;
+  input.value = '';
+  var pending = files.length;
+  showToast('📤 파일 업로드 중... (' + pending + '개)');
+  files.forEach(function(file) {
+    var storageRef = firebase.storage().ref('cert/' + _certEditType + '/' + Date.now() + '_' + file.name);
+    storageRef.put(file).then(function(snap) {
+      return snap.ref.getDownloadURL();
+    }).then(function(url) {
+      _certEditFiles.push({url: url, name: file.name, type: file.type});
+      pending--;
+      certRefreshFileList();
+      if (pending === 0) showToast('✅ 파일 업로드 완료');
+    }).catch(function(e) {
+      showToast('❌ 업로드 실패: ' + e.message);
+    });
+  });
+}
+
+// AI 갱신 - 유효기간/인증기간 필드만 업데이트
+function certAiRefresh(input) {
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  var schema = CERT_SCHEMAS[_certEditType];
+
+  // 날짜/기간 타입 필드 인덱스 찾기
+  var dateFields = [];
+  schema.types && schema.types.forEach(function(t, i) {
+    if (t === 'date' || t === 'range') dateFields.push({idx: i, col: schema.cols[i], key: schema.keys[i], type: t});
+  });
+  if (!dateFields.length) { showToast('❌ 갱신할 날짜 필드가 없습니다.'); return; }
+
+  document.getElementById('cert-ai-loading-msg').textContent = '유효기간을 읽고 있습니다...';
+  document.getElementById('cert-ai-loading-modal').style.display = 'flex';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result.split(',')[1];
+    var mediaType = file.type || 'image/jpeg';
+    var isPdf = file.type === 'application/pdf';
+
+    var colGuide = dateFields.map(function(f){ return '"' + f.col + '"'; }).join(', ');
+    var keysGuide = dateFields.map(function(f){ return '"' + f.key + '": "값"'; }).join(', ');
+    var prompt = '이 문서에서 다음 날짜/기간 정보만 추출하여 JSON으로만 응답하세요. 다른 텍스트 없이 JSON만.\n' +
+      '필드: ' + colGuide + '\n응답형식: {' + keysGuide + '}\n값 없으면 빈 문자열.';
+
+    var contentArr = isPdf
+      ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}}, {type:'text', text:prompt}]
+      : [{type:'image', source:{type:'base64', media_type:mediaType, data:base64}}, {type:'text', text:prompt}];
+
+    fetch('https://twilight-dew-b966.hyunkyu-so.workers.dev', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:500, messages:[{role:'user', content:contentArr}]})
+    }).then(function(r){ return r.json(); })
+    .then(function(data) {
+      document.getElementById('cert-ai-loading-modal').style.display = 'none';
+      var text = (data.content && data.content[0] && data.content[0].text) || '';
+      var parsed;
+      try { parsed = JSON.parse(text.replace(/```json|```/g,'').trim()); } catch(e) {
+        showToast('❌ AI 인식 실패'); return;
+      }
+      // 해당 필드만 업데이트
+      dateFields.forEach(function(f) {
+        var val = parsed[f.key] || '';
+        if (!val) return;
+        if (f.type === 'date') {
+          var el = document.getElementById('cert-field-' + f.idx);
+          if (el) el.value = certDateToInput(val);
+        } else if (f.type === 'range') {
+          var parts = certRangeToInputs(val);
+          var es = document.getElementById('cert-field-' + f.idx + '-s');
+          var ee = document.getElementById('cert-field-' + f.idx + '-e');
+          if (es) es.value = parts[0];
+          if (ee) ee.value = parts[1];
+        }
+      });
+      showToast('✅ AI 갱신 완료 — 날짜를 확인 후 저장하세요');
+    }).catch(function(e) {
+      document.getElementById('cert-ai-loading-modal').style.display = 'none';
+      showToast('❌ API 오류: ' + e.message);
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
 function certOpenAdd(type) {
   _certEditType = type; _certEditIdx = -1;
+  _certEditFiles = [];
   certShowModal(type, {});
 }
 
 function certOpenEdit(type, idx) {
   _certEditType = type; _certEditIdx = idx;
   var data = certLoadData(type);
-  certShowModal(type, data[idx] || {});
+  var row = data[idx] || {};
+  _certEditFiles = certGetFiles(row).slice(); // 복사
+  certShowModal(type, row);
 }
 
 // yyyy. mm. dd. ↔ input[type=date] value(yyyy-mm-dd) 변환
@@ -12134,7 +12282,8 @@ function certShowModal(type, row) {
   var isEdit = _certEditIdx >= 0;
   document.getElementById('cert-modal-title').textContent = (isEdit ? '✏️ 수정 — ' : '+ 추가 — ') + schema.label;
   var inputStyle = 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box';
-  document.getElementById('cert-modal-fields').innerHTML = schema.cols.map(function(col, i) {
+
+  var fieldsHtml = schema.cols.map(function(col, i) {
     var key = schema.keys[i];
     var ftype = (schema.types && schema.types[i]) || 'text';
     var val = row[key] || '';
@@ -12168,6 +12317,34 @@ function certShowModal(type, row) {
       '<label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">' + col + '</label>' +
       fieldHtml + '</div>';
   }).join('');
+
+  // 수정 모드일 때 첨부파일 관리 + AI갱신 섹션 추가
+  if (isEdit) {
+    // 기존 파일 목록 (_files 배열 또는 레거시 _fileUrl)
+    var files = certGetFiles(row);
+    var filesHtml = files.length
+      ? files.map(function(f, fi) {
+          return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">' +
+            '<span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📎 ' + f.name + '</span>' +
+            '<button onclick="certViewFile(\'' + f.url + '\',\'' + f.name + '\',\'' + f.type + '\')" style="padding:3px 8px;font-size:11px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:none">보기</button>' +
+            '<button onclick="certRemoveFile(' + fi + ')" style="padding:3px 8px;font-size:11px;border:1px solid #fecaca;border-radius:5px;cursor:pointer;background:none;color:#ef4444">삭제</button>' +
+          '</div>';
+        }).join('')
+      : '<div style="font-size:12px;color:var(--t3);padding:8px 0">첨부된 파일이 없습니다.</div>';
+
+    fieldsHtml += '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+        '<label style="font-size:12px;font-weight:600;color:var(--t2)">📎 첨부파일</label>' +
+        '<div style="display:flex;gap:6px">' +
+          '<label style="padding:4px 10px;font-size:11px;border:1px solid var(--ac);border-radius:6px;cursor:pointer;color:var(--ac);white-space:nowrap">+ 파일 추가<input type="file" accept="image/*,.pdf" multiple style="display:none" onchange="certAddFiles(this)"></label>' +
+          '<label style="padding:4px 10px;font-size:11px;border:1px solid #8b5cf6;border-radius:6px;cursor:pointer;color:#8b5cf6;white-space:nowrap;background:linear-gradient(135deg,#eef1fe,#ede9fe)">🤖 AI 갱신<input type="file" accept="image/*,.pdf" style="display:none" onchange="certAiRefresh(this)"></label>' +
+        '</div>' +
+      '</div>' +
+      '<div id="cert-modal-files">' + filesHtml + '</div>' +
+    '</div>';
+  }
+
+  document.getElementById('cert-modal-fields').innerHTML = fieldsHtml;
   openModal('cert-add-modal');
 }
 
@@ -12214,13 +12391,11 @@ function certGetModalValues() {
 function certSaveModal() {
   var row = certGetModalValues();
 
-  // 수정 모드일 때 기존 파일 정보 유지
+  // 수정 모드: _certEditFiles 적용
   if (_certEditIdx >= 0) {
-    var existingData = certLoadData(_certEditType);
-    var existingRow = existingData[_certEditIdx] || {};
-    if (existingRow._fileUrl) row._fileUrl = existingRow._fileUrl;
-    if (existingRow._fileName) row._fileName = existingRow._fileName;
-    if (existingRow._fileType) row._fileType = existingRow._fileType;
+    row._files = _certEditFiles;
+    // 레거시 필드 제거
+    delete row._fileUrl; delete row._fileName; delete row._fileType;
   }
 
   var doSave = function(r) {
