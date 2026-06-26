@@ -432,106 +432,124 @@ select.form-input{cursor:pointer}
       <!-- 직원 조회 (조직도 뷰) -->
       <div id="page-cert-dashboard" class="page">
         <div style="padding:32px">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
             <div style="width:4px;height:24px;background:var(--ac);border-radius:2px"></div>
             <h2 style="font-size:20px;font-weight:700">기업인증현황 대시보드</h2>
           </div>
 
-          <!-- 총계 + 개별 카드 (현황요약 스타일) -->
-          <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:nowrap">
-            <!-- 총계 -->
-            <div style="background:linear-gradient(135deg,var(--ac),#6366f1);border-radius:12px;padding:20px 28px;color:#fff;min-width:160px;flex-shrink:0">
-              <div style="font-size:11px;font-weight:600;opacity:0.85;margin-bottom:6px">총 인증 건수</div>
+          <!-- ① 상단 KPI 요약 -->
+          <div style="display:flex;gap:12px;margin-bottom:24px">
+            <div style="background:linear-gradient(135deg,var(--ac),#6366f1);border-radius:12px;padding:18px 28px;color:#fff;flex:1">
+              <div style="font-size:11px;font-weight:600;opacity:0.8;margin-bottom:4px">총 인증 건수</div>
               <div style="display:flex;align-items:baseline;gap:6px">
-                <span style="font-size:40px;font-weight:800;line-height:1" id="dash-total">0</span>
+                <span style="font-size:36px;font-weight:800;line-height:1" id="dash-total">0</span>
                 <span style="font-size:13px;opacity:0.8">건</span>
               </div>
             </div>
-            <!-- 1행: 기업인증~OGC -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;flex:1">
-              <div onclick="showPage('cert-bizcert',document.querySelector('[onclick*=cert-bizcert]'))" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
-                <div style="font-size:12px;color:var(--t3);margin-bottom:8px">기업인증현황</div>
-                <div style="display:flex;align-items:baseline;gap:4px">
-                  <span style="font-size:36px;font-weight:800;color:var(--t1)" id="dash-bizcert">0</span>
-                  <span style="font-size:13px;color:var(--t3)">건</span>
-                </div>
-              </div>
-              <div onclick="showPage('cert-copyright',document.querySelector('[onclick*=cert-copyright]'))" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
-                <div style="font-size:12px;color:var(--t3);margin-bottom:8px">저작권</div>
-                <div style="display:flex;align-items:baseline;gap:4px">
-                  <span style="font-size:36px;font-weight:800;color:var(--t1)" id="dash-copyright">0</span>
-                  <span style="font-size:13px;color:var(--t3)">건</span>
-                </div>
-              </div>
-              <div onclick="showPage('cert-gs',document.querySelector('[onclick*=cert-gs]'))" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
-                <div style="font-size:12px;color:var(--t3);margin-bottom:8px">GS인증</div>
-                <div style="display:flex;align-items:baseline;gap:4px">
-                  <span style="font-size:36px;font-weight:800;color:var(--t1)" id="dash-gs">0</span>
-                  <span style="font-size:13px;color:var(--t3)">건</span>
-                </div>
-              </div>
-              <div onclick="showPage('cert-patent',document.querySelector('[onclick*=cert-patent]'))" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
-                <div style="font-size:12px;color:var(--t3);margin-bottom:8px">특허증</div>
-                <div style="display:flex;align-items:baseline;gap:4px">
-                  <span style="font-size:36px;font-weight:800;color:var(--t1)" id="dash-patent">0</span>
-                  <span style="font-size:13px;color:var(--t3)">건</span>
-                </div>
-              </div>
-              <div onclick="showPage('cert-trademark',document.querySelector('[onclick*=cert-trademark]'))" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
-                <div style="font-size:12px;color:var(--t3);margin-bottom:8px">상표등록증</div>
-                <div style="display:flex;align-items:baseline;gap:4px">
-                  <span style="font-size:36px;font-weight:800;color:var(--t1)" id="dash-trademark">0</span>
-                  <span style="font-size:13px;color:var(--t3)">건</span>
-                </div>
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:18px 28px;flex:1">
+              <div style="font-size:11px;font-weight:600;color:#ef4444;margin-bottom:4px">⚠️ 30일 이내 만료</div>
+              <div style="display:flex;align-items:baseline;gap:6px">
+                <span style="font-size:36px;font-weight:800;line-height:1;color:#ef4444" id="dash-kpi-30">0</span>
+                <span style="font-size:13px;color:#ef4444">건</span>
               </div>
             </div>
-          </div>
-          <!-- 2행: OGC~측량기기 -->
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:32px">
-            <div onclick="showPage('cert-ogc',document.querySelector('[onclick*=cert-ogc]'))" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
-              <div style="font-size:12px;color:var(--t3);margin-bottom:8px">OGC</div>
-              <div style="display:flex;align-items:baseline;gap:4px">
-                <span style="font-size:36px;font-weight:800;color:var(--t1)" id="dash-ogc">0</span>
-                <span style="font-size:13px;color:var(--t3)">건</span>
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:18px 28px;flex:1">
+              <div style="font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:4px">📋 60일 이내 만료</div>
+              <div style="display:flex;align-items:baseline;gap:6px">
+                <span style="font-size:36px;font-weight:800;line-height:1;color:#f59e0b" id="dash-kpi-60">0</span>
+                <span style="font-size:13px;color:#f59e0b">건</span>
               </div>
             </div>
-            <div onclick="showPage('cert-direct',document.querySelector('[onclick*=cert-direct]'))" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
-              <div style="font-size:12px;color:var(--t3);margin-bottom:8px">직접생산·SW사업자</div>
-              <div style="display:flex;align-items:baseline;gap:4px">
-                <span style="font-size:36px;font-weight:800;color:var(--t1)" id="dash-direct">0</span>
-                <span style="font-size:13px;color:var(--t3)">건</span>
-              </div>
-            </div>
-            <div onclick="showPage('cert-program',document.querySelector('[onclick*=cert-program]'))" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
-              <div style="font-size:12px;color:var(--t3);margin-bottom:8px">프로그램 인증서</div>
-              <div style="display:flex;align-items:baseline;gap:4px">
-                <span style="font-size:36px;font-weight:800;color:var(--t1)" id="dash-program">0</span>
-                <span style="font-size:13px;color:var(--t3)">건</span>
-              </div>
-            </div>
-            <div onclick="showPage('cert-excellence',document.querySelector('[onclick*=cert-excellence]'))" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
-              <div style="font-size:12px;color:var(--t3);margin-bottom:8px">우수제품지정</div>
-              <div style="display:flex;align-items:baseline;gap:4px">
-                <span style="font-size:36px;font-weight:800;color:var(--t1)" id="dash-excellence">0</span>
-                <span style="font-size:13px;color:var(--t3)">건</span>
-              </div>
-            </div>
-            <div onclick="showPage('cert-survey',document.querySelector('[onclick*=cert-survey]'))" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.1)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
-              <div style="font-size:12px;color:var(--t3);margin-bottom:8px">측량기기 성능검사</div>
-              <div style="display:flex;align-items:baseline;gap:4px">
-                <span style="font-size:36px;font-weight:800;color:var(--t1)" id="dash-survey">0</span>
-                <span style="font-size:13px;color:var(--t3)">건</span>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px 28px;flex:1">
+              <div style="font-size:11px;font-weight:600;color:#22c55e;margin-bottom:4px">✅ 유효기간 여유</div>
+              <div style="display:flex;align-items:baseline;gap:6px">
+                <span style="font-size:36px;font-weight:800;line-height:1;color:#22c55e" id="dash-kpi-ok">0</span>
+                <span style="font-size:13px;color:#22c55e">건</span>
               </div>
             </div>
           </div>
 
-          <!-- 유효기간 현황 -->
-          <div style="margin-top:28px">
+          <!-- ② 중간 카드 그리드 (5열 × 2행) -->
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px">
+            <div onclick="showPage('cert-bizcert',document.querySelector('[onclick*=cert-bizcert]'))" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:6px">🏅 기업인증현황</div>
+              <div style="display:flex;align-items:baseline;gap:4px">
+                <span style="font-size:30px;font-weight:800;color:var(--t1)" id="dash-bizcert">0</span>
+                <span style="font-size:12px;color:var(--t3)">건</span>
+              </div>
+            </div>
+            <div onclick="showPage('cert-copyright',document.querySelector('[onclick*=cert-copyright]'))" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:6px">©️ 저작권</div>
+              <div style="display:flex;align-items:baseline;gap:4px">
+                <span style="font-size:30px;font-weight:800;color:var(--t1)" id="dash-copyright">0</span>
+                <span style="font-size:12px;color:var(--t3)">건</span>
+              </div>
+            </div>
+            <div onclick="showPage('cert-gs',document.querySelector('[onclick*=cert-gs]'))" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:6px">✅ GS인증</div>
+              <div style="display:flex;align-items:baseline;gap:4px">
+                <span style="font-size:30px;font-weight:800;color:var(--t1)" id="dash-gs">0</span>
+                <span style="font-size:12px;color:var(--t3)">건</span>
+              </div>
+            </div>
+            <div onclick="showPage('cert-patent',document.querySelector('[onclick*=cert-patent]'))" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:6px">📜 특허증</div>
+              <div style="display:flex;align-items:baseline;gap:4px">
+                <span style="font-size:30px;font-weight:800;color:var(--t1)" id="dash-patent">0</span>
+                <span style="font-size:12px;color:var(--t3)">건</span>
+              </div>
+            </div>
+            <div onclick="showPage('cert-trademark',document.querySelector('[onclick*=cert-trademark]'))" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:6px">®️ 상표등록증</div>
+              <div style="display:flex;align-items:baseline;gap:4px">
+                <span style="font-size:30px;font-weight:800;color:var(--t1)" id="dash-trademark">0</span>
+                <span style="font-size:12px;color:var(--t3)">건</span>
+              </div>
+            </div>
+            <div onclick="showPage('cert-ogc',document.querySelector('[onclick*=cert-ogc]'))" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:6px">🌐 OGC</div>
+              <div style="display:flex;align-items:baseline;gap:4px">
+                <span style="font-size:30px;font-weight:800;color:var(--t1)" id="dash-ogc">0</span>
+                <span style="font-size:12px;color:var(--t3)">건</span>
+              </div>
+            </div>
+            <div onclick="showPage('cert-direct',document.querySelector('[onclick*=cert-direct]'))" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:6px">🏭 직접생산·SW사업자</div>
+              <div style="display:flex;align-items:baseline;gap:4px">
+                <span style="font-size:30px;font-weight:800;color:var(--t1)" id="dash-direct">0</span>
+                <span style="font-size:12px;color:var(--t3)">건</span>
+              </div>
+            </div>
+            <div onclick="showPage('cert-program',document.querySelector('[onclick*=cert-program]'))" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:6px">💿 프로그램 인증서</div>
+              <div style="display:flex;align-items:baseline;gap:4px">
+                <span style="font-size:30px;font-weight:800;color:var(--t1)" id="dash-program">0</span>
+                <span style="font-size:12px;color:var(--t3)">건</span>
+              </div>
+            </div>
+            <div onclick="showPage('cert-excellence',document.querySelector('[onclick*=cert-excellence]'))" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:6px">🥇 우수제품지정</div>
+              <div style="display:flex;align-items:baseline;gap:4px">
+                <span style="font-size:30px;font-weight:800;color:var(--t1)" id="dash-excellence">0</span>
+                <span style="font-size:12px;color:var(--t3)">건</span>
+              </div>
+            </div>
+            <div onclick="showPage('cert-survey',document.querySelector('[onclick*=cert-survey]'))" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:6px">📡 측량기기 성능검사</div>
+              <div style="display:flex;align-items:baseline;gap:4px">
+                <span style="font-size:30px;font-weight:800;color:var(--t1)" id="dash-survey">0</span>
+                <span style="font-size:12px;color:var(--t3)">건</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ③ 하단 유효기간 타임라인 -->
+          <div style="margin-top:8px">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
               <div style="width:4px;height:24px;background:var(--ac);border-radius:2px"></div>
               <h2 style="font-size:20px;font-weight:700">인증 유효기간 현황</h2>
             </div>
-            <div id="dash-expiry-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px"></div>
+            <div id="dash-expiry-list" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 0"></div>
           </div>
         </div>
       </div>
@@ -11745,44 +11763,62 @@ function certRenderExpiryList() {
       var dateStr = row[info.dateKey] || '';
       var date = certParseDate(dateStr);
       var diff = date ? Math.floor((date - today) / (1000*60*60*24)) : null;
-      items.push({type:type, name:name, dateStr:dateStr, diff:diff});
+      if (diff !== null && diff >= 0) {
+        items.push({type:type, name:name, dateStr:dateStr, diff:diff});
+      }
     });
   });
 
+  // KPI 업데이트
+  var k30 = items.filter(function(i){ return i.diff <= 30; }).length;
+  var k60 = items.filter(function(i){ return i.diff > 30 && i.diff <= 60; }).length;
+  var kok = items.filter(function(i){ return i.diff > 60; }).length;
+  var el30 = document.getElementById('dash-kpi-30');
+  var el60 = document.getElementById('dash-kpi-60');
+  var elok = document.getElementById('dash-kpi-ok');
+  if (el30) el30.textContent = k30;
+  if (el60) el60.textContent = k60;
+  if (elok) elok.textContent = kok;
+
   if (!items.length) {
-    container.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:20px;grid-column:1/-1">유효기간이 있는 인증 데이터가 없습니다.</div>';
+    container.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:24px">유효기간이 있는 인증 데이터가 없습니다.</div>';
     return;
   }
 
-  // 날짜 파싱 안 되거나 이미 만료된 것 제외, 남은 것만 표시
-  items = items.filter(function(item){ return item.diff !== null && item.diff >= 0; });
-
-  if (!items.length) {
-    container.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:20px;grid-column:1/-1">유효기간이 남은 인증이 없습니다.</div>';
-    return;
-  }
-
-  // 정렬: 남은일 오름차순
+  // 남은일 오름차순 정렬
   items.sort(function(a,b){ return a.diff - b.diff; });
 
+  // 최대 diff 기준으로 바 길이 계산
+  var maxDiff = Math.max.apply(null, items.map(function(i){ return i.diff; }));
+  if (maxDiff === 0) maxDiff = 1;
+
   container.innerHTML = items.map(function(item) {
-    var color, badge, diffText;
+    var color, bg;
     if (item.diff <= 30) {
-      color = '#ef4444'; badge = '#fef2f2'; diffText = 'D-' + item.diff;
+      color = '#ef4444'; bg = '#fef2f2';
     } else if (item.diff <= 60) {
-      color = '#f59e0b'; badge = '#fffbeb'; diffText = 'D-' + item.diff;
+      color = '#f59e0b'; bg = '#fffbeb';
     } else {
-      color = '#22c55e'; badge = '#f0fdf4'; diffText = 'D-' + item.diff;
+      color = '#22c55e'; bg = '#f0fdf4';
     }
-    return '<div style="background:var(--card);border:1px solid var(--border);border-left:4px solid ' + color + ';border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">' +
-      '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:11px;color:var(--t3);margin-bottom:3px">' + CERT_LABELS[item.type] + '</div>' +
-        '<div style="font-size:14px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + item.name + '</div>' +
-        '<div style="font-size:12px;color:var(--t2);margin-top:2px">' + (item.dateStr || '-') + '</div>' +
+    var pct = Math.max(4, Math.round((item.diff / maxDiff) * 100));
+    return '<div style="display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--border)">' +
+      '<div style="width:100px;flex-shrink:0">' +
+        '<div style="font-size:10px;color:var(--t3);margin-bottom:2px">' + CERT_LABELS[item.type] + '</div>' +
+        '<div style="font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + item.name + '</div>' +
       '</div>' +
-      '<div style="background:' + badge + ';color:' + color + ';font-size:13px;font-weight:700;padding:6px 12px;border-radius:8px;white-space:nowrap">' + diffText + '</div>' +
+      '<div style="flex:1;background:#f1f5f9;border-radius:999px;height:10px;overflow:hidden">' +
+        '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:999px;transition:width .4s ease"></div>' +
+      '</div>' +
+      '<div style="width:80px;text-align:right;flex-shrink:0">' +
+        '<span style="background:' + bg + ';color:' + color + ';font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px">D-' + item.diff + '</span>' +
+      '</div>' +
+      '<div style="width:100px;text-align:right;flex-shrink:0;font-size:11px;color:var(--t3)">' + item.dateStr + '</div>' +
     '</div>';
   }).join('');
+  // 마지막 항목 border 제거
+  var lastChild = container.lastElementChild;
+  if (lastChild) lastChild.style.borderBottom = 'none';
 }
 
 var _certEditType = null, _certEditIdx = -1;
