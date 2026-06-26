@@ -1733,7 +1733,7 @@ function initApp() {
   populateEmpFilterDept();
   renderEmployeeTable();
   loadDemoFiles();
-  certRenderAll();
+  certStartListeners();
 }
 
 // ══════════════════════════════════════════════════
@@ -11652,22 +11652,35 @@ const CERT_SCHEMAS = {
   }
 };
 
+// ── cert 데이터 캐시 (Firestore 실시간 리스너용) ──
+var _certCache = {};
+
 function certLoadData(type) {
-  try { return JSON.parse(localStorage.getItem('wg_cert_'+type) || '[]'); } catch { return []; }
+  return _certCache[type] || [];
 }
+
 function certSaveData(type, arr) {
-  try {
-    localStorage.setItem('wg_cert_'+type, JSON.stringify(arr));
-  } catch(e) {
-    if (e.name === 'QuotaExceededError' || e.code === 22) {
-      showToast('❌ 저장 공간이 부족합니다. 파일 첨부 없이 저장하거나 기존 데이터를 정리해주세요.');
-    } else {
-      showToast('❌ 저장 오류: ' + e.message);
-    }
-    return;
-  }
-  certUpdateDashboard();
+  _certCache[type] = arr;
+  db.collection('cert').doc(type).set({ items: arr })
+    .then(function(){ certUpdateDashboard(); })
+    .catch(function(e){ showToast('❌ 저장 오류: ' + e.message); });
 }
+
+// Firestore 실시간 리스너 시작
+function certStartListeners() {
+  Object.keys(CERT_SCHEMAS).forEach(function(type) {
+    db.collection('cert').doc(type).onSnapshot(function(snap) {
+      if (snap.exists) {
+        _certCache[type] = snap.data().items || [];
+      } else {
+        _certCache[type] = [];
+      }
+      certRender(type);
+      certUpdateDashboard();
+    });
+  });
+}
+
 
 function certRender(type) {
   const schema = CERT_SCHEMAS[type];
