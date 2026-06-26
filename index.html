@@ -11612,31 +11612,31 @@ const CERT_SCHEMAS = {
     label: '저작권',
     cols: ['저작물 명칭','등록기관','창작일','공표일','등록일','등록번호'],
     keys: ['name','organ','created','published','registered','regNo'],
-    types: ['text','text','date','date','date','text']
+    types: ['text','select','date','date','date','text']
   },
   gs: {
     label: 'GS인증',
     cols: ['기술개발명칭','등록기관','인증일자','등록번호'],
     keys: ['name','organ','certDate','regNo'],
-    types: ['text','text','date','text']
+    types: ['text','select','date','text']
   },
   patent: {
     label: '특허증',
     cols: ['기술개발명칭','등록기관','출원일','등록일자','등록번호','비고'],
     keys: ['name','organ','applyDate','regDate','regNo','note'],
-    types: ['text','text','date','date','text','text']
+    types: ['text','select','date','date','text','text']
   },
   trademark: {
     label: '상표등록증',
     cols: ['상표 명칭','등록기관','출원일','등록일','등록번호'],
     keys: ['name','organ','applyDate','regDate','regNo'],
-    types: ['text','text','date','date','text']
+    types: ['text','select','date','date','text']
   },
   ogc: {
     label: 'OGC',
     cols: ['상표 명칭','등록기관','유효기간'],
     keys: ['name','organ','validity'],
-    types: ['text','text','range']
+    types: ['text','select','range']
   },
   direct: {
     label: '직접생산·SW사업자',
@@ -11648,7 +11648,7 @@ const CERT_SCHEMAS = {
     label: '프로그램 인증서',
     cols: ['제품명','등록기관','인증번호','유효기간'],
     keys: ['name','organ','certNo','validity'],
-    types: ['text','text','text','range']
+    types: ['text','select','text','range']
   },
   excellence: {
     label: '우수제품지정',
@@ -11660,11 +11660,18 @@ const CERT_SCHEMAS = {
     label: '측량기기 성능검사',
     cols: ['제품명','검사기관','검사필증 일련번호','유효기간'],
     keys: ['name','organ','serialNo','validity'],
-    types: ['text','text','text','range']
+    types: ['text','select','text','range']
   }
 };
 
-// ── cert 데이터 캐시 (Firestore 실시간 리스너용) ──
+// 등록기관 목록
+var CERT_ORGANS = [
+  '한국저작권위원회',
+  '한국정보통신기술협회',
+  '특허청',
+  'Open Geospatial Consortium',
+  '㈜코세코'
+];
 var _certCache = {};
 
 function certLoadData(type) {
@@ -12034,6 +12041,12 @@ function certShowModal(type, row) {
         '<span style="color:var(--t3);font-size:13px;flex-shrink:0">~</span>' +
         '<input id="cert-field-' + i + '-e" type="date" value="' + parts[1] + '" style="' + inputStyle + ';flex:1">' +
         '</div>';
+    } else if (ftype === 'select') {
+      var opts = CERT_ORGANS.map(function(o) {
+        return '<option value="' + o + '"' + (val === o ? ' selected' : '') + '>' + o + '</option>';
+      }).join('');
+      fieldHtml = '<select id="cert-field-' + i + '" style="' + inputStyle + '">' +
+        '<option value="">선택하세요</option>' + opts + '</select>';
     } else {
       fieldHtml = '<input id="cert-field-' + i + '" type="text" value="' + val.replace(/"/g,'&quot;') + '" style="' + inputStyle + '" placeholder="' + col + ' 입력">';
     }
@@ -12056,6 +12069,9 @@ function certGetModalValues() {
       var es = document.getElementById('cert-field-' + i + '-s');
       var ee = document.getElementById('cert-field-' + i + '-e');
       row[k] = certInputsToRange(es ? es.value : '', ee ? ee.value : '');
+    } else if (ftype === 'select') {
+      var el = document.getElementById('cert-field-' + i);
+      row[k] = el ? el.value : '';
     } else {
       var et = document.getElementById('cert-field-' + i);
       row[k] = et ? et.value.trim() : '';
