@@ -12027,7 +12027,8 @@ function certOpenEdit(type, idx) {
 // yyyy. mm. dd. ↔ input[type=date] value(yyyy-mm-dd) 변환
 function certDateToInput(str) {
   if (!str) return '';
-  var m = str.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
+  // yyyy. m. d. / yyyy.mm.dd / yyyy-mm-dd / yyyy/mm/dd 등 모두 처리
+  var m = str.match(/(\d{4})[\.\-\/\s년]*\s*(\d{1,2})[\.\-\/\s월]*\s*(\d{1,2})/);
   if (!m) return '';
   return m[1] + '-' + m[2].padStart(2,'0') + '-' + m[3].padStart(2,'0');
 }
