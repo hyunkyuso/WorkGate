@@ -11821,8 +11821,10 @@ function certRender(type) {
     var dlBtn = hasFile
       ? '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;color:var(--gr);border-color:var(--gr)" onclick="certDownload(\'' + type + '\'' + ',' + i + ')">⬇ 다운로드</button>'
       : '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;opacity:0.35;cursor:default">⬇ 다운로드</button>';
-    return '<tr>' +
-      '<td style="text-align:center;color:var(--t3);font-size:14px;white-space:nowrap">' + (i+1) + '</td>' +
+    return '<tr draggable="true" data-type="' + type + '" data-idx="' + i + '" ' +
+      'ondragstart="certDragStart(event)" ondragover="certDragOver(event)" ondrop="certDrop(event)" ondragend="certDragEnd(event)" ' +
+      'style="cursor:grab">' +
+      '<td style="text-align:center;color:var(--t3);font-size:14px;white-space:nowrap">⠿ ' + (i+1) + '</td>' +
       schema.keys.map(function(k, ki) { 
         var v = (row[k]||'-').replace(/(\d+)\.\s+(\d)/g, '$1.&nbsp;$2');
         var style = ki === 0 
@@ -11837,6 +11839,43 @@ function certRender(type) {
       '</div></td>' +
       '</tr>';
   }).join('');
+}
+
+// ── 드래그앤드롭 순서 변경 ──
+var _certDragIdx = -1;
+var _certDragType = null;
+
+function certDragStart(e) {
+  _certDragIdx = parseInt(e.currentTarget.dataset.idx);
+  _certDragType = e.currentTarget.dataset.type;
+  e.currentTarget.style.opacity = '0.5';
+}
+
+function certDragOver(e) {
+  e.preventDefault();
+  var tr = e.currentTarget;
+  tr.style.borderTop = '2px solid var(--ac)';
+}
+
+function certDragEnd(e) {
+  e.currentTarget.style.opacity = '1';
+  // 모든 tr 테두리 제거
+  var tbody = document.getElementById('tbody-' + _certDragType);
+  if (tbody) tbody.querySelectorAll('tr').forEach(function(tr){ tr.style.borderTop = ''; });
+}
+
+function certDrop(e) {
+  e.preventDefault();
+  var targetIdx = parseInt(e.currentTarget.dataset.idx);
+  var type = e.currentTarget.dataset.type;
+  if (_certDragIdx === targetIdx || _certDragType !== type) return;
+
+  var data = certLoadData(type);
+  var dragged = data.splice(_certDragIdx, 1)[0];
+  data.splice(targetIdx, 0, dragged);
+  certSaveData(type, data);
+  certRender(type);
+  showToast('✅ 순서가 변경되었습니다');
 }
 
 function certRenderAll() {
