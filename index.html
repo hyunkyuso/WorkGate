@@ -11721,11 +11721,11 @@ function certParseDate(str) {
   // 날짜 형식: YYYY-MM-DD, YYYY.MM.DD, YYYY/MM/DD, YYYY년MM월DD일 등
   // 기간 형식: "2023.01.01 ~ 2025.12.31" → 끝날짜 사용
   var s = str.trim();
-  // 기간에서 끝날짜 추출
-  var rangeMatch = s.match(/[~\-–]\s*(\d{4}[\.\-\/]\d{1,2}[\.\-\/]\d{1,2})/);
+  // 기간에서 끝날짜 추출 (~ 또는 - 구분자)
+  var rangeMatch = s.match(/[~\-–]\s*(\d{4}[\.\-\/\s]\s*\d{1,2}[\.\-\/\s]\s*\d{1,2})/);
   if (rangeMatch) s = rangeMatch[1];
-  // 날짜 숫자 추출
-  var m = s.match(/(\d{4})[\.\-\/년](\d{1,2})[\.\-\/월](\d{1,2})/);
+  // 날짜 숫자 추출 (2025. 7. 27. 형식 포함)
+  var m = s.match(/(\d{4})[\.\-\/년\s]+(\d{1,2})[\.\-\/월\s]+(\d{1,2})/);
   if (!m) return null;
   return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
 }
