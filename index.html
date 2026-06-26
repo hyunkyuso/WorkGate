@@ -12303,13 +12303,15 @@ function certShowModal(type, row) {
         return '<option value="' + o + '"' + (val === o ? ' selected' : '') + '>' + o + '</option>';
       }).join('');
       var isCustom = val && !CERT_ORGANS.includes(val);
-      fieldHtml = '<select id="cert-field-' + i + '" style="' + inputStyle + '" onchange="certToggleCustomOrgan(this,' + i + ')">' +
+      fieldHtml = '<select id="cert-field-' + i + '" style="' + inputStyle + ';display:' + (isCustom ? 'none' : 'block') + '">' +
         '<option value="">선택하세요</option>' + opts +
-        '<option value="__custom__"' + (isCustom ? ' selected' : '') + '>직접입력</option>' +
         '</select>' +
         '<input id="cert-field-' + i + '-custom" type="text" value="' + (isCustom ? val.replace(/"/g,'&quot;') : '') + '" ' +
         'placeholder="기관명 직접 입력" ' +
-        'style="' + inputStyle + ';margin-top:6px;display:' + (isCustom ? 'block' : 'none') + '">';
+        'style="' + inputStyle + ';display:' + (isCustom ? 'block' : 'none') + '">' +
+        '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer;font-size:12px;color:var(--t2)">' +
+        '<input type="checkbox" id="cert-field-' + i + '-chk"' + (isCustom ? ' checked' : '') + ' onchange="certToggleCustomOrganChk(this,' + i + ')">' +
+        '직접 입력</label>';
     } else {
       fieldHtml = '<input id="cert-field-' + i + '" type="text" value="' + val.replace(/"/g,'&quot;') + '" style="' + inputStyle + '" placeholder="' + col + ' 입력">';
     }
@@ -12348,22 +12350,30 @@ function certShowModal(type, row) {
   openModal('cert-add-modal');
 }
 
-function certToggleCustomOrgan(sel, idx, isAi) {
+function certToggleCustomOrganChk(chk, idx, isAi) {
   var prefix = isAi ? 'cert-ai-field-' : 'cert-field-';
+  var sel = document.getElementById(prefix + idx);
   var customInput = document.getElementById(prefix + idx + '-custom');
-  if (!customInput) return;
-  customInput.style.display = sel.value === '__custom__' ? 'block' : 'none';
-  if (sel.value !== '__custom__') customInput.value = '';
+  if (!sel || !customInput) return;
+  if (chk.checked) {
+    sel.style.display = 'none';
+    customInput.style.display = 'block';
+    customInput.focus();
+  } else {
+    sel.style.display = 'block';
+    customInput.style.display = 'none';
+    customInput.value = '';
+  }
 }
 
 function certGetSelectValue(prefix, i) {
-  var sel = document.getElementById(prefix + i);
-  if (!sel) return '';
-  if (sel.value === '__custom__') {
+  var chk = document.getElementById(prefix + i + '-chk');
+  if (chk && chk.checked) {
     var custom = document.getElementById(prefix + i + '-custom');
     return custom ? custom.value.trim() : '';
   }
-  return sel.value;
+  var sel = document.getElementById(prefix + i);
+  return sel ? sel.value : '';
 }
 
 function certGetModalValues() {
@@ -12715,13 +12725,15 @@ function certAiScan(type, input) {
           var opts = CERT_ORGANS.map(function(o) {
             return '<option value="' + o + '"' + (normalized === o ? ' selected' : '') + '>' + o + '</option>';
           }).join('');
-          fieldHtml = '<select id="cert-ai-field-' + i + '" style="' + inputStyle + '" onchange="certToggleCustomOrgan(this,' + i + ',true)">' +
+          fieldHtml = '<select id="cert-ai-field-' + i + '" style="' + inputStyle + ';display:' + (isCustom ? 'none' : 'block') + '">' +
             '<option value="">선택하세요</option>' + opts +
-            '<option value="__custom__"' + (isCustom ? ' selected' : '') + '>직접입력</option>' +
             '</select>' +
             '<input id="cert-ai-field-' + i + '-custom" type="text" value="' + (isCustom ? normalized.replace(/"/g,'&quot;') : '') + '" ' +
             'placeholder="기관명 직접 입력" ' +
-            'style="' + inputStyle + ';margin-top:6px;display:' + (isCustom ? 'block' : 'none') + '">';
+            'style="' + inputStyle + ';display:' + (isCustom ? 'block' : 'none') + '">' +
+            '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer;font-size:12px;color:var(--t2)">' +
+            '<input type="checkbox" id="cert-ai-field-' + i + '-chk"' + (isCustom ? ' checked' : '') + ' onchange="certToggleCustomOrganChk(this,' + i + ',true)">' +
+            '직접 입력</label>';
         } else {
           fieldHtml = '<input id="cert-ai-field-' + i + '" type="text" value="' + val.replace(/"/g,'&quot;') + '" style="' + inputStyle + '">';
         }
