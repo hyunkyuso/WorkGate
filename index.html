@@ -1509,6 +1509,7 @@ select.form-input{cursor:pointer}
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 
 <!-- 앱 메인 스크립트 (Firebase SDK 로드 완료 후 실행) -->
 <script>
@@ -11680,7 +11681,7 @@ function certRender(type) {
     return;
   }
   tbody.innerHTML = data.map(function(row, i) {
-    var hasFile = !!row._fileData;
+    var hasFile = !!(row._fileUrl || row._fileData);
     var viewBtn = hasFile
       ? '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="certOpenView(\'' + type + '\'' + ',' + i + ')">👁 보기</button>'
       : '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;opacity:0.35;cursor:default">👁 보기</button>';
@@ -11835,19 +11836,17 @@ var _certEditType = null, _certEditIdx = -1;
 function certOpenView(type, idx) {
   var data = certLoadData(type);
   var row = data[idx] || {};
-  if (!row._fileData) {
-    showToast('📎 첨부 파일이 없습니다');
-    return;
-  }
-  var isPdf = row._fileType === 'application/pdf';
+  var url = row._fileUrl || row._fileData;
+  if (!url) { showToast('📎 첨부 파일이 없습니다'); return; }
+  var isPdf = (row._fileType === 'application/pdf') || (row._fileName && row._fileName.toLowerCase().endsWith('.pdf'));
   var schema = CERT_SCHEMAS[type];
   document.getElementById('cert-view-title').textContent = schema.label + ' — ' + (row._fileName || '첨부파일');
   if (isPdf) {
     document.getElementById('cert-view-body').innerHTML =
-      '<iframe src="' + row._fileData + '" style="width:100%;height:500px;border:none;border-radius:8px"></iframe>';
+      '<iframe src="' + url + '" style="width:100%;height:500px;border:none;border-radius:8px"></iframe>';
   } else {
     document.getElementById('cert-view-body').innerHTML =
-      '<img src="' + row._fileData + '" style="width:100%;border-radius:8px;border:1px solid var(--border)">';
+      '<img src="' + url + '" style="width:100%;border-radius:8px;border:1px solid var(--border)">';
   }
   openModal('cert-view-modal');
 }
@@ -11855,13 +11854,12 @@ function certOpenView(type, idx) {
 function certDownload(type, idx) {
   var data = certLoadData(type);
   var row = data[idx] || {};
-  if (!row._fileData) {
-    showToast('📎 첨부 파일이 없습니다');
-    return;
-  }
+  var url = row._fileUrl || row._fileData;
+  if (!url) { showToast('📎 첨부 파일이 없습니다'); return; }
   var a = document.createElement('a');
-  a.href = row._fileData;
+  a.href = url;
   a.download = row._fileName || ('cert_' + (idx+1));
+  a.target = '_blank';
   a.click();
 }
 
@@ -11912,19 +11910,40 @@ function certSaveModal() {
   var schema = CERT_SCHEMAS[_certEditType];
   var row = {};
   schema.keys.forEach(function(k,i){ row[k] = document.getElementById('cert-field-'+i).value.trim(); });
-  // certOpenAddWithFile로 열렸을 때 파일 데이터 포함
-  if (_certAiFileData && _certEditIdx < 0) {
-    row._fileData = _certAiFileData;
-    row._fileName = _certAiFileName;
-    row._fileType = _certAiFileType;
-    _certAiFileData = null; // 사용 후 초기화
+
+  var doSave = function(r) {
+    var data = certLoadData(_certEditType);
+    if (_certEditIdx >= 0) { data[_certEditIdx] = r; } else { data.push(r); }
+    certSaveData(_certEditType, data);
+    closeModal('cert-add-modal');
+    certRender(_certEditType);
+    showToast(_certEditIdx >= 0 ? '✅ 수정되었습니다' : '✅ 추가되었습니다');
+  };
+
+  // AI 실패 후 파일 첨부된 경우 Storage 업로드
+  if (_certAiFileData && _certAiFileName && _certEditIdx < 0) {
+    showToast('📤 파일 업로드 중...');
+    var storageRef = firebase.storage().ref('cert/' + _certEditType + '/' + Date.now() + '_' + _certAiFileName);
+    var base64 = _certAiFileData.split(',')[1];
+    var binary = atob(base64);
+    var arr = new Uint8Array(binary.length);
+    for (var i=0; i<binary.length; i++) arr[i] = binary.charCodeAt(i);
+    var blob = new Blob([arr], {type: _certAiFileType || 'application/octet-stream'});
+    storageRef.put(blob).then(function(snapshot) {
+      return snapshot.ref.getDownloadURL();
+    }).then(function(url) {
+      row._fileUrl = url;
+      row._fileName = _certAiFileName;
+      row._fileType = _certAiFileType;
+      _certAiFileData = null;
+      doSave(row);
+    }).catch(function(err) {
+      console.error(err);
+      showToast('❌ 파일 업로드 실패: ' + err.message);
+    });
+  } else {
+    doSave(row);
   }
-  var data = certLoadData(_certEditType);
-  if (_certEditIdx >= 0) { data[_certEditIdx] = row; } else { data.push(row); }
-  certSaveData(_certEditType, data);
-  closeModal('cert-add-modal');
-  certRender(_certEditType);
-  showToast(_certEditIdx >= 0 ? '✅ 수정되었습니다' : '✅ 추가되었습니다');
 }
 
 function certDelete(type, idx) {
@@ -12105,18 +12124,43 @@ function certAiConfirm() {
     var el = document.getElementById('cert-ai-field-'+i);
     row[k] = el ? el.value.trim() : '';
   });
-  // 파일 데이터 저장
-  if (_certAiFileData) {
-    row._fileData = _certAiFileData;
-    row._fileName = _certAiFileName;
-    row._fileType = _certAiFileType;
+
+  if (_certAiFileData && _certAiFileName) {
+    // Firebase Storage에 업로드
+    showToast('📤 파일 업로드 중...');
+    var storageRef = firebase.storage().ref('cert/' + _certAiType + '/' + Date.now() + '_' + _certAiFileName);
+    // base64 data URL → blob 변환
+    var base64 = _certAiFileData.split(',')[1];
+    var binary = atob(base64);
+    var arr = new Uint8Array(binary.length);
+    for (var i=0; i<binary.length; i++) arr[i] = binary.charCodeAt(i);
+    var blob = new Blob([arr], {type: _certAiFileType || 'application/octet-stream'});
+
+    storageRef.put(blob).then(function(snapshot) {
+      return snapshot.ref.getDownloadURL();
+    }).then(function(url) {
+      row._fileUrl = url;
+      row._fileName = _certAiFileName;
+      row._fileType = _certAiFileType;
+      var data = certLoadData(_certAiType);
+      data.push(row);
+      certSaveData(_certAiType, data);
+      closeModal('cert-ai-result-modal');
+      certRender(_certAiType);
+      _certAiFileData = null;
+      showToast('✅ AI 인식 결과가 등록되었습니다');
+    }).catch(function(err) {
+      console.error(err);
+      showToast('❌ 파일 업로드 실패: ' + err.message);
+    });
+  } else {
+    var data = certLoadData(_certAiType);
+    data.push(row);
+    certSaveData(_certAiType, data);
+    closeModal('cert-ai-result-modal');
+    certRender(_certAiType);
+    showToast('✅ AI 인식 결과가 등록되었습니다');
   }
-  var data = certLoadData(_certAiType);
-  data.push(row);
-  certSaveData(_certAiType, data);
-  closeModal('cert-ai-result-modal');
-  certRender(_certAiType);
-  showToast('✅ AI 인식 결과가 등록되었습니다');
 }
 
 // ── Firebase 초기화 ──
