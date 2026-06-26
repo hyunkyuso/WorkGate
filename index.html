@@ -12123,8 +12123,14 @@ function certShowModal(type, row) {
       var opts = CERT_ORGANS.map(function(o) {
         return '<option value="' + o + '"' + (val === o ? ' selected' : '') + '>' + o + '</option>';
       }).join('');
-      fieldHtml = '<select id="cert-field-' + i + '" style="' + inputStyle + '">' +
-        '<option value="">선택하세요</option>' + opts + '</select>';
+      var isCustom = val && !CERT_ORGANS.includes(val);
+      fieldHtml = '<select id="cert-field-' + i + '" style="' + inputStyle + '" onchange="certToggleCustomOrgan(this,' + i + ')">' +
+        '<option value="">선택하세요</option>' + opts +
+        '<option value="__custom__"' + (isCustom ? ' selected' : '') + '>직접입력</option>' +
+        '</select>' +
+        '<input id="cert-field-' + i + '-custom" type="text" value="' + (isCustom ? val.replace(/"/g,'&quot;') : '') + '" ' +
+        'placeholder="기관명 직접 입력" ' +
+        'style="' + inputStyle + ';margin-top:6px;display:' + (isCustom ? 'block' : 'none') + '">';
     } else {
       fieldHtml = '<input id="cert-field-' + i + '" type="text" value="' + val.replace(/"/g,'&quot;') + '" style="' + inputStyle + '" placeholder="' + col + ' 입력">';
     }
@@ -12135,7 +12141,23 @@ function certShowModal(type, row) {
   openModal('cert-add-modal');
 }
 
-function certGetModalValues() {
+function certToggleCustomOrgan(sel, idx, isAi) {
+  var prefix = isAi ? 'cert-ai-field-' : 'cert-field-';
+  var customInput = document.getElementById(prefix + idx + '-custom');
+  if (!customInput) return;
+  customInput.style.display = sel.value === '__custom__' ? 'block' : 'none';
+  if (sel.value !== '__custom__') customInput.value = '';
+}
+
+function certGetSelectValue(prefix, i) {
+  var sel = document.getElementById(prefix + i);
+  if (!sel) return '';
+  if (sel.value === '__custom__') {
+    var custom = document.getElementById(prefix + i + '-custom');
+    return custom ? custom.value.trim() : '';
+  }
+  return sel.value;
+}
   var schema = CERT_SCHEMAS[_certEditType];
   var row = {};
   schema.keys.forEach(function(k, i) {
@@ -12148,8 +12170,7 @@ function certGetModalValues() {
       var ee = document.getElementById('cert-field-' + i + '-e');
       row[k] = certInputsToRange(es ? es.value : '', ee ? ee.value : '');
     } else if (ftype === 'select') {
-      var el = document.getElementById('cert-field-' + i);
-      row[k] = el ? el.value : '';
+      row[k] = certGetSelectValue('cert-field-', i);
     } else {
       var et = document.getElementById('cert-field-' + i);
       row[k] = et ? et.value.trim() : '';
@@ -12366,11 +12387,17 @@ function certAiScan(type, input) {
             '</div>';
         } else if (ftype === 'select') {
           var normalized = certNormalizeOrgan(val);
+          var isCustom = normalized && !CERT_ORGANS.includes(normalized);
           var opts = CERT_ORGANS.map(function(o) {
             return '<option value="' + o + '"' + (normalized === o ? ' selected' : '') + '>' + o + '</option>';
           }).join('');
-          fieldHtml = '<select id="cert-ai-field-' + i + '" style="' + inputStyle + '">' +
-            '<option value="">선택하세요</option>' + opts + '</select>';
+          fieldHtml = '<select id="cert-ai-field-' + i + '" style="' + inputStyle + '" onchange="certToggleCustomOrgan(this,' + i + ',true)">' +
+            '<option value="">선택하세요</option>' + opts +
+            '<option value="__custom__"' + (isCustom ? ' selected' : '') + '>직접입력</option>' +
+            '</select>' +
+            '<input id="cert-ai-field-' + i + '-custom" type="text" value="' + (isCustom ? normalized.replace(/"/g,'&quot;') : '') + '" ' +
+            'placeholder="기관명 직접 입력" ' +
+            'style="' + inputStyle + ';margin-top:6px;display:' + (isCustom ? 'block' : 'none') + '">';
         } else {
           fieldHtml = '<input id="cert-ai-field-' + i + '" type="text" value="' + val.replace(/"/g,'&quot;') + '" style="' + inputStyle + '">';
         }
@@ -12410,6 +12437,8 @@ function certAiConfirm() {
       var es = document.getElementById('cert-ai-field-'+i+'-s');
       var ee = document.getElementById('cert-ai-field-'+i+'-e');
       row[k] = certInputsToRange(es ? es.value : '', ee ? ee.value : '');
+    } else if (ftype === 'select') {
+      row[k] = certGetSelectValue('cert-ai-field-', i);
     } else {
       var et = document.getElementById('cert-ai-field-'+i);
       row[k] = et ? et.value.trim() : '';
