@@ -11672,6 +11672,29 @@ var CERT_ORGANS = [
   'Open Geospatial Consortium',
   '㈜코세코'
 ];
+
+// 등록기관 정규화 매핑 (AI 스캔 결과 → 통일 명칭)
+var CERT_ORGAN_MAP = {
+  '한국저작권위원회': '한국저작권위원회',
+  '한국정보통신기술협회': '한국정보통신기술협회',
+  'TTA': '한국정보통신기술협회',
+  '특허청': '특허청',
+  '지식재산처': '특허청',
+  '특허청 지식재산처': '특허청',
+  'Open Geospatial Consortium': 'Open Geospatial Consortium',
+  'OGC': 'Open Geospatial Consortium',
+  '코세코': '㈜코세코',
+  '㈜코세코': '㈜코세코'
+};
+
+function certNormalizeOrgan(str) {
+  if (!str) return str;
+  // 직접 매핑 먼저
+  for (var key in CERT_ORGAN_MAP) {
+    if (str.includes(key)) return CERT_ORGAN_MAP[key];
+  }
+  return str;
+}
 var _certCache = {};
 
 function certLoadData(type) {
@@ -11800,7 +11823,10 @@ function certRender(type) {
       : '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;opacity:0.35;cursor:default">⬇ 다운로드</button>';
     return '<tr>' +
       '<td style="text-align:center;color:var(--t3);font-size:14px;white-space:nowrap">' + (i+1) + '</td>' +
-      schema.keys.map(function(k){ return '<td style="font-size:15px">' + (row[k]||'-') + '</td>'; }).join('') +
+      schema.keys.map(function(k){ 
+        var v = (row[k]||'-').replace(/(\d+)\.\s+(\d)/g, '$1.&nbsp;$2');
+        return '<td style="font-size:15px;white-space:nowrap">' + v + '</td>'; 
+      }).join('') +
       '<td style="white-space:nowrap"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:nowrap">' + viewBtn + dlBtn + '</div></td>' +
       '<td style="white-space:nowrap"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:nowrap">' +
       '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;color:var(--ac);border-color:var(--ac)" onclick="certOpenEdit(\'' + type + '\'' + ',' + i + ')">수정</button>' +
