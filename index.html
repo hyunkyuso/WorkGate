@@ -11950,72 +11950,81 @@ function certRenderExpiryList() {
   if (!container) return;
   var today = new Date();
   today.setHours(0,0,0,0);
-  var items = [];
+
+  // 카테고리별로 데이터 수집
+  var categoryItems = {};
+  var totalK30 = 0, totalK60 = 0, totalKok = 0;
 
   Object.keys(CERT_DATE_KEYS).forEach(function(type) {
     var info = CERT_DATE_KEYS[type];
     var data = certLoadData(type);
+    var items = [];
     data.forEach(function(row) {
       var name = row[info.nameKey] || '-';
       var dateStr = row[info.dateKey] || '';
       var date = certParseDate(dateStr);
       var diff = date ? Math.floor((date - today) / (1000*60*60*24)) : null;
       if (diff !== null && diff >= 0) {
-        items.push({type:type, name:name, dateStr:dateStr, diff:diff});
+        items.push({name:name, dateStr:dateStr, diff:diff});
+        if (diff <= 30) totalK30++;
+        else if (diff <= 60) totalK60++;
+        else totalKok++;
       }
     });
+    if (items.length) {
+      items.sort(function(a,b){ return a.diff - b.diff; });
+      categoryItems[type] = items;
+    }
   });
 
   // KPI 업데이트
-  var k30 = items.filter(function(i){ return i.diff <= 30; }).length;
-  var k60 = items.filter(function(i){ return i.diff > 30 && i.diff <= 60; }).length;
-  var kok = items.filter(function(i){ return i.diff > 60; }).length;
   var el30 = document.getElementById('dash-kpi-30');
   var el60 = document.getElementById('dash-kpi-60');
   var elok = document.getElementById('dash-kpi-ok');
-  if (el30) el30.textContent = k30;
-  if (el60) el60.textContent = k60;
-  if (elok) elok.textContent = kok;
+  if (el30) el30.textContent = totalK30;
+  if (el60) el60.textContent = totalK60;
+  if (elok) elok.textContent = totalKok;
 
-  if (!items.length) {
+  if (!Object.keys(categoryItems).length) {
     container.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:24px">유효기간이 있는 인증 데이터가 없습니다.</div>';
     return;
   }
 
-  // 남은일 오름차순 정렬
-  items.sort(function(a,b){ return a.diff - b.diff; });
+  // 카테고리별 섹션 카드 렌더링 (3열 그리드)
+  container.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">' +
+    Object.keys(categoryItems).map(function(type) {
+      var items = categoryItems[type];
+      var maxDiff = Math.max.apply(null, items.map(function(i){ return i.diff; }));
+      if (maxDiff === 0) maxDiff = 1;
 
-  // 최대 diff 기준으로 바 길이 계산
-  var maxDiff = Math.max.apply(null, items.map(function(i){ return i.diff; }));
-  if (maxDiff === 0) maxDiff = 1;
+      var rows = items.map(function(item) {
+        var color, bg;
+        if (item.diff <= 30) { color = '#ef4444'; bg = '#fef2f2'; }
+        else if (item.diff <= 60) { color = '#f59e0b'; bg = '#fffbeb'; }
+        else { color = '#22c55e'; bg = '#f0fdf4'; }
+        var pct = Math.max(4, Math.round((item.diff / maxDiff) * 100));
+        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + item.name + '</div>' +
+            '<div style="background:#f1f5f9;border-radius:999px;height:6px;margin-top:4px;overflow:hidden">' +
+              '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:999px"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="flex-shrink:0;text-align:right">' +
+            '<div style="background:' + bg + ';color:' + color + ';font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px">D-' + item.diff + '</div>' +
+            '<div style="font-size:10px;color:var(--t3);margin-top:2px;white-space:nowrap">' + item.dateStr.replace(/\s/g,'') + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
 
-  container.innerHTML = items.map(function(item) {
-    var color, bg;
-    if (item.diff <= 30) {
-      color = '#ef4444'; bg = '#fef2f2';
-    } else if (item.diff <= 60) {
-      color = '#f59e0b'; bg = '#fffbeb';
-    } else {
-      color = '#22c55e'; bg = '#f0fdf4';
-    }
-    var pct = Math.max(4, Math.round((item.diff / maxDiff) * 100));
-    return '<div style="display:flex;align-items:center;gap:20px;padding:16px 24px;border-bottom:1px solid var(--border)">' +
-      '<div style="width:160px;flex-shrink:0">' +
-        '<div style="font-size:11px;color:var(--t3);margin-bottom:3px">' + CERT_LABELS[item.type] + '</div>' +
-        '<div style="font-size:15px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + item.name + '</div>' +
-      '</div>' +
-      '<div style="flex:1;background:#f1f5f9;border-radius:999px;height:14px;overflow:hidden">' +
-        '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:999px;transition:width .4s ease"></div>' +
-      '</div>' +
-      '<div style="width:70px;text-align:center;flex-shrink:0">' +
-        '<span style="background:' + bg + ';color:' + color + ';font-size:13px;font-weight:700;padding:4px 12px;border-radius:6px;white-space:nowrap">D-' + item.diff + '</span>' +
-      '</div>' +
-      '<div style="width:130px;text-align:right;flex-shrink:0;font-size:13px;color:var(--t2);white-space:nowrap">' + item.dateStr.replace(/\s/g,'') + '</div>' +
-    '</div>';
-  }).join('');
-  // 마지막 항목 border 제거
-  var lastChild = container.lastElementChild;
-  if (lastChild) lastChild.style.borderBottom = 'none';
+      return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px">' +
+        '<div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--ac)">' +
+          CERT_LABELS[type] + ' <span style="font-size:12px;font-weight:400;color:var(--t3)">(' + items.length + '건)</span>' +
+        '</div>' +
+        rows +
+      '</div>';
+    }).join('') +
+  '</div>';
 }
 
 var _certEditType = null, _certEditIdx = -1;
