@@ -435,6 +435,7 @@ select.form-input{cursor:pointer}
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
             <div style="width:4px;height:24px;background:var(--ac);border-radius:2px"></div>
             <h2 style="font-size:20px;font-weight:700">기업인증현황 대시보드</h2>
+            <button id="cert-migrate-btn" onclick="certMigrateAll()" style="margin-left:auto;padding:6px 14px;font-size:12px;background:#fef9c3;border:1px solid #fde047;border-radius:8px;cursor:pointer;color:#854d0e;display:none">🔄 데이터 Firestore 이전</button>
           </div>
 
           <!-- ① 상단 KPI 요약 -->
@@ -1734,6 +1735,7 @@ function initApp() {
   renderEmployeeTable();
   loadDemoFiles();
   certStartListeners();
+  setTimeout(certCheckMigrationNeeded, 2000);
 }
 
 // ══════════════════════════════════════════════════
@@ -11674,6 +11676,84 @@ function certSaveData(type, arr) {
   db.collection('cert').doc(type).set({ items: arr })
     .then(function(){ certUpdateDashboard(); })
     .catch(function(e){ showToast('❌ 저장 오류: ' + e.message); });
+}
+
+// ── localStorage → Firestore 마이그레이션 ──
+function certMigrateAll() {
+  if (!confirm('localStorage의 모든 인증 데이터를 날짜 형식 변환 후 Firestore로 이전합니다.\n계속할까요?')) return;
+
+  var types = Object.keys(CERT_SCHEMAS);
+  var total = 0;
+  var done = 0;
+
+  // 날짜 문자열 → yyyy. mm. dd. 형식으로 정규화
+  function normalizeDate(str) {
+    if (!str) return str;
+    var m = str.match(/(\d{4})[\.\-\/\s년]+(\d{1,2})[\.\-\/\s월]+(\d{1,2})/);
+    if (!m) return str;
+    return m[1] + '. ' + parseInt(m[2]) + '. ' + parseInt(m[3]) + '.';
+  }
+
+  function normalizeRange(str) {
+    if (!str) return str;
+    var parts = str.split(/[~\-–]/);
+    if (parts.length >= 2) {
+      var s = normalizeDate(parts[0].trim());
+      var e = normalizeDate(parts[parts.length-1].trim());
+      if (s && e) return s + ' ~ ' + e;
+      if (s) return s;
+    }
+    return normalizeDate(str);
+  }
+
+  function normalizeRow(type, row) {
+    var schema = CERT_SCHEMAS[type];
+    var newRow = Object.assign({}, row);
+    schema.keys.forEach(function(k, i) {
+      var ftype = (schema.types && schema.types[i]) || 'text';
+      if (ftype === 'date') {
+        newRow[k] = normalizeDate(row[k] || '');
+      } else if (ftype === 'range') {
+        newRow[k] = normalizeRange(row[k] || '');
+      }
+    });
+    // 기존 _fileData(base64) 제거 (Storage URL만 유지)
+    delete newRow._fileData;
+    return newRow;
+  }
+
+  types.forEach(function(type) {
+    var raw = localStorage.getItem('wg_cert_' + type);
+    if (!raw) { done++; if (done === types.length) showToast('✅ 이전 완료! 총 ' + total + '건'); return; }
+    var arr;
+    try { arr = JSON.parse(raw); } catch(e) { done++; return; }
+    if (!arr.length) { done++; if (done === types.length) showToast('✅ 이전 완료! 총 ' + total + '건'); return; }
+
+    var normalized = arr.map(function(row){ return normalizeRow(type, row); });
+    total += normalized.length;
+
+    db.collection('cert').doc(type).set({ items: normalized })
+      .then(function() {
+        done++;
+        if (done === types.length) {
+          showToast('✅ Firestore 이전 완료! 총 ' + total + '건');
+          document.getElementById('cert-migrate-btn').style.display = 'none';
+        }
+      })
+      .catch(function(e) {
+        showToast('❌ ' + type + ' 이전 실패: ' + e.message);
+      });
+  });
+}
+
+// 관리자일 때 마이그레이션 버튼 표시
+function certCheckMigrationNeeded() {
+  if (!isAdmin()) return;
+  var hasLocal = Object.keys(CERT_SCHEMAS).some(function(t){
+    return !!localStorage.getItem('wg_cert_' + t);
+  });
+  var btn = document.getElementById('cert-migrate-btn');
+  if (btn && hasLocal) btn.style.display = 'block';
 }
 
 // Firestore 실시간 리스너 시작
