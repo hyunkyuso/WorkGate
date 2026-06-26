@@ -435,7 +435,6 @@ select.form-input{cursor:pointer}
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
             <div style="width:4px;height:24px;background:var(--ac);border-radius:2px"></div>
             <h2 style="font-size:20px;font-weight:700">기업인증현황 대시보드</h2>
-            <button id="cert-migrate-btn" onclick="certMigrateAll()" style="margin-left:auto;padding:6px 14px;font-size:12px;background:#fef9c3;border:1px solid #fde047;border-radius:8px;cursor:pointer;color:#854d0e;display:none">🔄 데이터 Firestore 이전</button>
           </div>
 
           <!-- ① 상단 KPI 요약 -->
@@ -447,21 +446,21 @@ select.form-input{cursor:pointer}
                 <span style="font-size:13px;opacity:0.8">건</span>
               </div>
             </div>
-            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:18px 28px;flex:1">
+            <div onclick="certKpiClick(30)" style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:18px 28px;flex:1;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(239,68,68,0.2)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
               <div style="font-size:11px;font-weight:600;color:#ef4444;margin-bottom:4px">⚠️ 30일 이내 만료</div>
               <div style="display:flex;align-items:baseline;gap:6px">
                 <span style="font-size:36px;font-weight:800;line-height:1;color:#ef4444" id="dash-kpi-30">0</span>
                 <span style="font-size:13px;color:#ef4444">건</span>
               </div>
             </div>
-            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:18px 28px;flex:1">
+            <div onclick="certKpiClick(60)" style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:18px 28px;flex:1;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(245,158,11,0.2)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
               <div style="font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:4px">📋 60일 이내 만료</div>
               <div style="display:flex;align-items:baseline;gap:6px">
                 <span style="font-size:36px;font-weight:800;line-height:1;color:#f59e0b" id="dash-kpi-60">0</span>
                 <span style="font-size:13px;color:#f59e0b">건</span>
               </div>
             </div>
-            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px 28px;flex:1">
+            <div onclick="certKpiClick(999)" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px 28px;flex:1;cursor:pointer;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(34,197,94,0.2)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
               <div style="font-size:11px;font-weight:600;color:#22c55e;margin-bottom:4px">✅ 유효기간 여유</div>
               <div style="display:flex;align-items:baseline;gap:6px">
                 <span style="font-size:36px;font-weight:800;line-height:1;color:#22c55e" id="dash-kpi-ok">0</span>
@@ -1436,6 +1435,17 @@ select.form-input{cursor:pointer}
       <button class="btn btn-ghost" onclick="closeModal('code-add-modal')">닫기</button>
       <button class="btn btn-primary" id="code-modal-save-btn" onclick="saveCode()">저장</button>
     </div>
+  </div>
+</div>
+
+<!-- KPI 카테고리 선택 모달 -->
+<div id="cert-kpi-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('cert-kpi-modal')">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <div class="modal-title">📋 이동할 메뉴 선택</div>
+      <button class="modal-close" onclick="closeModal('cert-kpi-modal')">✕</button>
+    </div>
+    <div id="cert-kpi-modal-list" style="padding:8px 0"></div>
   </div>
 </div>
 
@@ -12297,7 +12307,52 @@ function certUploadExcel(type, input) {
   reader.readAsArrayBuffer(file);
 }
 
-function toggleCertMenu() {
+function certKpiClick(days) {
+  var today = new Date();
+  today.setHours(0,0,0,0);
+
+  // 해당 조건에 맞는 카테고리 찾기
+  var matched = [];
+  Object.keys(CERT_DATE_KEYS).forEach(function(type) {
+    var info = CERT_DATE_KEYS[type];
+    var data = certLoadData(type);
+    var found = data.some(function(row) {
+      var date = certParseDate(row[info.dateKey] || '');
+      var diff = date ? Math.floor((date - today) / (1000*60*60*24)) : null;
+      if (diff === null || diff < 0) return false;
+      if (days === 30) return diff <= 30;
+      if (days === 60) return diff > 30 && diff <= 60;
+      if (days === 999) return diff > 60;
+      return false;
+    });
+    if (found) matched.push(type);
+  });
+
+  if (!matched.length) { showToast('해당 조건의 데이터가 없습니다.'); return; }
+
+  // 1개면 바로 이동
+  if (matched.length === 1) {
+    var navEl = document.querySelector('[onclick*="cert-' + matched[0] + '"]');
+    showPage('cert-' + matched[0], navEl);
+    return;
+  }
+
+  // 여러 개면 선택 모달
+  document.getElementById('cert-kpi-modal-list').innerHTML = matched.map(function(type) {
+    return '<button onclick="certKpiGo(\'' + type + '\')" style="width:100%;text-align:left;padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--card);cursor:pointer;font-size:14px;font-weight:600;margin-bottom:8px" ' +
+      'onmouseover="this.style.background=\'var(--acd)\'" onmouseout="this.style.background=\'var(--card)\'">' +
+      CERT_LABELS[type] + '</button>';
+  }).join('');
+  openModal('cert-kpi-modal');
+}
+
+function certKpiGo(type) {
+  closeModal('cert-kpi-modal');
+  var navEl = document.querySelector('[onclick*="cert-' + type + '"]');
+  showPage('cert-' + type, navEl);
+}
+
+
   var items = document.getElementById('cert-menu-items');
   var arrow = document.getElementById('cert-toggle-arrow');
   var collapsed = items.classList.toggle('collapsed');
