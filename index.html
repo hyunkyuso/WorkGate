@@ -11603,52 +11603,62 @@ const CERT_SCHEMAS = {
   bizcert: {
     label: '기업인증현황',
     cols: ['인증명','등급','인증기간','인증년수'],
-    keys: ['name','grade','period','years']
+    keys: ['name','grade','period','years'],
+    types: ['text','text','range','text']
   },
   copyright: {
     label: '저작권',
     cols: ['저작물 명칭','등록기관','창작일','공표일','등록일','등록번호'],
-    keys: ['name','organ','created','published','registered','regNo']
+    keys: ['name','organ','created','published','registered','regNo'],
+    types: ['text','text','date','date','date','text']
   },
   gs: {
     label: 'GS인증',
     cols: ['기술개발명칭','등록기관','인증일자','등록번호'],
-    keys: ['name','organ','certDate','regNo']
+    keys: ['name','organ','certDate','regNo'],
+    types: ['text','text','date','text']
   },
   patent: {
     label: '특허증',
     cols: ['기술개발명칭','등록기관','출원일','등록일자','등록번호','비고'],
-    keys: ['name','organ','applyDate','regDate','regNo','note']
+    keys: ['name','organ','applyDate','regDate','regNo','note'],
+    types: ['text','text','date','date','text','text']
   },
   trademark: {
     label: '상표등록증',
     cols: ['상표 명칭','등록기관','출원일','등록일','등록번호'],
-    keys: ['name','organ','applyDate','regDate','regNo']
+    keys: ['name','organ','applyDate','regDate','regNo'],
+    types: ['text','text','date','date','text']
   },
   ogc: {
     label: 'OGC',
     cols: ['상표 명칭','등록기관','유효기간'],
-    keys: ['name','organ','validity']
+    keys: ['name','organ','validity'],
+    types: ['text','text','range']
   },
   direct: {
     label: '직접생산·SW사업자',
     cols: ['제품명','세부품명','세부품명번호','유효기간'],
-    keys: ['product','detail','detailNo','validity']
+    keys: ['product','detail','detailNo','validity'],
+    types: ['text','text','text','range']
   },
   program: {
     label: '프로그램 인증서',
     cols: ['제품명','등록기관','인증번호','유효기간'],
-    keys: ['name','organ','certNo','validity']
+    keys: ['name','organ','certNo','validity'],
+    types: ['text','text','text','range']
   },
   excellence: {
     label: '우수제품지정',
     cols: ['제품명','지정범위','지정기간','등록기관','지정번호'],
-    keys: ['name','scope','period','organ','designNo']
+    keys: ['name','scope','period','organ','designNo'],
+    types: ['text','text','range','text','text']
   },
   survey: {
     label: '측량기기 성능검사',
     cols: ['제품명','검사기관','검사필증 일련번호','유효기간'],
-    keys: ['name','organ','serialNo','validity']
+    keys: ['name','organ','serialNo','validity'],
+    types: ['text','text','text','range']
   }
 };
 
@@ -11877,20 +11887,14 @@ function certDownload(type, idx) {
 }
 
 function certOpenAddWithFile(type) {
-  // 파일은 _certAiFileData에 유지된 채로 수동 입력 모달 오픈
   _certEditType = type;
   _certEditIdx = -1;
   var schema = CERT_SCHEMAS[type];
-  document.getElementById('cert-modal-title').textContent = '+ 추가 — ' + schema.label + ' (파일 첨부됨 📎)';
-  document.getElementById('cert-modal-fields').innerHTML = schema.cols.map(function(col, i) {
-    return '<div style="margin-bottom:12px">' +
-      '<label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">' + col + '</label>' +
-      '<input id="cert-field-' + i + '" type="text" value="" ' +
-      'style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none" ' +
-      'onfocus="this.style.borderColor=\'var(--ac)\'" onblur="this.style.borderColor=\'var(--border)\'" placeholder="' + col + ' 입력"></div>';
-  }).join('') +
-  '<div style="padding:8px 12px;background:var(--acd);border-radius:8px;font-size:12px;color:var(--ac)">📎 ' + (_certAiFileName || '파일') + ' 첨부됨</div>';
-  openModal('cert-add-modal');
+  certShowModal(type, {});
+  document.getElementById('cert-modal-title').textContent = '+ 추가 — ' + schema.label + ' (📎 파일 첨부됨)';
+  // 하단에 파일명 표시 추가
+  var fields = document.getElementById('cert-modal-fields');
+  fields.innerHTML += '<div style="padding:8px 12px;background:var(--acd);border-radius:8px;font-size:12px;color:var(--ac)">📎 ' + (_certAiFileName || '파일') + ' 첨부됨</div>';
 }
 
 function certOpenAdd(type) {
@@ -11904,25 +11908,84 @@ function certOpenEdit(type, idx) {
   certShowModal(type, data[idx] || {});
 }
 
+// yyyy. mm. dd. ↔ input[type=date] value(yyyy-mm-dd) 변환
+function certDateToInput(str) {
+  if (!str) return '';
+  var m = str.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
+  if (!m) return '';
+  return m[1] + '-' + m[2].padStart(2,'0') + '-' + m[3].padStart(2,'0');
+}
+function certInputToDisplay(val) {
+  if (!val) return '';
+  var p = val.split('-');
+  if (p.length !== 3) return val;
+  return p[0] + '. ' + parseInt(p[1]) + '. ' + parseInt(p[2]) + '.';
+}
+function certRangeToInputs(str) {
+  // "yyyy. mm. dd. ~ yyyy. mm. dd." → [start, end]
+  if (!str) return ['',''];
+  var parts = str.split('~');
+  return [certDateToInput((parts[0]||'').trim()), certDateToInput((parts[1]||'').trim())];
+}
+function certInputsToRange(s, e) {
+  var sd = certInputToDisplay(s), ed = certInputToDisplay(e);
+  if (!sd && !ed) return '';
+  if (!ed) return sd;
+  return sd + ' ~ ' + ed;
+}
+
 function certShowModal(type, row) {
   var schema = CERT_SCHEMAS[type];
   var isEdit = _certEditIdx >= 0;
   document.getElementById('cert-modal-title').textContent = (isEdit ? '✏️ 수정 — ' : '+ 추가 — ') + schema.label;
+  var inputStyle = 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box';
   document.getElementById('cert-modal-fields').innerHTML = schema.cols.map(function(col, i) {
-    var val = (row[schema.keys[i]] || '').toString().replace(/"/g,'&quot;');
+    var key = schema.keys[i];
+    var ftype = (schema.types && schema.types[i]) || 'text';
+    var val = row[key] || '';
+    var fieldHtml = '';
+    if (ftype === 'date') {
+      var dval = certDateToInput(val);
+      fieldHtml = '<input id="cert-field-' + i + '" type="date" value="' + dval + '" style="' + inputStyle + '">';
+    } else if (ftype === 'range') {
+      var parts = certRangeToInputs(val);
+      fieldHtml = '<div style="display:flex;align-items:center;gap:8px">' +
+        '<input id="cert-field-' + i + '-s" type="date" value="' + parts[0] + '" style="' + inputStyle + ';flex:1">' +
+        '<span style="color:var(--t3);font-size:13px;flex-shrink:0">~</span>' +
+        '<input id="cert-field-' + i + '-e" type="date" value="' + parts[1] + '" style="' + inputStyle + ';flex:1">' +
+        '</div>';
+    } else {
+      fieldHtml = '<input id="cert-field-' + i + '" type="text" value="' + val.replace(/"/g,'&quot;') + '" style="' + inputStyle + '" placeholder="' + col + ' 입력">';
+    }
     return '<div style="margin-bottom:12px">' +
       '<label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">' + col + '</label>' +
-      '<input id="cert-field-' + i + '" type="text" value="' + val + '" ' +
-      'style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none" ' +
-      'onfocus="this.style.borderColor=\'var(--ac)\'" onblur="this.style.borderColor=\'var(--border)\'" placeholder="' + col + ' 입력"></div>';
+      fieldHtml + '</div>';
   }).join('');
   openModal('cert-add-modal');
 }
 
-function certSaveModal() {
+function certGetModalValues() {
   var schema = CERT_SCHEMAS[_certEditType];
   var row = {};
-  schema.keys.forEach(function(k,i){ row[k] = document.getElementById('cert-field-'+i).value.trim(); });
+  schema.keys.forEach(function(k, i) {
+    var ftype = (schema.types && schema.types[i]) || 'text';
+    if (ftype === 'date') {
+      var el = document.getElementById('cert-field-' + i);
+      row[k] = el ? certInputToDisplay(el.value) : '';
+    } else if (ftype === 'range') {
+      var es = document.getElementById('cert-field-' + i + '-s');
+      var ee = document.getElementById('cert-field-' + i + '-e');
+      row[k] = certInputsToRange(es ? es.value : '', ee ? ee.value : '');
+    } else {
+      var et = document.getElementById('cert-field-' + i);
+      row[k] = et ? et.value.trim() : '';
+    }
+  });
+  return row;
+}
+
+function certSaveModal() {
+  var row = certGetModalValues();
 
   var doSave = function(r) {
     var data = certLoadData(_certEditType);
@@ -12132,6 +12195,7 @@ function certAiScan(type, input) {
 
 function certAiConfirm() {
   var schema = CERT_SCHEMAS[_certAiType];
+  // AI 결과 필드에서 값 읽기 (텍스트 필드)
   var row = {};
   schema.keys.forEach(function(k,i){
     var el = document.getElementById('cert-ai-field-'+i);
