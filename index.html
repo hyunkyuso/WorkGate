@@ -12340,13 +12340,34 @@ function certAiScan(type, input) {
       _certAiParsed = parsed;
       // 결과 확인 모달
       var schema2 = CERT_SCHEMAS[_certAiType];
+      var inputStyle = 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box';
       document.getElementById('cert-ai-result-fields').innerHTML = schema2.cols.map(function(col,i){
-        var val = (parsed[schema2.keys[i]] || '').toString().replace(/"/g,'&quot;');
+        var ftype = (schema2.types && schema2.types[i]) || 'text';
+        var val = (parsed[schema2.keys[i]] || '').toString();
+        var fieldHtml = '';
+        if (ftype === 'date') {
+          var dval = certDateToInput(val);
+          fieldHtml = '<input id="cert-ai-field-' + i + '" type="date" value="' + dval + '" style="' + inputStyle + '">';
+        } else if (ftype === 'range') {
+          var parts = certRangeToInputs(val);
+          fieldHtml = '<div style="display:flex;align-items:center;gap:8px">' +
+            '<input id="cert-ai-field-' + i + '-s" type="date" value="' + parts[0] + '" style="' + inputStyle + ';flex:1">' +
+            '<span style="color:var(--t3);font-size:13px;flex-shrink:0">~</span>' +
+            '<input id="cert-ai-field-' + i + '-e" type="date" value="' + parts[1] + '" style="' + inputStyle + ';flex:1">' +
+            '</div>';
+        } else if (ftype === 'select') {
+          var normalized = certNormalizeOrgan(val);
+          var opts = CERT_ORGANS.map(function(o) {
+            return '<option value="' + o + '"' + (normalized === o ? ' selected' : '') + '>' + o + '</option>';
+          }).join('');
+          fieldHtml = '<select id="cert-ai-field-' + i + '" style="' + inputStyle + '">' +
+            '<option value="">선택하세요</option>' + opts + '</select>';
+        } else {
+          fieldHtml = '<input id="cert-ai-field-' + i + '" type="text" value="' + val.replace(/"/g,'&quot;') + '" style="' + inputStyle + '">';
+        }
         return '<div style="margin-bottom:10px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">' + col + '</label>' +
-          '<input id="cert-ai-field-' + i + '" type="text" value="' + val + '" ' +
-          'style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none" ' +
-          'onfocus="this.style.borderColor=\'var(--ac)\'" onblur="this.style.borderColor=\'var(--border)\'"></div>';
+          fieldHtml + '</div>';
       }).join('');
       // 이미지 미리보기 (PDF 아닐 때)
       var previewEl = document.getElementById('cert-ai-preview-img');
@@ -12369,11 +12390,21 @@ function certAiScan(type, input) {
 
 function certAiConfirm() {
   var schema = CERT_SCHEMAS[_certAiType];
-  // AI 결과 필드에서 값 읽기 (텍스트 필드)
+  // AI 결과 필드에서 값 읽기 (date picker/select/range 포함)
   var row = {};
   schema.keys.forEach(function(k,i){
-    var el = document.getElementById('cert-ai-field-'+i);
-    row[k] = el ? el.value.trim() : '';
+    var ftype = (schema.types && schema.types[i]) || 'text';
+    if (ftype === 'date') {
+      var el = document.getElementById('cert-ai-field-'+i);
+      row[k] = el ? certInputToDisplay(el.value) : '';
+    } else if (ftype === 'range') {
+      var es = document.getElementById('cert-ai-field-'+i+'-s');
+      var ee = document.getElementById('cert-ai-field-'+i+'-e');
+      row[k] = certInputsToRange(es ? es.value : '', ee ? ee.value : '');
+    } else {
+      var et = document.getElementById('cert-ai-field-'+i);
+      row[k] = et ? et.value.trim() : '';
+    }
   });
 
   if (_certAiFileData && _certAiFileName) {
