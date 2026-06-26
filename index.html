@@ -11821,15 +11821,24 @@ function certRender(type) {
     var dlBtn = hasFile
       ? '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;color:var(--gr);border-color:var(--gr)" onclick="certDownload(\'' + type + '\'' + ',' + i + ')">⬇ 다운로드</button>'
       : '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;opacity:0.35;cursor:default">⬇ 다운로드</button>';
+
+    // 특허증 소멸 처리
+    var isExpired = type === 'patent' && (row.note || '').trim() === '소멸';
+    var trStyle = isExpired ? 'background:#f8fafc;opacity:0.6' : '';
+
     return '<tr draggable="true" data-type="' + type + '" data-idx="' + i + '" ' +
       'ondragstart="certDragStart(event)" ondragover="certDragOver(event)" ondrop="certDrop(event)" ondragend="certDragEnd(event)" ' +
-      'style="cursor:grab">' +
+      'style="cursor:grab;' + trStyle + '">' +
       '<td style="text-align:center;color:var(--t3);font-size:14px;white-space:nowrap">⠿ ' + (i+1) + '</td>' +
       schema.keys.map(function(k, ki) { 
         var v = (row[k]||'-').replace(/(\d+)\.\s+(\d)/g, '$1.&nbsp;$2');
         var style = ki === 0 
           ? 'font-size:15px'
           : 'font-size:15px;white-space:nowrap';
+        // 특허증 등록일자(regDate) 한글 포함 시 빨간색
+        if (type === 'patent' && k === 'regDate' && /[가-힣]/.test(row[k] || '')) {
+          style += ';color:#ef4444;font-weight:600';
+        }
         return '<td style="' + style + '">' + v + '</td>'; 
       }).join('') +
       '<td style="white-space:nowrap"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:nowrap">' + viewBtn + dlBtn + '</div></td>' +
