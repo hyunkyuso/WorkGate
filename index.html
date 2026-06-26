@@ -12113,6 +12113,15 @@ function certGetModalValues() {
 function certSaveModal() {
   var row = certGetModalValues();
 
+  // 수정 모드일 때 기존 파일 정보 유지
+  if (_certEditIdx >= 0) {
+    var existingData = certLoadData(_certEditType);
+    var existingRow = existingData[_certEditIdx] || {};
+    if (existingRow._fileUrl) row._fileUrl = existingRow._fileUrl;
+    if (existingRow._fileName) row._fileName = existingRow._fileName;
+    if (existingRow._fileType) row._fileType = existingRow._fileType;
+  }
+
   var doSave = function(r) {
     var data = certLoadData(_certEditType);
     if (_certEditIdx >= 0) { data[_certEditIdx] = r; } else { data.push(r); }
