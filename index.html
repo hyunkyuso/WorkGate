@@ -174,6 +174,8 @@ select.form-input{cursor:pointer}
 .cert-section-toggle:hover{color:var(--t2)}
 #cert-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
 #cert-menu-items.collapsed{max-height:0;opacity:0}
+#main-menu-items,#monitoring-menu-items,#manage-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
+#main-menu-items.collapsed,#monitoring-menu-items.collapsed,#manage-menu-items.collapsed{max-height:0;opacity:0}
 
 /* ── DRIVE STATUS ── */
 .drive-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;border-radius:8px;margin-bottom:14px}
@@ -274,16 +276,26 @@ select.form-input{cursor:pointer}
     <!-- 사이드바 -->
     <div class="sidebar">
       <div class="sidebar-section">
-        <div class="sidebar-section-label">메인</div>
-        <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">🏠</span> 대시보드</div>
-        <div class="nav-item" onclick="showPage('tasks',this)"><span class="nav-icon">📋</span> 업무보드 <span class="nav-badge" id="task-badge">3</span></div>
-        <div class="nav-item" onclick="showPage('kpi',this)"><span class="nav-icon">📈</span> KPI·OKR</div>
-        <div class="nav-item" onclick="showPage('drive',this)"><span class="nav-icon">📁</span> 구글드라이브</div>
-        <div class="nav-item" onclick="showPage('docs',this)"><span class="nav-icon">📝</span> Docs·Sheets</div>
+        <div class="sidebar-section-label" onclick="toggleSideSection('main-menu-items','main-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>메인</span>
+          <span id="main-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
+        </div>
+        <div id="main-menu-items">
+          <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">🏠</span> 대시보드</div>
+          <div class="nav-item" onclick="showPage('tasks',this)"><span class="nav-icon">📋</span> 업무보드 <span class="nav-badge" id="task-badge">3</span></div>
+          <div class="nav-item" onclick="showPage('kpi',this)"><span class="nav-icon">📈</span> KPI·OKR</div>
+          <div class="nav-item" onclick="showPage('drive',this)"><span class="nav-icon">📁</span> 구글드라이브</div>
+          <div class="nav-item" onclick="showPage('docs',this)"><span class="nav-icon">📝</span> Docs·Sheets</div>
+        </div>
       </div>
       <div class="sidebar-section">
-        <div class="sidebar-section-label">모니터링</div>
-        <div class="nav-item" onclick="showPage('orgview',this)"><span class="nav-icon">👁️</span> 직원 조회</div>
+        <div class="sidebar-section-label" onclick="toggleSideSection('monitoring-menu-items','monitoring-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>모니터링</span>
+          <span id="monitoring-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
+        </div>
+        <div id="monitoring-menu-items">
+          <div class="nav-item" onclick="showPage('orgview',this)"><span class="nav-icon">👁️</span> 직원 조회</div>
+        </div>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-section-label cert-section-toggle" onclick="toggleCertMenu()" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
@@ -306,17 +318,22 @@ select.form-input{cursor:pointer}
       </div>
 
       <div class="sidebar-section">
-        <div class="sidebar-section-label">관리</div>
-        <div class="nav-item admin-only" onclick="showPage('employees',this)"><span class="nav-icon">👤</span> 직원 관리</div>
-        <div class="nav-item admin-only" onclick="showPage('myinfo-history',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 정보수정 이력</div>
-        <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
-        <div class="nav-item admin-only" onclick="showPage('codemanage',this)"><span class="nav-icon">🗂️</span> 코드 관리</div>
-        <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
-        <div class="nav-item admin-only" onclick="showPage('birthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎂</span> 생일자 현황</div>
-        <div class="nav-item admin-only" onclick="showPage('parentbirthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎁</span> 부모님 생신현황</div>
-        <div class="nav-item admin-only" onclick="showPage('deptfund',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">💰</span> 부서장 운영비</div>
-        <div class="nav-item" onclick="showPage('mypage',this)"><span class="nav-icon">👤</span> 마이페이지</div>
-        <div class="nav-item admin-only" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> 설정</div>
+        <div class="sidebar-section-label" onclick="toggleSideSection('manage-menu-items','manage-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>관리</span>
+          <span id="manage-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
+        </div>
+        <div id="manage-menu-items">
+          <div class="nav-item admin-only" onclick="showPage('employees',this)"><span class="nav-icon">👤</span> 직원 관리</div>
+          <div class="nav-item admin-only" onclick="showPage('myinfo-history',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 정보수정 이력</div>
+          <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
+          <div class="nav-item admin-only" onclick="showPage('codemanage',this)"><span class="nav-icon">🗂️</span> 코드 관리</div>
+          <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
+          <div class="nav-item admin-only" onclick="showPage('birthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎂</span> 생일자 현황</div>
+          <div class="nav-item admin-only" onclick="showPage('parentbirthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎁</span> 부모님 생신현황</div>
+          <div class="nav-item admin-only" onclick="showPage('deptfund',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">💰</span> 부서장 운영비</div>
+          <div class="nav-item" onclick="showPage('mypage',this)"><span class="nav-icon">👤</span> 마이페이지</div>
+          <div class="nav-item admin-only" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> 설정</div>
+        </div>
       </div>
     </div>
 
@@ -567,7 +584,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-bizcert">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>인증명</th><th>등급</th><th>인증기간</th><th>인증년수</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>인증명</th><th>등급</th><th>인증기간</th><th>인증년수</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-bizcert"></tbody>
         </table></div>
       </div>
@@ -584,7 +601,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-copyright">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>저작물 명칭</th><th>등록기관</th><th>창작일</th><th>공표일</th><th>등록일</th><th>등록번호</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>저작물 명칭</th><th>등록기관</th><th>창작일</th><th>공표일</th><th>등록일</th><th>등록번호</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-copyright"></tbody>
         </table></div>
       </div>
@@ -601,7 +618,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-gs">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>기술개발명칭</th><th>등록기관</th><th>인증일자</th><th>등록번호</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>기술개발명칭</th><th>등록기관</th><th>인증일자</th><th>등록번호</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-gs"></tbody>
         </table></div>
       </div>
@@ -618,7 +635,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-patent">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>기술개발명칭</th><th>등록기관</th><th>출원일</th><th>등록일자</th><th>등록번호</th><th>비고</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>기술개발명칭</th><th>등록기관</th><th>출원일</th><th>등록일자</th><th>등록번호</th><th>비고</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-patent"></tbody>
         </table></div>
       </div>
@@ -635,7 +652,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-trademark">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>상표 명칭</th><th>등록기관</th><th>출원일</th><th>등록일</th><th>등록번호</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>상표 명칭</th><th>등록기관</th><th>출원일</th><th>등록일</th><th>등록번호</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-trademark"></tbody>
         </table></div>
       </div>
@@ -652,7 +669,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-ogc">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>상표 명칭</th><th>등록기관</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>상표 명칭</th><th>등록기관</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-ogc"></tbody>
         </table></div>
       </div>
@@ -669,7 +686,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-direct">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>세부품명</th><th>세부품명번호</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>세부품명</th><th>세부품명번호</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-direct"></tbody>
         </table></div>
       </div>
@@ -686,7 +703,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-program">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>등록기관</th><th>인증번호</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>등록기관</th><th>인증번호</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-program"></tbody>
         </table></div>
       </div>
@@ -703,7 +720,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-excellence">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>지정범위</th><th>지정기간</th><th>등록기관</th><th>지정번호</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>지정범위</th><th>지정기간</th><th>등록기관</th><th>지정번호</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-excellence"></tbody>
         </table></div>
       </div>
@@ -720,7 +737,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-survey">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>검사기관</th><th>검사필증 일련번호</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center">파일</th><th style="width:140px;white-space:nowrap;text-align:center">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>제품명</th><th>검사기관</th><th>검사필증 일련번호</th><th>유효기간</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-survey"></tbody>
         </table></div>
       </div>
@@ -11893,8 +11910,8 @@ function certRender(type) {
 
         return '<td style="' + style + '">' + v + '</td>'; 
       }).join('') +
-      '<td style="white-space:nowrap"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:nowrap">' + viewBtn + dlBtn + '</div></td>' +
-      '<td style="white-space:nowrap"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:nowrap">' + editBtns + '</div></td>' +
+      (admin ? '<td style="white-space:nowrap"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:nowrap">' + viewBtn + dlBtn + '</div></td>' : '') +
+      (admin ? '<td style="white-space:nowrap"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:nowrap">' + editBtns + '</div></td>' : '') +
       '</tr>';
   }).join('');
 }
@@ -12648,6 +12665,14 @@ function certKpiGo(type) {
   closeModal('cert-kpi-modal');
   var navEl = document.querySelector('[onclick*="cert-' + type + '"]');
   showPage('cert-' + type, navEl);
+}
+
+function toggleSideSection(menuId, arrowId) {
+  var items = document.getElementById(menuId);
+  var arrow = document.getElementById(arrowId);
+  if (!items || !arrow) return;
+  var collapsed = items.classList.toggle('collapsed');
+  arrow.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
 }
 
 function toggleCertMenu() {
