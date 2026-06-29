@@ -1480,11 +1480,33 @@ select.form-input{cursor:pointer}
           <!-- 좌측 입력 패널 -->
           <div style="display:flex;flex-direction:column;gap:12px">
             <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px">
-              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px">📋 템플릿 선택</div>
-              <select id="doc-template-select" class="form-input" style="font-size:13px;margin-bottom:8px" onchange="docOnTemplateChange()">
-                <option value="">템플릿 없이 자유 작성</option>
-              </select>
-              <div id="doc-template-preview" style="padding:10px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--t3);display:none;white-space:pre-wrap;max-height:100px;overflow-y:auto"></div>
+              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px">📋 양식 선택</div>
+
+              <!-- 탭: 파일 업로드 / 템플릿 선택 -->
+              <div style="display:flex;gap:0;margin-bottom:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                <button id="doc-tab-upload" onclick="docSwitchTab('upload')" style="flex:1;padding:7px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--ac);color:#fff">📎 파일 업로드</button>
+                <button id="doc-tab-tpl" onclick="docSwitchTab('tpl')" style="flex:1;padding:7px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:none;color:var(--t2)">📋 저장 템플릿</button>
+              </div>
+
+              <!-- 파일 업로드 탭 -->
+              <div id="doc-tab-upload-body">
+                <label style="display:block;border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s" onmouseover="this.style.borderColor='var(--ac)';this.style.background='var(--acd)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='none'">
+                  <div style="font-size:28px;margin-bottom:6px">📄</div>
+                  <div style="font-size:13px;font-weight:500;color:var(--t2)">양식 파일 선택</div>
+                  <div style="font-size:11px;color:var(--t3);margin-top:3px">PDF · JPG · PNG · DOCX</div>
+                  <input type="file" accept=".pdf,.docx,image/*" style="display:none" onchange="docLoadTemplate(this)">
+                </label>
+                <div id="doc-upload-filename" style="margin-top:8px;font-size:12px;color:var(--ac);font-weight:500;text-align:center"></div>
+                <div id="doc-upload-preview" style="margin-top:8px;padding:10px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--t3);display:none;white-space:pre-wrap;max-height:80px;overflow-y:auto"></div>
+              </div>
+
+              <!-- 저장 템플릿 탭 -->
+              <div id="doc-tab-tpl-body" style="display:none">
+                <select id="doc-template-select" class="form-input" style="font-size:13px;margin-bottom:8px" onchange="docOnTemplateChange()">
+                  <option value="">템플릿을 선택하세요</option>
+                </select>
+                <div id="doc-template-preview" style="padding:10px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--t3);display:none;white-space:pre-wrap;max-height:80px;overflow-y:auto"></div>
+              </div>
             </div>
             <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px">
               <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:12px">📝 요청 내용</div>
@@ -14261,6 +14283,44 @@ function docStartListener() {
   });
 }
 
+var _docUploadedFile = null; // 업로드된 양식 파일 {base64, type, isPdf, name}
+
+function docSwitchTab(tab) {
+  var isUpload = tab === 'upload';
+  document.getElementById('doc-tab-upload-body').style.display = isUpload ? 'block' : 'none';
+  document.getElementById('doc-tab-tpl-body').style.display = isUpload ? 'none' : 'block';
+  document.getElementById('doc-tab-upload').style.background = isUpload ? 'var(--ac)' : 'none';
+  document.getElementById('doc-tab-upload').style.color = isUpload ? '#fff' : 'var(--t2)';
+  document.getElementById('doc-tab-tpl').style.background = isUpload ? 'none' : 'var(--ac)';
+  document.getElementById('doc-tab-tpl').style.color = isUpload ? 'var(--t2)' : '#fff';
+  if (!isUpload) _docUploadedFile = null;
+}
+
+function docLoadTemplate(input) {
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  var nameEl = document.getElementById('doc-upload-filename');
+  var prevEl = document.getElementById('doc-upload-preview');
+  if (nameEl) nameEl.textContent = '📎 ' + file.name;
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result.split(',')[1];
+    var isPdf = file.type === 'application/pdf';
+    var isImg = file.type.startsWith('image/');
+    _docUploadedFile = {base64: base64, type: file.type, isPdf: isPdf, isImg: isImg, name: file.name};
+    if (prevEl) {
+      prevEl.textContent = isPdf ? 'PDF 파일이 업로드되었습니다. AI가 양식을 읽어 작성합니다.'
+        : isImg ? '이미지 양식이 업로드되었습니다. AI가 양식을 읽어 작성합니다.'
+        : '파일이 업로드되었습니다.';
+      prevEl.style.display = 'block';
+    }
+    showToast('✅ 양식 파일 업로드 완료');
+  };
+  reader.readAsDataURL(file);
+}
+
 function docRenderTemplates() {
   var el = document.getElementById('doc-template-grid');
   if (!el) return;
@@ -14355,21 +14415,15 @@ function docGenerate() {
   var content = document.getElementById('doc-input-content').value.trim();
   if (!content) { showToast('❌ 주요 내용을 입력해주세요'); return; }
 
-  var sel = document.getElementById('doc-template-select');
-  var idx = sel ? parseInt(sel.value) : NaN;
-  var tpl = (!isNaN(idx) && _docTemplates[idx]) ? _docTemplates[idx].content : '';
   var title = document.getElementById('doc-input-title').value.trim();
   var to = document.getElementById('doc-input-to').value.trim();
   var extra = document.getElementById('doc-input-extra').value.trim();
 
-  var prompt = tpl
-    ? '다음 양식(템플릿)에 맞춰 공문/계약서 초안을 작성해주세요.\n\n[양식]\n' + tpl + '\n\n[입력 정보]\n'
-    : '공문/계약서 초안을 전문적으로 작성해주세요.\n\n[입력 정보]\n';
-  if (title) prompt += '제목/건명: ' + title + '\n';
-  if (to) prompt += '수신/상대방: ' + to + '\n';
-  prompt += '주요 내용: ' + content + '\n';
-  if (extra) prompt += '추가 요청: ' + extra + '\n';
-  prompt += '\n양식 형식을 유지하면서 전문적이고 정확하게 작성하세요. 마크다운 없이 텍스트로만 출력하세요.';
+  var infoText = '';
+  if (title) infoText += '제목/건명: ' + title + '\n';
+  if (to) infoText += '수신/상대방: ' + to + '\n';
+  infoText += '주요 내용: ' + content + '\n';
+  if (extra) infoText += '추가 요청: ' + extra + '\n';
 
   var emptyEl = document.getElementById('doc-draft-empty');
   var loadEl = document.getElementById('doc-draft-loading');
@@ -14379,9 +14433,32 @@ function docGenerate() {
   emptyEl.style.display='none'; resultEl.style.display='none'; actionsEl.style.display='none';
   loadEl.style.display='flex';
 
+  var messages;
+
+  // 파일 업로드 탭이고 파일이 있으면 → 파일 양식 기반
+  if (_docUploadedFile) {
+    var filePrompt = '다음은 공문/계약서 양식 파일입니다. 이 양식의 형식과 구조를 그대로 유지하면서, 아래 입력 정보를 바탕으로 초안을 작성해주세요. 마크다운 없이 텍스트로만 출력하세요.\n\n[입력 정보]\n' + infoText;
+    var fileContent = _docUploadedFile.isPdf
+      ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:_docUploadedFile.base64}}, {type:'text', text:filePrompt}]
+      : _docUploadedFile.isImg
+        ? [{type:'image', source:{type:'base64', media_type:_docUploadedFile.type, data:_docUploadedFile.base64}}, {type:'text', text:filePrompt}]
+        : [{type:'text', text:'다음 양식을 기반으로 작성해주세요.\n\n[입력 정보]\n' + infoText}];
+    messages = [{role:'user', content: fileContent}];
+  } else {
+    // 저장 템플릿 또는 자유 작성
+    var sel = document.getElementById('doc-template-select');
+    var idx = sel ? parseInt(sel.value) : NaN;
+    var tpl = (!isNaN(idx) && _docTemplates[idx]) ? _docTemplates[idx].content : '';
+    var prompt = tpl
+      ? '다음 양식(템플릿)에 맞춰 공문/계약서 초안을 작성해주세요.\n\n[양식]\n' + tpl + '\n\n[입력 정보]\n' + infoText
+      : '공문/계약서 초안을 전문적으로 작성해주세요.\n\n[입력 정보]\n' + infoText;
+    prompt += '\n양식 형식을 유지하면서 전문적이고 정확하게 작성하세요. 마크다운 없이 텍스트로만 출력하세요.';
+    messages = [{role:'user', content: prompt}];
+  }
+
   fetch(CF_URL, {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:4000, messages:[{role:'user',content:prompt}]})
+    body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:4000, messages: messages})
   }).then(function(r){ return r.json(); })
   .then(function(data) {
     loadEl.style.display='none';
