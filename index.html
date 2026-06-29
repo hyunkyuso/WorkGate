@@ -13308,7 +13308,11 @@ var _wfEditIdx = -1;
 // 현재 재직인원 = 직원관리 재직자 + 수정 추가 미등록 입사 - 수정 추가 미등록 퇴사
 function wfGetCurActive() {
   var base = employees.filter(function(e){ return e.status!=='퇴직'; }).length;
-  var addIn = wfLoadEdits().filter(function(e){ return e.source === 'unregistered' && e.type === '입사'; }).length;
+  var edits = wfLoadEdits();
+  var unregLeaveNames = edits.filter(function(e){ return e.source==='unregistered' && e.type==='퇴사'; }).map(function(e){ return e.name; });
+  var addIn = edits.filter(function(e){
+    return e.source==='unregistered' && e.type==='입사' && unregLeaveNames.indexOf(e.name) < 0;
+  }).length;
   return base + addIn;
 }
 
@@ -13384,8 +13388,11 @@ function wfGetMonthly(year) {
   var yearbaseEdits = allEdits.filter(function(e){ return e.source==='yearbase' && e.date && e.date.startsWith(prevYear+''); });
   var yearbaseCount = yearbaseEdits.length ? parseInt(yearbaseEdits[0].count) : null;
 
-  // unregistered 입사/퇴사 목록 (직원관리와 중복인원 제외용: 직원관리에 이미 있으면 스킵)
+  // unregistered 입사/퇴사 목록
+  // - 직원관리에 이미 있는 인원은 퇴사 시 직원관리 leavedate로 처리되므로 스킵
+  // - 미등록 입사 후 미등록 퇴사도 있는 인원(서다영 등)은 입사·퇴사 둘 다 반영하되 현재재직에서는 제외
   var empNames = employees.map(function(e){ return e.name; });
+  var unregLeaveNames = allEdits.filter(function(e){ return e.source==='unregistered' && e.type==='퇴사'; }).map(function(e){ return e.name; });
   var unregJoin = allEdits.filter(function(e){ return e.source==='unregistered' && e.type==='입사'; });
   var unregLeave = allEdits.filter(function(e){ return e.source==='unregistered' && e.type==='퇴사' && empNames.indexOf(e.name) < 0; });
 
@@ -13434,9 +13441,13 @@ function wfGetMonthly(year) {
         if (e.leavedate && e.leavedate <= lastDayStr) return false;
         return true;
       });
-      var unregActiveM = unregJoin.filter(function(e){ return e.date && e.date <= lastDayStr; });
-      var unregLeaveM  = unregLeave.filter(function(e){ return e.date && e.date <= lastDayStr; });
-      totalCount = active.length + unregActiveM.length - unregLeaveM.length;
+      var unregActiveM = unregJoin.filter(function(e){
+        if (!e.date || e.date > lastDayStr) return false;
+        var leaveRec = unregLeave.find(function(l){ return l.name === e.name; });
+        if (leaveRec && leaveRec.date && leaveRec.date <= lastDayStr) return false;
+        return true;
+      });
+      totalCount = active.length + unregActiveM.length;
     }
 
     // 남녀 수: employees 말일재직 기준 (성별 추적은 직원관리 데이터로)
@@ -13446,7 +13457,13 @@ function wfGetMonthly(year) {
       if (e.leavedate && e.leavedate <= lastDayStr) return false;
       return true;
     });
-    var unregActiveForGender = unregJoin.filter(function(e){ return e.date && e.date <= lastDayStr; });
+    // 말일 기준 미등록 재직자: 입사일 <= 말일 AND (퇴사 미등록이거나 퇴사일 > 말일)
+    var unregActiveForGender = unregJoin.filter(function(e){
+      if (!e.date || e.date > lastDayStr) return false;
+      var leaveRec = unregLeave.find(function(l){ return l.name === e.name; });
+      if (leaveRec && leaveRec.date && leaveRec.date <= lastDayStr) return false;
+      return true;
+    });
     var maleCount   = activeEmp.filter(function(e){ return e.gender==='남'; }).length
                     + unregActiveForGender.filter(function(e){ return e.gender==='남'; }).length;
     var femaleCount = activeEmp.filter(function(e){ return e.gender==='여'; }).length
@@ -13639,7 +13656,9 @@ function renderWfGender(year) {
 
   var today = new Date();
   var active = employees.filter(function(e){ return e.status!=='퇴직'; });
-  var unregActive = wfLoadEdits().filter(function(e){ return e.source==='unregistered' && e.type==='입사'; });
+  var allEditsG = wfLoadEdits();
+  var unregLeaveNamesG = allEditsG.filter(function(e){ return e.source==='unregistered' && e.type==='퇴사'; }).map(function(e){ return e.name; });
+  var unregActive = allEditsG.filter(function(e){ return e.source==='unregistered' && e.type==='입사' && unregLeaveNamesG.indexOf(e.name) < 0; });
   var allActive = active.concat(unregActive);
   var total = allActive.length;
   var male = allActive.filter(function(e){ return e.gender==='남'; }).length;
