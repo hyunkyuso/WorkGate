@@ -1090,54 +1090,74 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div style="padding:0 0 24px">
-          <!-- 연도 선택 -->
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px" id="workforce-year-tabs"></div>
-          <!-- KPI -->
-          <div style="display:flex;gap:12px;margin-bottom:20px">
-            <div style="background:linear-gradient(135deg,var(--ac),#6366f1);border-radius:12px;padding:18px 28px;color:#fff;flex:1">
-              <div style="font-size:11px;font-weight:600;opacity:0.8;margin-bottom:4px">연간 상시근로자수</div>
-              <div style="display:flex;align-items:baseline;gap:6px">
-                <span style="font-size:36px;font-weight:800;line-height:1" id="wf-annual">—</span>
-                <span style="font-size:13px;opacity:0.8">명</span>
+          <!-- B형: 좌우 분할 -->
+          <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:14px">
+            <!-- 좌: KPI + 바차트 -->
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <!-- 연간 상시근로자수 메인 카드 -->
+              <div style="background:linear-gradient(135deg,var(--ac),#6366f1);border-radius:12px;padding:18px 22px;color:#fff">
+                <div style="font-size:11px;font-weight:600;opacity:0.8;margin-bottom:4px">연간 상시근로자수</div>
+                <div style="display:flex;align-items:baseline;gap:6px">
+                  <span style="font-size:38px;font-weight:800;line-height:1" id="wf-annual">—</span>
+                  <span style="font-size:13px;opacity:0.8">명</span>
+                </div>
+                <div style="font-size:11px;opacity:0.7;margin-top:4px">월별 합산 ÷ 사용월수</div>
+              </div>
+              <!-- KPI 2x2 -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:13px 16px">
+                  <div style="font-size:11px;color:var(--t2);margin-bottom:4px">현재 재직</div>
+                  <div style="font-size:26px;font-weight:700;color:var(--ac)" id="wf-current">—</div>
+                  <div style="font-size:11px;color:var(--t3)">명</div>
+                </div>
+                <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:13px 16px">
+                  <div style="font-size:11px;color:var(--t2);margin-bottom:4px">전년 대비</div>
+                  <div style="font-size:26px;font-weight:700" id="wf-net">—</div>
+                  <div style="font-size:11px;color:var(--t3)" id="wf-net-sub">명</div>
+                </div>
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:13px 16px">
+                  <div style="font-size:11px;color:var(--gr);margin-bottom:4px">연간 입사</div>
+                  <div style="font-size:26px;font-weight:700;color:var(--gr)" id="wf-join">—</div>
+                  <div style="font-size:11px;color:var(--t3)">명</div>
+                </div>
+                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:13px 16px">
+                  <div style="font-size:11px;color:#ef4444;margin-bottom:4px">연간 퇴사</div>
+                  <div style="font-size:26px;font-weight:700;color:#ef4444" id="wf-leave">—</div>
+                  <div style="font-size:11px;color:var(--t3)">명</div>
+                </div>
+              </div>
+              <!-- 월별 바차트 -->
+              <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;flex:1">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+                  <div style="width:3px;height:14px;background:var(--ac);border-radius:2px"></div>
+                  <span style="font-size:12px;font-weight:600;color:var(--t1)">월별 상시근로자수 추이</span>
+                </div>
+                <div id="wf-bar-chart" style="display:flex;align-items:flex-end;gap:5px;height:80px"></div>
+                <div id="wf-bar-labels" style="display:flex;gap:5px;margin-top:4px"></div>
               </div>
             </div>
-            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px 28px;flex:1">
-              <div style="font-size:11px;font-weight:600;color:#16a34a;margin-bottom:4px">현재 재직</div>
-              <div style="display:flex;align-items:baseline;gap:6px">
-                <span style="font-size:36px;font-weight:800;line-height:1;color:#16a34a" id="wf-current">—</span>
-                <span style="font-size:13px;color:#16a34a">명</span>
+            <!-- 우: 테이블 -->
+            <div style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden">
+              <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px">
+                <div style="width:3px;height:14px;background:var(--ac);border-radius:2px"></div>
+                <span style="font-size:12px;font-weight:600;color:var(--t1)">월별 상세</span>
+              </div>
+              <div style="overflow-x:auto">
+                <table id="tbl-workforce-summary" style="width:100%;border-collapse:collapse">
+                  <thead><tr style="background:var(--surface)">
+                    <th style="padding:8px 14px;font-size:11px;color:var(--t3);font-weight:500;text-align:left;border-bottom:1px solid var(--border)">월</th>
+                    <th style="padding:8px 14px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">말일재직</th>
+                    <th style="padding:8px 14px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">입사</th>
+                    <th style="padding:8px 14px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">퇴사</th>
+                    <th style="padding:8px 14px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">남</th>
+                    <th style="padding:8px 14px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">여</th>
+                    <th style="padding:8px 14px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">월 상시근로자수</th>
+                  </tr></thead>
+                  <tbody id="tbody-workforce-summary"></tbody>
+                </table>
               </div>
             </div>
-            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px 28px;flex:1">
-              <div style="font-size:11px;font-weight:600;color:var(--gr);margin-bottom:4px">입사</div>
-              <div style="display:flex;align-items:baseline;gap:6px">
-                <span style="font-size:36px;font-weight:800;line-height:1;color:var(--gr)" id="wf-join">—</span>
-                <span style="font-size:13px;color:var(--gr)">명</span>
-              </div>
-            </div>
-            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:18px 28px;flex:1">
-              <div style="font-size:11px;font-weight:600;color:#ef4444;margin-bottom:4px">퇴사</div>
-              <div style="display:flex;align-items:baseline;gap:6px">
-                <span style="font-size:36px;font-weight:800;line-height:1;color:#ef4444" id="wf-leave">—</span>
-                <span style="font-size:13px;color:#ef4444">명</span>
-              </div>
-            </div>
-            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 28px;flex:1">
-              <div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:4px">순증감</div>
-              <div style="display:flex;align-items:baseline;gap:6px">
-                <span style="font-size:36px;font-weight:800;line-height:1;color:var(--t1)" id="wf-net">—</span>
-                <span style="font-size:13px;color:var(--t3)">명</span>
-              </div>
-            </div>
-          </div>
-          <!-- 월별 요약 테이블 -->
-          <div class="table-wrap">
-            <table id="tbl-workforce-summary">
-              <thead><tr>
-                <th>월</th><th>말일재직</th><th>입사</th><th>퇴사</th><th>남</th><th>여</th><th>월 상시근로자수</th>
-              </tr></thead>
-              <tbody id="tbody-workforce-summary"></tbody>
-            </table>
           </div>
         </div>
       </div>
@@ -13503,20 +13523,63 @@ function renderWorkforce(year) {
   document.getElementById('wf-current').textContent = curActive;
   document.getElementById('wf-join').textContent = joinTotal;
   document.getElementById('wf-leave').textContent = leaveTotal;
-  var net = joinTotal - leaveTotal;
-  var netEl = document.getElementById('wf-net');
-  netEl.textContent = (net > 0 ? '+' : '') + net;
-  netEl.style.color = net > 0 ? 'var(--gr)' : net < 0 ? 'var(--rd)' : '';
 
-  var tbody = document.getElementById('tbody-workforce-summary');
+  // 전년 대비
+  var prevYear = _wfYear - 1;
+  var edits = wfLoadEdits();
+  var prevBase = edits.filter(function(e){ return e.source==='yearbase' && e.date && e.date.startsWith(prevYear+''); });
+  var netEl = document.getElementById('wf-net');
+  var netSubEl = document.getElementById('wf-net-sub');
+  if (prevBase.length && prevBase[0].count) {
+    var prevCount = parseInt(prevBase[0].count);
+    var diff = curActive - prevCount;
+    netEl.textContent = (diff > 0 ? '+' : '') + diff;
+    netEl.style.color = diff > 0 ? 'var(--gr)' : diff < 0 ? 'var(--rd)' : 'var(--t1)';
+    if (netSubEl) netSubEl.textContent = prevYear + '년 ' + prevCount + '명 대비';
+  } else {
+    netEl.textContent = '—';
+    netEl.style.color = 'var(--t3)';
+    if (netSubEl) netSubEl.textContent = '수정 페이지에서 전년 기준 등록';
+  }
+
   var curM = _wfYear === new Date().getFullYear() ? new Date().getMonth() + 1 : 12;
-  tbody.innerHTML = monthly.slice(0, curM).map(function(m) {
-    return '<tr><td>' + m.month + '월</td><td>' + m.lastDay + '</td>' +
-      '<td style="color:var(--gr)">' + m.join + '</td>' +
-      '<td style="color:var(--rd)">' + m.leave + '</td>' +
-      '<td style="color:var(--ac)">' + m.male + '</td>' +
-      '<td style="color:#be185d">' + m.female + '</td>' +
-      '<td style="font-weight:600">' + m.total + '</td></tr>';
+  var usedMonths = monthly.slice(0, curM);
+
+  // 바차트
+  var maxVal = usedMonths.reduce(function(a,m){ return Math.max(a, m.total); }, 1);
+  var minVal = usedMonths.reduce(function(a,m){ return Math.min(a, m.total); }, maxVal);
+  var chartEl = document.getElementById('wf-bar-chart');
+  var labelsEl = document.getElementById('wf-bar-labels');
+  if (chartEl) {
+    chartEl.innerHTML = usedMonths.map(function(m) {
+      var h = Math.round((m.total - minVal + 1) / (maxVal - minVal + 1) * 70 + 10);
+      var isCur = m.month === new Date().getMonth() + 1 && _wfYear === new Date().getFullYear();
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end">' +
+        '<div style="font-size:10px;color:var(--t3);margin-bottom:2px">' + m.total + '</div>' +
+        '<div style="width:100%;background:' + (isCur ? 'var(--ac)' : '#c7d0fb') + ';border-radius:4px 4px 0 0;height:' + h + 'px"></div></div>';
+    }).join('');
+  }
+  if (labelsEl) {
+    labelsEl.innerHTML = usedMonths.map(function(m) {
+      return '<div style="flex:1;text-align:center;font-size:10px;color:var(--t3)">' + m.month + '월</div>';
+    }).join('');
+  }
+
+  // 테이블
+  var tbody = document.getElementById('tbody-workforce-summary');
+  tbody.innerHTML = usedMonths.map(function(m, i) {
+    var isLast = i === usedMonths.length - 1;
+    var border = isLast ? '' : 'border-bottom:1px solid var(--border)';
+    var bg = isLast && _wfYear === new Date().getFullYear() ? 'background:#f5f7ff' : '';
+    var cellS = 'padding:9px 14px;font-size:13px;text-align:center;' + border + ';' + bg;
+    return '<tr>' +
+      '<td style="' + cellS + 'text-align:left;font-weight:600">' + m.month + '월</td>' +
+      '<td style="' + cellS + '">' + m.lastDay + '</td>' +
+      '<td style="' + cellS + 'color:var(--gr);font-weight:500">' + m.join + '</td>' +
+      '<td style="' + cellS + 'color:var(--rd);font-weight:500">' + m.leave + '</td>' +
+      '<td style="' + cellS + 'color:var(--ac)">' + m.male + '</td>' +
+      '<td style="' + cellS + 'color:#be185d">' + m.female + '</td>' +
+      '<td style="' + cellS + 'font-weight:700;color:var(--ac)">' + m.total + '</td></tr>';
   }).join('');
 }
 
