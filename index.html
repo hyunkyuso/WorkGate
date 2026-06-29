@@ -13228,10 +13228,8 @@ var _wfEditIdx = -1;
 // 현재 재직인원 = 직원관리 재직자 + 수정 추가 미등록 입사 - 수정 추가 미등록 퇴사
 function wfGetCurActive() {
   var base = employees.filter(function(e){ return e.status!=='퇴직'; }).length;
-  var edits = wfLoadEdits().filter(function(e){ return e.source === 'unregistered'; });
-  var addIn  = edits.filter(function(e){ return e.type === '입사'; }).length;
-  var addOut = edits.filter(function(e){ return e.type === '퇴사'; }).length;
-  return base + addIn - addOut;
+  var addIn = wfLoadEdits().filter(function(e){ return e.source === 'unregistered' && e.type === '입사'; }).length;
+  return base + addIn;
 }
 
 function wfLoadEdits() {
