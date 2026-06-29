@@ -335,7 +335,7 @@ select.form-input{cursor:pointer}
           <div class="nav-item admin-only" onclick="showPage('workforce',this)"><span class="nav-icon">👥</span> 상시근로자수</div>
           <div class="nav-item admin-only" onclick="showPage('workforce-join',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📥</span> 입퇴사 현황</div>
           <div class="nav-item admin-only" onclick="showPage('workforce-monthly',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 상시근로자수</div>
-          <div class="nav-item admin-only" onclick="showPage('workforce-gender',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">⚧</span> 남녀 현황</div>
+          <div class="nav-item admin-only" onclick="showPage('workforce-gender',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 인력구성 분석</div>
           <div class="nav-item admin-only" onclick="showPage('workforce-edit',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">✏️</span> 수정</div>
           <div class="nav-item" onclick="showPage('mypage',this)"><span class="nav-icon">👤</span> 마이페이지</div>
           <div class="nav-item admin-only" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> 설정</div>
@@ -1266,83 +1266,168 @@ select.form-input{cursor:pointer}
         </div>
       </div>
 
-      <!-- ══ 남녀 현황 ══ -->
+      <!-- ══ 인력구성 분석 ══ -->
       <div id="page-workforce-gender" class="page">
         <div class="page-header">
-          <div><div class="page-title">⚧ 남녀 현황</div><div class="page-sub" id="wf-gender-sub"></div></div>
+          <div><div class="page-title">📊 인력구성 분석</div><div class="page-sub" id="wf-gender-sub"></div></div>
           <div style="display:flex;gap:8px">
+            <div id="wf-gender-year-tabs"></div>
             <button class="btn btn-ghost btn-sm" onclick="workforceExcel('gender')">📊 엑셀</button>
           </div>
         </div>
-        <div style="padding:0 0 24px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px" id="wf-gender-year-tabs"></div>
-          <div style="display:flex;gap:12px;margin-bottom:20px">
-            <div style="background:linear-gradient(135deg,var(--ac),#6366f1);border-radius:12px;padding:18px 28px;color:#fff;flex:1">
-              <div style="font-size:11px;font-weight:600;opacity:0.8;margin-bottom:4px">전체 재직</div>
-              <div style="display:flex;align-items:baseline;gap:6px">
-                <span style="font-size:36px;font-weight:800;line-height:1" id="wf-g-total">—</span>
-                <span style="font-size:13px;opacity:0.8">명</span>
+        <div style="padding:0 0 32px">
+
+          <!-- KPI 4개 -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+            <div style="background:linear-gradient(135deg,var(--ac),#6366f1);border-radius:12px;padding:16px 20px;color:#fff">
+              <div style="font-size:11px;font-weight:600;opacity:0.8;margin-bottom:4px">총 재직인원</div>
+              <div style="display:flex;align-items:baseline;gap:5px">
+                <span style="font-size:32px;font-weight:800;line-height:1" id="wf-g-total">—</span>
+                <span style="font-size:12px;opacity:0.8">명</span>
               </div>
+              <div style="font-size:11px;opacity:0.7;margin-top:4px" id="wf-g-total-sub">남 — · 여 —</div>
             </div>
-            <div style="background:#eef1fe;border:1px solid #c7d0fb;border-radius:12px;padding:18px 28px;flex:1">
-              <div style="font-size:11px;font-weight:600;color:var(--ac);margin-bottom:4px">남성</div>
-              <div style="display:flex;align-items:baseline;gap:6px">
-                <span style="font-size:36px;font-weight:800;line-height:1;color:var(--ac)" id="wf-g-male">—</span>
-                <span style="font-size:13px;color:var(--ac)">명</span>
+            <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 20px">
+              <div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:4px">평균 근속</div>
+              <div style="display:flex;align-items:baseline;gap:5px">
+                <span style="font-size:32px;font-weight:800;line-height:1;color:var(--ac)" id="wf-g-avg-tenure">—</span>
+                <span style="font-size:12px;color:var(--t3)">년</span>
               </div>
-              <div style="font-size:11px;color:var(--ac);opacity:0.7;margin-top:4px" id="wf-g-male-pct"></div>
+              <div style="font-size:11px;color:var(--t3);margin-top:4px" id="wf-g-tenure-sub">최장 — · 최단 —년</div>
             </div>
-            <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:12px;padding:18px 28px;flex:1">
-              <div style="font-size:11px;font-weight:600;color:#be185d;margin-bottom:4px">여성</div>
-              <div style="display:flex;align-items:baseline;gap:6px">
-                <span style="font-size:36px;font-weight:800;line-height:1;color:#be185d" id="wf-g-female">—</span>
-                <span style="font-size:13px;color:#be185d">명</span>
+            <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 20px">
+              <div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:4px">직위 종류</div>
+              <div style="display:flex;align-items:baseline;gap:5px">
+                <span style="font-size:32px;font-weight:800;line-height:1;color:var(--t1)" id="wf-g-position-cnt">—</span>
+                <span style="font-size:12px;color:var(--t3)">개</span>
               </div>
-              <div style="font-size:11px;color:#be185d;opacity:0.7;margin-top:4px" id="wf-g-female-pct"></div>
+              <div style="font-size:11px;color:var(--t3);margin-top:4px" id="wf-g-position-sub"></div>
             </div>
-            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 28px;flex:1">
-              <div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:4px">성비</div>
-              <div style="font-size:22px;font-weight:800;color:var(--t1);margin-top:6px" id="wf-g-ratio">—</div>
+            <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 20px">
+              <div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:4px">직무 종류</div>
+              <div style="display:flex;align-items:baseline;gap:5px">
+                <span style="font-size:32px;font-weight:800;line-height:1;color:var(--t1)" id="wf-g-duty-cnt">—</span>
+                <span style="font-size:12px;color:var(--t3)">개</span>
+              </div>
+              <div style="font-size:11px;color:var(--t3);margin-top:4px" id="wf-g-duty-sub"></div>
             </div>
           </div>
-          <!-- 성비 바 - 재직자 -->
-          <div class="card" style="margin-bottom:16px">
-            <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px">재직자 성비</div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
-              <span style="color:var(--ac);font-weight:600" id="wf-g-bar-m-label">남 —%</span>
-              <span style="color:#be185d;font-weight:600" id="wf-g-bar-f-label">여 —%</span>
+
+          <!-- 행1: 성별구성 + 직위별 인원 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+
+            <!-- 성별구성 -->
+            <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
+                <div style="width:3px;height:16px;background:var(--ac);border-radius:2px"></div>
+                <span style="font-size:13px;font-weight:600;color:var(--t1)">성별 구성</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+                <svg id="wg-donut-svg" width="80" height="80" viewBox="0 0 80 80" style="flex-shrink:0">
+                  <circle cx="40" cy="40" r="28" fill="none" stroke="#fce7f3" stroke-width="14"/>
+                  <circle id="wg-donut-arc" cx="40" cy="40" r="28" fill="none" stroke="var(--ac)" stroke-width="14"
+                    stroke-dasharray="0 176" stroke-dashoffset="0" transform="rotate(-90 40 40)" style="transition:stroke-dasharray .4s"/>
+                  <text id="wg-donut-pct" x="40" y="44" text-anchor="middle" font-size="13" font-weight="600" fill="var(--t1)">—</text>
+                </svg>
+                <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+                    <div style="width:10px;height:10px;border-radius:50%;background:var(--ac);flex-shrink:0"></div>
+                    <span style="color:var(--t2)">남성</span>
+                    <span style="margin-left:auto;font-weight:600" id="wg-male-val">—명</span>
+                    <span style="color:var(--t3);font-size:12px" id="wg-male-pct"></span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+                    <div style="width:10px;height:10px;border-radius:50%;background:#D4537E;flex-shrink:0"></div>
+                    <span style="color:var(--t2)">여성</span>
+                    <span style="margin-left:auto;font-weight:600" id="wg-female-val">—명</span>
+                    <span style="color:var(--t3);font-size:12px" id="wg-female-pct"></span>
+                  </div>
+                </div>
+              </div>
+              <div style="border-top:1px solid var(--border);padding-top:12px">
+                <div style="font-size:12px;color:var(--t3);margin-bottom:8px">연도별 입사자 성비 추이</div>
+                <div id="wg-join-trend"></div>
+              </div>
             </div>
-            <div style="height:14px;background:#fce7f3;border-radius:99px;overflow:hidden">
-              <div id="wf-g-bar" style="height:100%;background:var(--ac);border-radius:99px;transition:width .4s ease;width:0%"></div>
-            </div>
-            <!-- 입사자 성비 -->
-            <div style="font-size:12px;font-weight:600;color:var(--t2);margin-top:16px;margin-bottom:10px">입사자 성비 <span style="font-size:11px;font-weight:400;color:var(--t3)" id="wf-g-join-label"></span></div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
-              <span style="color:var(--ac);font-weight:600" id="wf-g-join-m-label">남 —명</span>
-              <span style="color:#be185d;font-weight:600" id="wf-g-join-f-label">여 —명</span>
-            </div>
-            <div style="height:10px;background:#fce7f3;border-radius:99px;overflow:hidden">
-              <div id="wf-g-join-bar" style="height:100%;background:var(--ac);border-radius:99px;transition:width .4s ease;width:0%"></div>
-            </div>
-            <!-- 퇴사자 성비 -->
-            <div style="font-size:12px;font-weight:600;color:var(--t2);margin-top:16px;margin-bottom:10px">퇴사자 성비 <span style="font-size:11px;font-weight:400;color:var(--t3)" id="wf-g-leave-label"></span></div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
-              <span style="color:var(--ac);font-weight:600" id="wf-g-leave-m-label">남 —명</span>
-              <span style="color:#be185d;font-weight:600" id="wf-g-leave-f-label">여 —명</span>
-            </div>
-            <div style="height:10px;background:#fce7f3;border-radius:99px;overflow:hidden">
-              <div id="wf-g-leave-bar" style="height:100%;background:var(--ac);border-radius:99px;transition:width .4s ease;width:0%"></div>
+
+            <!-- 직위별 인원 -->
+            <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
+                <div style="width:3px;height:16px;background:#1D9E75;border-radius:2px"></div>
+                <span style="font-size:13px;font-weight:600;color:var(--t1)">직위별 인원</span>
+              </div>
+              <div id="wg-position-bars"></div>
             </div>
           </div>
-          <!-- 월별 성별 테이블 -->
-          <div class="table-wrap">
-            <table id="tbl-wf-gender">
-              <thead><tr>
-                <th>월</th><th>전체</th><th>남</th><th>여</th><th>성비</th>
-              </tr></thead>
-              <tbody id="tbody-wf-gender"></tbody>
-            </table>
+
+          <!-- 행2: 직무별 인원 + 근속 분포 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+
+            <!-- 직무별 인원 -->
+            <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
+                <div style="width:3px;height:16px;background:#7c5cbf;border-radius:2px"></div>
+                <span style="font-size:13px;font-weight:600;color:var(--t1)">직무별 인원</span>
+              </div>
+              <div id="wg-duty-bars"></div>
+              <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+                <div style="font-size:12px;color:var(--t3);margin-bottom:8px">직무별 성비 (남성 비율)</div>
+                <div id="wg-duty-gender-bars"></div>
+              </div>
+            </div>
+
+            <!-- 근속 분포 -->
+            <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
+                <div style="width:3px;height:16px;background:#BA7517;border-radius:2px"></div>
+                <span style="font-size:13px;font-weight:600;color:var(--t1)">근속 구간 분포</span>
+              </div>
+              <div id="wg-tenure-bars"></div>
+              <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+                <div style="font-size:12px;color:var(--t3);margin-bottom:8px">남녀별 평균 근속</div>
+                <div style="display:flex;gap:10px">
+                  <div style="flex:1;background:var(--acd);border-radius:8px;padding:10px 12px;text-align:center">
+                    <div style="font-size:11px;color:var(--t3)">남성</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--ac)" id="wg-male-tenure">—</div>
+                    <div style="font-size:11px;color:var(--t3)">년</div>
+                  </div>
+                  <div style="flex:1;background:#fdf2f8;border-radius:8px;padding:10px 12px;text-align:center">
+                    <div style="font-size:11px;color:var(--t3)">여성</div>
+                    <div style="font-size:22px;font-weight:700;color:#be185d" id="wg-female-tenure">—</div>
+                    <div style="font-size:11px;color:var(--t3)">년</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+
+          <!-- 행3: 직위별 성비 + 장기근속 Top10 -->
+          <div style="display:grid;grid-template-columns:1fr 1.8fr;gap:12px">
+
+            <!-- 직위별 성비 -->
+            <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
+                <div style="width:3px;height:16px;background:var(--ac);border-radius:2px"></div>
+                <span style="font-size:13px;font-weight:600;color:var(--t1)">직위별 성비</span>
+                <span style="font-size:11px;color:var(--t3);margin-left:4px">(남성 비율)</span>
+              </div>
+              <div id="wg-position-gender-bars"></div>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:10px;font-size:11px;color:var(--t3)">
+                <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--ac);display:inline-block"></span>남성</span>
+                <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#fce7f3;border:1px solid #f9a8d4;display:inline-block"></span>여성</span>
+              </div>
+            </div>
+
+            <!-- 장기근속 Top10 -->
+            <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
+                <div style="width:3px;height:16px;background:#BA7517;border-radius:2px"></div>
+                <span style="font-size:13px;font-weight:600;color:var(--t1)">장기근속 Top 10</span>
+              </div>
+              <div id="wg-top10-list"></div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -13514,63 +13599,169 @@ function renderWfMonthly(year) {
   }).join('');
 }
 
-// ── 남녀 현황 렌더 ──
+// ── 인력구성 분석 렌더 ──
 function renderWfGender(year) {
   _wfYear = year || _wfYear;
   wfYearTabs('wf-gender-year-tabs', _wfYear, 'renderWfGender');
+
+  var today = new Date();
   var active = employees.filter(function(e){ return e.status!=='퇴직'; });
   var unregActive = wfLoadEdits().filter(function(e){ return e.source==='unregistered' && e.type==='입사'; });
-  var total = active.length + unregActive.length;
-  var male = active.filter(function(e){ return e.gender==='남'; }).length
-    + unregActive.filter(function(e){ return e.gender==='남'; }).length;
-  var female = active.filter(function(e){ return e.gender==='여'; }).length
-    + unregActive.filter(function(e){ return e.gender==='여'; }).length;
+  var allActive = active.concat(unregActive);
+  var total = allActive.length;
+  var male = allActive.filter(function(e){ return e.gender==='남'; }).length;
+  var female = allActive.filter(function(e){ return e.gender==='여'; }).length;
   var mPct = total ? Math.round(male/total*1000)/10 : 0;
   var fPct = total ? Math.round(female/total*1000)/10 : 0;
-  document.getElementById('wf-gender-sub').textContent = _wfYear + '년 기준';
+
+  document.getElementById('wf-gender-sub').textContent = '재직자 기준 · ' + total + '명';
+
+  // ── KPI ──
   document.getElementById('wf-g-total').textContent = total;
-  document.getElementById('wf-g-male').textContent = male;
-  document.getElementById('wf-g-female').textContent = female;
-  document.getElementById('wf-g-male-pct').textContent = mPct + '%';
-  document.getElementById('wf-g-female-pct').textContent = fPct + '%';
-  document.getElementById('wf-g-ratio').textContent = total ? Math.round(male/total*10) + ':' + Math.round(female/total*10) : '—';
-  document.getElementById('wf-g-bar-m-label').textContent = '남 ' + mPct + '%';
-  document.getElementById('wf-g-bar-f-label').textContent = '여 ' + fPct + '%';
-  document.getElementById('wf-g-bar').style.width = mPct + '%';
+  document.getElementById('wf-g-total-sub').textContent = '남 ' + male + '명 · 여 ' + female + '명';
 
-  // 입퇴사 성비
-  var jl = wfGetJoinLeave(_wfYear);
-  var joinList = jl.filter(function(e){ return e.type==='입사'; });
-  var leaveList = jl.filter(function(e){ return e.type==='퇴사'; });
-  var joinM = joinList.filter(function(e){ return e.gender==='남'; }).length;
-  var joinF = joinList.filter(function(e){ return e.gender==='여'; }).length;
-  var leaveM = leaveList.filter(function(e){ return e.gender==='남'; }).length;
-  var leaveF = leaveList.filter(function(e){ return e.gender==='여'; }).length;
-  var joinTotal = joinList.length;
-  var leaveTotal = leaveList.length;
-  var joinMPct = joinTotal ? Math.round(joinM/joinTotal*1000)/10 : 0;
-  var leaveMPct = leaveTotal ? Math.round(leaveM/leaveTotal*1000)/10 : 0;
+  // 근속 계산
+  function getTenureYears(e) {
+    var d = e.joindate || e.date;
+    if (!d) return null;
+    var join = new Date(d);
+    if (isNaN(join)) return null;
+    return (today - join) / (1000*60*60*24*365.25);
+  }
+  var tenures = allActive.map(getTenureYears).filter(function(t){ return t !== null; });
+  var maleTenures = allActive.filter(function(e){ return e.gender==='남'; }).map(getTenureYears).filter(function(t){ return t!==null; });
+  var femaleTenures = allActive.filter(function(e){ return e.gender==='여'; }).map(getTenureYears).filter(function(t){ return t!==null; });
+  var avgTenure = tenures.length ? tenures.reduce(function(a,b){return a+b;},0)/tenures.length : 0;
+  var maxTenure = tenures.length ? Math.max.apply(null,tenures) : 0;
+  var minTenure = tenures.length ? Math.min.apply(null,tenures) : 0;
+  var avgMaleTenure = maleTenures.length ? maleTenures.reduce(function(a,b){return a+b;},0)/maleTenures.length : 0;
+  var avgFemaleTenure = femaleTenures.length ? femaleTenures.reduce(function(a,b){return a+b;},0)/femaleTenures.length : 0;
+  document.getElementById('wf-g-avg-tenure').textContent = Math.round(avgTenure*10)/10;
+  document.getElementById('wf-g-tenure-sub').textContent = '최장 ' + Math.round(maxTenure*10)/10 + '년 · 최단 ' + Math.round(minTenure*10)/10 + '년';
+  document.getElementById('wg-male-tenure').textContent = Math.round(avgMaleTenure*10)/10;
+  document.getElementById('wg-female-tenure').textContent = Math.round(avgFemaleTenure*10)/10;
 
-  document.getElementById('wf-g-join-label').textContent = '총 ' + joinTotal + '명';
-  document.getElementById('wf-g-join-m-label').textContent = '남 ' + joinM + '명 (' + joinMPct + '%)';
-  document.getElementById('wf-g-join-f-label').textContent = '여 ' + joinF + '명 (' + (joinTotal?Math.round(joinF/joinTotal*1000)/10:0) + '%)';
-  document.getElementById('wf-g-join-bar').style.width = joinMPct + '%';
+  // 직위/직무
+  var positions = {};
+  var duties = {};
+  allActive.forEach(function(e) {
+    var p = e.position || '미지정';
+    var d = e.duty || '미지정';
+    if (!positions[p]) positions[p] = {total:0,male:0,female:0};
+    if (!duties[d]) duties[d] = {total:0,male:0,female:0};
+    positions[p].total++;
+    duties[d].total++;
+    if (e.gender==='남') { positions[p].male++; duties[d].male++; }
+    if (e.gender==='여') { positions[p].female++; duties[d].female++; }
+  });
+  var posKeys = Object.keys(positions).sort(function(a,b){ return positions[b].total - positions[a].total; });
+  var dutyKeys = Object.keys(duties).sort(function(a,b){ return duties[b].total - duties[a].total; });
+  document.getElementById('wf-g-position-cnt').textContent = posKeys.length;
+  document.getElementById('wf-g-position-sub').textContent = posKeys.slice(0,3).join(' · ') + (posKeys.length>3?' 외':'');
+  document.getElementById('wf-g-duty-cnt').textContent = dutyKeys.length;
+  document.getElementById('wf-g-duty-sub').textContent = dutyKeys.slice(0,3).join(' · ') + (dutyKeys.length>3?' 외':'');
 
-  document.getElementById('wf-g-leave-label').textContent = '총 ' + leaveTotal + '명';
-  document.getElementById('wf-g-leave-m-label').textContent = '남 ' + leaveM + '명 (' + leaveMPct + '%)';
-  document.getElementById('wf-g-leave-f-label').textContent = '여 ' + leaveF + '명 (' + (leaveTotal?Math.round(leaveF/leaveTotal*1000)/10:0) + '%)';
-  document.getElementById('wf-g-leave-bar').style.width = leaveMPct + '%';
+  // ── 도넛 ──
+  var circ = 2 * Math.PI * 28;
+  var arc = circ * mPct / 100;
+  document.getElementById('wg-donut-arc').setAttribute('stroke-dasharray', arc + ' ' + (circ-arc));
+  document.getElementById('wg-donut-pct').textContent = mPct + '%';
+  document.getElementById('wg-male-val').textContent = male + '명';
+  document.getElementById('wg-female-val').textContent = female + '명';
+  document.getElementById('wg-male-pct').textContent = mPct + '%';
+  document.getElementById('wg-female-pct').textContent = fPct + '%';
 
-  var monthly = wfGetMonthly(_wfYear);
-  var curM = _wfYear === new Date().getFullYear() ? new Date().getMonth() + 1 : 12;
-  var tbody = document.getElementById('tbody-wf-gender');
-  tbody.innerHTML = monthly.slice(0, curM).map(function(m) {
-    var mP = m.total ? Math.round(m.male/m.total*10) : 0;
-    var fP = m.total ? Math.round(m.female/m.total*10) : 0;
-    return '<tr><td>' + m.month + '월</td><td>' + m.total + '</td>' +
-      '<td style="color:var(--ac)">' + m.male + '</td>' +
-      '<td style="color:#be185d">' + m.female + '</td>' +
-      '<td>' + mP + ':' + fP + '</td></tr>';
+  // ── 연도별 입사 성비 추이 ──
+  var years = wfGetYears().filter(function(y){ return y <= _wfYear; }).slice(0,4).reverse();
+  var trendHtml = '';
+  years.forEach(function(y) {
+    var jl = wfGetJoinLeave(y).filter(function(e){ return e.type==='입사'; });
+    var jm = jl.filter(function(e){ return e.gender==='남'; }).length;
+    var jf = jl.filter(function(e){ return e.gender==='여'; }).length;
+    var jt = jl.length;
+    var jmPct = jt ? Math.round(jm/jt*100) : 0;
+    trendHtml += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px">' +
+      '<span style="width:36px;color:var(--t3)">' + y + '</span>' +
+      '<div style="flex:1;height:6px;background:#fce7f3;border-radius:99px;overflow:hidden">' +
+      '<div style="width:' + jmPct + '%;height:100%;background:var(--ac);border-radius:99px"></div></div>' +
+      '<span style="color:var(--t2)">남 ' + jm + ' / 여 ' + jf + '</span></div>';
+  });
+  document.getElementById('wg-join-trend').innerHTML = trendHtml || '<div style="font-size:12px;color:var(--t3)">데이터 없음</div>';
+
+  // ── 직위별 인원 바 ──
+  var posMax = posKeys.length ? positions[posKeys[0]].total : 1;
+  document.getElementById('wg-position-bars').innerHTML = posKeys.map(function(p) {
+    var w = Math.round(positions[p].total/posMax*100);
+    return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:3px"><span>' + p + '</span><span style="font-weight:600;color:var(--t1)">' + positions[p].total + '명</span></div>' +
+      '<div style="height:7px;background:var(--surface);border-radius:99px;overflow:hidden"><div style="width:' + w + '%;height:100%;background:#1D9E75;border-radius:99px"></div></div></div>';
+  }).join('');
+
+  // ── 직무별 인원 바 ──
+  var dutyMax = dutyKeys.length ? duties[dutyKeys[0]].total : 1;
+  document.getElementById('wg-duty-bars').innerHTML = dutyKeys.map(function(d) {
+    var w = Math.round(duties[d].total/dutyMax*100);
+    return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:3px"><span>' + d + '</span><span style="font-weight:600;color:var(--t1)">' + duties[d].total + '명</span></div>' +
+      '<div style="height:7px;background:var(--surface);border-radius:99px;overflow:hidden"><div style="width:' + w + '%;height:100%;background:#7c5cbf;border-radius:99px"></div></div></div>';
+  }).join('');
+
+  // ── 직무별 성비 ──
+  document.getElementById('wg-duty-gender-bars').innerHTML = dutyKeys.map(function(d) {
+    var dt = duties[d];
+    var mp = dt.total ? Math.round(dt.male/dt.total*100) : 0;
+    return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:6px">' +
+      '<span style="width:48px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + d + '</span>' +
+      '<div style="flex:1;height:6px;background:#fce7f3;border-radius:99px;overflow:hidden"><div style="width:' + mp + '%;height:100%;background:var(--ac);border-radius:99px"></div></div>' +
+      '<span style="color:var(--t2);width:28px;text-align:right">' + mp + '%</span></div>';
+  }).join('');
+
+  // ── 근속 구간 ──
+  var brackets = [
+    {label:'1년 미만', min:0, max:1},
+    {label:'1 – 3년', min:1, max:3},
+    {label:'3 – 5년', min:3, max:5},
+    {label:'5 – 10년', min:5, max:10},
+    {label:'10년 이상', min:10, max:999}
+  ];
+  var tenureGroups = brackets.map(function(b) {
+    var cnt = tenures.filter(function(t){ return t >= b.min && t < b.max; }).length;
+    return {label:b.label, cnt:cnt};
+  });
+  var tgMax = tenureGroups.reduce(function(a,b){ return Math.max(a,b.cnt); }, 1);
+  document.getElementById('wg-tenure-bars').innerHTML = tenureGroups.map(function(g) {
+    var w = Math.round(g.cnt/tgMax*100);
+    return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:3px"><span>' + g.label + '</span><span style="font-weight:600;color:var(--t1)">' + g.cnt + '명</span></div>' +
+      '<div style="height:7px;background:var(--surface);border-radius:99px;overflow:hidden"><div style="width:' + w + '%;height:100%;background:#BA7517;border-radius:99px"></div></div></div>';
+  }).join('');
+
+  // ── 직위별 성비 ──
+  document.getElementById('wg-position-gender-bars').innerHTML = posKeys.map(function(p) {
+    var pt = positions[p];
+    var mp = pt.total ? Math.round(pt.male/pt.total*100) : 0;
+    return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:8px">' +
+      '<span style="width:44px;color:var(--t3)">' + p + '</span>' +
+      '<div style="flex:1;height:8px;background:#fce7f3;border-radius:99px;overflow:hidden"><div style="width:' + mp + '%;height:100%;background:var(--ac);border-radius:99px"></div></div>' +
+      '<span style="color:var(--t2);width:30px;text-align:right">' + mp + '%</span></div>';
+  }).join('');
+
+  // ── 장기근속 Top10 ──
+  var ranked = allActive.map(function(e) {
+    var t = getTenureYears(e);
+    return {name:e.name||'—', dept:e.dept||'—', gender:e.gender||'', tenure:t||0};
+  }).sort(function(a,b){ return b.tenure - a.tenure; }).slice(0,10);
+  var top10Max = ranked.length ? ranked[0].tenure : 1;
+  document.getElementById('wg-top10-list').innerHTML = ranked.map(function(r, i) {
+    var w = Math.round(r.tenure/top10Max*100);
+    var gBadge = r.gender==='남'
+      ? '<span style="font-size:10px;padding:1px 6px;border-radius:99px;background:var(--acd);color:var(--ac);font-weight:600">남</span>'
+      : r.gender==='여'
+      ? '<span style="font-size:10px;padding:1px 6px;border-radius:99px;background:#fce7f3;color:#be185d;font-weight:600">여</span>'
+      : '';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px' + (i===ranked.length-1?';border-bottom:none':'') + '">' +
+      '<span style="width:18px;font-size:11px;color:var(--t3);text-align:center">' + (i+1) + '</span>' +
+      '<span style="flex:1;font-weight:500">' + r.name + ' <span style="font-size:11px;color:var(--t3);font-weight:400">· ' + r.dept + '</span></span>' +
+      '<div style="width:80px;height:5px;background:var(--surface);border-radius:99px;overflow:hidden"><div style="width:' + w + '%;height:100%;background:#BA7517;border-radius:99px"></div></div>' +
+      '<span style="width:40px;text-align:right;font-weight:600;color:var(--t1)">' + Math.round(r.tenure*10)/10 + '년</span>' +
+      gBadge + '</div>';
   }).join('');
 }
 
