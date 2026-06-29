@@ -13311,16 +13311,23 @@ function wfGetMonthly(year) {
       return true;
     });
     // 수정 데이터 반영
-    var edits = wfLoadEdits().filter(function(e){ return e.date && e.date.startsWith(ym); });
+    var allEdits = wfLoadEdits();
+    var edits = allEdits.filter(function(e){ return e.date && e.date.startsWith(ym); });
 
     var joinAuto = employees.filter(function(e){ return e.joindate && e.joindate.startsWith(ym); }).length;
     var leaveAuto = employees.filter(function(e){ return e.leavedate && e.leavedate.startsWith(ym); }).length;
     var joinEdit = edits.filter(function(e){ return e.type==='입사'; }).length;
     var leaveEdit = edits.filter(function(e){ return e.type==='퇴사'; }).length;
 
-    var maleCount = active.filter(function(e){ return e.gender==='남'; }).length;
-    var femaleCount = active.filter(function(e){ return e.gender==='여'; }).length;
-    var totalCount = active.length;
+    // 미등록 입사 중 해당 월 말일 기준 재직 중인 인원
+    var unregActive = allEdits.filter(function(e){
+      return e.source === 'unregistered' && e.type === '입사' && e.date && e.date <= lastDayStr;
+    });
+    var maleCount = active.filter(function(e){ return e.gender==='남'; }).length
+      + unregActive.filter(function(e){ return e.gender==='남'; }).length;
+    var femaleCount = active.filter(function(e){ return e.gender==='여'; }).length
+      + unregActive.filter(function(e){ return e.gender==='여'; }).length;
+    var totalCount = active.length + unregActive.length;
 
     months.push({
       month: m,
@@ -13512,9 +13519,12 @@ function renderWfGender(year) {
   _wfYear = year || _wfYear;
   wfYearTabs('wf-gender-year-tabs', _wfYear, 'renderWfGender');
   var active = employees.filter(function(e){ return e.status!=='퇴직'; });
-  var total = active.length;
-  var male = active.filter(function(e){ return e.gender==='남'; }).length;
-  var female = active.filter(function(e){ return e.gender==='여'; }).length;
+  var unregActive = wfLoadEdits().filter(function(e){ return e.source==='unregistered' && e.type==='입사'; });
+  var total = active.length + unregActive.length;
+  var male = active.filter(function(e){ return e.gender==='남'; }).length
+    + unregActive.filter(function(e){ return e.gender==='남'; }).length;
+  var female = active.filter(function(e){ return e.gender==='여'; }).length
+    + unregActive.filter(function(e){ return e.gender==='여'; }).length;
   var mPct = total ? Math.round(male/total*1000)/10 : 0;
   var fPct = total ? Math.round(female/total*1000)/10 : 0;
   document.getElementById('wf-gender-sub').textContent = _wfYear + '년 기준';
