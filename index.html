@@ -1137,51 +1137,74 @@ select.form-input{cursor:pointer}
         <div class="page-header">
           <div><div class="page-title">📥 입퇴사 현황</div><div class="page-sub" id="wf-join-sub"></div></div>
           <div style="display:flex;gap:8px">
+            <div id="wf-join-year-tabs"></div>
             <button class="btn btn-ghost btn-sm" onclick="workforceExcel('join')">📊 엑셀</button>
           </div>
         </div>
-        <div style="padding:0 0 24px">
-          <!-- 연도 선택 -->
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px" id="wf-join-year-tabs"></div>
+        <div style="padding:0 0 32px">
 
-          <!-- KPI 4개 -->
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
-            <div class="card" style="border-left:3px solid var(--gr);border-radius:0 8px 8px 0">
+          <!-- KPI 5개 -->
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px">
+            <div class="card" style="border-left:2px solid var(--gr);border-radius:0 8px 8px 0">
               <div style="font-size:11px;color:var(--t3);margin-bottom:4px">총 입사</div>
-              <div style="font-size:26px;font-weight:700;color:var(--gr)" id="wf-j-total-in">—</div>
+              <div style="font-size:24px;font-weight:700;color:var(--gr)" id="wf-j-total-in">—</div>
               <div style="font-size:11px;color:var(--t3)">명</div>
             </div>
-            <div class="card" style="border-left:3px solid var(--rd);border-radius:0 8px 8px 0">
+            <div class="card" style="border-left:2px solid var(--rd);border-radius:0 8px 8px 0">
               <div style="font-size:11px;color:var(--t3);margin-bottom:4px">총 퇴사</div>
-              <div style="font-size:26px;font-weight:700;color:var(--rd)" id="wf-j-total-out">—</div>
+              <div style="font-size:24px;font-weight:700;color:var(--rd)" id="wf-j-total-out">—</div>
               <div style="font-size:11px;color:var(--t3)">명</div>
             </div>
             <div class="card">
-              <div style="font-size:11px;color:var(--t3);margin-bottom:4px">남성</div>
-              <div style="font-size:26px;font-weight:700;color:var(--ac)" id="wf-j-male">—</div>
-              <div style="height:4px;background:var(--acd);border-radius:99px;margin-top:6px;overflow:hidden"><div id="wf-j-male-bar" style="height:100%;background:var(--ac);border-radius:99px;width:0%;transition:width .4s"></div></div>
+              <div style="font-size:11px;color:var(--t3);margin-bottom:4px">현재 재직</div>
+              <div style="font-size:24px;font-weight:700;color:var(--t1)" id="wf-j-current">—</div>
+              <div style="font-size:11px;color:var(--t3)">명</div>
             </div>
             <div class="card">
-              <div style="font-size:11px;color:var(--t3);margin-bottom:4px">여성</div>
-              <div style="font-size:26px;font-weight:700;color:#be185d" id="wf-j-female">—</div>
-              <div style="height:4px;background:#fce7f3;border-radius:99px;margin-top:6px;overflow:hidden"><div id="wf-j-female-bar" style="height:100%;background:#be185d;border-radius:99px;width:0%;transition:width .4s"></div></div>
+              <div style="font-size:11px;color:var(--t3);margin-bottom:4px">전년 대비</div>
+              <div style="font-size:24px;font-weight:700" id="wf-j-yoy">—</div>
+              <div style="font-size:11px;color:var(--t3)" id="wf-j-yoy-sub"></div>
+            </div>
+            <div class="card">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:4px">평균 근속</div>
+              <div style="font-size:24px;font-weight:700;color:var(--t1)" id="wf-j-tenure">—</div>
+              <div style="font-size:11px;color:var(--t3)">년 (재직자 기준)</div>
             </div>
           </div>
 
-          <!-- 월별 미니 바 차트 -->
-          <div class="card" style="margin-bottom:16px">
-            <div style="font-size:12px;color:var(--t2);font-weight:600;margin-bottom:12px">월별 입퇴사</div>
-            <div style="display:flex;gap:8px;align-items:flex-end;height:60px" id="wf-join-bar-chart">
-              <!-- JS로 렌더링 -->
-            </div>
-            <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--t3)">
-              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;background:var(--gr);border-radius:2px;display:inline-block"></span>입사</span>
-              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;background:var(--rd);border-radius:2px;display:inline-block"></span>퇴사</span>
+          <!-- 월별 집계 테이블 -->
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px">
+            <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--t2)">월별 집계</div>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse">
+                <thead>
+                  <tr style="background:var(--surface)">
+                    <th style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap">구분</th>
+                    <th id="wf-month-th-1" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">1월</th>
+                    <th id="wf-month-th-2" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">2월</th>
+                    <th id="wf-month-th-3" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">3월</th>
+                    <th id="wf-month-th-4" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">4월</th>
+                    <th id="wf-month-th-5" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">5월</th>
+                    <th id="wf-month-th-6" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">6월</th>
+                    <th id="wf-month-th-7" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">7월</th>
+                    <th id="wf-month-th-8" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">8월</th>
+                    <th id="wf-month-th-9" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">9월</th>
+                    <th id="wf-month-th-10" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">10월</th>
+                    <th id="wf-month-th-11" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">11월</th>
+                    <th id="wf-month-th-12" style="padding:8px 12px;font-size:11px;color:var(--t3);font-weight:500;text-align:center;border-bottom:1px solid var(--border)">12월</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-wf-month-summary"></tbody>
+              </table>
             </div>
           </div>
 
-          <!-- 카드 목록 -->
-          <div id="wf-join-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px"></div>
+          <!-- 상세 목록 -->
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+            <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--t2)">상세 목록</div>
+            <div style="padding:0 16px" id="wf-join-list"></div>
+          </div>
+
         </div>
       </div>
 
@@ -1297,6 +1320,16 @@ select.form-input{cursor:pointer}
           <div style="padding:10px 14px;background:var(--amd);color:var(--am);border-radius:8px;font-size:13px;margin-bottom:16px;border-left:3px solid var(--am)">
             시스템 도입 이전 누락된 입퇴사자 또는 직원관리에 없는 인원을 직접 추가합니다. 여기서 추가된 데이터는 자동집계에 합산됩니다.
           </div>
+
+          <!-- 전년 기준 인원 -->
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px">
+            <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--t2);display:flex;align-items:center;justify-content:space-between">
+              <span>연도별 기준 인원 <span style="font-size:11px;font-weight:400;color:var(--t3)">(전년 대비 계산용 · 각 연도 말일 재직인원)</span></span>
+              <button class="btn btn-ghost btn-sm" onclick="openWfBaseModal()">+ 기준 인원 추가</button>
+            </div>
+            <div id="wf-base-list" style="padding:0 16px"></div>
+          </div>
+
           <div class="table-wrap">
             <table id="tbl-wf-edit">
               <thead><tr>
@@ -13300,86 +13333,108 @@ function renderWorkforce(year) {
 function renderWfJoin(year) {
   _wfYear = year || _wfYear;
   wfYearTabs('wf-join-year-tabs', _wfYear, 'renderWfJoin');
+
   var list = wfGetJoinLeave(_wfYear);
   var joinN = list.filter(function(e){ return e.type==='입사'; }).length;
   var leaveN = list.filter(function(e){ return e.type==='퇴사'; }).length;
-  var maleN = list.filter(function(e){ return e.gender==='남'; }).length;
-  var femaleN = list.filter(function(e){ return e.gender==='여'; }).length;
-  var total = list.length;
+  var curActive = employees.filter(function(e){ return e.status!=='퇴직'; }).length;
 
-  document.getElementById('wf-join-sub').textContent = _wfYear + '년 · 총 ' + total + '건';
+  document.getElementById('wf-join-sub').textContent = _wfYear + '년 · 총 ' + list.length + '건';
   document.getElementById('wf-j-total-in').textContent = joinN;
   document.getElementById('wf-j-total-out').textContent = leaveN;
-  document.getElementById('wf-j-male').textContent = maleN;
-  document.getElementById('wf-j-female').textContent = femaleN;
+  document.getElementById('wf-j-current').textContent = curActive;
 
-  // 성별 바
-  var mPct = total ? Math.round(maleN/total*100) : 0;
-  var fPct = total ? Math.round(femaleN/total*100) : 0;
-  var mBar = document.getElementById('wf-j-male-bar');
-  var fBar = document.getElementById('wf-j-female-bar');
-  if (mBar) mBar.style.width = mPct + '%';
-  if (fBar) fBar.style.width = fPct + '%';
+  // 전년 대비 계산
+  var prevYear = _wfYear - 1;
+  var edits = wfLoadEdits();
+  var prevEdits = edits.filter(function(e){ return e.source === 'yearbase' && e.date && e.date.startsWith(prevYear+''); });
+  var yoyEl = document.getElementById('wf-j-yoy');
+  var yoySubEl = document.getElementById('wf-j-yoy-sub');
+  if (prevEdits.length && prevEdits[0].count) {
+    var prevCount = parseInt(prevEdits[0].count);
+    var diff = curActive - prevCount;
+    yoyEl.textContent = (diff > 0 ? '+' : '') + diff + '명';
+    yoyEl.style.color = diff > 0 ? 'var(--gr)' : diff < 0 ? 'var(--rd)' : 'var(--t1)';
+    if (yoySubEl) yoySubEl.textContent = prevYear + '년 ' + prevCount + '명';
+  } else {
+    yoyEl.textContent = '—';
+    yoyEl.style.color = 'var(--t3)';
+    if (yoySubEl) yoySubEl.textContent = '수정 페이지에서 등록';
+  }
 
-  // 월별 바 차트
+  // 평균 근속
+  var today = new Date();
+  var totalMonths = 0; var cnt = 0;
+  employees.forEach(function(e) {
+    if (e.status !== '퇴직' && e.joindate) {
+      var join = new Date(e.joindate);
+      if (!isNaN(join)) {
+        totalMonths += (today - join) / (1000*60*60*24*30.44);
+        cnt++;
+      }
+    }
+  });
+  var tenureEl = document.getElementById('wf-j-tenure');
+  if (tenureEl) tenureEl.textContent = cnt ? (Math.round(totalMonths/cnt/12*10)/10) : '—';
+
+  // 월별 집계 테이블
   var monthMap = {};
   for (var m=1; m<=12; m++) monthMap[m] = {in:0, out:0};
   list.forEach(function(e) {
     var m = parseInt((e.date||'').substring(5,7));
-    if (!m) return;
-    if (e.type==='입사') monthMap[m].in++;
-    else monthMap[m].out++;
-  });
-  var maxVal = 0;
-  for (var m2=1; m2<=12; m2++) {
-    var v = monthMap[m2].in + monthMap[m2].out;
-    if (v > maxVal) maxVal = v;
-  }
-  if (!maxVal) maxVal = 1;
-  var curM = _wfYear === new Date().getFullYear() ? new Date().getMonth() + 1 : 12;
-  var chartEl = document.getElementById('wf-join-bar-chart');
-  if (chartEl) {
-    var bars = '';
-    for (var mi=1; mi<=curM; mi++) {
-      var d = monthMap[mi];
-      var inH = d.in ? Math.max(Math.round(d.in/maxVal*48), 6) : 0;
-      var outH = d.out ? Math.max(Math.round(d.out/maxVal*48), 6) : 0;
-      bars += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">' +
-        '<div style="width:100%;height:52px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px">' +
-        (outH ? '<div style="width:100%;height:' + outH + 'px;background:var(--rd);border-radius:3px"></div>' : '') +
-        (inH ? '<div style="width:100%;height:' + inH + 'px;background:var(--gr);border-radius:3px"></div>' : '') +
-        (!inH && !outH ? '<div style="width:100%;height:3px;background:var(--border);border-radius:3px"></div>' : '') +
-        '</div>' +
-        '<span style="font-size:10px;color:var(--t3)">' + mi + '월</span>' +
-      '</div>';
+    if (m) {
+      if (e.type==='입사') monthMap[m].in++;
+      else monthMap[m].out++;
     }
-    chartEl.innerHTML = bars;
+  });
+  var tbody = document.getElementById('tbody-wf-month-summary');
+  if (tbody) {
+    var inRow = '<tr><td style="padding:8px 12px;font-size:12px;color:var(--t2);border-bottom:1px solid var(--border);white-space:nowrap">입사</td>';
+    var outRow = '<tr><td style="padding:8px 12px;font-size:12px;color:var(--t2);white-space:nowrap">퇴사</td>';
+    for (var mi=1; mi<=12; mi++) {
+      var d = monthMap[mi];
+      var hasData = d.in > 0 || d.out > 0;
+      var style = 'padding:8px 12px;font-size:13px;font-weight:600;text-align:center;border-bottom:1px solid var(--border)';
+      inRow += '<td style="' + style + ';color:' + (d.in ? 'var(--gr)' : 'var(--t3)') + '">' + (d.in || '—') + '</td>';
+      outRow += '<td style="padding:8px 12px;font-size:13px;font-weight:600;text-align:center;color:' + (d.out ? 'var(--rd)' : 'var(--t3)') + '">' + (d.out || '—') + '</td>';
+    }
+    tbody.innerHTML = inRow + '</tr>' + outRow + '</tr>';
   }
 
-  // 카드 목록
-  var cardsEl = document.getElementById('wf-join-cards');
-  if (!cardsEl) return;
+  // 상세 목록 (월별 구분선)
+  var listEl = document.getElementById('wf-join-list');
+  if (!listEl) return;
   if (!list.length) {
-    cardsEl.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:24px;grid-column:1/-1">해당 연도 데이터가 없습니다.</div>';
+    listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--t3);font-size:13px">해당 연도 데이터가 없습니다.</div>';
     return;
   }
-  cardsEl.innerHTML = list.map(function(e) {
+  var html = '';
+  var lastMonth = '';
+  list.forEach(function(e, i) {
+    var month = (e.date||'').substring(5,7) + '월';
+    if (month !== lastMonth) {
+      if (lastMonth !== '') html += '</div>';
+      html += '<div style="font-size:11px;color:var(--t3);font-weight:500;padding:12px 0 6px;display:flex;align-items:center;gap:8px">' +
+        parseInt(month) + '월' +
+        '<div style="flex:1;height:0.5px;background:var(--border)"></div></div>';
+      lastMonth = month;
+    }
     var isIn = e.type === '입사';
-    var isMale = e.gender === '남';
-    var initial = e.name ? e.name.charAt(0) : '?';
+    var initial = (e.name||'?').charAt(0);
     var avatarBg = isIn ? 'var(--grd)' : 'var(--rdd)';
     var avatarColor = isIn ? 'var(--gr)' : 'var(--rd)';
-    var gTag = e.gender==='남' ? '<span class="tag tag-blue" style="font-size:11px;padding:2px 8px">남</span>' : e.gender==='여' ? '<span class="tag tag-pink" style="font-size:11px;padding:2px 8px">여</span>' : '';
-    var typeTag = isIn ? '<span class="tag tag-green" style="font-size:11px;padding:2px 8px">입사</span>' : '<span class="tag tag-red" style="font-size:11px;padding:2px 8px">퇴사</span>';
-    return '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px">' +
-      '<div style="width:36px;height:36px;border-radius:50%;background:' + avatarBg + ';color:' + avatarColor + ';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">' + initial + '</div>' +
-      '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:14px;font-weight:600;color:var(--t1)">' + e.name + '</div>' +
-        '<div style="font-size:12px;color:var(--t3);margin-top:2px">' + e.dept + ' · ' + e.date + '</div>' +
-      '</div>' +
-      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">' + gTag + typeTag + '</div>' +
+    var typeTag = isIn
+      ? '<span class="tag tag-green" style="font-size:11px;padding:2px 8px">입사</span>'
+      : '<span class="tag tag-red" style="font-size:11px;padding:2px 8px">퇴사</span>';
+    var border = i < list.length-1 ? 'border-bottom:1px solid var(--border)' : '';
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;' + border + '">' +
+      '<div style="width:30px;height:30px;border-radius:50%;background:' + avatarBg + ';color:' + avatarColor + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0">' + initial + '</div>' +
+      '<div style="flex:1;font-size:13px;color:var(--t1)">' + e.name + ' <span style="color:var(--t3);font-size:12px">· ' + e.dept + '</span></div>' +
+      typeTag +
+      '<span style="font-size:12px;color:var(--t3);min-width:80px;text-align:right;white-space:nowrap">' + e.date + '</span>' +
     '</div>';
-  }).join('');
+  });
+  listEl.innerHTML = html;
 }
 
 // ── 월별 상시근로자수 렌더 ──
@@ -13462,7 +13517,8 @@ function renderWfGender(year) {
 
 // ── 수정 페이지 렌더 ──
 function renderWfEdit() {
-  var edits = wfLoadEdits();
+  renderWfBaseList();
+  var edits = wfLoadEdits().filter(function(e){ return e.source !== 'yearbase'; });
   var tbody = document.getElementById('tbody-wf-edit');
   tbody.innerHTML = edits.length ? edits.map(function(e, i) {
     var gTag = e.gender==='남' ? '<span class="tag tag-blue">남</span>' : e.gender==='여' ? '<span class="tag tag-pink">여</span>' : '-';
@@ -13475,6 +13531,41 @@ function renderWfEdit() {
       '<button class="btn btn-danger btn-sm" style="padding:3px 8px;font-size:11px" onclick="deleteWfEdit(' + i + ')">삭제</button>' +
       '</div></td></tr>';
   }).join('') : '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--t3)">수동 등록된 데이터가 없습니다.</td></tr>';
+}
+
+function openWfBaseModal() {
+  var inputS = 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box';
+  document.getElementById('wf-edit-modal-title').textContent = '연도별 기준 인원 추가';
+  document.getElementById('wf-edit-modal-body').innerHTML =
+    '<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">연도</label>' +
+    '<input id="wf-base-year" type="number" value="' + (_wfYear-1) + '" style="' + inputS + '" placeholder="2025"></div>' +
+    '<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">말일 재직인원</label>' +
+    '<input id="wf-base-count" type="number" style="' + inputS + '" placeholder="71"></div>' +
+    '<div style="padding:8px 10px;background:var(--acd);border-radius:8px;font-size:11px;color:var(--ac)">해당 연도 12월 31일 기준 재직인원을 입력하세요.</div>';
+  _wfEditType = 'yearbase';
+  _wfEditIdx = -1;
+  openModal('wf-edit-modal');
+}
+
+function renderWfBaseList() {
+  var edits = wfLoadEdits();
+  var bases = edits.filter(function(e){ return e.source === 'yearbase'; });
+  var el = document.getElementById('wf-base-list');
+  if (!el) return;
+  if (!bases.length) {
+    el.innerHTML = '<div style="padding:16px;color:var(--t3);font-size:13px">등록된 기준 인원이 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = bases.map(function(e, i) {
+    var realIdx = edits.indexOf(e);
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+      '<span style="font-size:13px;font-weight:600;color:var(--t1)">' + e.date + '년</span>' +
+      '<span style="font-size:13px;color:var(--t2)">말일 재직인원</span>' +
+      '<span style="font-size:16px;font-weight:700;color:var(--ac)">' + e.count + '명</span>' +
+      '<div style="margin-left:auto;display:flex;gap:4px">' +
+      '<button class="btn btn-danger btn-sm" style="padding:3px 8px;font-size:11px" onclick="deleteWfEdit(' + realIdx + ')">삭제</button>' +
+      '</div></div>';
+  }).join('');
 }
 
 function openWfEditModal(source, idx) {
@@ -13510,6 +13601,22 @@ function openWfEditModal(source, idx) {
 }
 
 function saveWfEdit() {
+  // 전년 기준 인원 저장
+  if (_wfEditType === 'yearbase') {
+    var yearVal = document.getElementById('wf-base-year').value;
+    var countVal = document.getElementById('wf-base-count').value;
+    if (!yearVal || !countVal) { showToast('❌ 연도와 인원을 입력해주세요'); return; }
+    var edits = wfLoadEdits();
+    // 같은 연도 있으면 교체
+    var existing = edits.findIndex(function(e){ return e.source==='yearbase' && e.date===yearVal; });
+    var row = {source:'yearbase', date:yearVal, count:parseInt(countVal)};
+    if (existing >= 0) edits[existing] = row; else edits.push(row);
+    wfSaveEdits(edits);
+    closeModal('wf-edit-modal');
+    renderWfBaseList();
+    showToast('✅ 기준 인원이 등록되었습니다');
+    return;
+  }
   var nameEl = document.getElementById('wf-edit-name');
   var name = nameEl ? nameEl.value.trim() : '';
   var date = document.getElementById('wf-edit-date').value;
