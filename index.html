@@ -334,7 +334,6 @@ select.form-input{cursor:pointer}
           <div class="nav-item admin-only" onclick="showPage('deptfund',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">💰</span> 부서장 운영비</div>
           <div class="nav-item admin-only" onclick="showPage('workforce',this)"><span class="nav-icon">👥</span> 상시근로자수</div>
           <div class="nav-item admin-only" onclick="showPage('workforce-join',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📥</span> 입퇴사 현황</div>
-          <div class="nav-item admin-only" onclick="showPage('workforce-monthly',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 상시근로자수</div>
           <div class="nav-item admin-only" onclick="showPage('workforce-gender',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 인력구성 분석</div>
           <div class="nav-item admin-only" onclick="showPage('workforce-edit',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">✏️</span> 수정</div>
           <div class="nav-item" onclick="showPage('mypage',this)"><span class="nav-icon">👤</span> 마이페이지</div>
@@ -1252,37 +1251,6 @@ select.form-input{cursor:pointer}
             <div style="padding:0 16px" id="wf-join-list"></div>
           </div>
 
-        </div>
-      </div>
-
-      <!-- ══ 상시근로자수 월별 ══ -->
-      <div id="page-workforce-monthly" class="page">
-        <div class="page-header">
-          <div><div class="page-title">📊 상시근로자수</div><div class="page-sub" id="wf-monthly-sub"></div></div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-ghost btn-sm" onclick="workforceExcel('monthly')">📊 엑셀</button>
-          </div>
-        </div>
-        <div style="padding:0 0 24px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px" id="wf-monthly-year-tabs"></div>
-          <div style="background:linear-gradient(135deg,var(--ac),#6366f1);border-radius:12px;padding:18px 28px;color:#fff;margin-bottom:16px;display:inline-flex;align-items:center;gap:24px;min-width:320px">
-            <div>
-              <div style="font-size:11px;font-weight:600;opacity:0.8;margin-bottom:4px">연간 상시근로자수</div>
-              <div style="display:flex;align-items:baseline;gap:6px">
-                <span style="font-size:36px;font-weight:800;line-height:1" id="wf-m-annual">—</span>
-                <span style="font-size:13px;opacity:0.8">명</span>
-              </div>
-            </div>
-            <div style="font-size:12px;opacity:0.7;border-left:1px solid rgba(255,255,255,0.3);padding-left:20px">월별 합산 ÷ 사용월수</div>
-          </div>
-          <div class="table-wrap">
-            <table id="tbl-wf-monthly">
-              <thead><tr>
-                <th>월</th><th>말일재직</th><th>입사</th><th>퇴사</th><th>남</th><th>여</th><th>월 상시근로자수</th><th>비고</th>
-              </tr></thead>
-              <tbody id="tbody-wf-monthly"></tbody>
-            </table>
-          </div>
         </div>
       </div>
 
@@ -11858,7 +11826,6 @@ function showPage(id, el) {
   if(id === 'organization') renderDeptTable();
   if(id === 'workforce') renderWorkforce();
   if(id === 'workforce-join') renderWfJoin();
-  if(id === 'workforce-monthly') renderWfMonthly();
   if(id === 'workforce-gender') renderWfGender();
   if(id === 'workforce-edit') renderWfEdit();
   if(id === 'cert-dashboard') { certUpdateDashboard(); }
@@ -13692,26 +13659,6 @@ function renderWfJoin(year) {
 }
 
 // ── 월별 상시근로자수 렌더 ──
-function renderWfMonthly(year) {
-  _wfYear = year || _wfYear;
-  wfYearTabs('wf-monthly-year-tabs', _wfYear, 'renderWfMonthly');
-  var monthly = wfGetMonthly(_wfYear);
-  var annual = wfAnnual(monthly);
-  document.getElementById('wf-monthly-sub').textContent = _wfYear + '년';
-  document.getElementById('wf-m-annual').textContent = annual;
-  var curM = _wfYear === new Date().getFullYear() ? new Date().getMonth() + 1 : 12;
-  var tbody = document.getElementById('tbody-wf-monthly');
-  tbody.innerHTML = monthly.slice(0, curM).map(function(m) {
-    return '<tr><td>' + m.month + '월</td><td>' + m.lastDay + '</td>' +
-      '<td style="color:var(--gr)">' + m.join + '</td>' +
-      '<td style="color:var(--rd)">' + m.leave + '</td>' +
-      '<td style="color:var(--ac)">' + m.male + '</td>' +
-      '<td style="color:#be185d">' + m.female + '</td>' +
-      '<td style="font-weight:600">' + m.total + '</td>' +
-      '<td style="color:var(--t3)">자동집계</td></tr>';
-  }).join('');
-}
-
 // ── 인력구성 분석 렌더 ──
 function renderWfGender(year) {
   _wfYear = year || _wfYear;
