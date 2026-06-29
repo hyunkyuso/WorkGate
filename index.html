@@ -13149,12 +13149,12 @@ function wfGetYears() {
   return Array.from(years).filter(function(y){ return !isNaN(y); }).sort(function(a,b){ return b-a; });
 }
 
-function wfYearTabs(containerId, year, onSelect) {
+function wfYearTabs(containerId, year, fnName) {
   var years = wfGetYears();
   var el = document.getElementById(containerId);
   if (!el) return;
   el.innerHTML = years.map(function(y) {
-    return '<button class="btn btn-ghost btn-sm" style="' + (y===year?'background:var(--acd);color:var(--ac);border-color:var(--ac)':'') + '" onclick="(' + onSelect.toString() + ')(' + y + ')">' + y + '년</button>';
+    return '<button class="btn btn-ghost btn-sm" style="' + (y===year?'background:var(--acd);color:var(--ac);border-color:var(--ac)':'') + '" onclick="' + fnName + '(' + y + ')">' + y + '년</button>';
   }).join('');
 }
 
@@ -13233,7 +13233,7 @@ function wfAnnual(monthly) {
 // ── 대시보드 렌더 ──
 function renderWorkforce(year) {
   _wfYear = year || _wfYear;
-  wfYearTabs('workforce-year-tabs', _wfYear, renderWorkforce);
+  wfYearTabs('workforce-year-tabs', _wfYear, 'renderWorkforce');
   var monthly = wfGetMonthly(_wfYear);
   var jl = wfGetJoinLeave(_wfYear);
   var joinTotal = jl.filter(function(e){ return e.type==='입사'; }).length;
@@ -13264,7 +13264,7 @@ function renderWorkforce(year) {
 // ── 입퇴사 현황 렌더 ──
 function renderWfJoin(year) {
   _wfYear = year || _wfYear;
-  wfYearTabs('wf-join-year-tabs', _wfYear, renderWfJoin);
+  wfYearTabs('wf-join-year-tabs', _wfYear, 'renderWfJoin');
   var list = wfGetJoinLeave(_wfYear);
   var joinN = list.filter(function(e){ return e.type==='입사'; }).length;
   var leaveN = list.filter(function(e){ return e.type==='퇴사'; }).length;
@@ -13286,7 +13286,7 @@ function renderWfJoin(year) {
 // ── 월별 상시근로자수 렌더 ──
 function renderWfMonthly(year) {
   _wfYear = year || _wfYear;
-  wfYearTabs('wf-monthly-year-tabs', _wfYear, renderWfMonthly);
+  wfYearTabs('wf-monthly-year-tabs', _wfYear, 'renderWfMonthly');
   var monthly = wfGetMonthly(_wfYear);
   var annual = wfAnnual(monthly);
   document.getElementById('wf-monthly-sub').textContent = _wfYear + '년';
@@ -13307,7 +13307,7 @@ function renderWfMonthly(year) {
 // ── 남녀 현황 렌더 ──
 function renderWfGender(year) {
   _wfYear = year || _wfYear;
-  wfYearTabs('wf-gender-year-tabs', _wfYear, renderWfGender);
+  wfYearTabs('wf-gender-year-tabs', _wfYear, 'renderWfGender');
   var active = employees.filter(function(e){ return e.status!=='퇴직'; });
   var total = active.length;
   var male = active.filter(function(e){ return e.gender==='남'; }).length;
