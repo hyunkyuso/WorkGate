@@ -114,6 +114,7 @@ body{font-family:'Pretendard',sans-serif;background:var(--bg);color:var(--t1);fo
 .kanban-card-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .tag{font-size:10px;padding:2px 7px;border-radius:100px;font-weight:500}
 .tag-blue{background:var(--acd);color:var(--ac)}
+.tag-pink{background:#fce7f3;color:#be185d}
 .tag-green{background:var(--grd);color:var(--gr)}
 .tag-amber{background:var(--amd);color:var(--am)}
 .tag-red{background:var(--rdd);color:var(--rd)}
@@ -817,6 +818,7 @@ select.form-input{cursor:pointer}
                 <th>직위</th>
                 <th>직책</th>
                 <th>직무</th>
+                <th>성별</th>
                 <th>권한</th>
                 <th>재직구분</th>
                 <th style="width:110px;text-align:center">관리</th>
@@ -1256,6 +1258,13 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="form-row">
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">성별</label>
+            <select class="form-input" id="emp-gender">
+              <option value="">선택</option>
+              <option value="남">남</option>
+              <option value="여">여</option>
+            </select>
+          </div>
           <div class="form-group" style="margin-bottom:0"><label class="form-label">재직구분</label>
             <select class="form-input" id="emp-status" onchange="toggleLeaveFields(this.value)">
               <option value="재직">재직</option><option value="휴직">휴직</option><option value="육아휴직">육아휴직</option><option value="퇴직">퇴직</option>
@@ -2315,6 +2324,7 @@ function renderEmployeeTable() {
       <td onclick="toggleEmpHistory('${e.uid}')">${e.position||'-'}</td>
       <td onclick="toggleEmpHistory('${e.uid}')">${e.title||'-'}</td>
       <td onclick="toggleEmpHistory('${e.uid}')">${e.duty||'-'}</td>
+      <td onclick="toggleEmpHistory('${e.uid}')"><span class="tag ${e.gender==='남'?'tag-blue':'tag-pink'}">${e.gender||'-'}</span></td>
       <td onclick="toggleEmpHistory('${e.uid}')"><span class="tag tag-purple">${e.role||'일반'}</span></td>
       <td onclick="toggleEmpHistory('${e.uid}')"><span class="tag ${STATUS_COLORS[e.status]||'tag-blue'}">${e.status||'재직'}</span></td>
       <td style="text-align:center">
@@ -2378,6 +2388,7 @@ function openEmployeeModal(uid) {
     document.getElementById('emp-duty').value = e.duty||'';
     document.getElementById('emp-role').value = e.role||'일반';
     document.getElementById('emp-status').value = e.status||'재직';
+    document.getElementById('emp-gender').value = e.gender||'';
     loadConcurrentRows(e.concurrent||[]);
     document.getElementById('emp-joindate').value = e.joindate||'';
     document.getElementById('emp-leavedate').value = e.leavedate||'';
@@ -2415,6 +2426,7 @@ function openEmployeeModal(uid) {
     document.getElementById('emp-birth-type').value = '양력';
     loadParentRows([]);
     document.getElementById('emp-status').value = '재직';
+    document.getElementById('emp-gender').value = '';
     document.getElementById('emp-role').value = '일반';
     loadConcurrentRows([]);
     clearPhoto();
@@ -2615,6 +2627,7 @@ function saveEmployee() {
       duty: document.getElementById('emp-duty').value,
       role: document.getElementById('emp-role').value,
       status: document.getElementById('emp-status').value,
+      gender: document.getElementById('emp-gender').value,
       joindate: document.getElementById('emp-joindate').value,
       leavedate: document.getElementById('emp-leavedate').value,
       leavestart: document.getElementById('emp-leavestart')?.value || '',
@@ -2632,6 +2645,7 @@ function saveEmployee() {
           duty: document.getElementById('emp-duty').value,
           role: document.getElementById('emp-role').value,
           status: document.getElementById('emp-status').value,
+          gender: document.getElementById('emp-gender').value,
           leavedate: document.getElementById('emp-leavedate').value,
         })
       }].filter(h => h.changes.length > 0),
@@ -2674,6 +2688,7 @@ function saveEmployee() {
       duty: document.getElementById('emp-duty').value,
       role: document.getElementById('emp-role').value,
       status: document.getElementById('emp-status').value,
+      gender: document.getElementById('emp-gender').value,
       joindate: document.getElementById('emp-joindate').value,
       leavedate: document.getElementById('emp-leavedate').value,
       leavestart: document.getElementById('emp-leavestart')?.value || '',
