@@ -2174,6 +2174,10 @@ select.form-input{cursor:pointer}
 
 <!-- SheetJS (엑셀 업로드 파싱) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- mammoth.js (Word 읽기) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<!-- docx.js (Word 생성) -->
+<script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -14291,7 +14295,8 @@ function docStartListener() {
   });
 }
 
-var _docUploadedFile = null; // 업로드된 양식 파일 {base64, type, isPdf, name}
+var _docUploadedFile = null;
+var _docOriginalText = ''; // 원본 양식 텍스트 보관
 
 function docSwitchTab(tab) {
   var isUpload = tab === 'upload';
@@ -14301,7 +14306,7 @@ function docSwitchTab(tab) {
   document.getElementById('doc-tab-upload').style.color = isUpload ? '#fff' : 'var(--t2)';
   document.getElementById('doc-tab-tpl').style.background = isUpload ? 'none' : 'var(--ac)';
   document.getElementById('doc-tab-tpl').style.color = isUpload ? 'var(--t2)' : '#fff';
-  if (!isUpload) _docUploadedFile = null;
+  if (!isUpload) { _docUploadedFile = null; _docOriginalText = ''; }
 }
 
 function docLoadTemplate(input) {
@@ -14310,23 +14315,42 @@ function docLoadTemplate(input) {
   input.value = '';
   var nameEl = document.getElementById('doc-upload-filename');
   var prevEl = document.getElementById('doc-upload-preview');
-  if (nameEl) nameEl.textContent = '📎 ' + file.name;
+  if (nameEl) nameEl.textContent = '📎 ' + file.name + ' — 읽는 중...';
 
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var base64 = e.target.result.split(',')[1];
-    var isPdf = file.type === 'application/pdf';
-    var isImg = file.type.startsWith('image/');
-    _docUploadedFile = {base64: base64, type: file.type, isPdf: isPdf, isImg: isImg, name: file.name};
-    if (prevEl) {
-      prevEl.textContent = isPdf ? 'PDF 파일이 업로드되었습니다. AI가 양식을 읽어 작성합니다.'
-        : isImg ? '이미지 양식이 업로드되었습니다. AI가 양식을 읽어 작성합니다.'
-        : '파일이 업로드되었습니다.';
-      prevEl.style.display = 'block';
-    }
-    showToast('✅ 양식 파일 업로드 완료');
-  };
-  reader.readAsDataURL(file);
+  var isDocx = file.name.toLowerCase().endsWith('.docx');
+  var isPdf = file.type === 'application/pdf';
+  var isImg = file.type.startsWith('image/');
+
+  if (isDocx) {
+    // mammoth로 텍스트 추출
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      mammoth.extractRawText({arrayBuffer: e.target.result})
+        .then(function(result) {
+          _docOriginalText = result.value;
+          _docUploadedFile = {type: 'text', name: file.name, isDocx: true};
+          if (nameEl) nameEl.textContent = '✅ ' + file.name;
+          if (prevEl) { prevEl.textContent = _docOriginalText.substring(0, 150) + '...'; prevEl.style.display = 'block'; }
+          showToast('✅ Word 양식 로드 완료');
+        }).catch(function(e) {
+          if (nameEl) nameEl.textContent = '❌ 읽기 실패';
+          showToast('❌ Word 파일 읽기 실패: ' + e.message);
+        });
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    // PDF/이미지는 base64로
+    var reader2 = new FileReader();
+    reader2.onload = function(e) {
+      var base64 = e.target.result.split(',')[1];
+      _docUploadedFile = {base64: base64, type: file.type, isPdf: isPdf, isImg: isImg, name: file.name};
+      _docOriginalText = '';
+      if (nameEl) nameEl.textContent = '✅ ' + file.name;
+      if (prevEl) { prevEl.textContent = isPdf ? 'PDF 양식 업로드됨' : '이미지 양식 업로드됨'; prevEl.style.display = 'block'; }
+      showToast('✅ 양식 파일 로드 완료');
+    };
+    reader2.readAsDataURL(file);
+  }
 }
 
 function docTplLoadFile(input) {
@@ -14485,25 +14509,28 @@ function docGenerate() {
 
   var messages;
 
-  // 파일 업로드 탭이고 파일이 있으면 → 파일 양식 기반
   if (_docUploadedFile) {
-    var filePrompt = '다음은 공문/계약서 양식 파일입니다. 이 양식의 형식과 구조를 그대로 유지하면서, 아래 입력 정보를 바탕으로 초안을 작성해주세요. 마크다운 없이 텍스트로만 출력하세요.\n\n[입력 정보]\n' + infoText;
-    var fileContent = _docUploadedFile.isPdf
-      ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:_docUploadedFile.base64}}, {type:'text', text:filePrompt}]
-      : _docUploadedFile.isImg
-        ? [{type:'image', source:{type:'base64', media_type:_docUploadedFile.type, data:_docUploadedFile.base64}}, {type:'text', text:filePrompt}]
-        : [{type:'text', text:'다음 양식을 기반으로 작성해주세요.\n\n[입력 정보]\n' + infoText}];
-    messages = [{role:'user', content: fileContent}];
+    if (_docUploadedFile.isDocx && _docOriginalText) {
+      // docx 텍스트 기반
+      var prompt = '다음은 공문/계약서 양식의 텍스트입니다. 이 양식의 구조와 형식을 완벽하게 유지하면서, 아래 입력 정보를 바탕으로 빈칸과 내용을 채워주세요.\n\n[원본 양식]\n' + _docOriginalText + '\n\n[입력 정보]\n' + infoText + '\n주의: 양식의 모든 구조(제목, 단락, 항목번호 등)를 그대로 유지하고 내용만 채워주세요. 마크다운 없이 텍스트로만 출력하세요.';
+      messages = [{role:'user', content: prompt}];
+    } else {
+      // PDF/이미지 양식
+      var filePrompt = '이 파일은 공문/계약서 양식입니다. 양식의 구조와 형식을 완벽하게 유지하면서 아래 입력 정보를 바탕으로 내용을 채워 초안을 작성해주세요.\n\n[입력 정보]\n' + infoText + '\n주의: 양식의 모든 구조를 그대로 유지하고 내용만 채워주세요. 마크다운 없이 텍스트로만 출력하세요.';
+      var fileContent = _docUploadedFile.isPdf
+        ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:_docUploadedFile.base64}}, {type:'text', text:filePrompt}]
+        : [{type:'image', source:{type:'base64', media_type:_docUploadedFile.type, data:_docUploadedFile.base64}}, {type:'text', text:filePrompt}];
+      messages = [{role:'user', content: fileContent}];
+    }
   } else {
-    // 저장 템플릿 또는 자유 작성
     var sel = document.getElementById('doc-template-select');
     var idx = sel ? parseInt(sel.value) : NaN;
     var tpl = (!isNaN(idx) && _docTemplates[idx]) ? _docTemplates[idx].content : '';
-    var prompt = tpl
+    var freePrompt = tpl
       ? '다음 양식(템플릿)에 맞춰 공문/계약서 초안을 작성해주세요.\n\n[양식]\n' + tpl + '\n\n[입력 정보]\n' + infoText
       : '공문/계약서 초안을 전문적으로 작성해주세요.\n\n[입력 정보]\n' + infoText;
-    prompt += '\n양식 형식을 유지하면서 전문적이고 정확하게 작성하세요. 마크다운 없이 텍스트로만 출력하세요.';
-    messages = [{role:'user', content: prompt}];
+    freePrompt += '\n양식 형식을 유지하면서 전문적이고 정확하게 작성하세요. 마크다운 없이 텍스트로만 출력하세요.';
+    messages = [{role:'user', content: freePrompt}];
   }
 
   fetch(CF_URL, {
@@ -14517,7 +14544,7 @@ function docGenerate() {
     resultEl.value = text;
     resultEl.style.display='block';
     actionsEl.style.display='flex';
-    showToast('✅ 초안 작성 완료');
+    showToast('✅ 초안 작성 완료 — Word로 다운로드하세요');
   }).catch(function(e){
     loadEl.style.display='none'; emptyEl.style.display='flex';
     showToast('❌ API 오류: ' + e.message);
@@ -14533,13 +14560,39 @@ function docCopy() {
 function docDownload() {
   var el = document.getElementById('doc-draft-result');
   if (!el || !el.value) return;
-  var blob = new Blob(['\uFEFF' + el.value], {type:'text/plain;charset=utf-8'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = '초안_' + new Date().toISOString().substring(0,10) + '.txt';
-  a.click();
-  URL.revokeObjectURL(a.href);
-  showToast('⬇ 다운로드 완료');
+  var text = el.value;
+
+  try {
+    var lines = text.split('\n');
+    var children = lines.map(function(line) {
+      return new docx.Paragraph({
+        children: [new docx.TextRun({text: line, size: 24, font: '맑은 고딕'})],
+        spacing: {after: 120}
+      });
+    });
+    var doc = new docx.Document({
+      sections: [{
+        properties: {page: {margin: {top:1440, right:1134, bottom:1440, left:1134}}},
+        children: children
+      }]
+    });
+    docx.Packer.toBlob(doc).then(function(blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '초안_' + new Date().toISOString().substring(0,10) + '.docx';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('⬇ Word 파일 다운로드 완료');
+    });
+  } catch(e) {
+    var blob2 = new Blob(['\uFEFF' + text], {type:'text/plain;charset=utf-8'});
+    var a2 = document.createElement('a');
+    a2.href = URL.createObjectURL(blob2);
+    a2.download = '초안_' + new Date().toISOString().substring(0,10) + '.txt';
+    a2.click();
+    URL.revokeObjectURL(a2.href);
+    showToast('⬇ 텍스트 파일 다운로드 완료');
+  }
 }
 
 // ── 계약서 검토 ──
