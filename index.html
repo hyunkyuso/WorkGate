@@ -13720,7 +13720,13 @@ function renderWfGender(year) {
     if (e.gender==='남') { positions[p].male++; duties[d].male++; }
     if (e.gender==='여') { positions[p].female++; duties[d].female++; }
   });
-  var posKeys = Object.keys(positions).sort(function(a,b){ return positions[b].total - positions[a].total; });
+  var posOrder = ['대표이사','부사장','전무','상무','이사','부장','차장','과장','대리','주임','사원','인턴','미지정'];
+  var posKeys = Object.keys(positions).sort(function(a,b){
+    var ai = posOrder.indexOf(a); var bi = posOrder.indexOf(b);
+    if (ai < 0) ai = posOrder.length;
+    if (bi < 0) bi = posOrder.length;
+    return ai - bi;
+  });
   var dutyKeys = Object.keys(duties).sort(function(a,b){ return duties[b].total - duties[a].total; });
   document.getElementById('wf-g-position-cnt').textContent = posKeys.length;
   document.getElementById('wf-g-position-sub').textContent = posKeys.slice(0,3).join(' · ') + (posKeys.length>3?' 외':'');
