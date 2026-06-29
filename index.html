@@ -2199,6 +2199,10 @@ select.form-input{cursor:pointer}
 <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 <!-- JSZip (Word XML 직접 수정) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- pdf.js (PDF 렌더링) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- jsPDF (캔버스 → PDF 저장) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -14388,48 +14392,52 @@ function docTplLoadFile(input) {
   var isDocx = file.name.toLowerCase().endsWith('.docx');
   var isPdf = file.type === 'application/pdf';
 
-  var processText = function(text) {
-    // AI에게 변수 후보 감지 요청
-    var prompt = '다음 공문/계약서 양식에서 문서마다 바뀌는 항목(수신처, 날짜, 금액, 이름 등)을 감지하여 JSON 배열로만 반환하세요.\n' +
-      '형식: {"vars": ["항목1", "항목2", ...], "text": "원본텍스트"}\n' +
-      '반드시 JSON만 출력하고 다른 텍스트는 없어야 합니다.\n\n[양식]\n' + text;
+  var processWithAI = function(fileContent) {
+    var prompt = '이 공문/계약서 양식에서 문서마다 바뀌는 항목들을 찾아주세요.\n' +
+      '각 항목에 대해 변수명과 해당 부분의 원본 텍스트(실제 문서에 있는 텍스트)를 함께 반환하세요.\n' +
+      '형식: {"vars": [{"name": "변수명", "original": "원본텍스트"}, ...]} \n' +
+      '반드시 JSON만 출력하세요.';
+
+    var messages = isPdf
+      ? [{role:'user', content:[{type:'document', source:{type:'base64', media_type:'application/pdf', data:fileContent}}, {type:'text', text:prompt}]}]
+      : [{role:'user', content:[{type:'image', source:{type:'base64', media_type:file.type, data:fileContent}}, {type:'text', text:prompt}]}];
 
     fetch(CF_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:2000, messages:[{role:'user', content:prompt}]})
+      body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:2000, messages:messages})
     }).then(function(r){ return r.json(); })
     .then(function(data) {
       var raw = data.content && data.content[0] ? data.content[0].text : '';
       var parsed;
-      try { parsed = JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch(e) { parsed = {vars:[], text:text}; }
+      try { parsed = JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch(e) { parsed = {vars:[]}; }
 
       var vars = parsed.vars || [];
-      var fullText = parsed.text || text;
 
-      // 체크박스 표시
       var varsSection = document.getElementById('doc-tpl-vars-section');
       var varsList = document.getElementById('doc-tpl-vars-list');
       var contentSection = document.getElementById('doc-tpl-content-section');
       var contentEl = document.getElementById('doc-tpl-content');
 
-      contentEl.value = fullText;
-      contentSection.style.display = 'block';
+      // 변수 정보를 JSON으로 content에 저장
+      if (contentEl) contentEl.value = JSON.stringify({isPdf: isPdf, vars: vars, fileName: file.name});
+      if (contentSection) contentSection.style.display = 'none'; // 미리보기 숨김
 
       if (vars.length) {
         varsSection.style.display = 'block';
         varsList.innerHTML = vars.map(function(v) {
           return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface)">' +
-            '<input type="checkbox" value="' + v + '" checked> ' + v +
+            '<input type="checkbox" value="' + v.name + '" data-original="' + (v.original||'').replace(/"/g,'&quot;') + '" checked> ' +
+            '<span><strong>' + v.name + '</strong> <span style="font-size:11px;color:var(--t3)">→ 원본: ' + (v.original||'') + '</span></span>' +
           '</label>';
         }).join('');
       } else {
         varsSection.style.display = 'none';
       }
 
-      if (nameEl) nameEl.textContent = '✅ ' + file.name + ' 분석 완료';
+      if (nameEl) nameEl.textContent = '✅ ' + file.name + ' — 변수 ' + vars.length + '개 감지';
       showToast('✅ 변수 ' + vars.length + '개 감지됨');
     }).catch(function(e) {
-      if (nameEl) nameEl.textContent = '❌ 오류: ' + e.message;
+      if (nameEl) nameEl.textContent = '❌ 오류';
       showToast('❌ API 오류: ' + e.message);
     });
   };
@@ -14438,26 +14446,47 @@ function docTplLoadFile(input) {
     var reader = new FileReader();
     reader.onload = function(e) {
       mammoth.extractRawText({arrayBuffer: e.target.result})
-        .then(function(result){ processText(result.value); })
-        .catch(function(e){ showToast('❌ Word 읽기 실패'); });
+        .then(function(result) {
+          // docx는 텍스트 기반으로 처리
+          var prompt = '다음 양식에서 문서마다 바뀌는 항목들을 찾아주세요.\n' +
+            '형식: {"vars": [{"name": "변수명", "original": "원본텍스트"}, ...]} JSON만 출력하세요.\n\n' + result.value;
+          fetch(CF_URL, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:2000, messages:[{role:'user', content:prompt}]})
+          }).then(function(r){ return r.json(); })
+          .then(function(data) {
+            var raw = data.content && data.content[0] ? data.content[0].text : '';
+            var parsed; try { parsed = JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch(e){ parsed={vars:[]}; }
+            var vars = parsed.vars||[];
+            var varsSection = document.getElementById('doc-tpl-vars-section');
+            var varsList = document.getElementById('doc-tpl-vars-list');
+            var contentEl = document.getElementById('doc-tpl-content');
+            if (contentEl) contentEl.value = result.value;
+            document.getElementById('doc-tpl-content-section').style.display = 'block';
+            if (vars.length) {
+              varsSection.style.display='block';
+              varsList.innerHTML = vars.map(function(v){
+                return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface)">' +
+                  '<input type="checkbox" value="' + v.name + '" data-original="' + (v.original||'').replace(/"/g,'&quot;') + '" checked> ' +
+                  '<span><strong>' + v.name + '</strong> <span style="font-size:11px;color:var(--t3)">→ ' + (v.original||'') + '</span></span>' +
+                '</label>';
+              }).join('');
+            }
+            if (nameEl) nameEl.textContent = '✅ ' + file.name + ' — 변수 ' + vars.length + '개 감지';
+            showToast('✅ 변수 ' + vars.length + '개 감지됨');
+          });
+        }).catch(function(){ showToast('❌ Word 읽기 실패'); });
     };
     reader.readAsArrayBuffer(file);
   } else {
     var reader2 = new FileReader();
     reader2.onload = function(e) {
       var base64 = e.target.result.split(',')[1];
-      var prompt = '이 파일의 내용을 텍스트로 추출해주세요. 마크다운 없이 텍스트만 출력하세요.';
-      var content = isPdf
-        ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}}, {type:'text', text:prompt}]
-        : [{type:'image', source:{type:'base64', media_type:file.type, data:base64}}, {type:'text', text:prompt}];
-      fetch(CF_URL, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:3000, messages:[{role:'user', content:content}]})
-      }).then(function(r){ return r.json(); })
-      .then(function(data) {
-        var text = data.content && data.content[0] ? data.content[0].text : '';
-        processText(text);
-      }).catch(function(e){ showToast('❌ 파일 읽기 실패'); });
+      // PDF/이미지 원본 base64 보관
+      window._docTplPdfBase64 = base64;
+      window._docTplPdfType = file.type;
+      window._docTplPdfName = file.name;
+      processWithAI(base64);
     };
     reader2.readAsDataURL(file);
   }
@@ -14583,26 +14612,42 @@ function openDocTemplateModal(idx) {
 function saveDocTemplate() {
   var name = document.getElementById('doc-tpl-name').value.trim();
   var rawContent = document.getElementById('doc-tpl-content') ? document.getElementById('doc-tpl-content').value.trim() : '';
-  if (!name || !rawContent) { showToast('❌ 파일을 업로드하고 이름을 입력해주세요'); return; }
+  if (!name) { showToast('❌ 템플릿 이름을 입력해주세요'); return; }
 
-  // 체크된 변수 목록 수집
+  // 체크된 변수 목록 수집 (name + original 텍스트 포함)
   var checkboxes = document.querySelectorAll('#doc-tpl-vars-list input[type=checkbox]:checked');
   var checkedVars = [];
-  checkboxes.forEach(function(chk) { checkedVars.push(chk.value); });
+  checkboxes.forEach(function(chk) {
+    checkedVars.push({
+      name: chk.value,
+      original: chk.getAttribute('data-original') || chk.value
+    });
+  });
+
+  // PDF 원본 저장 여부
+  var isPdfTpl = !!(window._docTplPdfBase64);
 
   var data = {
     name: name,
     type: document.getElementById('doc-tpl-type').value,
     content: rawContent,
-    vars: checkedVars, // 변수 목록 별도 저장
+    vars: checkedVars.map(function(v){ return v.name; }),
+    varMaps: checkedVars, // {name, original} 쌍
+    isPdf: isPdfTpl,
+    pdfBase64: isPdfTpl ? window._docTplPdfBase64 : null,
+    pdfType: isPdfTpl ? window._docTplPdfType : null,
     desc: document.getElementById('doc-tpl-desc').value.trim(),
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
+
   var p = (_docEditIdx >= 0 && _docTemplates[_docEditIdx])
     ? db.collection('doc_templates').doc(_docTemplates[_docEditIdx].id).update(data)
     : db.collection('doc_templates').add(data);
-  p.then(function(){ closeModal('doc-template-modal'); showToast('✅ 저장되었습니다'); })
-   .catch(function(e){ showToast('❌ 저장 실패: ' + e.message); });
+  p.then(function(){
+    closeModal('doc-template-modal');
+    window._docTplPdfBase64 = null;
+    showToast('✅ 저장되었습니다');
+  }).catch(function(e){ showToast('❌ 저장 실패: ' + e.message); });
 }
 
 function deleteDocTemplate(id) {
@@ -14812,27 +14857,114 @@ function docDownload() {
   }
 }
 
+// ── PDF 변수 치환 + 다운로드 ──
 function docDownloadPdf() {
   var el = document.getElementById('doc-draft-result');
+
+  // PDF 템플릿 기반 치환
+  var sel = document.getElementById('doc-template-select');
+  var idx = sel ? parseInt(sel.value) : NaN;
+  var tpl = (!isNaN(idx) && _docTemplates[idx]) ? _docTemplates[idx] : null;
+
+  if (tpl && tpl.isPdf && tpl.pdfBase64) {
+    // PDF 렌더링 + 변수 덮어쓰기
+    var varMaps = tpl.varMaps || [];
+    var varValues = {};
+    varMaps.forEach(function(v) {
+      var inputEl = document.getElementById('doc-var-' + v.name);
+      varValues[v.original] = inputEl ? inputEl.value.trim() : '';
+    });
+    docRenderPdfWithVars(tpl.pdfBase64, varValues);
+    return;
+  }
+
+  // 일반 텍스트 → PDF
   if (!el || !el.value) return;
   var text = el.value;
-
-  // 새 창에서 인쇄 다이얼로그로 PDF 저장
   var win = window.open('', '_blank');
   win.document.write(
-    '<!DOCTYPE html><html><head><meta charset="utf-8">' +
-    '<title>초안</title>' +
-    '<style>' +
-    'body{font-family:"맑은 고딕","Malgun Gothic",sans-serif;font-size:12pt;line-height:1.8;margin:25mm 20mm;color:#000}' +
-    'pre{white-space:pre-wrap;font-family:inherit;font-size:inherit}' +
-    '@media print{body{margin:0}@page{margin:25mm 20mm}}' +
-    '</style></head><body>' +
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>초안</title>' +
+    '<style>body{font-family:"맑은 고딕",sans-serif;font-size:12pt;line-height:1.8;margin:25mm 20mm}' +
+    'pre{white-space:pre-wrap;font-family:inherit}' +
+    '@page{margin:25mm 20mm}</style></head><body>' +
     '<pre>' + text.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre>' +
-    '<script>window.onload=function(){window.print();}<\/script>' +
-    '</body></html>'
+    '<script>window.onload=function(){window.print();}<\/script></body></html>'
   );
   win.document.close();
   showToast('📄 인쇄 창에서 PDF로 저장하세요');
+}
+
+function docRenderPdfWithVars(base64, varValues) {
+  showToast('📄 PDF 생성 중...');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  var pdfData = atob(base64);
+  var pdfArray = new Uint8Array(pdfData.length);
+  for (var i=0; i<pdfData.length; i++) pdfArray[i] = pdfData.charCodeAt(i);
+
+  pdfjsLib.getDocument({data: pdfArray}).promise.then(function(pdfDoc) {
+    var totalPages = pdfDoc.numPages;
+    var canvases = [];
+    var scale = 2; // 고해상도
+
+    var renderPage = function(pageNum) {
+      return pdfDoc.getPage(pageNum).then(function(page) {
+        var viewport = page.getViewport({scale: scale});
+        var canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        var ctx = canvas.getContext('2d');
+
+        return page.render({canvasContext: ctx, viewport: viewport}).promise
+          .then(function() { return page.getTextContent(); })
+          .then(function(textContent) {
+            // 텍스트 항목에서 변수 원본 텍스트 위치 찾아서 덮어쓰기
+            textContent.items.forEach(function(item) {
+              Object.keys(varValues).forEach(function(original) {
+                if (!original || !item.str.includes(original)) return;
+                var newVal = varValues[original];
+                if (!newVal) return;
+
+                // 텍스트 위치 계산
+                var tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+                var x = tx[4];
+                var y = tx[5];
+                var fontSize = Math.abs(tx[0]) || 12;
+
+                // 흰 박스로 덮기
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(x, y - fontSize * 1.2, item.width * scale + 4, fontSize * 1.4);
+
+                // 새 텍스트 씀
+                ctx.fillStyle = '#000000';
+                ctx.font = fontSize + 'px "맑은 고딕", sans-serif';
+                ctx.fillText(newVal, x, y);
+              });
+            });
+            canvases.push({canvas: canvas, width: viewport.width/scale, height: viewport.height/scale});
+          });
+      });
+    };
+
+    // 모든 페이지 렌더링
+    var pages = [];
+    for (var p=1; p<=totalPages; p++) pages.push(p);
+    pages.reduce(function(chain, pageNum) {
+      return chain.then(function(){ return renderPage(pageNum); });
+    }, Promise.resolve()).then(function() {
+      // jsPDF로 저장
+      var pdf = new jspdf.jsPDF({unit:'pt', format:'a4'});
+      canvases.forEach(function(c, i) {
+        if (i > 0) pdf.addPage();
+        var imgData = c.canvas.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(imgData, 'JPEG', 0, 0, 595, 842);
+      });
+      pdf.save('초안_' + new Date().toISOString().substring(0,10) + '.pdf');
+      showToast('✅ PDF 다운로드 완료');
+    });
+  }).catch(function(e) {
+    showToast('❌ PDF 처리 오류: ' + e.message);
+  });
 }
 var _docReviewHistory = []; // 대화 히스토리
 var _docReviewFileContent = null; // 업로드된 파일 base64 + type 보관
