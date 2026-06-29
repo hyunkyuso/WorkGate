@@ -1229,14 +1229,33 @@ select.form-input{cursor:pointer}
               <div style="font-size:20px;font-weight:700;margin-top:4px" id="wf-g-ratio">—</div>
             </div>
           </div>
-          <!-- 성비 바 -->
+          <!-- 성비 바 - 재직자 -->
           <div class="card" style="margin-bottom:16px">
+            <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px">재직자 성비</div>
             <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
               <span style="color:var(--ac);font-weight:600" id="wf-g-bar-m-label">남 —%</span>
               <span style="color:#be185d;font-weight:600" id="wf-g-bar-f-label">여 —%</span>
             </div>
-            <div style="height:12px;background:#fce7f3;border-radius:99px;overflow:hidden">
+            <div style="height:14px;background:#fce7f3;border-radius:99px;overflow:hidden">
               <div id="wf-g-bar" style="height:100%;background:var(--ac);border-radius:99px;transition:width .4s ease;width:0%"></div>
+            </div>
+            <!-- 입사자 성비 -->
+            <div style="font-size:12px;font-weight:600;color:var(--t2);margin-top:16px;margin-bottom:10px">입사자 성비 <span style="font-size:11px;font-weight:400;color:var(--t3)" id="wf-g-join-label"></span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+              <span style="color:var(--ac);font-weight:600" id="wf-g-join-m-label">남 —명</span>
+              <span style="color:#be185d;font-weight:600" id="wf-g-join-f-label">여 —명</span>
+            </div>
+            <div style="height:10px;background:#fce7f3;border-radius:99px;overflow:hidden">
+              <div id="wf-g-join-bar" style="height:100%;background:var(--ac);border-radius:99px;transition:width .4s ease;width:0%"></div>
+            </div>
+            <!-- 퇴사자 성비 -->
+            <div style="font-size:12px;font-weight:600;color:var(--t2);margin-top:16px;margin-bottom:10px">퇴사자 성비 <span style="font-size:11px;font-weight:400;color:var(--t3)" id="wf-g-leave-label"></span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+              <span style="color:var(--ac);font-weight:600" id="wf-g-leave-m-label">남 —명</span>
+              <span style="color:#be185d;font-weight:600" id="wf-g-leave-f-label">여 —명</span>
+            </div>
+            <div style="height:10px;background:#fce7f3;border-radius:99px;overflow:hidden">
+              <div id="wf-g-leave-bar" style="height:100%;background:var(--ac);border-radius:99px;transition:width .4s ease;width:0%"></div>
             </div>
           </div>
           <!-- 월별 성별 테이블 -->
@@ -13153,9 +13172,11 @@ function wfYearTabs(containerId, year, fnName) {
   var years = wfGetYears();
   var el = document.getElementById(containerId);
   if (!el) return;
-  el.innerHTML = years.map(function(y) {
-    return '<button class="btn btn-ghost btn-sm" style="' + (y===year?'background:var(--acd);color:var(--ac);border-color:var(--ac)':'') + '" onclick="' + fnName + '(' + y + ')">' + y + '년</button>';
-  }).join('');
+  el.innerHTML = '<select class="form-input" style="max-width:120px;font-size:13px" onchange="' + fnName + '(parseInt(this.value))">' +
+    years.map(function(y) {
+      return '<option value="' + y + '"' + (y===year?' selected':'') + '>' + y + '년</option>';
+    }).join('') +
+  '</select>';
 }
 
 // 해당 연도 입퇴사 목록 (직원관리 + 수정 데이터 합산)
@@ -13324,6 +13345,29 @@ function renderWfGender(year) {
   document.getElementById('wf-g-bar-m-label').textContent = '남 ' + mPct + '%';
   document.getElementById('wf-g-bar-f-label').textContent = '여 ' + fPct + '%';
   document.getElementById('wf-g-bar').style.width = mPct + '%';
+
+  // 입퇴사 성비
+  var jl = wfGetJoinLeave(_wfYear);
+  var joinList = jl.filter(function(e){ return e.type==='입사'; });
+  var leaveList = jl.filter(function(e){ return e.type==='퇴사'; });
+  var joinM = joinList.filter(function(e){ return e.gender==='남'; }).length;
+  var joinF = joinList.filter(function(e){ return e.gender==='여'; }).length;
+  var leaveM = leaveList.filter(function(e){ return e.gender==='남'; }).length;
+  var leaveF = leaveList.filter(function(e){ return e.gender==='여'; }).length;
+  var joinTotal = joinList.length;
+  var leaveTotal = leaveList.length;
+  var joinMPct = joinTotal ? Math.round(joinM/joinTotal*1000)/10 : 0;
+  var leaveMPct = leaveTotal ? Math.round(leaveM/leaveTotal*1000)/10 : 0;
+
+  document.getElementById('wf-g-join-label').textContent = '총 ' + joinTotal + '명';
+  document.getElementById('wf-g-join-m-label').textContent = '남 ' + joinM + '명 (' + joinMPct + '%)';
+  document.getElementById('wf-g-join-f-label').textContent = '여 ' + joinF + '명 (' + (joinTotal?Math.round(joinF/joinTotal*1000)/10:0) + '%)';
+  document.getElementById('wf-g-join-bar').style.width = joinMPct + '%';
+
+  document.getElementById('wf-g-leave-label').textContent = '총 ' + leaveTotal + '명';
+  document.getElementById('wf-g-leave-m-label').textContent = '남 ' + leaveM + '명 (' + leaveMPct + '%)';
+  document.getElementById('wf-g-leave-f-label').textContent = '여 ' + leaveF + '명 (' + (leaveTotal?Math.round(leaveF/leaveTotal*1000)/10:0) + '%)';
+  document.getElementById('wf-g-leave-bar').style.width = leaveMPct + '%';
 
   var monthly = wfGetMonthly(_wfYear);
   var curM = _wfYear === new Date().getFullYear() ? new Date().getMonth() + 1 : 12;
