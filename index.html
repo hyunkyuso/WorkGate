@@ -13330,22 +13330,30 @@ function renderWfJoin(year) {
     if (e.type==='입사') monthMap[m].in++;
     else monthMap[m].out++;
   });
-  var maxVal = Math.max.apply(null, Object.values(monthMap).map(function(v){ return v.in + v.out; })) || 1;
+  var maxVal = 0;
+  for (var m2=1; m2<=12; m2++) {
+    var v = monthMap[m2].in + monthMap[m2].out;
+    if (v > maxVal) maxVal = v;
+  }
+  if (!maxVal) maxVal = 1;
   var curM = _wfYear === new Date().getFullYear() ? new Date().getMonth() + 1 : 12;
   var chartEl = document.getElementById('wf-join-bar-chart');
   if (chartEl) {
-    chartEl.innerHTML = Array.from({length:curM}, function(_,i){ return i+1; }).map(function(m) {
-      var d = monthMap[m];
-      var inH = Math.max(d.in ? Math.round(d.in/maxVal*50) : 0, d.in ? 4 : 0);
-      var outH = Math.max(d.out ? Math.round(d.out/maxVal*50) : 0, d.out ? 4 : 0);
-      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">' +
-        '<div style="width:100%;display:flex;flex-direction:column;gap:2px;justify-content:flex-end;height:52px">' +
-        (d.in ? '<div style="background:var(--gr);border-radius:3px 3px 0 0;height:' + inH + 'px"></div>' : '') +
-        (d.out ? '<div style="background:var(--rd);border-radius:3px 3px 0 0;height:' + outH + 'px"></div>' : '') +
+    var bars = '';
+    for (var mi=1; mi<=curM; mi++) {
+      var d = monthMap[mi];
+      var inH = d.in ? Math.max(Math.round(d.in/maxVal*48), 6) : 0;
+      var outH = d.out ? Math.max(Math.round(d.out/maxVal*48), 6) : 0;
+      bars += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">' +
+        '<div style="width:100%;height:52px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px">' +
+        (outH ? '<div style="width:100%;height:' + outH + 'px;background:var(--rd);border-radius:3px"></div>' : '') +
+        (inH ? '<div style="width:100%;height:' + inH + 'px;background:var(--gr);border-radius:3px"></div>' : '') +
+        (!inH && !outH ? '<div style="width:100%;height:3px;background:var(--border);border-radius:3px"></div>' : '') +
         '</div>' +
-        '<span style="font-size:10px;color:var(--t3)">' + m + '월</span>' +
+        '<span style="font-size:10px;color:var(--t3)">' + mi + '월</span>' +
       '</div>';
-    }).join('');
+    }
+    chartEl.innerHTML = bars;
   }
 
   // 카드 목록
