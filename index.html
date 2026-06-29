@@ -13760,7 +13760,7 @@ function renderWfGender(year) {
   document.getElementById('wg-join-trend').innerHTML = trendHtml || '<div style="font-size:12px;color:var(--t3)">데이터 없음</div>';
 
   // ── 직위별 인원 바 ──
-  var posMax = posKeys.length ? positions[posKeys[0]].total : 1;
+  var posMax = posKeys.reduce(function(m,p){ return Math.max(m, positions[p].total); }, 1);
   document.getElementById('wg-position-bars').innerHTML = posKeys.map(function(p) {
     var w = Math.round(positions[p].total/posMax*100);
     return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:3px"><span>' + p + '</span><span style="font-weight:600;color:var(--t1)">' + positions[p].total + '명</span></div>' +
