@@ -13225,6 +13225,15 @@ var _wfYear = new Date().getFullYear();
 var _wfEditType = null;
 var _wfEditIdx = -1;
 
+// 현재 재직인원 = 직원관리 재직자 + 수정 추가 미등록 입사 - 수정 추가 미등록 퇴사
+function wfGetCurActive() {
+  var base = employees.filter(function(e){ return e.status!=='퇴직'; }).length;
+  var edits = wfLoadEdits().filter(function(e){ return e.source === 'unregistered'; });
+  var addIn  = edits.filter(function(e){ return e.type === '입사'; }).length;
+  var addOut = edits.filter(function(e){ return e.type === '퇴사'; }).length;
+  return base + addIn - addOut;
+}
+
 function wfLoadEdits() {
   try { return JSON.parse(localStorage.getItem('wg_wf_edits') || '[]'); } catch { return []; }
 }
@@ -13348,7 +13357,7 @@ function renderWorkforce(year) {
   var jl = wfGetJoinLeave(_wfYear);
   var joinTotal = jl.filter(function(e){ return e.type==='입사'; }).length;
   var leaveTotal = jl.filter(function(e){ return e.type==='퇴사'; }).length;
-  var curActive = employees.filter(function(e){ return e.status!=='퇴직'; }).length;
+  var curActive = wfGetCurActive();
 
   document.getElementById('wf-annual').textContent = wfAnnual(monthly);
   document.getElementById('wf-current').textContent = curActive;
@@ -13379,7 +13388,7 @@ function renderWfJoin(year) {
   var list = wfGetJoinLeave(_wfYear);
   var joinN = list.filter(function(e){ return e.type==='입사'; }).length;
   var leaveN = list.filter(function(e){ return e.type==='퇴사'; }).length;
-  var curActive = employees.filter(function(e){ return e.status!=='퇴직'; }).length;
+  var curActive = wfGetCurActive();
 
   document.getElementById('wf-join-sub').textContent = _wfYear + '년 · 총 ' + list.length + '건';
   document.getElementById('wf-j-total-in').textContent = joinN;
