@@ -1661,6 +1661,14 @@ select.form-input{cursor:pointer}
             <div style="margin-bottom:12px">
               <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">양식 내용 <span style="color:var(--rd)">*</span></label>
               <div style="font-size:11px;color:var(--t3);margin-bottom:6px;padding:8px 10px;background:var(--acd);border-radius:6px">💡 AI가 채울 부분은 <strong>[항목명]</strong> 형식으로 표시하세요. 예: [수신처], [계약금액], [계약기간]</div>
+              <!-- 파일 업로드로 자동 입력 -->
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <label style="padding:6px 12px;font-size:12px;border:1px solid var(--ac);border-radius:6px;cursor:pointer;color:var(--ac);white-space:nowrap;font-weight:500">
+                  📎 파일로 불러오기
+                  <input type="file" accept=".pdf,image/*" style="display:none" onchange="docTplLoadFile(this)">
+                </label>
+                <span id="doc-tpl-upload-name" style="font-size:12px;color:var(--t3)">PDF · JPG · PNG 업로드 시 AI가 자동으로 내용을 추출합니다</span>
+              </div>
               <textarea id="doc-tpl-content" class="form-input" rows="14" style="resize:vertical;font-size:13px;line-height:1.8" placeholder="공문/계약서 양식을 입력하세요&#10;&#10;예)&#10;업무협약서&#10;&#10;[갑] (이하 '갑'이라 한다)과 [을] (이하 '을'이라 한다)은&#10;상호 협력을 위하여 다음과 같이 협약을 체결한다."></textarea>
             </div>
             <div>
@@ -14317,6 +14325,48 @@ function docLoadTemplate(input) {
       prevEl.style.display = 'block';
     }
     showToast('✅ 양식 파일 업로드 완료');
+  };
+  reader.readAsDataURL(file);
+}
+
+function docTplLoadFile(input) {
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  var nameEl = document.getElementById('doc-tpl-upload-name');
+  var contentEl = document.getElementById('doc-tpl-content');
+  if (nameEl) nameEl.textContent = '📎 ' + file.name + ' — AI가 내용을 추출 중입니다...';
+  if (contentEl) contentEl.placeholder = 'AI가 양식 내용을 추출 중입니다...';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result.split(',')[1];
+    var isPdf = file.type === 'application/pdf';
+
+    var prompt = '이 파일은 공문 또는 계약서 양식입니다. 양식의 내용을 그대로 텍스트로 추출해주세요.\n' +
+      '- 원본 형식과 구조를 최대한 유지하세요\n' +
+      '- 빈칸이나 작성해야 할 부분은 [항목명] 형식으로 표시하세요 (예: [수신처], [계약금액])\n' +
+      '- 마크다운 없이 텍스트로만 출력하세요';
+
+    var content = isPdf
+      ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}}, {type:'text', text:prompt}]
+      : [{type:'image', source:{type:'base64', media_type:file.type, data:base64}}, {type:'text', text:prompt}];
+
+    fetch(CF_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:4000, messages:[{role:'user', content:content}]})
+    }).then(function(r){ return r.json(); })
+    .then(function(data) {
+      var text = data.content && data.content[0] ? data.content[0].text : '';
+      if (!text) { showToast('❌ 내용 추출 실패'); if (nameEl) nameEl.textContent = '추출 실패'; return; }
+      if (contentEl) contentEl.value = text;
+      if (nameEl) nameEl.textContent = '✅ ' + file.name + ' — 추출 완료. 필요시 수정하세요.';
+      showToast('✅ 양식 내용이 자동으로 추출되었습니다');
+    }).catch(function(e) {
+      if (nameEl) nameEl.textContent = '❌ 오류: ' + e.message;
+      showToast('❌ API 오류: ' + e.message);
+    });
   };
   reader.readAsDataURL(file);
 }
