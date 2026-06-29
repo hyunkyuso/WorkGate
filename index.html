@@ -1404,18 +1404,13 @@ select.form-input{cursor:pointer}
           <!-- 행3: 직위별 성비 + 장기근속 Top10 -->
           <div style="display:grid;grid-template-columns:1fr 1.8fr;gap:12px">
 
-            <!-- 직위별 성비 -->
+            <!-- 근무장소별 인원 -->
             <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px">
               <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
-                <div style="width:3px;height:16px;background:var(--ac);border-radius:2px"></div>
-                <span style="font-size:13px;font-weight:600;color:var(--t1)">직위별 성비</span>
-                <span style="font-size:11px;color:var(--t3);margin-left:4px">(남성 비율)</span>
+                <div style="width:3px;height:16px;background:#0F6E56;border-radius:2px"></div>
+                <span style="font-size:13px;font-weight:600;color:var(--t1)">근무장소별 인원</span>
               </div>
-              <div id="wg-position-gender-bars"></div>
-              <div style="display:flex;align-items:center;gap:12px;margin-top:10px;font-size:11px;color:var(--t3)">
-                <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--ac);display:inline-block"></span>남성</span>
-                <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#fce7f3;border:1px solid #f9a8d4;display:inline-block"></span>여성</span>
-              </div>
+              <div id="wg-workplace-bars"></div>
             </div>
 
             <!-- 장기근속 Top10 -->
@@ -13771,14 +13766,25 @@ function renderWfGender(year) {
       '<div style="height:7px;background:var(--surface);border-radius:99px;overflow:hidden"><div style="width:' + w + '%;height:100%;background:#BA7517;border-radius:99px"></div></div></div>';
   }).join('');
 
-  // ── 직위별 성비 ──
-  document.getElementById('wg-position-gender-bars').innerHTML = posKeys.map(function(p) {
-    var pt = positions[p];
-    var mp = pt.total ? Math.round(pt.male/pt.total*100) : 0;
-    return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:8px">' +
-      '<span style="width:44px;color:var(--t3)">' + p + '</span>' +
-      '<div style="flex:1;height:8px;background:#fce7f3;border-radius:99px;overflow:hidden"><div style="width:' + mp + '%;height:100%;background:var(--ac);border-radius:99px"></div></div>' +
-      '<span style="color:var(--t2);width:30px;text-align:right">' + mp + '%</span></div>';
+  // ── 근무장소별 인원 ──
+  var workplaces = {};
+  allActive.forEach(function(e) {
+    var w = e.workplace && e.workplace.trim() ? e.workplace.trim() : '미지정';
+    if (!workplaces[w]) workplaces[w] = 0;
+    workplaces[w]++;
+  });
+  var wpKeys = Object.keys(workplaces).sort(function(a,b){ return workplaces[b] - workplaces[a]; });
+  var wpMax = wpKeys.length ? workplaces[wpKeys[0]] : 1;
+  var wpColors = ['#0F6E56','#1D9E75','#5DCAA5','#9FE1CB','#E1F5EE'];
+  document.getElementById('wg-workplace-bars').innerHTML = wpKeys.map(function(w, i) {
+    var pct = Math.round(workplaces[w] / wpMax * 100);
+    var color = wpColors[Math.min(i, wpColors.length-1)];
+    return '<div style="margin-bottom:10px">' +
+      '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:3px">' +
+      '<span>' + w + '</span>' +
+      '<span style="font-weight:600;color:var(--t1)">' + workplaces[w] + '명</span></div>' +
+      '<div style="height:8px;background:var(--surface);border-radius:99px;overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:99px"></div></div></div>';
   }).join('');
 
   // ── 장기근속 Top10 ──
