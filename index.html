@@ -1543,7 +1543,8 @@ select.form-input{cursor:pointer}
               <span style="font-size:12px;font-weight:600;color:var(--t2)">작성 결과</span>
               <div id="doc-draft-actions" style="display:none;gap:6px">
                 <button onclick="docCopy()" class="btn btn-ghost btn-sm">📋 복사</button>
-                <button onclick="docDownload()" class="btn btn-ghost btn-sm">⬇ 다운로드</button>
+                <button onclick="docDownload()" class="btn btn-ghost btn-sm">⬇ Word</button>
+                <button onclick="docDownloadPdf()" class="btn btn-ghost btn-sm">📄 PDF</button>
               </div>
             </div>
             <div id="doc-draft-loading" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;padding:48px;text-align:center">
@@ -14811,7 +14812,28 @@ function docDownload() {
   }
 }
 
-// ── 계약서 검토 ──
+function docDownloadPdf() {
+  var el = document.getElementById('doc-draft-result');
+  if (!el || !el.value) return;
+  var text = el.value;
+
+  // 새 창에서 인쇄 다이얼로그로 PDF 저장
+  var win = window.open('', '_blank');
+  win.document.write(
+    '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+    '<title>초안</title>' +
+    '<style>' +
+    'body{font-family:"맑은 고딕","Malgun Gothic",sans-serif;font-size:12pt;line-height:1.8;margin:25mm 20mm;color:#000}' +
+    'pre{white-space:pre-wrap;font-family:inherit;font-size:inherit}' +
+    '@media print{body{margin:0}@page{margin:25mm 20mm}}' +
+    '</style></head><body>' +
+    '<pre>' + text.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre>' +
+    '<script>window.onload=function(){window.print();}<\/script>' +
+    '</body></html>'
+  );
+  win.document.close();
+  showToast('📄 인쇄 창에서 PDF로 저장하세요');
+}
 var _docReviewHistory = []; // 대화 히스토리
 var _docReviewFileContent = null; // 업로드된 파일 base64 + type 보관
 
