@@ -13904,6 +13904,17 @@ function openWfEditModal(source, idx) {
     (source === 'unregistered' ? '<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">부서</label><input id="wf-edit-dept" type="text" value="' + (row.dept||'') + '" style="' + inputS + '" placeholder="개발팀"></div>' : '') +
     '<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">성별</label>' +
     '<select id="wf-edit-gender" style="' + inputS + '"><option value="">선택</option><option value="남"' + (row.gender==='남'?' selected':'') + '>남</option><option value="여"' + (row.gender==='여'?' selected':'') + '>여</option></select></div>' +
+    (source === 'unregistered' ?
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">' +
+      '<div><label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">직위</label>' +
+      '<select id="wf-edit-position" style="' + inputS + '"><option value="">선택</option>' +
+      (codeData.position||[]).filter(function(p){return p.use;}).map(function(p){return '<option value="'+p.name+'"'+(row.position===p.name?' selected':'')+'>'+p.name+'</option>';}).join('') +
+      '</select></div>' +
+      '<div><label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">근무장소</label>' +
+      '<select id="wf-edit-workplace" style="' + inputS + '"><option value="">선택</option>' +
+      ['서울','경산','베트남'].map(function(w){return '<option value="'+w+'"'+(row.workplace===w?' selected':'')+'>'+w+'</option>';}).join('') +
+      '</select></div></div>'
+    : '') +
     '<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">구분</label>' +
     '<div style="display:flex;gap:8px"><label style="display:flex;align-items:center;gap:4px;font-size:13px"><input type="radio" name="wf-type" value="입사"' + (row.type!=='퇴사'?' checked':'') + '> 입사</label><label style="display:flex;align-items:center;gap:4px;font-size:13px"><input type="radio" name="wf-type" value="퇴사"' + (row.type==='퇴사'?' checked':'') + '> 퇴사</label></div></div>' +
     '<div style="margin-bottom:10px"><label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">날짜</label><input id="wf-edit-date" type="date" value="' + (row.date||'') + '" style="' + inputS + '"></div>' +
@@ -13946,6 +13957,8 @@ function saveWfEdit() {
     dept = deptEl ? deptEl.value.trim() : '';
   }
 
+  var posEl = document.getElementById('wf-edit-position');
+  var wpEl  = document.getElementById('wf-edit-workplace');
   var row = {
     name: name,
     dept: dept,
@@ -13953,7 +13966,9 @@ function saveWfEdit() {
     type: typeEl ? typeEl.value : '입사',
     date: date,
     note: document.getElementById('wf-edit-note').value.trim(),
-    source: _wfEditType
+    source: _wfEditType,
+    position: posEl ? posEl.value : '',
+    workplace: wpEl ? wpEl.value : ''
   };
 
   var edits = wfLoadEdits();
