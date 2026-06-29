@@ -1566,22 +1566,39 @@ select.form-input{cursor:pointer}
             </div>
           </div>
 
-          <!-- 우측 결과 -->
+          <!-- 우측 결과 + 대화 -->
           <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-height:560px;display:flex;flex-direction:column">
             <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
               <span style="font-size:12px;font-weight:600;color:var(--t2)">검토 결과</span>
-              <button onclick="docReviewCopy()" class="btn btn-ghost btn-sm" id="doc-review-copy-btn" style="display:none">📋 복사</button>
+              <div style="display:flex;gap:6px">
+                <button onclick="docReviewReset()" class="btn btn-ghost btn-sm" id="doc-review-reset-btn" style="display:none">🔄 초기화</button>
+                <button onclick="docReviewCopy()" class="btn btn-ghost btn-sm" id="doc-review-copy-btn" style="display:none">📋 복사</button>
+              </div>
             </div>
+
+            <!-- 로딩 -->
             <div id="doc-review-loading" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;padding:48px;text-align:center">
               <div style="font-size:36px;margin-bottom:12px;animation:spin 1.5s linear infinite;display:inline-block">🔍</div>
               <div style="font-size:14px;font-weight:600;color:var(--t2)">AI가 계약서를 분석 중입니다...</div>
               <div style="font-size:12px;color:var(--t3);margin-top:6px">잠시만 기다려 주세요</div>
             </div>
+
+            <!-- 빈 상태 -->
             <div id="doc-review-empty" style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:48px;text-align:center;color:var(--t3)">
               <div style="font-size:48px;margin-bottom:12px">🔍</div>
               <div style="font-size:13px">계약서 파일을 업로드하면<br>AI가 주요 내용을 분석합니다</div>
             </div>
-            <div id="doc-review-result" style="display:none;flex:1;padding:20px;font-size:13px;line-height:1.9;overflow-y:auto"></div>
+
+            <!-- 대화 영역 -->
+            <div id="doc-review-chat" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+              <!-- 메시지 목록 -->
+              <div id="doc-review-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px"></div>
+              <!-- 추가 질문 입력 -->
+              <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;background:var(--surface)">
+                <input id="doc-review-input" type="text" class="form-input" style="flex:1;font-size:13px" placeholder="추가로 궁금한 점을 질문하세요..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();docReviewAsk()}">
+                <button onclick="docReviewAsk()" style="padding:8px 16px;background:var(--ac);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">전송</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -14399,6 +14416,9 @@ function docDownload() {
 }
 
 // ── 계약서 검토 ──
+var _docReviewHistory = []; // 대화 히스토리
+var _docReviewFileContent = null; // 업로드된 파일 base64 + type 보관
+
 function docReview(input) {
   var file = input.files[0];
   if (!file) return;
@@ -14422,40 +14442,52 @@ function docReview(input) {
 
   var emptyEl = document.getElementById('doc-review-empty');
   var loadEl = document.getElementById('doc-review-loading');
-  var resultEl = document.getElementById('doc-review-result');
+  var chatEl = document.getElementById('doc-review-chat');
   var copyBtn = document.getElementById('doc-review-copy-btn');
+  var resetBtn = document.getElementById('doc-review-reset-btn');
 
-  emptyEl.style.display='none'; resultEl.style.display='none';
+  emptyEl.style.display='none'; chatEl.style.display='none';
   if (copyBtn) copyBtn.style.display='none';
+  if (resetBtn) resetBtn.style.display='none';
   loadEl.style.display='flex';
+
+  // 히스토리 초기화
+  _docReviewHistory = [];
+  _docReviewFileContent = null;
+  document.getElementById('doc-review-messages').innerHTML = '';
 
   var reader = new FileReader();
   reader.onload = function(e) {
     var base64 = e.target.result.split(',')[1];
     var isPdf = file.type === 'application/pdf';
-    var content = isPdf
+    _docReviewFileContent = {base64: base64, type: file.type, isPdf: isPdf};
+
+    var fileContent = isPdf
       ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}}, {type:'text', text:prompt}]
       : [{type:'image', source:{type:'base64', media_type:file.type, data:base64}}, {type:'text', text:prompt}];
 
+    // 첫 메시지는 파일 포함
+    _docReviewHistory = [{role:'user', content: fileContent}];
+
     fetch(CF_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:4000, messages:[{role:'user', content:content}]})
+      body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:4000, messages: _docReviewHistory})
     }).then(function(r){ return r.json(); })
     .then(function(data) {
       loadEl.style.display='none';
       var text = data.content && data.content[0] ? data.content[0].text : '';
       if (!text) { showToast('❌ AI 응답이 없습니다'); emptyEl.style.display='flex'; return; }
-      // ##항목## → 섹션 헤더로 변환
-      var html = text
-        .replace(/##(.+?)##/g, '<div style="font-size:13px;font-weight:700;color:var(--t1);margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border)">$1</div>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/⚠️/g, '<span style="color:#dc2626;font-size:14px">⚠️</span>')
-        .replace(/\n\n/g, '</p><p style="margin:0 0 4px">')
-        .replace(/\n/g, '<br>');
-      resultEl.innerHTML = '<p style="margin:0 0 4px">' + html + '</p>';
-      resultEl.style.display='block';
+
+      // 히스토리에 AI 응답 추가
+      _docReviewHistory.push({role:'assistant', content: text});
+
+      // 채팅 UI에 AI 메시지 추가
+      docAddMessage('ai', text);
+
+      chatEl.style.display='flex';
       if (copyBtn) copyBtn.style.display='inline-flex';
-      showToast('✅ 계약서 검토 완료');
+      if (resetBtn) resetBtn.style.display='inline-flex';
+      showToast('✅ 계약서 검토 완료 — 추가 질문을 입력하세요');
     }).catch(function(e){
       loadEl.style.display='none'; emptyEl.style.display='flex';
       showToast('❌ API 오류: ' + e.message);
@@ -14464,10 +14496,94 @@ function docReview(input) {
   reader.readAsDataURL(file);
 }
 
+// 메시지 UI 추가
+function docAddMessage(role, text) {
+  var container = document.getElementById('doc-review-messages');
+  var isAi = role === 'ai';
+  var html = text
+    .replace(/##(.+?)##/g, '<div style="font-size:13px;font-weight:700;color:var(--t1);margin:14px 0 5px;padding-bottom:4px;border-bottom:1px solid var(--border)">$1</div>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/⚠️/g, '<span style="color:#dc2626">⚠️</span>')
+    .replace(/\n\n/g, '</p><p style="margin:0 0 4px">')
+    .replace(/\n/g, '<br>');
+
+  var div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:10px;align-items:flex-start;' + (isAi ? '' : 'flex-direction:row-reverse');
+  div.innerHTML =
+    '<div style="width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;background:' + (isAi ? 'var(--acd)' : 'var(--surface)') + '">' + (isAi ? '🤖' : '👤') + '</div>' +
+    '<div style="max-width:85%;padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.8;background:' + (isAi ? 'var(--surface)' : 'var(--acd)') + ';color:var(--t1)">' +
+      '<p style="margin:0 0 4px">' + html + '</p>' +
+    '</div>';
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+// 추가 질문
+function docReviewAsk() {
+  var input = document.getElementById('doc-review-input');
+  var question = input ? input.value.trim() : '';
+  if (!question) return;
+  if (!_docReviewHistory.length) { showToast('❌ 먼저 계약서를 업로드해주세요'); return; }
+
+  input.value = '';
+  docAddMessage('user', question);
+
+  // 히스토리에 추가 (텍스트만)
+  _docReviewHistory.push({role:'user', content: question});
+
+  // 전송 버튼 비활성화
+  var sendBtn = input.nextElementSibling;
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '...'; }
+
+  // 로딩 메시지
+  var loadDiv = document.createElement('div');
+  loadDiv.id = 'doc-chat-typing';
+  loadDiv.style.cssText = 'display:flex;gap:10px;align-items:center;color:var(--t3);font-size:12px';
+  loadDiv.innerHTML = '<div style="width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--acd)">🤖</div> AI가 답변 중...';
+  document.getElementById('doc-review-messages').appendChild(loadDiv);
+  document.getElementById('doc-review-messages').scrollTop = 99999;
+
+  // 히스토리에서 파일은 첫 메시지에만 포함, 나머지는 텍스트만 전송
+  var messages = _docReviewHistory.slice(0, -1).concat([{role:'user', content: question}]);
+
+  fetch(CF_URL, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:2000, messages: messages})
+  }).then(function(r){ return r.json(); })
+  .then(function(data) {
+    var typing = document.getElementById('doc-chat-typing');
+    if (typing) typing.remove();
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '전송'; }
+
+    var text = data.content && data.content[0] ? data.content[0].text : '';
+    if (!text) { showToast('❌ 응답이 없습니다'); return; }
+    _docReviewHistory.push({role:'assistant', content: text});
+    docAddMessage('ai', text);
+  }).catch(function(e) {
+    var typing = document.getElementById('doc-chat-typing');
+    if (typing) typing.remove();
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '전송'; }
+    showToast('❌ API 오류: ' + e.message);
+  });
+}
+
+function docReviewReset() {
+  _docReviewHistory = [];
+  _docReviewFileContent = null;
+  document.getElementById('doc-review-messages').innerHTML = '';
+  document.getElementById('doc-review-chat').style.display = 'none';
+  document.getElementById('doc-review-empty').style.display = 'flex';
+  document.getElementById('doc-review-copy-btn').style.display = 'none';
+  document.getElementById('doc-review-reset-btn').style.display = 'none';
+  var nameEl = document.getElementById('doc-review-filename');
+  if (nameEl) nameEl.textContent = '';
+  showToast('🔄 초기화되었습니다');
+}
+
 function docReviewCopy() {
-  var el = document.getElementById('doc-review-result');
-  if (!el) return;
-  navigator.clipboard.writeText(el.innerText).then(function(){ showToast('📋 복사되었습니다'); });
+  var msgs = document.getElementById('doc-review-messages');
+  if (!msgs) return;
+  navigator.clipboard.writeText(msgs.innerText).then(function(){ showToast('📋 복사되었습니다'); });
 }
 
 // ── Firebase 초기화 ──
