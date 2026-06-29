@@ -13382,47 +13382,85 @@ function wfGetJoinLeave(year) {
 
 // 월별 재직 인원 계산
 function wfGetMonthly(year) {
+  var allEdits = wfLoadEdits();
+
+  // 전년 기준인원(yearbase) 가져오기
+  var prevYear = year - 1;
+  var yearbaseEdits = allEdits.filter(function(e){ return e.source==='yearbase' && e.date && e.date.startsWith(prevYear+''); });
+  var yearbaseCount = yearbaseEdits.length ? parseInt(yearbaseEdits[0].count) : null;
+
+  // unregistered 입사/퇴사 목록 (직원관리와 중복인원 제외용: 직원관리에 이미 있으면 스킵)
+  var empNames = employees.map(function(e){ return e.name; });
+  var unregJoin = allEdits.filter(function(e){ return e.source==='unregistered' && e.type==='입사'; });
+  var unregLeave = allEdits.filter(function(e){ return e.source==='unregistered' && e.type==='퇴사' && empNames.indexOf(e.name) < 0; });
+
   var months = [];
   for (var m=1; m<=12; m++) {
     var ym = year + '-' + String(m).padStart(2,'0');
     var lastDay = new Date(year, m, 0);
     var lastDayStr = lastDay.toISOString().substring(0,10);
 
-    // 해당 월 말일 기준 재직자
-    var active = employees.filter(function(e) {
+    var joinAuto  = employees.filter(function(e){ return e.joindate  && e.joindate.startsWith(ym); }).length;
+    var leaveAuto = employees.filter(function(e){ return e.leavedate && e.leavedate.startsWith(ym); }).length;
+
+    // past(누락) 입퇴사 — 직원관리 원본에 있는 인원의 날짜 보정이므로 건수만 반영
+    var pastEdits = allEdits.filter(function(e){ return e.source==='past' && e.date && e.date.startsWith(ym); });
+    var joinPast  = pastEdits.filter(function(e){ return e.type==='입사'; }).length;
+    var leavePast = pastEdits.filter(function(e){ return e.type==='퇴사'; }).length;
+
+    // unregistered 입퇴사 — 직원관리에 없는 인원, 건수 반영
+    var ujMonth = unregJoin.filter(function(e){ return e.date && e.date.startsWith(ym); }).length;
+    var ulMonth = unregLeave.filter(function(e){ return e.date && e.date.startsWith(ym); }).length;
+
+    var joinTotal  = joinAuto  + joinPast  + ujMonth;
+    var leaveTotal = leaveAuto + leavePast + ulMonth;
+
+    // 말일재직: yearbase가 있으면 그 기준으로 누적 계산, 없으면 employees 직접 계산
+    var totalCount;
+    if (yearbaseCount !== null) {
+      // 해당 연도 1월~m월까지의 누적 입사 - 퇴사
+      var cumJoin = 0, cumLeave = 0;
+      for (var cm=1; cm<=m; cm++) {
+        var cym = year + '-' + String(cm).padStart(2,'0');
+        cumJoin  += employees.filter(function(e){ return e.joindate  && e.joindate.startsWith(cym); }).length;
+        cumLeave += employees.filter(function(e){ return e.leavedate && e.leavedate.startsWith(cym); }).length;
+        var cPast = allEdits.filter(function(e){ return e.source==='past' && e.date && e.date.startsWith(cym); });
+        cumJoin  += cPast.filter(function(e){ return e.type==='입사'; }).length;
+        cumLeave += cPast.filter(function(e){ return e.type==='퇴사'; }).length;
+        cumJoin  += unregJoin.filter(function(e){ return e.date && e.date.startsWith(cym); }).length;
+        cumLeave += unregLeave.filter(function(e){ return e.date && e.date.startsWith(cym); }).length;
+      }
+      totalCount = yearbaseCount + cumJoin - cumLeave;
+    } else {
+      // yearbase 없을 때: employees 말일재직 + unregistered 입사(말일 기준 재직)
+      var active = employees.filter(function(e) {
+        if (!e.joindate) return false;
+        if (e.joindate > lastDayStr) return false;
+        if (e.leavedate && e.leavedate <= lastDayStr) return false;
+        return true;
+      });
+      var unregActiveM = unregJoin.filter(function(e){ return e.date && e.date <= lastDayStr; });
+      var unregLeaveM  = unregLeave.filter(function(e){ return e.date && e.date <= lastDayStr; });
+      totalCount = active.length + unregActiveM.length - unregLeaveM.length;
+    }
+
+    // 남녀 수: employees 말일재직 기준 (성별 추적은 직원관리 데이터로)
+    var activeEmp = employees.filter(function(e) {
       if (!e.joindate) return false;
       if (e.joindate > lastDayStr) return false;
       if (e.leavedate && e.leavedate <= lastDayStr) return false;
       return true;
     });
-    // 수정 데이터 반영
-    var allEdits = wfLoadEdits();
-    var edits = allEdits.filter(function(e){ return e.date && e.date.startsWith(ym); });
-
-    var joinAuto = employees.filter(function(e){ return e.joindate && e.joindate.startsWith(ym); }).length;
-    var leaveAuto = employees.filter(function(e){ return e.leavedate && e.leavedate.startsWith(ym); }).length;
-    var joinEdit = edits.filter(function(e){ return e.type==='입사'; }).length;
-    var leaveEdit = edits.filter(function(e){ return e.type==='퇴사'; }).length;
-
-    // 미등록 입사 중 해당 월 말일 기준 재직 중인 인원
-    var unregActive = allEdits.filter(function(e){
-      return e.source === 'unregistered' && e.type === '입사' && e.date && e.date <= lastDayStr;
-    });
-    var maleCount = active.filter(function(e){ return e.gender==='남'; }).length
-      + unregActive.filter(function(e){ return e.gender==='남'; }).length;
-    var femaleCount = active.filter(function(e){ return e.gender==='여'; }).length
-      + unregActive.filter(function(e){ return e.gender==='여'; }).length;
-    var totalCount = active.length + unregActive.length;
+    var unregActiveForGender = unregJoin.filter(function(e){ return e.date && e.date <= lastDayStr; });
+    var maleCount   = activeEmp.filter(function(e){ return e.gender==='남'; }).length
+                    + unregActiveForGender.filter(function(e){ return e.gender==='남'; }).length;
+    var femaleCount = activeEmp.filter(function(e){ return e.gender==='여'; }).length
+                    + unregActiveForGender.filter(function(e){ return e.gender==='여'; }).length;
 
     months.push({
-      month: m,
-      ym: ym,
-      lastDay: totalCount,
-      join: joinAuto + joinEdit,
-      leave: leaveAuto + leaveEdit,
-      male: maleCount,
-      female: femaleCount,
-      total: totalCount
+      month: m, ym: ym, lastDay: totalCount,
+      join: joinTotal, leave: leaveTotal,
+      male: maleCount, female: femaleCount, total: totalCount
     });
   }
   return months;
