@@ -1468,95 +1468,73 @@ select.form-input{cursor:pointer}
       </div>
 
       <!-- ══════ 공문·계약서 작성 ══════ -->
+      <!-- ══════ 공문·계약서 작성 ══════ -->
       <div id="page-doc-draft" class="page">
         <div class="page-header">
           <div>
             <div class="page-title">✍️ 공문·계약서 작성</div>
-            <div class="page-sub">템플릿 선택 후 내용을 입력하면 AI가 초안을 작성합니다</div>
+            <div class="page-sub">PDF를 업로드하면 AI가 변수를 감지하고, 입력한 값으로 PDF에 바로 채워줍니다</div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;padding:0 0 32px;align-items:start">
+        <div style="display:grid;grid-template-columns:340px 1fr;gap:20px;padding:0 0 32px;align-items:start">
 
-          <!-- 좌측 입력 패널 -->
+          <!-- 좌측 패널 -->
           <div style="display:flex;flex-direction:column;gap:12px">
+
+            <!-- 1) 저장 템플릿에서 불러오기 -->
             <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px">
-              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px">📋 양식 선택</div>
-
-              <!-- 탭: 파일 업로드 / 템플릿 선택 -->
-              <div style="display:flex;gap:0;margin-bottom:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-                <button id="doc-tab-upload" onclick="docSwitchTab('upload')" style="flex:1;padding:7px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--ac);color:#fff">📎 파일 업로드</button>
-                <button id="doc-tab-tpl" onclick="docSwitchTab('tpl')" style="flex:1;padding:7px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:none;color:var(--t2)">📋 저장 템플릿</button>
-              </div>
-
-              <!-- 파일 업로드 탭 -->
-              <div id="doc-tab-upload-body">
-                <label style="display:block;border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s" onmouseover="this.style.borderColor='var(--ac)';this.style.background='var(--acd)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='none'">
-                  <div style="font-size:28px;margin-bottom:6px">📄</div>
-                  <div style="font-size:13px;font-weight:500;color:var(--t2)">양식 파일 선택</div>
-                  <div style="font-size:11px;color:var(--t3);margin-top:3px">PDF · JPG · PNG · DOCX</div>
-                  <input type="file" accept=".pdf,.docx,image/*" style="display:none" onchange="docLoadTemplate(this)">
-                </label>
-                <div id="doc-upload-filename" style="margin-top:8px;font-size:12px;color:var(--ac);font-weight:500;text-align:center"></div>
-                <div id="doc-upload-preview" style="margin-top:8px;padding:10px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--t3);display:none;white-space:pre-wrap;max-height:80px;overflow-y:auto"></div>
-              </div>
-
-              <!-- 저장 템플릿 탭 -->
-              <div id="doc-tab-tpl-body" style="display:none">
-                <select id="doc-template-select" class="form-input" style="font-size:13px;margin-bottom:8px" onchange="docOnTemplateChange()">
-                  <option value="">템플릿을 선택하세요</option>
-                </select>
-                <div id="doc-template-preview" style="padding:10px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--t3);display:none;white-space:pre-wrap;max-height:80px;overflow-y:auto"></div>
-              </div>
+              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px">📋 저장된 템플릿에서 불러오기</div>
+              <select id="draft-tpl-select" class="form-input" style="font-size:13px" onchange="draftLoadFromTemplate()">
+                <option value="">템플릿 선택 안 함</option>
+              </select>
             </div>
+
+            <!-- 2) 직접 업로드 -->
             <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px">
-              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:12px">📝 요청 내용</div>
-              <!-- 변수 입력 폼 (템플릿에 {{변수}} 있을 때 자동 표시) -->
-              <div id="doc-vars-form" style="display:none">
-                <div id="doc-vars-inputs"></div>
-              </div>
-              <!-- 자유 입력 폼 -->
-              <div id="doc-free-form">
-                <div style="margin-bottom:10px">
-                  <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">제목 / 건명</label>
-                  <input id="doc-input-title" type="text" class="form-input" style="font-size:13px" placeholder="예: 업무협약 체결의 건">
-                </div>
-                <div style="margin-bottom:10px">
-                  <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">수신 / 상대방</label>
-                  <input id="doc-input-to" type="text" class="form-input" style="font-size:13px" placeholder="예: ○○주식회사 대표이사">
-                </div>
-                <div style="margin-bottom:10px">
-                  <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">주요 내용 <span style="color:var(--rd)">*</span></label>
-                  <textarea id="doc-input-content" class="form-input" rows="6" style="font-size:13px;resize:vertical" placeholder="작성할 주요 내용을 입력하세요&#10;예: 계약기간, 금액, 주요 조건 등"></textarea>
-                </div>
-                <div>
-                  <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">추가 요청사항 (선택)</label>
-                  <input id="doc-input-extra" type="text" class="form-input" style="font-size:13px" placeholder="예: 특약사항 추가, 격식체로 작성 등">
-                </div>
-              </div>
+              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px">📎 또는 PDF 직접 업로드</div>
+              <label style="display:block;border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s" onmouseover="this.style.borderColor='var(--ac)';this.style.background='var(--acd)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='none'">
+                <div style="font-size:32px;margin-bottom:6px">📄</div>
+                <div style="font-size:13px;font-weight:500;color:var(--t2)">PDF 파일 선택</div>
+                <div style="font-size:11px;color:var(--t3);margin-top:3px">PDF만 지원됩니다</div>
+                <input type="file" accept=".pdf" style="display:none" onchange="draftUploadPdf(this)">
+              </label>
+              <div id="draft-file-name" style="margin-top:8px;font-size:12px;color:var(--ac);font-weight:500;text-align:center"></div>
             </div>
-            <button onclick="docGenerate()" style="width:100%;padding:13px;background:linear-gradient(135deg,var(--ac),#6366f1);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.3px">🤖 AI 초안 작성</button>
+
+            <!-- 변수 분석 로딩 -->
+            <div id="draft-analyzing" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:10px;padding:24px;text-align:center">
+              <div style="font-size:28px;margin-bottom:8px;animation:spin 1.5s linear infinite;display:inline-block">🤖</div>
+              <div style="font-size:13px;font-weight:600;color:var(--t2)">AI가 변경할 항목을 찾고 있습니다...</div>
+            </div>
+
+            <!-- 3) 변수 입력 -->
+            <div id="draft-vars-panel" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px">
+              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px">📝 변경할 내용 입력</div>
+              <div id="draft-vars-inputs"></div>
+              <button onclick="draftApplyAndRender()" style="width:100%;margin-top:8px;padding:12px;background:linear-gradient(135deg,var(--ac),#6366f1);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">✅ 내용 채우기</button>
+            </div>
+
+            <!-- 이 문서를 템플릿으로 저장 -->
+            <div id="draft-save-tpl-panel" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px">
+              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">💾 이 양식을 템플릿으로 저장</div>
+              <input id="draft-tpl-save-name" type="text" class="form-input" style="font-size:13px;margin-bottom:8px" placeholder="템플릿 이름 (예: 업무협약서)">
+              <button onclick="draftSaveAsTemplate()" class="btn btn-ghost btn-sm" style="width:100%">템플릿으로 저장</button>
+            </div>
           </div>
 
-          <!-- 우측 결과 -->
-          <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-height:560px;display:flex;flex-direction:column">
+          <!-- 우측: PDF 미리보기 -->
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-height:640px;display:flex;flex-direction:column">
             <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-              <span style="font-size:12px;font-weight:600;color:var(--t2)">작성 결과</span>
-              <div id="doc-draft-actions" style="display:none;gap:6px">
-                <button onclick="docCopy()" class="btn btn-ghost btn-sm">📋 복사</button>
-                <button onclick="docDownload()" class="btn btn-ghost btn-sm">⬇ Word</button>
-                <button onclick="docDownloadPdf()" class="btn btn-ghost btn-sm">📄 PDF</button>
-              </div>
+              <span style="font-size:12px;font-weight:600;color:var(--t2)">미리보기</span>
+              <button id="draft-download-btn" onclick="draftDownloadPdf()" class="btn btn-primary btn-sm" style="display:none">⬇ PDF 다운로드</button>
             </div>
-            <div id="doc-draft-loading" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;padding:48px;text-align:center">
-              <div style="font-size:36px;margin-bottom:12px;animation:spin 1.5s linear infinite;display:inline-block">🤖</div>
-              <div style="font-size:14px;font-weight:600;color:var(--t2)">AI가 초안을 작성 중입니다...</div>
-              <div style="font-size:12px;color:var(--t3);margin-top:6px">잠시만 기다려 주세요</div>
-            </div>
-            <div id="doc-draft-empty" style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:48px;text-align:center;color:var(--t3)">
+            <div id="draft-empty" style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:48px;text-align:center;color:var(--t3)">
               <div style="font-size:48px;margin-bottom:12px">📄</div>
-              <div style="font-size:13px">내용을 입력하고<br>AI 초안 작성 버튼을 눌러주세요</div>
+              <div style="font-size:13px">템플릿을 선택하거나 PDF를 업로드하세요</div>
             </div>
-            <textarea id="doc-draft-result" style="display:none;flex:1;width:100%;padding:20px;border:none;outline:none;font-size:14px;font-family:inherit;line-height:1.9;resize:none;background:transparent"></textarea>
+            <div id="draft-preview-wrap" style="display:none;flex:1;overflow-y:auto;padding:16px;background:var(--surface);text-align:center">
+              <canvas id="draft-preview-canvas" style="max-width:100%;box-shadow:0 2px 12px rgba(0,0,0,0.12);background:#fff"></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -1566,12 +1544,11 @@ select.form-input{cursor:pointer}
         <div class="page-header">
           <div>
             <div class="page-title">🔍 계약서 검토</div>
-            <div class="page-sub">계약서 파일을 업로드하면 AI가 주요 내용을 요약·분석합니다</div>
+            <div class="page-sub">계약서 파일을 업로드하면 AI가 주요 내용을 분석하고, 이어서 질문할 수 있습니다</div>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;padding:0 0 32px;align-items:start">
 
-          <!-- 좌측 업로드 + 옵션 -->
           <div style="display:flex;flex-direction:column;gap:12px">
             <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px">
               <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:12px">📎 계약서 업로드</div>
@@ -1596,7 +1573,6 @@ select.form-input{cursor:pointer}
             </div>
           </div>
 
-          <!-- 우측 결과 + 대화 -->
           <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-height:560px;display:flex;flex-direction:column">
             <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
               <span style="font-size:12px;font-weight:600;color:var(--t2)">검토 결과</span>
@@ -1605,25 +1581,17 @@ select.form-input{cursor:pointer}
                 <button onclick="docReviewCopy()" class="btn btn-ghost btn-sm" id="doc-review-copy-btn" style="display:none">📋 복사</button>
               </div>
             </div>
-
-            <!-- 로딩 -->
             <div id="doc-review-loading" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;padding:48px;text-align:center">
               <div style="font-size:36px;margin-bottom:12px;animation:spin 1.5s linear infinite;display:inline-block">🔍</div>
               <div style="font-size:14px;font-weight:600;color:var(--t2)">AI가 계약서를 분석 중입니다...</div>
               <div style="font-size:12px;color:var(--t3);margin-top:6px">잠시만 기다려 주세요</div>
             </div>
-
-            <!-- 빈 상태 -->
             <div id="doc-review-empty" style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:48px;text-align:center;color:var(--t3)">
               <div style="font-size:48px;margin-bottom:12px">🔍</div>
               <div style="font-size:13px">계약서 파일을 업로드하면<br>AI가 주요 내용을 분석합니다</div>
             </div>
-
-            <!-- 대화 영역 -->
             <div id="doc-review-chat" style="display:none;flex:1;flex-direction:column;overflow:hidden">
-              <!-- 메시지 목록 -->
               <div id="doc-review-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px"></div>
-              <!-- 추가 질문 입력 -->
               <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;background:var(--surface)">
                 <input id="doc-review-input" type="text" class="form-input" style="flex:1;font-size:13px" placeholder="추가로 궁금한 점을 질문하세요..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();docReviewAsk()}">
                 <button onclick="docReviewAsk()" style="padding:8px 16px;background:var(--ac);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">전송</button>
@@ -1638,69 +1606,13 @@ select.form-input{cursor:pointer}
         <div class="page-header">
           <div>
             <div class="page-title">📋 템플릿 관리</div>
-            <div class="page-sub">공문·계약서 양식을 등록·관리합니다</div>
+            <div class="page-sub">자주 쓰는 PDF 양식을 저장해두고 재사용합니다</div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openDocTemplateModal()">+ 템플릿 추가</button>
+          <button class="btn btn-primary btn-sm" onclick="showPage('doc-draft', document.querySelector(&quot;[onclick*=doc-draft]&quot;))">+ 새 양식으로 작성</button>
         </div>
         <div style="padding:0 0 32px" id="doc-template-grid"></div>
       </div>
 
-      <!-- 템플릿 모달 -->
-      <div id="doc-template-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('doc-template-modal')">
-        <div class="modal" style="max-width:580px;max-height:88vh;overflow-y:auto">
-          <div class="modal-header">
-            <div class="modal-title" id="doc-template-modal-title">템플릿 추가</div>
-            <button class="modal-close" onclick="closeModal('doc-template-modal')">✕</button>
-          </div>
-          <div style="padding:4px 0">
-            <div style="margin-bottom:12px">
-              <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">템플릿 이름 <span style="color:var(--rd)">*</span></label>
-              <input id="doc-tpl-name" type="text" class="form-input" placeholder="예: 업무협약서, 용역계약서">
-            </div>
-            <div style="margin-bottom:12px">
-              <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">유형</label>
-              <select id="doc-tpl-type" class="form-input">
-                <option value="공문">공문</option>
-                <option value="계약서">계약서</option>
-                <option value="협약서">협약서</option>
-                <option value="기타">기타</option>
-              </select>
-            </div>
-            <div style="margin-bottom:12px">
-              <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">양식 파일 업로드 <span style="color:var(--rd)">*</span></label>
-              <label style="display:block;border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s" onmouseover="this.style.borderColor='var(--ac)';this.style.background='var(--acd)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='none'">
-                <div style="font-size:28px;margin-bottom:6px">📄</div>
-                <div style="font-size:13px;font-weight:500;color:var(--t2)">파일 선택</div>
-                <div style="font-size:11px;color:var(--t3);margin-top:3px">PDF · JPG · PNG · DOCX</div>
-                <input type="file" accept=".pdf,.docx,image/*" style="display:none" onchange="docTplLoadFile(this)">
-              </label>
-              <div id="doc-tpl-upload-name" style="margin-top:8px;font-size:12px;color:var(--ac);font-weight:500;text-align:center"></div>
-            </div>
-
-            <!-- AI 감지 변수 체크박스 -->
-            <div id="doc-tpl-vars-section" style="display:none;margin-bottom:12px">
-              <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:6px">✅ 변수로 지정할 항목 선택</label>
-              <div style="font-size:11px;color:var(--t3);margin-bottom:8px;padding:8px 10px;background:var(--acd);border-radius:6px">체크한 항목은 <strong>{{변수명}}</strong> 형식으로 변환되어 작성 시 입력 폼이 자동 생성됩니다</div>
-              <div id="doc-tpl-vars-list" style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;padding:4px"></div>
-            </div>
-
-            <!-- 추출된 양식 미리보기 -->
-            <div id="doc-tpl-content-section" style="display:none;margin-bottom:12px">
-              <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">양식 미리보기 (수정 가능)</label>
-              <textarea id="doc-tpl-content" class="form-input" rows="10" style="resize:vertical;font-size:12px;line-height:1.7"></textarea>
-            </div>
-
-            <div>
-              <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">설명 (선택)</label>
-              <input id="doc-tpl-desc" type="text" class="form-input" placeholder="이 템플릿에 대한 간단한 설명">
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeModal('doc-template-modal')">닫기</button>
-            <button class="btn btn-primary" onclick="saveDocTemplate()">저장</button>
-          </div>
-        </div>
-      </div>
 
       <div id="page-settings" class="page">
         <div class="page-title" style="margin-bottom:20px">⚙️ 설정</div>
@@ -2193,12 +2105,6 @@ select.form-input{cursor:pointer}
 
 <!-- SheetJS (엑셀 업로드 파싱) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<!-- mammoth.js (Word 읽기) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-<!-- docx.js (Word 생성) -->
-<script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
-<!-- JSZip (Word XML 직접 수정) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <!-- pdf.js (PDF 렌더링) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- jsPDF (캔버스 → PDF 저장) -->
@@ -12091,7 +11997,8 @@ function showPage(id, el) {
   if(id === 'workforce-gender') renderWfGender();
   if(id === 'workforce-edit') renderWfEdit();
   if(id === 'cert-dashboard') { certUpdateDashboard(); }
-  if(id === 'doc-templates') docRenderTemplates();
+  if(id === 'doc-templates') docRenderTemplateGrid();
+  if(id === 'doc-draft') docRefreshTplSelect();
 }
 
 function openModal(id) { document.getElementById(id).style.display='flex'; }
@@ -14305,607 +14212,199 @@ function workforceExcelAll() {
 }
 
 // ══════════════════════════════════════════════════
-// 문서관리
+// 문서관리 (공문·계약서 작성 / 계약서 검토 / 템플릿 관리)
 // ══════════════════════════════════════════════════
-var _docTemplates = [];
-var _docEditIdx = -1;
 var CF_URL = 'https://twilight-dew-b966.hyunkyu-so.workers.dev';
+var _docTemplates = [];
 
+// ── Firestore 리스너 ──
 function docStartListener() {
-  db.collection('doc_templates').orderBy('createdAt', 'asc').onSnapshot(function(snap) {
+  db.collection('doc_templates').orderBy('createdAt', 'desc').onSnapshot(function(snap) {
     _docTemplates = [];
     snap.forEach(function(d){ _docTemplates.push(Object.assign({id:d.id}, d.data())); });
-    docRenderTemplates();
-    docRefreshSelect();
+    docRenderTemplateGrid();
+    docRefreshTplSelect();
   });
 }
 
-var _docUploadedFile = null;
-var _docOriginalText = '';
-var _docOriginalWordBuffer = null; // Word 원본 ArrayBuffer 보관
+// ══════════════════════════════════════════════════
+// 1) 공문·계약서 작성
+// ══════════════════════════════════════════════════
+var _draftPdfBase64 = null;   // 현재 작업 중인 원본 PDF
+var _draftVarMaps = [];       // [{name, original}]
+var _draftFilledCanvases = []; // 채워진 결과 캔버스들 (페이지별)
+var _draftSourceTplId = null; // 템플릿에서 불러온 경우 해당 ID
 
-function docSwitchTab(tab) {
-  var isUpload = tab === 'upload';
-  document.getElementById('doc-tab-upload-body').style.display = isUpload ? 'block' : 'none';
-  document.getElementById('doc-tab-tpl-body').style.display = isUpload ? 'none' : 'block';
-  document.getElementById('doc-tab-upload').style.background = isUpload ? 'var(--ac)' : 'none';
-  document.getElementById('doc-tab-upload').style.color = isUpload ? '#fff' : 'var(--t2)';
-  document.getElementById('doc-tab-tpl').style.background = isUpload ? 'none' : 'var(--ac)';
-  document.getElementById('doc-tab-tpl').style.color = isUpload ? 'var(--t2)' : '#fff';
-  if (!isUpload) { _docUploadedFile = null; _docOriginalText = ''; }
-}
-
-function docLoadTemplate(input) {
-  var file = input.files[0];
-  if (!file) return;
-  input.value = '';
-  var nameEl = document.getElementById('doc-upload-filename');
-  var prevEl = document.getElementById('doc-upload-preview');
-  if (nameEl) nameEl.textContent = '📎 ' + file.name + ' — 읽는 중...';
-
-  var isDocx = file.name.toLowerCase().endsWith('.docx');
-  var isPdf = file.type === 'application/pdf';
-  var isImg = file.type.startsWith('image/');
-
-  if (isDocx) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      _docOriginalWordBuffer = e.target.result;
-      mammoth.extractRawText({arrayBuffer: e.target.result})
-        .then(function(result) {
-          _docOriginalText = result.value;
-          _docUploadedFile = {type:'text', name:file.name, isDocx:true};
-          var vars = docExtractVars(_docOriginalText);
-          if (nameEl) nameEl.textContent = '✅ ' + file.name + (vars.length ? ' — 변수 ' + vars.length + '개 감지' : '');
-          if (prevEl) { prevEl.textContent = _docOriginalText.substring(0,120) + '...'; prevEl.style.display='block'; }
-          if (vars.length) { docShowVarForm(vars); } else { docShowFreeForm(); }
-          showToast('✅ Word 양식 로드 완료');
-        }).catch(function(e) {
-          if (nameEl) nameEl.textContent = '❌ 읽기 실패';
-          showToast('❌ Word 파일 읽기 실패');
-        });
-    };
-    reader.readAsArrayBuffer(file);
-  } else {
-    var reader2 = new FileReader();
-    reader2.onload = function(e) {
-      var base64 = e.target.result.split(',')[1];
-      _docUploadedFile = {base64:base64, type:file.type, isPdf:isPdf, isImg:isImg, name:file.name};
-      _docOriginalText = ''; _docOriginalWordBuffer = null;
-      if (nameEl) nameEl.textContent = '✅ ' + file.name;
-      if (prevEl) { prevEl.textContent = isPdf ? 'PDF 양식 업로드됨' : '이미지 양식 업로드됨'; prevEl.style.display='block'; }
-      docShowFreeForm();
-      showToast('✅ 양식 파일 로드 완료');
-    };
-    reader2.readAsDataURL(file);
-  }
-}
-
-function docTplLoadFile(input) {
-  var file = input.files[0];
-  if (!file) return;
-  input.value = '';
-
-  var nameEl = document.getElementById('doc-tpl-upload-name');
-  if (nameEl) nameEl.textContent = '📎 ' + file.name + ' — AI가 분석 중...';
-
-  var isDocx = file.name.toLowerCase().endsWith('.docx');
-  var isPdf = file.type === 'application/pdf';
-
-  var processWithAI = function(fileContent) {
-    var prompt = '이 공문/계약서 양식에서 문서마다 바뀌는 항목들을 찾아주세요.\n' +
-      '각 항목에 대해 변수명과 해당 부분의 원본 텍스트(실제 문서에 있는 텍스트)를 함께 반환하세요.\n' +
-      '형식: {"vars": [{"name": "변수명", "original": "원본텍스트"}, ...]} \n' +
-      '반드시 JSON만 출력하세요.';
-
-    var messages = isPdf
-      ? [{role:'user', content:[{type:'document', source:{type:'base64', media_type:'application/pdf', data:fileContent}}, {type:'text', text:prompt}]}]
-      : [{role:'user', content:[{type:'image', source:{type:'base64', media_type:file.type, data:fileContent}}, {type:'text', text:prompt}]}];
-
-    fetch(CF_URL, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:2000, messages:messages})
-    }).then(function(r){ return r.json(); })
-    .then(function(data) {
-      var raw = data.content && data.content[0] ? data.content[0].text : '';
-      var parsed;
-      try { parsed = JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch(e) { parsed = {vars:[]}; }
-
-      var vars = parsed.vars || [];
-
-      var varsSection = document.getElementById('doc-tpl-vars-section');
-      var varsList = document.getElementById('doc-tpl-vars-list');
-      var contentSection = document.getElementById('doc-tpl-content-section');
-      var contentEl = document.getElementById('doc-tpl-content');
-
-      // 변수 정보를 JSON으로 content에 저장
-      if (contentEl) contentEl.value = JSON.stringify({isPdf: isPdf, vars: vars, fileName: file.name});
-      if (contentSection) contentSection.style.display = 'none'; // 미리보기 숨김
-
-      if (vars.length) {
-        varsSection.style.display = 'block';
-        varsList.innerHTML = vars.map(function(v) {
-          return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface)">' +
-            '<input type="checkbox" value="' + v.name + '" data-original="' + (v.original||'').replace(/"/g,'&quot;') + '" checked> ' +
-            '<span><strong>' + v.name + '</strong> <span style="font-size:11px;color:var(--t3)">→ 원본: ' + (v.original||'') + '</span></span>' +
-          '</label>';
-        }).join('');
-      } else {
-        varsSection.style.display = 'none';
-      }
-
-      if (nameEl) nameEl.textContent = '✅ ' + file.name + ' — 변수 ' + vars.length + '개 감지';
-      showToast('✅ 변수 ' + vars.length + '개 감지됨');
-    }).catch(function(e) {
-      if (nameEl) nameEl.textContent = '❌ 오류';
-      showToast('❌ API 오류: ' + e.message);
-    });
-  };
-
-  if (isDocx) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      mammoth.extractRawText({arrayBuffer: e.target.result})
-        .then(function(result) {
-          // docx는 텍스트 기반으로 처리
-          var prompt = '다음 양식에서 문서마다 바뀌는 항목들을 찾아주세요.\n' +
-            '형식: {"vars": [{"name": "변수명", "original": "원본텍스트"}, ...]} JSON만 출력하세요.\n\n' + result.value;
-          fetch(CF_URL, {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:2000, messages:[{role:'user', content:prompt}]})
-          }).then(function(r){ return r.json(); })
-          .then(function(data) {
-            var raw = data.content && data.content[0] ? data.content[0].text : '';
-            var parsed; try { parsed = JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch(e){ parsed={vars:[]}; }
-            var vars = parsed.vars||[];
-            var varsSection = document.getElementById('doc-tpl-vars-section');
-            var varsList = document.getElementById('doc-tpl-vars-list');
-            var contentEl = document.getElementById('doc-tpl-content');
-            if (contentEl) contentEl.value = result.value;
-            document.getElementById('doc-tpl-content-section').style.display = 'block';
-            if (vars.length) {
-              varsSection.style.display='block';
-              varsList.innerHTML = vars.map(function(v){
-                return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface)">' +
-                  '<input type="checkbox" value="' + v.name + '" data-original="' + (v.original||'').replace(/"/g,'&quot;') + '" checked> ' +
-                  '<span><strong>' + v.name + '</strong> <span style="font-size:11px;color:var(--t3)">→ ' + (v.original||'') + '</span></span>' +
-                '</label>';
-              }).join('');
-            }
-            if (nameEl) nameEl.textContent = '✅ ' + file.name + ' — 변수 ' + vars.length + '개 감지';
-            showToast('✅ 변수 ' + vars.length + '개 감지됨');
-          });
-        }).catch(function(){ showToast('❌ Word 읽기 실패'); });
-    };
-    reader.readAsArrayBuffer(file);
-  } else {
-    var reader2 = new FileReader();
-    reader2.onload = function(e) {
-      var base64 = e.target.result.split(',')[1];
-      // PDF/이미지 원본 base64 보관
-      window._docTplPdfBase64 = base64;
-      window._docTplPdfType = file.type;
-      window._docTplPdfName = file.name;
-      processWithAI(base64);
-    };
-    reader2.readAsDataURL(file);
-  }
-}
-
-function docRenderTemplates() {
-  var el = document.getElementById('doc-template-grid');
-  if (!el) return;
-  if (!_docTemplates.length) {
-    el.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">📋</div><div style="font-size:13px">등록된 템플릿이 없습니다.<br>+ 템플릿 추가 버튼으로 양식을 등록해주세요.</div></div>';
-    return;
-  }
-  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">' +
-    _docTemplates.map(function(t, i) {
-      var colors = {공문:'var(--ac)',계약서:'var(--gr)',협약서:'var(--am)',기타:'var(--t3)'};
-      var c = colors[t.type] || 'var(--t3)';
-      return '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between">' +
-          '<span style="font-size:11px;padding:2px 10px;border-radius:99px;background:var(--surface);color:' + c + ';font-weight:500;border:1px solid var(--border)">' + (t.type||'기타') + '</span>' +
-          '<div style="display:flex;gap:4px">' +
-            '<button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px;color:var(--ac);border-color:var(--ac)" onclick="openDocTemplateModal(' + i + ')">수정</button>' +
-            '<button class="btn btn-danger btn-sm" style="padding:3px 8px;font-size:11px" onclick="deleteDocTemplate(\'' + t.id + '\')">삭제</button>' +
-          '</div>' +
-        '</div>' +
-        '<div style="font-size:14px;font-weight:600;color:var(--t1)">' + (t.name||'') + '</div>' +
-        (t.desc ? '<div style="font-size:12px;color:var(--t3)">' + t.desc + '</div>' : '') +
-        '<div style="font-size:11px;color:var(--t3);background:var(--surface);border-radius:6px;padding:8px;max-height:60px;overflow:hidden;white-space:pre-wrap">' + (t.content||'').substring(0,120) + ((t.content||'').length>120?'...':'') + '</div>' +
-        '<button onclick="docUseTemplate(' + i + ')" style="width:100%;padding:8px;background:var(--acd);color:var(--ac);border:1px solid var(--ac);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">✍️ 이 템플릿으로 작성</button>' +
-      '</div>';
-    }).join('') + '</div>';
-}
-
-function docRefreshSelect() {
-  var sel = document.getElementById('doc-template-select');
+function docRefreshTplSelect() {
+  var sel = document.getElementById('draft-tpl-select');
   if (!sel) return;
   var cur = sel.value;
-  sel.innerHTML = '<option value="">템플릿 없이 자유 작성</option>' +
-    _docTemplates.map(function(t,i){ return '<option value="' + i + '"' + (cur==i?' selected':'') + '>[' + (t.type||'기타') + '] ' + t.name + '</option>'; }).join('');
+  sel.innerHTML = '<option value="">템플릿 선택 안 함</option>' +
+    _docTemplates.map(function(t,i){ return '<option value="'+i+'"'+(cur==i?' selected':'')+'>'+(t.name||'(이름없음)')+'</option>'; }).join('');
 }
 
-function docOnTemplateChange() {
-  var sel = document.getElementById('doc-template-select');
-  var prev = document.getElementById('doc-template-preview');
-  if (!sel || !prev) return;
+function draftReset() {
+  _draftPdfBase64 = null;
+  _draftVarMaps = [];
+  _draftFilledCanvases = [];
+  _draftSourceTplId = null;
+  document.getElementById('draft-empty').style.display = 'flex';
+  document.getElementById('draft-preview-wrap').style.display = 'none';
+  document.getElementById('draft-vars-panel').style.display = 'none';
+  document.getElementById('draft-save-tpl-panel').style.display = 'none';
+  document.getElementById('draft-download-btn').style.display = 'none';
+  document.getElementById('draft-analyzing').style.display = 'none';
+  var fn = document.getElementById('draft-file-name'); if (fn) fn.textContent = '';
+}
+
+// 템플릿에서 불러오기
+function draftLoadFromTemplate() {
+  var sel = document.getElementById('draft-tpl-select');
   var idx = parseInt(sel.value);
-  if (isNaN(idx) || !_docTemplates[idx]) {
-    prev.style.display='none';
-    docShowFreeForm();
-    return;
-  }
+  if (isNaN(idx) || !_docTemplates[idx]) { draftReset(); return; }
   var tpl = _docTemplates[idx];
-  prev.textContent = (tpl.content||'').substring(0,100) + '...';
-  prev.style.display = 'block';
+  draftReset();
+  _draftSourceTplId = tpl.id;
+  _draftPdfBase64 = tpl.pdfBase64;
+  _draftVarMaps = tpl.varMaps || [];
 
-  // vars 배열 우선, 없으면 {{}} 패턴으로 추출
-  var vars = (tpl.vars && tpl.vars.length) ? tpl.vars : docExtractVars(tpl.content||'');
-  if (vars.length) {
-    docShowVarForm(vars);
-  } else {
-    docShowFreeForm();
-  }
-}
-
-// {{변수명}} 추출
-function docExtractVars(text) {
-  var matches = text.match(/\{\{([^}]+)\}\}/g) || [];
-  var vars = [];
-  var seen = {};
-  matches.forEach(function(m) {
-    var name = m.replace(/\{\{|\}\}/g, '').trim();
-    if (!seen[name]) { seen[name] = true; vars.push(name); }
+  document.getElementById('draft-file-name').textContent = '📋 ' + tpl.name;
+  draftRenderPreview(_draftPdfBase64).then(function() {
+    if (_draftVarMaps.length) {
+      draftShowVarInputs(_draftVarMaps);
+    } else {
+      showToast('이 템플릿에는 변경 항목이 없습니다');
+    }
   });
-  return vars;
 }
 
-// 변수 입력 폼 표시
-function docShowVarForm(vars) {
-  var inputS = 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px';
-  document.getElementById('doc-vars-form').style.display = 'block';
-  document.getElementById('doc-free-form').style.display = 'none';
-  document.getElementById('doc-vars-inputs').innerHTML = vars.map(function(v) {
-    return '<div style="margin-bottom:10px">' +
-      '<label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">' + v + '</label>' +
-      '<input type="text" id="doc-var-' + v + '" class="form-input" style="font-size:13px" placeholder="' + v + ' 입력">' +
+// 직접 업로드
+function draftUploadPdf(input) {
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  if (file.type !== 'application/pdf') { showToast('❌ PDF 파일만 업로드 가능합니다'); return; }
+
+  draftReset();
+  document.getElementById('draft-tpl-select').value = '';
+  document.getElementById('draft-file-name').textContent = '📎 ' + file.name;
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    _draftPdfBase64 = e.target.result.split(',')[1];
+    draftRenderPreview(_draftPdfBase64).then(function() {
+      draftAnalyzeVars(_draftPdfBase64);
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+// PDF 첫 페이지를 캔버스에 렌더링 (미리보기)
+function draftRenderPreview(base64) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  var bin = atob(base64);
+  var arr = new Uint8Array(bin.length);
+  for (var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+
+  document.getElementById('draft-empty').style.display = 'none';
+  document.getElementById('draft-preview-wrap').style.display = 'block';
+
+  return pdfjsLib.getDocument({data: arr}).promise.then(function(pdf) {
+    return pdf.getPage(1);
+  }).then(function(page) {
+    var viewport = page.getViewport({scale: 1.5});
+    var canvas = document.getElementById('draft-preview-canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    var ctx = canvas.getContext('2d');
+    return page.render({canvasContext: ctx, viewport: viewport}).promise;
+  });
+}
+
+// AI로 변수 후보 + 원본 텍스트 감지
+function draftAnalyzeVars(base64) {
+  document.getElementById('draft-analyzing').style.display = 'block';
+  document.getElementById('draft-vars-panel').style.display = 'none';
+  document.getElementById('draft-save-tpl-panel').style.display = 'none';
+
+  var prompt = '이 공문/계약서 PDF에서 문서마다 바뀌는 항목(수신처, 날짜, 금액, 회사명, 담당자 등)을 찾아주세요.\n' +
+    '각 항목에 대해 변수명과 PDF 안에 실제로 적혀있는 원본 텍스트를 그대로 반환하세요.\n' +
+    '원본 텍스트는 PDF에 있는 문자 그대로(공백, 숫자 포맷 포함) 정확히 옮겨야 합니다.\n' +
+    '형식: {"vars":[{"name":"변수명","original":"원본텍스트"}, ...]}\n' +
+    '반드시 JSON만 출력하세요. 다른 설명은 절대 포함하지 마세요.';
+
+  fetch(CF_URL, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-6', max_tokens:2000,
+      messages:[{role:'user', content:[
+        {type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}},
+        {type:'text', text:prompt}
+      ]}]
+    })
+  }).then(function(r){ return r.json(); })
+  .then(function(data) {
+    document.getElementById('draft-analyzing').style.display = 'none';
+    var raw = data.content && data.content[0] ? data.content[0].text : '';
+    var parsed;
+    try { parsed = JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch(e) { parsed = {vars:[]}; }
+    _draftVarMaps = parsed.vars || [];
+
+    if (_draftVarMaps.length) {
+      draftShowVarInputs(_draftVarMaps);
+      showToast('✅ 변경 항목 ' + _draftVarMaps.length + '개를 찾았습니다');
+    } else {
+      showToast('변경할 항목을 찾지 못했습니다');
+    }
+    document.getElementById('draft-save-tpl-panel').style.display = 'block';
+  }).catch(function(e) {
+    document.getElementById('draft-analyzing').style.display = 'none';
+    showToast('❌ 분석 실패: ' + e.message);
+  });
+}
+
+// 변수 입력 폼 (체크박스로 적용 여부 선택 + 입력칸)
+function draftShowVarInputs(varMaps) {
+  var panel = document.getElementById('draft-vars-panel');
+  var inputs = document.getElementById('draft-vars-inputs');
+  panel.style.display = 'block';
+  inputs.innerHTML = varMaps.map(function(v, i) {
+    return '<div style="margin-bottom:10px;padding:8px;border:1px solid var(--border);border-radius:8px">' +
+      '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);margin-bottom:5px;cursor:pointer">' +
+        '<input type="checkbox" id="draft-var-chk-' + i + '" checked> <strong>' + v.name + '</strong> ' +
+        '<span style="font-size:11px;color:var(--t3)">(원본: ' + v.original + ')</span>' +
+      '</label>' +
+      '<input type="text" id="draft-var-val-' + i + '" class="form-input" style="font-size:13px" placeholder="' + v.name + ' 입력">' +
     '</div>';
   }).join('');
 }
 
-function docShowFreeForm() {
-  document.getElementById('doc-vars-form').style.display = 'none';
-  document.getElementById('doc-free-form').style.display = 'block';
-}
+// 변수값 채워서 PDF 렌더링 (흰 박스 덮고 텍스트 입력)
+function draftApplyAndRender() {
+  if (!_draftPdfBase64 || !_draftVarMaps.length) { showToast('❌ 적용할 항목이 없습니다'); return; }
 
-function docUseTemplate(idx) {
-  showPage('doc-draft', document.querySelector('[onclick*="doc-draft"]'));
-  setTimeout(function(){
-    var sel = document.getElementById('doc-template-select');
-    if (sel) { sel.value = idx; docOnTemplateChange(); }
-  }, 150);
-}
-
-function openDocTemplateModal(idx) {
-  _docEditIdx = (idx !== undefined) ? idx : -1;
-  var t = _docEditIdx >= 0 ? (_docTemplates[_docEditIdx]||{}) : {};
-  document.getElementById('doc-template-modal-title').textContent = _docEditIdx >= 0 ? '템플릿 수정' : '템플릿 추가';
-  document.getElementById('doc-tpl-name').value = t.name||'';
-  document.getElementById('doc-tpl-type').value = t.type||'공문';
-  document.getElementById('doc-tpl-desc').value = t.desc||'';
-
-  // 섹션 초기화
-  var nameEl = document.getElementById('doc-tpl-upload-name');
-  if (nameEl) nameEl.textContent = '';
-  var varsSection = document.getElementById('doc-tpl-vars-section');
-  if (varsSection) varsSection.style.display = 'none';
-  var contentSection = document.getElementById('doc-tpl-content-section');
-  if (contentSection) contentSection.style.display = _docEditIdx >= 0 ? 'block' : 'none';
-  var contentEl = document.getElementById('doc-tpl-content');
-  if (contentEl) contentEl.value = t.content||'';
-
-  openModal('doc-template-modal');
-}
-
-function saveDocTemplate() {
-  var name = document.getElementById('doc-tpl-name').value.trim();
-  var rawContent = document.getElementById('doc-tpl-content') ? document.getElementById('doc-tpl-content').value.trim() : '';
-  if (!name) { showToast('❌ 템플릿 이름을 입력해주세요'); return; }
-
-  // 체크된 변수 목록 수집 (name + original 텍스트 포함)
-  var checkboxes = document.querySelectorAll('#doc-tpl-vars-list input[type=checkbox]:checked');
-  var checkedVars = [];
-  checkboxes.forEach(function(chk) {
-    checkedVars.push({
-      name: chk.value,
-      original: chk.getAttribute('data-original') || chk.value
-    });
+  var varValues = {}; // original -> newValue (체크된 것만)
+  _draftVarMaps.forEach(function(v, i) {
+    var chk = document.getElementById('draft-var-chk-' + i);
+    var val = document.getElementById('draft-var-val-' + i);
+    if (chk && chk.checked && val && val.value.trim()) {
+      varValues[v.original] = val.value.trim();
+    }
   });
 
-  // PDF 원본 저장 여부
-  var isPdfTpl = !!(window._docTplPdfBase64);
+  if (!Object.keys(varValues).length) { showToast('❌ 입력된 값이 없습니다'); return; }
 
-  var data = {
-    name: name,
-    type: document.getElementById('doc-tpl-type').value,
-    content: rawContent,
-    vars: checkedVars.map(function(v){ return v.name; }),
-    varMaps: checkedVars, // {name, original} 쌍
-    isPdf: isPdfTpl,
-    pdfBase64: isPdfTpl ? window._docTplPdfBase64 : null,
-    pdfType: isPdfTpl ? window._docTplPdfType : null,
-    desc: document.getElementById('doc-tpl-desc').value.trim(),
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
-
-  var p = (_docEditIdx >= 0 && _docTemplates[_docEditIdx])
-    ? db.collection('doc_templates').doc(_docTemplates[_docEditIdx].id).update(data)
-    : db.collection('doc_templates').add(data);
-  p.then(function(){
-    closeModal('doc-template-modal');
-    window._docTplPdfBase64 = null;
-    showToast('✅ 저장되었습니다');
-  }).catch(function(e){ showToast('❌ 저장 실패: ' + e.message); });
-}
-
-function deleteDocTemplate(id) {
-  if (!confirm('템플릿을 삭제하시겠습니까?')) return;
-  db.collection('doc_templates').doc(id).delete()
-    .then(function(){ showToast('🗑 삭제되었습니다'); })
-    .catch(function(e){ showToast('❌ 삭제 실패: ' + e.message); });
-}
-
-// ── AI 초안 작성 ──
-function docGenerate() {
-  var varsFormEl = document.getElementById('doc-vars-form');
-  var isVarMode = varsFormEl && varsFormEl.style.display !== 'none';
-
-  // 자유 입력 모드일 때만 주요 내용 필수 체크
-  if (!isVarMode) {
-    var content = document.getElementById('doc-input-content').value.trim();
-    if (!content) { showToast('❌ 주요 내용을 입력해주세요'); return; }
-  }
-
-  var title = document.getElementById('doc-input-title').value.trim();
-  var to = document.getElementById('doc-input-to').value.trim();
-  var content = isVarMode ? '' : document.getElementById('doc-input-content').value.trim();
-  var extra = document.getElementById('doc-input-extra') ? document.getElementById('doc-input-extra').value.trim() : '';
-
-  var infoText = '';
-  if (title) infoText += '제목/건명: ' + title + '\n';
-  if (to) infoText += '수신/상대방: ' + to + '\n';
-  if (content) infoText += '주요 내용: ' + content + '\n';
-  if (extra) infoText += '추가 요청: ' + extra + '\n';
-
-  var emptyEl = document.getElementById('doc-draft-empty');
-  var loadEl = document.getElementById('doc-draft-loading');
-  var resultEl = document.getElementById('doc-draft-result');
-  var actionsEl = document.getElementById('doc-draft-actions');
-
-  emptyEl.style.display='none'; resultEl.style.display='none'; actionsEl.style.display='none';
-  loadEl.style.display='flex';
-
-  // 저장 템플릿 + 변수 폼인 경우 → 텍스트 치환
-  var varsForm = document.getElementById('doc-vars-form');
-  var sel = document.getElementById('doc-template-select');
-  var idx = sel ? parseInt(sel.value) : NaN;
-  if (varsForm && varsForm.style.display !== 'none' && !isNaN(idx) && _docTemplates[idx]) {
-    var tpl = _docTemplates[idx];
-    var tplContent = tpl.content || '';
-    var vars = (tpl.vars && tpl.vars.length) ? tpl.vars : docExtractVars(tplContent);
-    var result = tplContent;
-    vars.forEach(function(v) {
-      var el = document.getElementById('doc-var-' + v);
-      var val = el ? el.value.trim() : '';
-      // {{변수명}} 또는 변수명 그대로 둘 다 치환 시도
-      result = result.replace(new RegExp('\\{\\{' + v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\}\\}', 'g'), val || '(' + v + ')');
-      result = result.replace(new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), val || '(' + v + ')');
-    });
-    loadEl.style.display='none';
-    window._docWordBlob = null;
-    var resultEl3 = document.getElementById('doc-draft-result');
-    var actionsEl3 = document.getElementById('doc-draft-actions');
-    resultEl3.value = result;
-    resultEl3.style.display='block';
-    actionsEl3.style.display='flex';
-    emptyEl.style.display='none';
-    showToast('✅ 초안 작성 완료 — Word로 다운로드하세요');
-    return;
-  }
-
-  // Word 업로드 + 변수 폼인 경우 → JSZip으로 XML 직접 치환
-  if (_docUploadedFile && _docUploadedFile.isDocx && _docOriginalWordBuffer) {
-    var varsForm2 = document.getElementById('doc-vars-form');
-    if (varsForm2 && varsForm2.style.display !== 'none') {
-      var vars2 = docExtractVars(_docOriginalText);
-      var varMap = {};
-      vars2.forEach(function(v) {
-        var el = document.getElementById('doc-var-' + v);
-        varMap['{{' + v + '}}'] = el ? (el.value.trim() || '(' + v + ')') : '(' + v + ')';
-      });
-
-      loadEl.style.display='none';
-      emptyEl.style.display='none';
-
-      // JSZip으로 Word XML에서 직접 치환
-      JSZip.loadAsync(_docOriginalWordBuffer).then(function(zip) {
-        return zip.file('word/document.xml').async('string').then(function(xmlStr) {
-          // XML에서 변수 치환
-          Object.keys(varMap).forEach(function(k) {
-            xmlStr = xmlStr.split(k).join(varMap[k]);
-          });
-          zip.file('word/document.xml', xmlStr);
-          return zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
-        });
-      }).then(function(blob) {
-        // 미리보기용 텍스트 (변수 치환된 결과)
-        var previewText = _docOriginalText;
-        Object.keys(varMap).forEach(function(k) { previewText = previewText.split(k).join(varMap[k]); });
-        var resultEl2 = document.getElementById('doc-draft-result');
-        var actionsEl2 = document.getElementById('doc-draft-actions');
-        resultEl2.value = previewText;
-        resultEl2.style.display = 'block';
-        actionsEl2.style.display = 'flex';
-        // blob 저장
-        window._docWordBlob = blob;
-        window._docWordName = '초안_' + new Date().toISOString().substring(0,10) + '.docx';
-        showToast('✅ 초안 완성 — Word 다운로드 버튼을 눌러주세요');
-      }).catch(function(e) {
-        emptyEl.style.display = 'flex';
-        showToast('❌ Word 처리 오류: ' + e.message);
-      });
-      return;
-    }
-  }
-
-  if (_docUploadedFile) {
-    if (_docUploadedFile.isDocx && _docOriginalText) {
-      // docx 텍스트 기반
-      var prompt = '다음은 공문/계약서 양식의 텍스트입니다. 이 양식의 구조와 형식을 완벽하게 유지하면서, 아래 입력 정보를 바탕으로 빈칸과 내용을 채워주세요.\n\n[원본 양식]\n' + _docOriginalText + '\n\n[입력 정보]\n' + infoText + '\n주의: 양식의 모든 구조(제목, 단락, 항목번호 등)를 그대로 유지하고 내용만 채워주세요. 마크다운 없이 텍스트로만 출력하세요.';
-      messages = [{role:'user', content: prompt}];
-    } else {
-      // PDF/이미지 양식
-      var filePrompt = '이 파일은 공문/계약서 양식입니다. 양식의 구조와 형식을 완벽하게 유지하면서 아래 입력 정보를 바탕으로 내용을 채워 초안을 작성해주세요.\n\n[입력 정보]\n' + infoText + '\n주의: 양식의 모든 구조를 그대로 유지하고 내용만 채워주세요. 마크다운 없이 텍스트로만 출력하세요.';
-      var fileContent = _docUploadedFile.isPdf
-        ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:_docUploadedFile.base64}}, {type:'text', text:filePrompt}]
-        : [{type:'image', source:{type:'base64', media_type:_docUploadedFile.type, data:_docUploadedFile.base64}}, {type:'text', text:filePrompt}];
-      messages = [{role:'user', content: fileContent}];
-    }
-  } else {
-    var sel = document.getElementById('doc-template-select');
-    var idx = sel ? parseInt(sel.value) : NaN;
-    var tpl = (!isNaN(idx) && _docTemplates[idx]) ? _docTemplates[idx].content : '';
-    var freePrompt = tpl
-      ? '다음 양식(템플릿)에 맞춰 공문/계약서 초안을 작성해주세요.\n\n[양식]\n' + tpl + '\n\n[입력 정보]\n' + infoText
-      : '공문/계약서 초안을 전문적으로 작성해주세요.\n\n[입력 정보]\n' + infoText;
-    freePrompt += '\n양식 형식을 유지하면서 전문적이고 정확하게 작성하세요. 마크다운 없이 텍스트로만 출력하세요.';
-    messages = [{role:'user', content: freePrompt}];
-  }
-
-  fetch(CF_URL, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:4000, messages: messages})
-  }).then(function(r){ return r.json(); })
-  .then(function(data) {
-    loadEl.style.display='none';
-    var text = data.content && data.content[0] ? data.content[0].text : '';
-    if (!text) { showToast('❌ AI 응답이 없습니다'); emptyEl.style.display='flex'; return; }
-    resultEl.value = text;
-    resultEl.style.display='block';
-    actionsEl.style.display='flex';
-    showToast('✅ 초안 작성 완료 — Word로 다운로드하세요');
-  }).catch(function(e){
-    loadEl.style.display='none'; emptyEl.style.display='flex';
-    showToast('❌ API 오류: ' + e.message);
-  });
-}
-
-function docCopy() {
-  var el = document.getElementById('doc-draft-result');
-  if (!el || !el.value) return;
-  navigator.clipboard.writeText(el.value).then(function(){ showToast('📋 복사되었습니다'); });
-}
-
-function docDownload() {
-  // Word 업로드 후 치환된 blob이 있으면 바로 다운로드
-  if (window._docWordBlob) {
-    var a0 = document.createElement('a');
-    a0.href = URL.createObjectURL(window._docWordBlob);
-    a0.download = window._docWordName || '초안.docx';
-    a0.click();
-    URL.revokeObjectURL(a0.href);
-    showToast('⬇ Word 파일 다운로드 완료 (원본 서식 유지)');
-    return;
-  }
-
-  var el = document.getElementById('doc-draft-result');
-  if (!el || !el.value) return;
-  var text = el.value;
-
-  try {
-    var lines = text.split('\n');
-    var children = lines.map(function(line) {
-      return new docx.Paragraph({
-        children: [new docx.TextRun({text: line, size: 24, font: '맑은 고딕'})],
-        spacing: {after: 120}
-      });
-    });
-    var doc = new docx.Document({
-      sections: [{
-        properties: {page: {margin: {top:1440, right:1134, bottom:1440, left:1134}}},
-        children: children
-      }]
-    });
-    docx.Packer.toBlob(doc).then(function(blob) {
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = '초안_' + new Date().toISOString().substring(0,10) + '.docx';
-      a.click();
-      URL.revokeObjectURL(a.href);
-      showToast('⬇ Word 파일 다운로드 완료');
-    });
-  } catch(e) {
-    var blob2 = new Blob(['\uFEFF' + text], {type:'text/plain;charset=utf-8'});
-    var a2 = document.createElement('a');
-    a2.href = URL.createObjectURL(blob2);
-    a2.download = '초안_' + new Date().toISOString().substring(0,10) + '.txt';
-    a2.click();
-    URL.revokeObjectURL(a2.href);
-    showToast('⬇ 텍스트 파일 다운로드 완료');
-  }
-}
-
-// ── PDF 변수 치환 + 다운로드 ──
-function docDownloadPdf() {
-  var el = document.getElementById('doc-draft-result');
-
-  // PDF 템플릿 기반 치환
-  var sel = document.getElementById('doc-template-select');
-  var idx = sel ? parseInt(sel.value) : NaN;
-  var tpl = (!isNaN(idx) && _docTemplates[idx]) ? _docTemplates[idx] : null;
-
-  if (tpl && tpl.isPdf && tpl.pdfBase64) {
-    // PDF 렌더링 + 변수 덮어쓰기
-    var varMaps = tpl.varMaps || [];
-    var varValues = {};
-    varMaps.forEach(function(v) {
-      var inputEl = document.getElementById('doc-var-' + v.name);
-      varValues[v.original] = inputEl ? inputEl.value.trim() : '';
-    });
-    docRenderPdfWithVars(tpl.pdfBase64, varValues);
-    return;
-  }
-
-  // 일반 텍스트 → PDF
-  if (!el || !el.value) return;
-  var text = el.value;
-  var win = window.open('', '_blank');
-  win.document.write(
-    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>초안</title>' +
-    '<style>body{font-family:"맑은 고딕",sans-serif;font-size:12pt;line-height:1.8;margin:25mm 20mm}' +
-    'pre{white-space:pre-wrap;font-family:inherit}' +
-    '@page{margin:25mm 20mm}</style></head><body>' +
-    '<pre>' + text.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre>' +
-    '<script>window.onload=function(){window.print();}<\/script></body></html>'
-  );
-  win.document.close();
-  showToast('📄 인쇄 창에서 PDF로 저장하세요');
-}
-
-function docRenderPdfWithVars(base64, varValues) {
-  showToast('📄 PDF 생성 중...');
+  showToast('📄 PDF에 내용을 채우는 중...');
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-  var pdfData = atob(base64);
-  var pdfArray = new Uint8Array(pdfData.length);
-  for (var i=0; i<pdfData.length; i++) pdfArray[i] = pdfData.charCodeAt(i);
+  var bin = atob(_draftPdfBase64);
+  var arr = new Uint8Array(bin.length);
+  for (var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
 
-  pdfjsLib.getDocument({data: pdfArray}).promise.then(function(pdfDoc) {
+  pdfjsLib.getDocument({data: arr}).promise.then(function(pdfDoc) {
     var totalPages = pdfDoc.numPages;
-    var canvases = [];
-    var scale = 2; // 고해상도
+    var scale = 2;
+    _draftFilledCanvases = [];
 
     var renderPage = function(pageNum) {
       return pdfDoc.getPage(pageNum).then(function(page) {
@@ -14916,58 +14415,121 @@ function docRenderPdfWithVars(base64, varValues) {
         var ctx = canvas.getContext('2d');
 
         return page.render({canvasContext: ctx, viewport: viewport}).promise
-          .then(function() { return page.getTextContent(); })
+          .then(function(){ return page.getTextContent(); })
           .then(function(textContent) {
-            // 텍스트 항목에서 변수 원본 텍스트 위치 찾아서 덮어쓰기
             textContent.items.forEach(function(item) {
               Object.keys(varValues).forEach(function(original) {
                 if (!original || !item.str.includes(original)) return;
                 var newVal = varValues[original];
-                if (!newVal) return;
-
-                // 텍스트 위치 계산
                 var tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
                 var x = tx[4];
                 var y = tx[5];
-                var fontSize = Math.abs(tx[0]) || 12;
+                var fontSize = Math.abs(tx[0]) || (12 * scale);
 
-                // 흰 박스로 덮기
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(x, y - fontSize * 1.2, item.width * scale + 4, fontSize * 1.4);
+                ctx.fillRect(x - 1, y - fontSize, (item.width * scale) + 6, fontSize * 1.3);
 
-                // 새 텍스트 씀
                 ctx.fillStyle = '#000000';
-                ctx.font = fontSize + 'px "맑은 고딕", sans-serif';
+                ctx.font = fontSize + 'px "Malgun Gothic","맑은 고딕",sans-serif';
+                ctx.textBaseline = 'alphabetic';
                 ctx.fillText(newVal, x, y);
               });
             });
-            canvases.push({canvas: canvas, width: viewport.width/scale, height: viewport.height/scale});
+            _draftFilledCanvases.push(canvas);
           });
       });
     };
 
-    // 모든 페이지 렌더링
     var pages = [];
-    for (var p=1; p<=totalPages; p++) pages.push(p);
-    pages.reduce(function(chain, pageNum) {
-      return chain.then(function(){ return renderPage(pageNum); });
-    }, Promise.resolve()).then(function() {
-      // jsPDF로 저장
-      var pdf = new jspdf.jsPDF({unit:'pt', format:'a4'});
-      canvases.forEach(function(c, i) {
-        if (i > 0) pdf.addPage();
-        var imgData = c.canvas.toDataURL('image/jpeg', 0.95);
-        pdf.addImage(imgData, 'JPEG', 0, 0, 595, 842);
-      });
-      pdf.save('초안_' + new Date().toISOString().substring(0,10) + '.pdf');
-      showToast('✅ PDF 다운로드 완료');
-    });
+    for (var p=1;p<=totalPages;p++) pages.push(p);
+    return pages.reduce(function(chain, pageNum){ return chain.then(function(){ return renderPage(pageNum); }); }, Promise.resolve());
+  }).then(function() {
+    // 미리보기를 채워진 결과(1페이지)로 교체
+    var previewCanvas = document.getElementById('draft-preview-canvas');
+    var src = _draftFilledCanvases[0];
+    previewCanvas.width = src.width;
+    previewCanvas.height = src.height;
+    previewCanvas.getContext('2d').drawImage(src, 0, 0);
+
+    document.getElementById('draft-download-btn').style.display = 'inline-flex';
+    showToast('✅ 내용이 채워졌습니다. PDF로 다운로드하세요');
   }).catch(function(e) {
-    showToast('❌ PDF 처리 오류: ' + e.message);
+    showToast('❌ 처리 오류: ' + e.message);
   });
 }
-var _docReviewHistory = []; // 대화 히스토리
-var _docReviewFileContent = null; // 업로드된 파일 base64 + type 보관
+
+// 최종 PDF 다운로드
+function draftDownloadPdf() {
+  if (!_draftFilledCanvases.length) { showToast('❌ 먼저 내용 채우기를 실행하세요'); return; }
+  var pdf = new jspdf.jsPDF({unit:'pt', format:'a4'});
+  _draftFilledCanvases.forEach(function(canvas, i) {
+    if (i > 0) pdf.addPage();
+    var imgData = canvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', 0, 0, 595, 842);
+  });
+  pdf.save('문서_' + new Date().toISOString().substring(0,10) + '.pdf');
+  showToast('⬇ PDF 다운로드 완료');
+}
+
+// 현재 양식을 템플릿으로 저장
+function draftSaveAsTemplate() {
+  var name = document.getElementById('draft-tpl-save-name').value.trim();
+  if (!name) { showToast('❌ 템플릿 이름을 입력해주세요'); return; }
+  if (!_draftPdfBase64) { showToast('❌ 저장할 PDF가 없습니다'); return; }
+
+  db.collection('doc_templates').add({
+    name: name,
+    pdfBase64: _draftPdfBase64,
+    varMaps: _draftVarMaps,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    showToast('✅ 템플릿으로 저장되었습니다');
+    document.getElementById('draft-tpl-save-name').value = '';
+  }).catch(function(e){ showToast('❌ 저장 실패: ' + e.message); });
+}
+
+// ══════════════════════════════════════════════════
+// 2) 템플릿 관리
+// ══════════════════════════════════════════════════
+function docRenderTemplateGrid() {
+  var el = document.getElementById('doc-template-grid');
+  if (!el) return;
+  if (!_docTemplates.length) {
+    el.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">📋</div><div style="font-size:13px">저장된 템플릿이 없습니다.<br>공문·계약서 작성 화면에서 PDF를 업로드하고 템플릿으로 저장해보세요.</div></div>';
+    return;
+  }
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">' +
+    _docTemplates.map(function(t, i) {
+      return '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px">' +
+        '<div style="font-size:14px;font-weight:600;color:var(--t1)">📄 ' + (t.name||'(이름없음)') + '</div>' +
+        '<div style="font-size:11px;color:var(--t3)">변경 항목 ' + ((t.varMaps||[]).length) + '개</div>' +
+        '<div style="display:flex;gap:6px">' +
+          '<button onclick="docUseTemplate(' + i + ')" style="flex:1;padding:7px;background:var(--acd);color:var(--ac);border:1px solid var(--ac);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">이 양식으로 작성</button>' +
+          '<button onclick="docDeleteTemplate(\'' + t.id + '\')" class="btn btn-danger btn-sm" style="padding:7px 10px;font-size:12px">삭제</button>' +
+        '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+}
+
+function docUseTemplate(idx) {
+  showPage('doc-draft', document.querySelector('[onclick*="doc-draft"]'));
+  setTimeout(function() {
+    var sel = document.getElementById('draft-tpl-select');
+    if (sel) { sel.value = idx; draftLoadFromTemplate(); }
+  }, 150);
+}
+
+function docDeleteTemplate(id) {
+  if (!confirm('템플릿을 삭제하시겠습니까?')) return;
+  db.collection('doc_templates').doc(id).delete()
+    .then(function(){ showToast('🗑 삭제되었습니다'); })
+    .catch(function(e){ showToast('❌ 삭제 실패: ' + e.message); });
+}
+
+// ══════════════════════════════════════════════════
+// 3) 계약서 검토 (대화형)
+// ══════════════════════════════════════════════════
+var _docReviewHistory = [];
 
 function docReview(input) {
   var file = input.files[0];
@@ -15001,22 +14563,17 @@ function docReview(input) {
   if (resetBtn) resetBtn.style.display='none';
   loadEl.style.display='flex';
 
-  // 히스토리 초기화
   _docReviewHistory = [];
-  _docReviewFileContent = null;
   document.getElementById('doc-review-messages').innerHTML = '';
 
   var reader = new FileReader();
   reader.onload = function(e) {
     var base64 = e.target.result.split(',')[1];
     var isPdf = file.type === 'application/pdf';
-    _docReviewFileContent = {base64: base64, type: file.type, isPdf: isPdf};
-
     var fileContent = isPdf
       ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}}, {type:'text', text:prompt}]
       : [{type:'image', source:{type:'base64', media_type:file.type, data:base64}}, {type:'text', text:prompt}];
 
-    // 첫 메시지는 파일 포함
     _docReviewHistory = [{role:'user', content: fileContent}];
 
     fetch(CF_URL, {
@@ -15027,13 +14584,8 @@ function docReview(input) {
       loadEl.style.display='none';
       var text = data.content && data.content[0] ? data.content[0].text : '';
       if (!text) { showToast('❌ AI 응답이 없습니다'); emptyEl.style.display='flex'; return; }
-
-      // 히스토리에 AI 응답 추가
       _docReviewHistory.push({role:'assistant', content: text});
-
-      // 채팅 UI에 AI 메시지 추가
       docAddMessage('ai', text);
-
       chatEl.style.display='flex';
       if (copyBtn) copyBtn.style.display='inline-flex';
       if (resetBtn) resetBtn.style.display='inline-flex';
@@ -15046,7 +14598,6 @@ function docReview(input) {
   reader.readAsDataURL(file);
 }
 
-// 메시지 UI 추가
 function docAddMessage(role, text) {
   var container = document.getElementById('doc-review-messages');
   var isAi = role === 'ai';
@@ -15068,7 +14619,6 @@ function docAddMessage(role, text) {
   container.scrollTop = container.scrollHeight;
 }
 
-// 추가 질문
 function docReviewAsk() {
   var input = document.getElementById('doc-review-input');
   var question = input ? input.value.trim() : '';
@@ -15077,15 +14627,11 @@ function docReviewAsk() {
 
   input.value = '';
   docAddMessage('user', question);
-
-  // 히스토리에 추가 (텍스트만)
   _docReviewHistory.push({role:'user', content: question});
 
-  // 전송 버튼 비활성화
   var sendBtn = input.nextElementSibling;
   if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '...'; }
 
-  // 로딩 메시지
   var loadDiv = document.createElement('div');
   loadDiv.id = 'doc-chat-typing';
   loadDiv.style.cssText = 'display:flex;gap:10px;align-items:center;color:var(--t3);font-size:12px';
@@ -15093,8 +14639,7 @@ function docReviewAsk() {
   document.getElementById('doc-review-messages').appendChild(loadDiv);
   document.getElementById('doc-review-messages').scrollTop = 99999;
 
-  // 히스토리에서 파일은 첫 메시지에만 포함, 나머지는 텍스트만 전송
-  var messages = _docReviewHistory.slice(0, -1).concat([{role:'user', content: question}]);
+  var messages = _docReviewHistory.slice(0,-1).concat([{role:'user', content: question}]);
 
   fetch(CF_URL, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -15104,7 +14649,6 @@ function docReviewAsk() {
     var typing = document.getElementById('doc-chat-typing');
     if (typing) typing.remove();
     if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '전송'; }
-
     var text = data.content && data.content[0] ? data.content[0].text : '';
     if (!text) { showToast('❌ 응답이 없습니다'); return; }
     _docReviewHistory.push({role:'assistant', content: text});
@@ -15119,7 +14663,6 @@ function docReviewAsk() {
 
 function docReviewReset() {
   _docReviewHistory = [];
-  _docReviewFileContent = null;
   document.getElementById('doc-review-messages').innerHTML = '';
   document.getElementById('doc-review-chat').style.display = 'none';
   document.getElementById('doc-review-empty').style.display = 'flex';
