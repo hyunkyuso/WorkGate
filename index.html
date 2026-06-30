@@ -14326,9 +14326,10 @@ function draftShowPreviewFromBuffer(buffer) {
       document.getElementById('draft-empty').style.display = 'none';
       document.getElementById('draft-preview-wrap').style.display = 'block';
 
-      // {{변수명}} 을 하이라이트 처리 (HTML 변환 후에는 보통 한 덩어리로 남음)
+      // {{변수명}} 을 하이라이트 처리 (data-varname에 원본 변수명을 보존해두어 재적용이 가능하게 함)
       var html = htmlResult.value.replace(/\{\{([^}]+)\}\}/g, function(m, name) {
-        return '<mark style="background:#fff3a3;padding:1px 3px;border-radius:3px;font-weight:600">{{' + name + '}}</mark>';
+        var safeName = name.replace(/"/g, '&quot;');
+        return '<mark data-varname="' + safeName + '" style="background:#fff3a3;padding:1px 3px;border-radius:3px;font-weight:600">{{' + name + '}}</mark>';
       });
       document.getElementById('draft-preview-text').innerHTML = html;
 
@@ -14383,15 +14384,14 @@ function draftApplyAndRender() {
     varMap[normalizeVarName(v)] = draftGetVarValue(v);
   });
 
-  // 미리보기 갱신: 화면에 보이는 하이라이트(mark) 텍스트만 치환
+  // 미리보기 갱신: data-varname에 저장된 원본 변수명을 기준으로 항상 다시 계산
+  // (textContent를 직접 파싱하지 않으므로 여러 번 눌러도 정확히 재적용됨)
   var previewEl = document.getElementById('draft-preview-text');
-  var marks = previewEl.querySelectorAll('mark');
+  var marks = previewEl.querySelectorAll('mark[data-varname]');
   marks.forEach(function(mark) {
-    var m = mark.textContent.match(/\{\{([^}]+)\}\}/);
-    if (!m) return;
-    var name = normalizeVarName(m[1]);
+    var name = normalizeVarName(mark.getAttribute('data-varname'));
     var val = varMap[name];
-    mark.textContent = val || ('(' + name + ')');
+    mark.textContent = val ? val : ('{{' + mark.getAttribute('data-varname') + '}}');
     mark.style.background = val ? '#d9f7d9' : '#fff3a3';
   });
 
