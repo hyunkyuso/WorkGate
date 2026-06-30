@@ -14244,13 +14244,22 @@ var _draftWordBuffer = null;   // 원본 Word ArrayBuffer
 var _draftOriginalText = '';   // 미리보기용 텍스트
 var _draftVars = [];           // 감지된 변수명 배열
 
+// 변수명 정규화: 화면에 안 보이는 특수 공백류 문자를 제거하고 trim
+// (워드/한글 자동교정 과정에서 zero-width space, word joiner, soft hyphen 등이 끼는 경우 대응)
+function normalizeVarName(name) {
+  return String(name)
+    .replace(/[\u200B\u200C\u200D\u2060\uFEFF\u00AD]/g, '') // zero-width 류 제거
+    .replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, ' ') // 각종 공백류를 일반 공백으로 통일
+    .trim();
+}
+
 function docExtractVars(text) {
   var matches = text.match(/\{\{([^}]+)\}\}/g) || [];
   var vars = [];
   var seen = {};
   matches.forEach(function(m) {
-    var name = m.replace(/\{\{|\}\}/g, '').trim();
-    if (!seen[name]) { seen[name] = true; vars.push(name); }
+    var name = normalizeVarName(m.replace(/\{\{|\}\}/g, ''));
+    if (name && !seen[name]) { seen[name] = true; vars.push(name); }
   });
   return vars;
 }
@@ -14342,12 +14351,27 @@ function draftShowVarInputs(vars) {
   var panel = document.getElementById('draft-vars-panel');
   var inputs = document.getElementById('draft-vars-inputs');
   panel.style.display = 'block';
-  inputs.innerHTML = vars.map(function(v) {
+  // 변수명을 id에 직접 쓰지 않고 인덱스 기반 id + data-varname 속성으로 안전하게 매칭
+  inputs.innerHTML = vars.map(function(v, i) {
     return '<div style="margin-bottom:10px">' +
       '<label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">' + v + '</label>' +
-      '<input type="text" id="draft-var-' + v + '" class="form-input" style="font-size:13px" placeholder="' + v + ' 입력">' +
+      '<input type="text" id="draft-var-' + i + '" data-varname="' + v.replace(/"/g, '&quot;') + '" class="form-input" style="font-size:13px" placeholder="' + v + ' 입력">' +
     '</div>';
   }).join('');
+}
+
+// 변수명으로 입력값 찾기 (data-varname 속성 매칭, 보이지 않는 특수문자 차이도 정규화해서 비교)
+function draftGetVarValue(varName) {
+  var target = normalizeVarName(varName);
+  var inputsContainer = document.getElementById('draft-vars-inputs');
+  if (!inputsContainer) return '';
+  var inputEls = inputsContainer.querySelectorAll('input[data-varname]');
+  for (var i = 0; i < inputEls.length; i++) {
+    if (normalizeVarName(inputEls[i].getAttribute('data-varname')) === target) {
+      return inputEls[i].value.trim();
+    }
+  }
+  return '';
 }
 
 // 변수 치환 → 미리보기 갱신 + Word 결과 보관
@@ -14356,8 +14380,7 @@ function draftApplyAndRender() {
 
   var varMap = {};
   _draftVars.forEach(function(v) {
-    var el = document.getElementById('draft-var-' + v);
-    varMap[v] = el ? el.value.trim() : '';
+    varMap[normalizeVarName(v)] = draftGetVarValue(v);
   });
 
   // 미리보기 갱신: 화면에 보이는 하이라이트(mark) 텍스트만 치환
@@ -14366,7 +14389,7 @@ function draftApplyAndRender() {
   marks.forEach(function(mark) {
     var m = mark.textContent.match(/\{\{([^}]+)\}\}/);
     if (!m) return;
-    var name = m[1];
+    var name = normalizeVarName(m[1]);
     var val = varMap[name];
     mark.textContent = val || ('(' + name + ')');
     mark.style.background = val ? '#d9f7d9' : '#fff3a3';
@@ -14393,14 +14416,17 @@ function draftApplyAndRender() {
 // (한 run에 일반 텍스트와 변수가 섞여 있어도 안전하게 처리)
 function replaceVarsInDocxXml(xmlStr, varMap) {
   // 1) 모든 <w:t ...>내용</w:t> 런을 순서대로 추출
-  var runRe = /<w:t([^>]*)>([\s\S]*?)<\/w:t>/g;
+  //    주의: <w:t 뒤에는 공백 또는 '>' 만 와야 함 (w:tc, w:tbl, w:tr 등 다른 태그와 구분)
+  var runRe = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g;
   var runs = [];
   var plain = '';
   var m;
   while ((m = runRe.exec(xmlStr)) !== null) {
-    var decoded = decodeXmlEntities(m[2]);
+    var decoded = decodeXmlEntities(m[1]);
+    var attrsMatch = m[0].match(/^<w:t(\s[^>]*)?>/);
+    var attrs = (attrsMatch && attrsMatch[1]) ? attrsMatch[1] : '';
     runs.push({
-      attrs: m[1],
+      attrs: attrs,
       text: decoded,
       xmlIndex: m.index,
       xmlEnd: m.index + m[0].length,
@@ -14416,7 +14442,7 @@ function replaceVarsInDocxXml(xmlStr, varMap) {
   var matches = [];
   var vm;
   while ((vm = varRe.exec(plain)) !== null) {
-    var name = vm[1].trim();
+    var name = normalizeVarName(vm[1]);
     var val = varMap.hasOwnProperty(name) ? (varMap[name] || ('(' + name + ')')) : vm[0];
     matches.push({start: vm.index, end: vm.index + vm[0].length, value: val});
   }
