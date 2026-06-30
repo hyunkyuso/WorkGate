@@ -230,6 +230,11 @@ select.form-input{cursor:pointer}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
+.docx-preview table{border-collapse:collapse;width:100%;margin:8px 0}
+.docx-preview table td,.docx-preview table th{border:1px solid #999;padding:6px 8px}
+.docx-preview p{margin:0 0 8px}
+.docx-preview img{max-width:100%}
+
 </style>
 </head>
 <body>
@@ -1533,7 +1538,7 @@ select.form-input{cursor:pointer}
               <div style="font-size:13px">템플릿을 선택하거나 Word 양식을 업로드하세요</div>
             </div>
             <div id="draft-preview-wrap" style="display:none;flex:1;overflow-y:auto;padding:24px;background:var(--surface)">
-              <div id="draft-preview-text" style="background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,0.08);white-space:pre-wrap;font-size:13px;line-height:1.9;color:#1a1a1a"></div>
+              <div id="draft-preview-text" class="docx-preview" style="background:#fff;border-radius:8px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,0.08);font-size:13px;line-height:1.9;color:#1a1a1a"></div>
             </div>
           </div>
         </div>
@@ -14301,23 +14306,32 @@ function draftUploadWord(input) {
   reader.readAsArrayBuffer(file);
 }
 
-// 미리보기 텍스트 추출 + 변수 입력 폼 생성
+// 미리보기 HTML 추출 + 변수 입력 폼 생성 (표/서식 유지를 위해 convertToHtml 사용)
 function draftShowPreviewFromBuffer(buffer) {
-  mammoth.extractRawText({arrayBuffer: buffer}).then(function(result) {
-    _draftOriginalText = result.value;
-    document.getElementById('draft-empty').style.display = 'none';
-    document.getElementById('draft-preview-wrap').style.display = 'block';
-    document.getElementById('draft-preview-text').textContent = _draftOriginalText;
-
+  // 변수 감지는 raw text 기준 (HTML 태그에 끼어 쪼개지는 것 방지)
+  mammoth.extractRawText({arrayBuffer: buffer}).then(function(rawResult) {
+    _draftOriginalText = rawResult.value;
     _draftVars = docExtractVars(_draftOriginalText);
-    if (_draftVars.length) {
-      draftShowVarInputs(_draftVars);
-      document.getElementById('draft-novars-panel').style.display = 'none';
-    } else {
-      document.getElementById('draft-vars-panel').style.display = 'none';
-      document.getElementById('draft-novars-panel').style.display = 'block';
-    }
-    document.getElementById('draft-save-tpl-panel').style.display = 'block';
+
+    return mammoth.convertToHtml({arrayBuffer: buffer}).then(function(htmlResult) {
+      document.getElementById('draft-empty').style.display = 'none';
+      document.getElementById('draft-preview-wrap').style.display = 'block';
+
+      // {{변수명}} 을 하이라이트 처리 (HTML 변환 후에는 보통 한 덩어리로 남음)
+      var html = htmlResult.value.replace(/\{\{([^}]+)\}\}/g, function(m, name) {
+        return '<mark style="background:#fff3a3;padding:1px 3px;border-radius:3px;font-weight:600">{{' + name + '}}</mark>';
+      });
+      document.getElementById('draft-preview-text').innerHTML = html;
+
+      if (_draftVars.length) {
+        draftShowVarInputs(_draftVars);
+        document.getElementById('draft-novars-panel').style.display = 'none';
+      } else {
+        document.getElementById('draft-vars-panel').style.display = 'none';
+        document.getElementById('draft-novars-panel').style.display = 'block';
+      }
+      document.getElementById('draft-save-tpl-panel').style.display = 'block';
+    });
   }).catch(function(e) {
     showToast('❌ Word 파일을 읽을 수 없습니다: ' + e.message);
   });
@@ -14346,24 +14360,23 @@ function draftApplyAndRender() {
     varMap[v] = el ? el.value.trim() : '';
   });
 
-  // 미리보기 텍스트 치환
-  var previewText = _draftOriginalText;
-  Object.keys(varMap).forEach(function(v) {
-    var val = varMap[v] || '(' + v + ')';
-    previewText = previewText.split('{{' + v + '}}').join(val);
+  // 미리보기 갱신: 화면에 보이는 하이라이트(mark) 텍스트만 치환
+  var previewEl = document.getElementById('draft-preview-text');
+  var marks = previewEl.querySelectorAll('mark');
+  marks.forEach(function(mark) {
+    var m = mark.textContent.match(/\{\{([^}]+)\}\}/);
+    if (!m) return;
+    var name = m[1];
+    var val = varMap[name];
+    mark.textContent = val || ('(' + name + ')');
+    mark.style.background = val ? '#d9f7d9' : '#fff3a3';
   });
-  document.getElementById('draft-preview-text').textContent = previewText;
 
-  // Word XML 직접 치환 (서식 유지)
+  // Word XML 직접 치환 (run 병합 방식 — {{}}가 여러 <w:t>로 쪼개져 있어도 정확히 치환됨)
   JSZip.loadAsync(_draftWordBuffer).then(function(zip) {
     return zip.file('word/document.xml').async('string').then(function(xmlStr) {
-      Object.keys(varMap).forEach(function(v) {
-        var val = varMap[v] || '(' + v + ')';
-        // XML 안에서 {{변수명}}이 태그로 쪼개져 있을 수 있어 단순 split 치환
-        var pattern = '{{' + v + '}}';
-        xmlStr = xmlStr.split(pattern).join(escapeXml(val));
-      });
-      zip.file('word/document.xml', xmlStr);
+      var replacedXml = replaceVarsInDocxXml(xmlStr, varMap);
+      zip.file('word/document.xml', replacedXml);
       return zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
     });
   }).then(function(blob) {
@@ -14371,12 +14384,105 @@ function draftApplyAndRender() {
     document.getElementById('draft-download-btn').style.display = 'inline-flex';
     showToast('✅ 내용이 채워졌습니다. Word로 다운로드하세요');
   }).catch(function(e) {
-    showToast('❌ 처리 오류: ' + e.message + ' (변수가 서식 태그로 분리되어 있을 수 있습니다)');
+    showToast('❌ 처리 오류: ' + e.message);
   });
 }
 
-function escapeXml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// document.xml 안의 <w:t> 텍스트들을 평문으로 합쳐 위치를 추적하고,
+// {{변수명}} 패턴에 걸친 run들을 찾아 "그 구간만" 정확히 치환하는 함수
+// (한 run에 일반 텍스트와 변수가 섞여 있어도 안전하게 처리)
+function replaceVarsInDocxXml(xmlStr, varMap) {
+  // 1) 모든 <w:t ...>내용</w:t> 런을 순서대로 추출
+  var runRe = /<w:t([^>]*)>([\s\S]*?)<\/w:t>/g;
+  var runs = [];
+  var plain = '';
+  var m;
+  while ((m = runRe.exec(xmlStr)) !== null) {
+    var decoded = decodeXmlEntities(m[2]);
+    runs.push({
+      attrs: m[1],
+      text: decoded,
+      xmlIndex: m.index,
+      xmlEnd: m.index + m[0].length,
+      plainStart: plain.length,
+      plainEnd: plain.length + decoded.length
+    });
+    plain += decoded;
+  }
+  if (!runs.length) return xmlStr;
+
+  // 2) 평문에서 {{변수명}} 위치 찾기
+  var varRe = /\{\{([^{}]+)\}\}/g;
+  var matches = [];
+  var vm;
+  while ((vm = varRe.exec(plain)) !== null) {
+    var name = vm[1].trim();
+    var val = varMap.hasOwnProperty(name) ? (varMap[name] || ('(' + name + ')')) : vm[0];
+    matches.push({start: vm.index, end: vm.index + vm[0].length, value: val});
+  }
+  if (!matches.length) return xmlStr;
+
+  // 3) run별로 "이 run의 plain 구간 중 어디부터 어디까지를 무엇으로 바꿀지" 계획 수립
+  //    각 run의 새 텍스트 = 매치 전 일반텍스트 + 매치 변수값(매치 시작 run에서만) + 매치 후 일반텍스트
+  var runNewText = {}; // ri -> 새로 구성된 텍스트(부분 누적)
+  runs.forEach(function(run, ri) { runNewText[ri] = ''; });
+
+  matches.forEach(function(match) {
+    // 이 매치가 걸친 모든 run
+    runs.forEach(function(run, ri) {
+      var segStart = Math.max(run.plainStart, match.start);
+      var segEnd = Math.min(run.plainEnd, match.end);
+      if (segStart >= segEnd) return; // 안 걸침
+      // 이 run에서 매치가 시작되는 지점이면(=run 안의 첫 글자가 매치 시작과 일치하거나 run이 매치 시작 이후부터 시작) 값을 한 번만 삽입
+      var isMatchStartInThisRun = (match.start >= run.plainStart && match.start < run.plainEnd);
+      runNewText[ri] += isMatchStartInThisRun ? match.value : '';
+    });
+  });
+
+  // 4) 매치에 전혀 안 걸친 일반 구간은 그대로 보존해야 하므로,
+  //    run을 "매치 전/매치 구간/매치 후"로 나누어 재구성
+  var finalText = {}; // ri -> 최종 텍스트
+  runs.forEach(function(run, ri) {
+    var cursor = run.plainStart;
+    var out = '';
+    var relevant = matches.filter(function(mt){ return mt.end > run.plainStart && mt.start < run.plainEnd; });
+    relevant.sort(function(a,b){ return a.start - b.start; });
+    relevant.forEach(function(mt) {
+      var segStart = Math.max(run.plainStart, mt.start);
+      var segEnd = Math.min(run.plainEnd, mt.end);
+      // cursor ~ segStart: 일반 텍스트 그대로
+      if (cursor < segStart) out += run.text.slice(cursor - run.plainStart, segStart - run.plainStart);
+      // 변수 구간: 매치가 이 run에서 시작될 때만 값 삽입, 아니면 빈 문자열(이미 앞 run에서 삽입됨)
+      var isMatchStartInThisRun = (mt.start >= run.plainStart && mt.start < run.plainEnd);
+      if (isMatchStartInThisRun) out += mt.value;
+      cursor = segEnd;
+    });
+    // 남은 꼬리 일반 텍스트
+    if (cursor < run.plainEnd) out += run.text.slice(cursor - run.plainStart);
+    finalText[ri] = (relevant.length > 0) ? out : null; // null = 변경 없음
+  });
+
+  // 5) 변경된 run만 뒤에서부터 XML 교체
+  var changedIndices = [];
+  Object.keys(finalText).forEach(function(k) { if (finalText[k] !== null) changedIndices.push(Number(k)); });
+  changedIndices.sort(function(a,b){ return b-a; });
+
+  changedIndices.forEach(function(ri) {
+    var run = runs[ri];
+    var newInner = encodeXmlEntities(finalText[ri]);
+    var attrs = run.attrs.indexOf('xml:space') >= 0 ? run.attrs : run.attrs + ' xml:space="preserve"';
+    var newRun = '<w:t' + attrs + '>' + newInner + '</w:t>';
+    xmlStr = xmlStr.slice(0, run.xmlIndex) + newRun + xmlStr.slice(run.xmlEnd);
+  });
+
+  return xmlStr;
+}
+
+function decodeXmlEntities(s) {
+  return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&');
+}
+function encodeXmlEntities(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // Word 다운로드
