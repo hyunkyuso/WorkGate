@@ -2094,7 +2094,7 @@ select.form-input{cursor:pointer}
 
 <!-- 템플릿 수정 모달 -->
 <div id="doc-edit-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('doc-edit-modal')">
-  <div class="modal" style="max-width:440px">
+  <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto">
     <div class="modal-header">
       <div class="modal-title">템플릿 수정</div>
       <button class="modal-close" onclick="closeModal('doc-edit-modal')">✕</button>
@@ -2104,13 +2104,27 @@ select.form-input{cursor:pointer}
         <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">템플릿 이름</label>
         <input id="doc-edit-name" type="text" class="form-input" placeholder="템플릿 이름">
       </div>
-      <div>
+      <div style="margin-bottom:12px">
         <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">Word 파일 교체 (선택)</label>
         <div style="font-size:11px;color:var(--t3);margin-bottom:6px">파일을 선택하지 않으면 기존 파일 유지</div>
         <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px dashed var(--border);border-radius:8px;cursor:pointer;font-size:13px;color:var(--t2)" onmouseover="this.style.borderColor='var(--ac)'" onmouseout="this.style.borderColor='var(--border)'">
           📎 <span id="doc-edit-file-label">새 파일 선택...</span>
           <input type="file" accept=".docx" style="display:none" onchange="docEditFileSelect(this)">
         </label>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:6px">공유 설정</label>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:8px">공유된 직원은 이 템플릿을 조회·사용할 수 있습니다 (수정/삭제는 불가)</div>
+        <!-- 직원 검색 -->
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input id="doc-edit-emp-search" type="text" class="form-input" style="flex:1;font-size:13px" placeholder="이름 또는 이메일 검색" oninput="docEditSearchEmp()">
+        </div>
+        <div id="doc-edit-emp-results" style="display:none;border:1px solid var(--border);border-radius:8px;max-height:120px;overflow-y:auto;margin-bottom:8px"></div>
+        <!-- 공유된 직원 목록 -->
+        <div style="font-size:11px;color:var(--t2);font-weight:600;margin-bottom:4px">공유된 직원</div>
+        <div id="doc-edit-shared-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;padding:6px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
+          <span style="font-size:11px;color:var(--t3)">없음</span>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -14286,8 +14300,18 @@ var _docTemplates = [];
 // ── Firestore 리스너 ──
 function docStartListener() {
   db.collection('doc_templates').orderBy('createdAt', 'desc').onSnapshot(function(snap) {
-    _docTemplates = [];
-    snap.forEach(function(d){ _docTemplates.push(Object.assign({id:d.id}, d.data())); });
+    var all = [];
+    snap.forEach(function(d){ all.push(Object.assign({id:d.id}, d.data())); });
+
+    var myEmail = state.user ? state.user.email : '';
+    var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
+
+    // 관리자: 전체 / 일반: 본인 등록 + 공유받은 것
+    _docTemplates = isAdmin ? all : all.filter(function(t) {
+      return t.createdBy === myEmail ||
+        (t.sharedWith && t.sharedWith.indexOf(myEmail) >= 0);
+    });
+
     docRenderTemplateGrid();
     docRefreshTplSelect();
   });
@@ -14693,6 +14717,8 @@ function draftSaveAsTemplate() {
     name: name,
     wordBase64: base64,
     vars: _draftVars,
+    createdBy: state.user ? state.user.email : '',
+    sharedWith: [],
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function() {
     showToast('✅ 템플릿으로 저장되었습니다');
@@ -14720,15 +14746,30 @@ function docRenderTemplateGrid() {
     el.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">📋</div><div style="font-size:13px">저장된 템플릿이 없습니다.<br>공문·계약서 작성 화면에서 Word 양식을 업로드하고 템플릿으로 저장해보세요.</div></div>';
     return;
   }
+
+  var myEmail = state.user ? state.user.email : '';
+  var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
+
   el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">' +
     _docTemplates.map(function(t, i) {
+      var canEdit = isAdmin || t.createdBy === myEmail;
+      var creatorName = t.createdBy ? t.createdBy.replace('@jungdouit.com','') : '';
+      var sharedCount = (t.sharedWith||[]).length;
+      var sharedTxt = sharedCount > 0 ? '공유 ' + sharedCount + '명' : '비공개';
+
       return '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px">' +
         '<div style="font-size:14px;font-weight:600;color:var(--t1)">📄 ' + (t.name||'(이름없음)') + '</div>' +
-        '<div style="font-size:11px;color:var(--t3)">변수 ' + ((t.vars||[]).length) + '개</div>' +
+        '<div style="display:flex;gap:8px;font-size:11px;color:var(--t3)">' +
+          '<span>변수 ' + ((t.vars||[]).length) + '개</span>' +
+          '<span>·</span>' +
+          '<span>등록: ' + creatorName + '</span>' +
+          '<span>·</span>' +
+          '<span>' + sharedTxt + '</span>' +
+        '</div>' +
         '<div style="display:flex;gap:6px">' +
           '<button onclick="docUseTemplate(' + i + ')" style="flex:1;padding:7px;background:var(--acd);color:var(--ac);border:1px solid var(--ac);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">이 양식으로 작성</button>' +
-          '<button onclick="openDocEditModal(\'' + t.id + '\',' + i + ')" class="btn btn-ghost btn-sm" style="padding:7px 10px;font-size:12px">수정</button>' +
-          '<button onclick="docDeleteTemplate(\'' + t.id + '\')" class="btn btn-danger btn-sm" style="padding:7px 10px;font-size:12px">삭제</button>' +
+          (canEdit ? '<button onclick="openDocEditModal(\'' + t.id + '\',' + i + ')" class="btn btn-ghost btn-sm" style="padding:7px 10px;font-size:12px">수정</button>' : '') +
+          (canEdit ? '<button onclick="docDeleteTemplate(\'' + t.id + '\')" class="btn btn-danger btn-sm" style="padding:7px 10px;font-size:12px">삭제</button>' : '') +
         '</div>' +
       '</div>';
     }).join('') + '</div>';
@@ -14736,14 +14777,73 @@ function docRenderTemplateGrid() {
 
 var _docEditId = null;
 var _docEditNewBuffer = null;
+var _docEditSharedWith = [];
 
 function openDocEditModal(id, idx) {
   _docEditId = id;
   _docEditNewBuffer = null;
   var t = _docTemplates[idx] || {};
+  _docEditSharedWith = (t.sharedWith || []).slice();
+
   document.getElementById('doc-edit-name').value = t.name || '';
   document.getElementById('doc-edit-file-label').textContent = '새 파일 선택...';
+  document.getElementById('doc-edit-emp-search').value = '';
+  document.getElementById('doc-edit-emp-results').style.display = 'none';
+  document.getElementById('doc-edit-emp-results').innerHTML = '';
+  docEditRenderSharedList();
   openModal('doc-edit-modal');
+}
+
+function docEditRenderSharedList() {
+  var el = document.getElementById('doc-edit-shared-list');
+  if (!_docEditSharedWith.length) {
+    el.innerHTML = '<span style="font-size:11px;color:var(--t3)">없음</span>';
+    return;
+  }
+  el.innerHTML = _docEditSharedWith.map(function(email) {
+    var emp = employees.find(function(e){ return e.id === email || e.email === email; });
+    var label = emp ? (emp.name + ' (' + email.replace('@jungdouit.com','') + ')') : email;
+    return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--acd);color:var(--ac);border-radius:99px;font-size:11px;font-weight:500">' +
+      label +
+      '<button onclick="docEditRemoveShared(\'' + email + '\')" style="background:none;border:none;cursor:pointer;color:var(--ac);font-size:12px;padding:0;line-height:1">✕</button>' +
+    '</span>';
+  }).join('');
+}
+
+function docEditRemoveShared(email) {
+  _docEditSharedWith = _docEditSharedWith.filter(function(e){ return e !== email; });
+  docEditRenderSharedList();
+}
+
+function docEditSearchEmp() {
+  var keyword = document.getElementById('doc-edit-emp-search').value.trim();
+  var resultsEl = document.getElementById('doc-edit-emp-results');
+  if (!keyword) { resultsEl.style.display = 'none'; return; }
+
+  var myEmail = state.user ? state.user.email : '';
+  var filtered = employees.filter(function(e) {
+    var email = e.id || e.email || '';
+    return email !== myEmail &&
+      _docEditSharedWith.indexOf(email) < 0 &&
+      e.status !== '퇴직' &&
+      ((e.name || '').indexOf(keyword) >= 0 || email.indexOf(keyword) >= 0);
+  }).slice(0, 6);
+
+  if (!filtered.length) { resultsEl.style.display = 'none'; return; }
+  resultsEl.innerHTML = filtered.map(function(e) {
+    var email = e.id || e.email || '';
+    return '<div onclick="docEditAddShared(\'' + email + '\')" style="padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background=\'var(--acd)\'" onmouseout="this.style.background=\'none\'">' +
+      '<strong>' + (e.name||'') + '</strong> <span style="color:var(--t3);font-size:11px">' + email.replace('@jungdouit.com','') + '</span>' +
+    '</div>';
+  }).join('');
+  resultsEl.style.display = 'block';
+}
+
+function docEditAddShared(email) {
+  if (_docEditSharedWith.indexOf(email) < 0) _docEditSharedWith.push(email);
+  document.getElementById('doc-edit-emp-search').value = '';
+  document.getElementById('doc-edit-emp-results').style.display = 'none';
+  docEditRenderSharedList();
 }
 
 function docEditFileSelect(input) {
@@ -14763,33 +14863,25 @@ function saveDocEdit() {
   if (!name) { showToast('❌ 이름을 입력해주세요'); return; }
   if (!_docEditId) return;
 
-  var updateData = { name: name };
-
-  // 새 파일이 있으면 base64 변환 후 업데이트
-  if (_docEditNewBuffer) {
-    var bytes = new Uint8Array(_docEditNewBuffer);
-    var binary = '';
-    for (var i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-    var base64 = btoa(binary);
-
-    // 새 파일에서 변수 추출
-    mammoth.extractRawText({arrayBuffer: _docEditNewBuffer}).then(function(result) {
-      var vars = docExtractVars(result.value);
-      updateData.wordBase64 = base64;
-      updateData.vars = vars;
-      db.collection('doc_templates').doc(_docEditId).update(updateData)
-        .then(function() {
-          closeModal('doc-edit-modal');
-          showToast('✅ 템플릿이 수정되었습니다');
-        }).catch(function(e){ showToast('❌ 수정 실패: ' + e.message); });
-    });
-  } else {
-    // 이름만 변경
+  var doUpdate = function(extraData) {
+    var updateData = Object.assign({ name: name, sharedWith: _docEditSharedWith }, extraData || {});
     db.collection('doc_templates').doc(_docEditId).update(updateData)
       .then(function() {
         closeModal('doc-edit-modal');
-        showToast('✅ 템플릿 이름이 변경되었습니다');
+        showToast('✅ 템플릿이 수정되었습니다');
       }).catch(function(e){ showToast('❌ 수정 실패: ' + e.message); });
+  };
+
+  if (_docEditNewBuffer) {
+    mammoth.extractRawText({arrayBuffer: _docEditNewBuffer}).then(function(result) {
+      var vars = docExtractVars(result.value);
+      var bytes = new Uint8Array(_docEditNewBuffer);
+      var binary = '';
+      for (var i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      doUpdate({ wordBase64: btoa(binary), vars: vars });
+    });
+  } else {
+    doUpdate();
   }
 }
 
