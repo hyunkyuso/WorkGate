@@ -14548,6 +14548,16 @@ function draftSaveAsTemplate() {
 // ══════════════════════════════════════════════════
 // 2) 템플릿 관리
 // ══════════════════════════════════════════════════
+function docRefreshTplSelect() {
+  var sel = document.getElementById('draft-tpl-select');
+  if (!sel) return;
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">템플릿 선택 안 함</option>' +
+    _docTemplates.map(function(t, i) {
+      return '<option value="' + i + '"' + (cur == i ? ' selected' : '') + '>' + (t.name || '(이름없음)') + '</option>';
+    }).join('');
+}
+
 function docRenderTemplateGrid() {
   var el = document.getElementById('doc-template-grid');
   if (!el) return;
