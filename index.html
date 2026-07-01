@@ -1548,7 +1548,7 @@ select.form-input{cursor:pointer}
               <div style="font-size:13px">템플릿을 선택하거나 Word 양식을 업로드하세요</div>
             </div>
             <div id="draft-preview-wrap" style="display:none;flex:1;overflow-y:auto;padding:16px;background:#e8e8e8">
-              <div id="draft-preview-text" style="background:#fff;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,0.15);min-height:400px;max-width:900px;margin:0 auto"></div>
+              <div id="draft-preview-text" style="background:#fff;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,0.15);height:100%;min-height:400px;max-width:900px;margin:0 auto"></div>
             </div>
           </div>
         </div>
@@ -14466,7 +14466,7 @@ function draftShowPreviewFromBuffer(buffer, driveFileId) {
     if (driveFileId) {
       // 드라이브 파일 ID가 있으면 Google Docs Viewer로 iframe 표시 (서식 완벽)
       var viewerUrl = 'https://docs.google.com/document/d/' + driveFileId + '/preview';
-      container.innerHTML = '<iframe src="' + viewerUrl + '" style="width:100%;height:700px;border:none;border-radius:4px" allowfullscreen></iframe>';
+      container.innerHTML = '<iframe src="' + viewerUrl + '" style="width:100%;height:100%;min-height:600px;border:none;border-radius:4px" allowfullscreen></iframe>';
     } else if (window.docx && window.docx.renderAsync) {
       // docx-preview 폴백
       window.docx.renderAsync(buffer, container, null, {
@@ -14653,7 +14653,7 @@ async function draftPreviewViaDrive(blob) {
 
     // Google Docs Viewer로 표시
     var viewerUrl = 'https://docs.google.com/document/d/' + uploadData.id + '/preview';
-    container.innerHTML = '<iframe src="' + viewerUrl + '" style="width:100%;height:700px;border:none;border-radius:4px" allowfullscreen></iframe>';
+    container.innerHTML = '<iframe src="' + viewerUrl + '" style="width:100%;height:100%;min-height:600px;border:none;border-radius:4px" allowfullscreen></iframe>';
     showToast('✅ 내용이 채워졌습니다');
 
   } catch(e) {
