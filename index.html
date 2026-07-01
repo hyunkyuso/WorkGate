@@ -14445,15 +14445,13 @@ function draftUploadWord(input) {
   var reader = new FileReader();
   reader.onload = function(e) {
     _draftWordBuffer = e.target.result;
-    // 1) 우선 로컬 렌더링으로 빠르게 보여주고
-    draftShowPreviewFromBuffer(_draftWordBuffer);
-    // 2) 템플릿 미리보기와 동일한 방식(구글 문서 뷰어)으로 업그레이드 — 원본 서식 그대로 보이게
-    draftUpgradePreviewToDrive(_draftWordBuffer);
+    // 템플릿과 동일한 방식(구글 문서 뷰어)으로 바로 준비 — 화면이 중간에 바뀌지 않도록 로딩 표시 후 한 번에 전환
+    draftShowPreviewFromBuffer(_draftWordBuffer, null, true);
   };
   reader.readAsArrayBuffer(file);
 }
 
-// buffer를 드라이브에 임시 업로드해 fileId를 반환 (실패 시 null → 호출부는 로컬 렌더링을 유지)
+// buffer를 드라이브에 임시 업로드해 fileId를 반환 (실패 시 null → 호출부는 로컬 렌더링으로 폴백)
 async function draftUploadTempForPreview(buffer) {
   var ok = await driveEnsureToken();
   if (!ok) return null;
@@ -14484,19 +14482,34 @@ async function draftUploadTempForPreview(buffer) {
   }
 }
 
-// 직접 업로드한 원본 파일의 미리보기를 구글 문서 뷰어(iframe)로 업그레이드
+// 직접 업로드한 원본 파일의 미리보기를 구글 문서 뷰어(iframe)로 준비.
+// 실패하면 로컬 docx-preview 렌더링으로 폴백한다.
 async function draftUpgradePreviewToDrive(buffer) {
+  var container = document.getElementById('draft-preview-text');
   var fileId = await draftUploadTempForPreview(buffer);
   // 업로드하는 사이 사용자가 다른 파일을 새로 올렸다면 무시
-  if (!fileId || _draftWordBuffer !== buffer) return;
-  var container = document.getElementById('draft-preview-text');
-  if (!container) return;
-  var viewerUrl = 'https://docs.google.com/document/d/' + fileId + '/preview';
-  container.innerHTML = '<iframe src="' + viewerUrl + '" style="width:100%;height:100%;min-height:600px;border:none;border-radius:4px" allowfullscreen></iframe>';
+  if (_draftWordBuffer !== buffer || !container) return;
+
+  if (fileId) {
+    var viewerUrl = 'https://docs.google.com/document/d/' + fileId + '/preview';
+    container.innerHTML = '<iframe src="' + viewerUrl + '" style="width:100%;height:100%;min-height:600px;border:none;border-radius:4px" allowfullscreen></iframe>';
+  } else {
+    // 드라이브 업로드 실패(권한 없음 등) → 로컬 렌더링으로 폴백
+    container.innerHTML = '';
+    if (window.docx && window.docx.renderAsync) {
+      window.docx.renderAsync(buffer, container, null, {
+        inWrapper: true, ignoreWidth: false, ignoreFonts: false, breakPages: true, useBase64URL: true
+      }).then(function() {
+        draftHighlightVarsInPreview(container);
+      }).catch(function() { draftFallbackPreview(buffer); });
+    } else {
+      draftFallbackPreview(buffer);
+    }
+  }
 }
 
 // 미리보기 HTML 추출 + 변수 입력 폼 생성 (표/서식 유지를 위해 convertToHtml 사용)
-function draftShowPreviewFromBuffer(buffer, driveFileId) {
+function draftShowPreviewFromBuffer(buffer, driveFileId, tryUpgrade) {
   // 변수 감지는 raw text 기준
   mammoth.extractRawText({arrayBuffer: buffer}).then(function(rawResult) {
     _draftOriginalText = rawResult.value;
@@ -14512,6 +14525,12 @@ function draftShowPreviewFromBuffer(buffer, driveFileId) {
       // 드라이브 파일 ID가 있으면 Google Docs Viewer로 iframe 표시 (서식 완벽)
       var viewerUrl = 'https://docs.google.com/document/d/' + driveFileId + '/preview';
       container.innerHTML = '<iframe src="' + viewerUrl + '" style="width:100%;height:100%;min-height:600px;border:none;border-radius:4px" allowfullscreen></iframe>';
+    } else if (tryUpgrade) {
+      // 로딩 표시 후 드라이브 업로드가 끝나면 한 번에 iframe으로 전환 (화면이 중간에 바뀌는 것을 방지)
+      container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:400px;flex-direction:column;gap:12px;color:var(--t3)">' +
+        '<div style="font-size:32px;animation:spin 1.2s linear infinite;display:inline-block">⏳</div>' +
+        '<div style="font-size:13px">미리보기 준비 중...</div></div>';
+      draftUpgradePreviewToDrive(buffer);
     } else if (window.docx && window.docx.renderAsync) {
       // docx-preview 폴백
       window.docx.renderAsync(buffer, container, null, {
