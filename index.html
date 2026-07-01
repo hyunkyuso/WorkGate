@@ -14809,7 +14809,8 @@ function docRenderTemplateGrid() {
   el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">' +
     _docTemplates.map(function(t, i) {
       var canEdit = isAdmin || t.createdBy === myEmail;
-      var creatorName = t.createdBy ? t.createdBy.replace('@jungdouit.com','') : '';
+      var creatorEmp = employees.find(function(e){ return e.id === t.createdBy || e.email === t.createdBy; });
+      var creatorName = creatorEmp ? creatorEmp.name : (t.createdBy ? t.createdBy.replace('@jungdouit.com','') : '');
       var sharedCount = (t.sharedWith||[]).length;
       var sharedTxt = sharedCount > 0 ? '공유 ' + sharedCount + '명' : '비공개';
 
