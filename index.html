@@ -2092,6 +2092,34 @@ select.form-input{cursor:pointer}
   </div>
 </div>
 
+<!-- 템플릿 수정 모달 -->
+<div id="doc-edit-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('doc-edit-modal')">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title">템플릿 수정</div>
+      <button class="modal-close" onclick="closeModal('doc-edit-modal')">✕</button>
+    </div>
+    <div style="padding:4px 0">
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">템플릿 이름</label>
+        <input id="doc-edit-name" type="text" class="form-input" placeholder="템플릿 이름">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">Word 파일 교체 (선택)</label>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:6px">파일을 선택하지 않으면 기존 파일 유지</div>
+        <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px dashed var(--border);border-radius:8px;cursor:pointer;font-size:13px;color:var(--t2)" onmouseover="this.style.borderColor='var(--ac)'" onmouseout="this.style.borderColor='var(--border)'">
+          📎 <span id="doc-edit-file-label">새 파일 선택...</span>
+          <input type="file" accept=".docx" style="display:none" onchange="docEditFileSelect(this)">
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('doc-edit-modal')">닫기</button>
+      <button class="btn btn-primary" onclick="saveDocEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 상시근로자수 수정 모달 -->
 <div id="wf-edit-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('wf-edit-modal')">
   <div class="modal" style="max-width:440px">
@@ -14689,7 +14717,7 @@ function docRenderTemplateGrid() {
   var el = document.getElementById('doc-template-grid');
   if (!el) return;
   if (!_docTemplates.length) {
-    el.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">📋</div><div style="font-size:13px">저장된 템플릿이 없습니다.<br>공문·계약서 작성 화면에서 PDF를 업로드하고 템플릿으로 저장해보세요.</div></div>';
+    el.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">📋</div><div style="font-size:13px">저장된 템플릿이 없습니다.<br>공문·계약서 작성 화면에서 Word 양식을 업로드하고 템플릿으로 저장해보세요.</div></div>';
     return;
   }
   el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">' +
@@ -14699,10 +14727,70 @@ function docRenderTemplateGrid() {
         '<div style="font-size:11px;color:var(--t3)">변수 ' + ((t.vars||[]).length) + '개</div>' +
         '<div style="display:flex;gap:6px">' +
           '<button onclick="docUseTemplate(' + i + ')" style="flex:1;padding:7px;background:var(--acd);color:var(--ac);border:1px solid var(--ac);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">이 양식으로 작성</button>' +
+          '<button onclick="openDocEditModal(\'' + t.id + '\',' + i + ')" class="btn btn-ghost btn-sm" style="padding:7px 10px;font-size:12px">수정</button>' +
           '<button onclick="docDeleteTemplate(\'' + t.id + '\')" class="btn btn-danger btn-sm" style="padding:7px 10px;font-size:12px">삭제</button>' +
         '</div>' +
       '</div>';
     }).join('') + '</div>';
+}
+
+var _docEditId = null;
+var _docEditNewBuffer = null;
+
+function openDocEditModal(id, idx) {
+  _docEditId = id;
+  _docEditNewBuffer = null;
+  var t = _docTemplates[idx] || {};
+  document.getElementById('doc-edit-name').value = t.name || '';
+  document.getElementById('doc-edit-file-label').textContent = '새 파일 선택...';
+  openModal('doc-edit-modal');
+}
+
+function docEditFileSelect(input) {
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    _docEditNewBuffer = e.target.result;
+    document.getElementById('doc-edit-file-label').textContent = '📎 ' + file.name;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function saveDocEdit() {
+  var name = document.getElementById('doc-edit-name').value.trim();
+  if (!name) { showToast('❌ 이름을 입력해주세요'); return; }
+  if (!_docEditId) return;
+
+  var updateData = { name: name };
+
+  // 새 파일이 있으면 base64 변환 후 업데이트
+  if (_docEditNewBuffer) {
+    var bytes = new Uint8Array(_docEditNewBuffer);
+    var binary = '';
+    for (var i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    var base64 = btoa(binary);
+
+    // 새 파일에서 변수 추출
+    mammoth.extractRawText({arrayBuffer: _docEditNewBuffer}).then(function(result) {
+      var vars = docExtractVars(result.value);
+      updateData.wordBase64 = base64;
+      updateData.vars = vars;
+      db.collection('doc_templates').doc(_docEditId).update(updateData)
+        .then(function() {
+          closeModal('doc-edit-modal');
+          showToast('✅ 템플릿이 수정되었습니다');
+        }).catch(function(e){ showToast('❌ 수정 실패: ' + e.message); });
+    });
+  } else {
+    // 이름만 변경
+    db.collection('doc_templates').doc(_docEditId).update(updateData)
+      .then(function() {
+        closeModal('doc-edit-modal');
+        showToast('✅ 템플릿 이름이 변경되었습니다');
+      }).catch(function(e){ showToast('❌ 수정 실패: ' + e.message); });
+  }
 }
 
 function docUseTemplate(idx) {
