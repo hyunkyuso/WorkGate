@@ -14590,16 +14590,12 @@ async function draftPreviewViaDrive(blob) {
   }
 
   try {
-    var token = state.driveAccessToken;
     var folderId = await driveEnsureFolder();
     var fileName = '_임시미리보기_' + Date.now() + '_.docx';
 
     // 이전 임시 파일 삭제
     if (_draftTempDriveFileId) {
-      fetch('https://www.googleapis.com/drive/v3/files/' + _draftTempDriveFileId, {
-        method: 'DELETE',
-        headers: { Authorization: 'Bearer ' + token }
-      }).catch(function(){});
+      driveApiCall('https://www.googleapis.com/drive/v3/files/' + _draftTempDriveFileId, { method: 'DELETE' }).catch(function(){});
       _draftTempDriveFileId = null;
     }
 
@@ -14608,9 +14604,9 @@ async function draftPreviewViaDrive(blob) {
     var form2 = new FormData();
     form2.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
     form2.append('file', blob, fileName);
-    var uploadResp = await fetch(
+    var uploadResp = await driveApiCall(
       'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
-      { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form2 }
+      { method: 'POST', body: form2 }
     );
     var uploadData = await uploadResp.json();
     _draftTempDriveFileId = uploadData.id;
@@ -14745,22 +14741,39 @@ async function driveEnsureToken() {
         else resolve(false);
       }
     });
+    // prompt: '' → 이미 동의한 경우 팝업 없이 자동 갱신
     tc.requestAccessToken({prompt: ''});
   });
 }
 
+// 드라이브 API 호출 시 403(토큰 만료) 발생하면 토큰 초기화 후 재시도
+async function driveApiCall(url, options) {
+  options = options || {};
+  options.headers = options.headers || {};
+  options.headers['Authorization'] = 'Bearer ' + state.driveAccessToken;
+  var resp = await fetch(url, options);
+  if (resp.status === 401 || resp.status === 403) {
+    // 토큰 만료 → 초기화 후 재발급
+    state.driveAccessToken = null;
+    var ok = await driveEnsureToken();
+    if (!ok) throw new Error('드라이브 인증 실패');
+    options.headers['Authorization'] = 'Bearer ' + state.driveAccessToken;
+    resp = await fetch(url, options);
+  }
+  return resp;
+}
+
 async function driveEnsureFolder() {
   if (_driveWorkGateFolderId) return _driveWorkGateFolderId;
-  var token = state.driveAccessToken;
   var folderName = 'WorkGate_문서관리';
-  var r = await fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent("name='" + folderName + "' and mimeType='application/vnd.google-apps.folder' and trashed=false") + '&fields=files(id)', { headers: { Authorization: 'Bearer ' + token } });
+  var r = await driveApiCall('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent("name='" + folderName + "' and mimeType='application/vnd.google-apps.folder' and trashed=false") + '&fields=files(id)');
   var d = await r.json();
   if (d.files && d.files.length > 0) {
     _driveWorkGateFolderId = d.files[0].id;
   } else {
-    var cr = await fetch('https://www.googleapis.com/drive/v3/files', {
+    var cr = await driveApiCall('https://www.googleapis.com/drive/v3/files', {
       method: 'POST',
-      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder' })
     });
     var cd = await cr.json();
@@ -14770,15 +14783,13 @@ async function driveEnsureFolder() {
 }
 
 async function driveUploadDocx(blob, fileName) {
-  var token = state.driveAccessToken;
   var folderId = await driveEnsureFolder();
   var metadata = { name: fileName, parents: folderId ? [folderId] : [] };
   var form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', blob, fileName);
-  var r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+  var r = await driveApiCall('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
     method: 'POST',
-    headers: { Authorization: 'Bearer ' + token },
     body: form
   });
   return r.json();
