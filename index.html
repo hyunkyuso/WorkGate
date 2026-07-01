@@ -1624,6 +1624,7 @@ select.form-input{cursor:pointer}
             <div class="page-title">📋 템플릿 관리</div>
             <div class="page-sub">자주 쓰는 Word 양식을 저장해두고 재사용합니다</div>
           </div>
+          <button class="btn btn-ghost btn-sm" onclick="docShareAllMyTemplates()" title="이 수정 이전에 등록한 템플릿은 공유 설정이 안 되어 있어요. 내가 등록한 템플릿에 대해서만 눌러주세요.">🔗 내 템플릿 공유 재설정</button>
           <button class="btn btn-primary btn-sm" onclick="showPage('doc-draft', document.querySelector(&quot;[onclick*=doc-draft]&quot;))">+ 새 양식으로 작성</button>
         </div>
         <div style="padding:0 0 32px" id="doc-template-grid"></div>
@@ -15041,6 +15042,34 @@ function draftSaveAsTemplate() {
 // ══════════════════════════════════════════════════
 // 2) 템플릿 관리
 // ══════════════════════════════════════════════════
+
+// 이 수정(도메인 공유) 이전에 등록된 템플릿들은 공유 설정이 안 되어 있어서
+// 다른 직원이 열면 "액세스 요청"이 뜬다. 내가 등록한 템플릿에 한해 일괄로 공유를 다시 건다.
+// (본인이 소유한 파일이 아니면 API가 조용히 실패하므로 다른 사람 템플릿은 자동으로 건너뜀)
+async function docShareAllMyTemplates() {
+  var ok = await driveEnsureToken();
+  if (!ok) { showToast('❌ 구글 드라이브 연결이 필요합니다'); return; }
+
+  var targets = _docTemplates.filter(function(t) { return t.driveFileId; });
+  if (!targets.length) { showToast('공유할 템플릿이 없습니다'); return; }
+
+  showToast('🔗 공유 설정 중... (' + targets.length + '개)');
+  var okCount = 0, failCount = 0;
+  for (var i = 0; i < targets.length; i++) {
+    try {
+      var resp = await driveApiCall('https://www.googleapis.com/drive/v3/files/' + targets[i].driveFileId + '/permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'domain', domain: 'jungdouit.com', role: 'reader' })
+      });
+      if (resp.ok) okCount++; else failCount++;
+    } catch (e) {
+      failCount++;
+    }
+  }
+  showToast('✅ 공유 완료: ' + okCount + '개' + (failCount ? ' (내 소유가 아닌 ' + failCount + '개는 건너뜀)' : ''));
+}
+
 function docRefreshTplSelect() {
   var sel = document.getElementById('draft-tpl-select');
   if (!sel) return;
