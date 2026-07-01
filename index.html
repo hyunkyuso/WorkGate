@@ -14872,6 +14872,7 @@ async function driveEnsureFolder() {
     });
     var cd = await cr.json();
     _driveWorkGateFolderId = cd.id;
+    driveShareWithDomain(_driveWorkGateFolderId);
   }
   return _driveWorkGateFolderId;
 }
@@ -14886,7 +14887,20 @@ async function driveUploadDocx(blob, fileName) {
     method: 'POST',
     body: form
   });
-  return r.json();
+  var data = await r.json();
+  // 파일은 그대로 업로드한 사람의 개인 드라이브에 저장되지만, 다른 정도유아이티 직원들도
+  // 열람/미리보기할 수 있도록 사내 도메인 전체에 "볼 수 있음" 권한을 함께 부여한다.
+  if (data && data.id) driveShareWithDomain(data.id);
+  return data;
+}
+
+// 파일을 사내(정도유아이티) 도메인 전체와 공유(읽기 전용). 실패해도 저장 자체는 이미 끝났으므로 조용히 무시한다.
+function driveShareWithDomain(fileId) {
+  driveApiCall('https://www.googleapis.com/drive/v3/files/' + fileId + '/permissions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'domain', domain: 'jungdouit.com', role: 'reader' })
+  }).catch(function(){});
 }
 
 async function draftSaveToDrive() {
