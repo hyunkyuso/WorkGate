@@ -2211,9 +2211,28 @@ function signInWithGoogle() {
     if (credential && credential.accessToken) {
       state.driveAccessToken = credential.accessToken;
     }
+    // credential.accessToken이 없으면 GIS로 별도 요청
+    if (!state.driveAccessToken) {
+      driveRequestToken();
+    }
   }).catch(err => {
     showToast('❌ 로그인 실패: ' + err.message);
   });
+}
+
+function driveRequestToken() {
+  if (!window.google || !window.google.accounts) return;
+  var tokenClient = window.google.accounts.oauth2.initTokenClient({
+    client_id: CONFIG.CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    callback: function(resp) {
+      if (resp && resp.access_token) {
+        state.driveAccessToken = resp.access_token;
+        showToast('✅ 구글 드라이브 연결됨');
+      }
+    }
+  });
+  tokenClient.requestAccessToken({prompt: ''});
 }
 
 async function loginSuccess(name, picture, email) {
@@ -14535,12 +14554,30 @@ function encodeXmlEntities(s) {
 async function draftSaveToDrive() {
   if (!window._draftResultBlob) { showToast('❌ 먼저 내용 채우기를 실행하세요'); return; }
 
-  var token = state.driveAccessToken;
-  if (!token) {
-    showToast('❌ 구글 드라이브 권한이 없습니다. 로그아웃 후 다시 로그인해주세요');
-    return;
+  // 토큰 없으면 GIS로 먼저 요청
+  if (!state.driveAccessToken) {
+    if (window.google && window.google.accounts) {
+      var tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: CONFIG.CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: async function(resp) {
+          if (resp && resp.access_token) {
+            state.driveAccessToken = resp.access_token;
+            await draftSaveToDrive();
+          } else {
+            showToast('❌ 드라이브 권한 획득 실패');
+          }
+        }
+      });
+      tokenClient.requestAccessToken({prompt: ''});
+      return;
+    } else {
+      showToast('❌ 구글 계정 연결이 필요합니다. 로그아웃 후 다시 로그인해주세요');
+      return;
+    }
   }
 
+  var token = state.driveAccessToken;
   var btn = document.getElementById('draft-drive-btn');
   if (btn) { btn.textContent = '저장 중...'; btn.disabled = true; }
 
