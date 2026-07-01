@@ -14358,6 +14358,7 @@ function draftReset() {
   _draftOriginalText = '';
   _draftVars = [];
   window._draftResultBlob = null;
+  _draftTempDriveFileId = null;
   document.getElementById('draft-empty').style.display = 'flex';
   document.getElementById('draft-preview-wrap').style.display = 'none';
   document.getElementById('draft-vars-panel').style.display = 'none';
@@ -14526,8 +14527,7 @@ function draftApplyAndRender() {
     varMap[normalizeVarName(v)] = draftGetVarValue(v);
   });
 
-  // 미리보기 갱신: data-varname에 저장된 원본 변수명을 기준으로 항상 다시 계산
-  // (textContent를 직접 파싱하지 않으므로 여러 번 눌러도 정확히 재적용됨)
+  // 미리보기 갱신 (mark 기반 — iframe이면 스킵)
   var previewEl = document.getElementById('draft-preview-text');
   var marks = previewEl.querySelectorAll('mark[data-varname]');
   marks.forEach(function(mark) {
@@ -14537,7 +14537,7 @@ function draftApplyAndRender() {
     mark.style.background = val ? '#d9f7d9' : '#fff3a3';
   });
 
-  // Word XML 직접 치환 (run 병합 방식 — {{}}가 여러 <w:t>로 쪼개져 있어도 정확히 치환됨)
+  // Word XML 직접 치환
   JSZip.loadAsync(_draftWordBuffer).then(function(zip) {
     return zip.file('word/document.xml').async('string').then(function(xmlStr) {
       var replacedXml = replaceVarsInDocxXml(xmlStr, varMap);
@@ -14555,10 +14555,81 @@ function draftApplyAndRender() {
       driveBtn.style.background = '';
       driveBtn.onclick = draftSaveToDrive;
     }
-    showToast('✅ 내용이 채워졌습니다. Word 다운로드 또는 드라이브에 저장하세요');
+
+    // 드라이브에 임시 업로드 → Google Docs Viewer로 미리보기 갱신
+    draftPreviewViaDrive(blob);
+
   }).catch(function(e) {
     showToast('❌ 처리 오류: ' + e.message);
   });
+}
+
+// 치환된 blob을 드라이브 임시 파일로 업로드 후 Google Docs Viewer iframe으로 표시
+var _draftTempDriveFileId = null;
+
+async function draftPreviewViaDrive(blob) {
+  var container = document.getElementById('draft-preview-text');
+
+  // 로딩 표시
+  container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:400px;flex-direction:column;gap:12px;color:var(--t3)">' +
+    '<div style="font-size:32px;animation:spin 1.2s linear infinite;display:inline-block">⏳</div>' +
+    '<div style="font-size:13px">미리보기 생성 중...</div></div>';
+
+  var ok = await driveEnsureToken();
+  if (!ok) {
+    // 토큰 없으면 docx-preview 폴백
+    container.innerHTML = '';
+    if (window.docx && window.docx.renderAsync) {
+      window.docx.renderAsync(_draftWordBuffer, container, null, {inWrapper:true, ignoreWidth:false, breakPages:true, useBase64URL:true})
+        .then(function(){ draftHighlightVarsInPreview(container); });
+    } else {
+      draftFallbackPreview(_draftWordBuffer);
+    }
+    showToast('✅ 내용이 채워졌습니다');
+    return;
+  }
+
+  try {
+    var token = state.driveAccessToken;
+    var folderId = await driveEnsureFolder();
+    var fileName = '_임시미리보기_.docx';
+
+    var uploadData;
+    if (_draftTempDriveFileId) {
+      // 기존 임시 파일 덮어쓰기 (PATCH)
+      var form = new FormData();
+      form.append('file', blob, fileName);
+      var patchResp = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files/' + _draftTempDriveFileId + '?uploadType=multipart&fields=id,webViewLink',
+        { method: 'PATCH', headers: { Authorization: 'Bearer ' + token }, body: form }
+      );
+      uploadData = await patchResp.json();
+      if (!uploadData.id) throw new Error('PATCH 실패');
+    } else {
+      // 새로 업로드
+      var metadata = { name: fileName, parents: folderId ? [folderId] : [] };
+      var form2 = new FormData();
+      form2.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+      form2.append('file', blob, fileName);
+      var uploadResp = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+        { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form2 }
+      );
+      uploadData = await uploadResp.json();
+      _draftTempDriveFileId = uploadData.id;
+    }
+
+    // Google Docs Viewer로 표시
+    var viewerUrl = 'https://docs.google.com/document/d/' + uploadData.id + '/preview';
+    container.innerHTML = '<iframe src="' + viewerUrl + '" style="width:100%;height:700px;border:none;border-radius:4px" allowfullscreen></iframe>';
+    showToast('✅ 내용이 채워졌습니다');
+
+  } catch(e) {
+    // 실패 시 docx-preview 폴백
+    container.innerHTML = '';
+    draftFallbackPreview(_draftWordBuffer);
+    showToast('✅ 내용이 채워졌습니다 (미리보기 간략 표시)');
+  }
 }
 
 // document.xml 안의 <w:t> 텍스트들을 평문으로 합쳐 위치를 추적하고,
