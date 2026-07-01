@@ -2293,8 +2293,8 @@ function signInWithGoogle() {
 }
 
 // ── 드라이브 접근 권한을 한 곳에서만 처리 ──
-// interactive=true면 조용히 시도했다가 실패 시 동의 화면을 띄운다 (로그인 직후 1회만 필요)
-// interactive=false면 이미 저장된 토큰만 확인하고, 없으면 조용히만 시도한다 (자동 갱신용)
+// interactive=true면 조용히 시도했다가 실패 시 동의 화면을 띄운다 (실제 드라이브 기능을 쓰는 시점에만 호출)
+// interactive=false면 캐시된 토큰만 재사용하고, 없으면 '조용히만' 시도한다 — 절대 팝업을 띄우지 않는다 (로그인/새로고침 시 자동 호출용)
 function driveAuthorize(interactive) {
   return new Promise(function(resolve) {
     if (state.driveAccessToken && state.driveTokenExpiry > Date.now()) { resolve(true); return; }
@@ -2342,9 +2342,9 @@ async function loginSuccess(name, picture, email) {
   // 관리자 여부 UI 반영 (loadFirestoreData 내에서 이미 호출되지만 한 번 더)
   applyRoleUI();
   initApp();
-  // 드라이브 접근 권한을 로그인 직후 여기서 한 번에 끝낸다.
-  // (필요하면 조용히 시도 → 실패 시에만 동의 화면 1회 표시. 이후 내용채우기 등에서는 재요청하지 않음)
-  driveAuthorize(true);
+  // 드라이브 토큰이 아직 유효하면(캐시) 조용히 재사용만 시도 — 절대 팝업을 띄우지 않는다.
+  // 실제 동의 화면은 "내용 채우기"/"드라이브 저장"처럼 드라이브가 진짜 필요한 순간에만 뜬다 (driveEnsureToken 참고).
+  driveAuthorize(false);
 }
 
 async function autoRegisterEmployee(email, name, picture) {
