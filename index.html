@@ -14716,7 +14716,13 @@ function docUseTemplate(idx) {
 function docDeleteTemplate(id) {
   if (!confirm('템플릿을 삭제하시겠습니까?')) return;
   db.collection('doc_templates').doc(id).delete()
-    .then(function(){ showToast('🗑 삭제되었습니다'); })
+    .then(function(){
+      showToast('🗑 삭제되었습니다');
+      // 현재 로드된 템플릿이 삭제된 것이면 공문 작성 화면 초기화
+      draftReset();
+      var sel = document.getElementById('draft-tpl-select');
+      if (sel) sel.value = '';
+    })
     .catch(function(e){ showToast('❌ 삭제 실패: ' + e.message); });
 }
 
