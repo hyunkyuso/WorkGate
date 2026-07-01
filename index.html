@@ -2204,10 +2204,9 @@ function startMyRoleListener(email) {
 
 function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
-  provider.setCustomParameters({ hd: '' });
+  provider.setCustomParameters({ hd: '', prompt: 'consent' });
   provider.addScope('https://www.googleapis.com/auth/drive.file');
   auth.signInWithPopup(provider).then(function(result) {
-    // Drive API용 OAuth 액세스 토큰 별도 보관
     var credential = result.credential;
     if (credential && credential.accessToken) {
       state.driveAccessToken = credential.accessToken;
