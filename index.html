@@ -14387,7 +14387,7 @@ function draftLoadFromTemplate() {
   _draftWordBuffer = arr.buffer;
 
   document.getElementById('draft-file-name').textContent = '📋 ' + tpl.name;
-  draftShowPreviewFromBuffer(_draftWordBuffer);
+  draftShowPreviewFromBuffer(_draftWordBuffer, tpl.driveFileId || null);
 }
 
 // Word 직접 업로드
@@ -14410,7 +14410,7 @@ function draftUploadWord(input) {
 }
 
 // 미리보기 HTML 추출 + 변수 입력 폼 생성 (표/서식 유지를 위해 convertToHtml 사용)
-function draftShowPreviewFromBuffer(buffer) {
+function draftShowPreviewFromBuffer(buffer, driveFileId) {
   // 변수 감지는 raw text 기준
   mammoth.extractRawText({arrayBuffer: buffer}).then(function(rawResult) {
     _draftOriginalText = rawResult.value;
@@ -14422,26 +14422,17 @@ function draftShowPreviewFromBuffer(buffer) {
     var container = document.getElementById('draft-preview-text');
     container.innerHTML = '';
 
-    // docx-preview로 원본 서식 그대로 렌더링
-    if (window.docx && window.docx.renderAsync) {
+    if (driveFileId) {
+      // 드라이브 파일 ID가 있으면 Google Docs Viewer로 iframe 표시 (서식 완벽)
+      var viewerUrl = 'https://docs.google.com/document/d/' + driveFileId + '/preview';
+      container.innerHTML = '<iframe src="' + viewerUrl + '" style="width:100%;height:700px;border:none;border-radius:4px" allowfullscreen></iframe>';
+    } else if (window.docx && window.docx.renderAsync) {
+      // docx-preview 폴백
       window.docx.renderAsync(buffer, container, null, {
-        inWrapper: true,
-        ignoreWidth: false,
-        ignoreHeight: false,
-        ignoreFonts: false,
-        breakPages: true,
-        useBase64URL: true,
-        useMathMLPolyfill: false,
-        renderHeaders: true,
-        renderFooters: true,
-        renderFootnotes: true
+        inWrapper: true, ignoreWidth: false, ignoreFonts: false, breakPages: true, useBase64URL: true
       }).then(function() {
-        // 렌더링 완료 후 {{변수명}} 텍스트 노드 하이라이트
         draftHighlightVarsInPreview(container);
-      }).catch(function() {
-        // docx-preview 실패 시 mammoth HTML 폴백
-        draftFallbackPreview(buffer);
-      });
+      }).catch(function() { draftFallbackPreview(buffer); });
     } else {
       draftFallbackPreview(buffer);
     }
@@ -14672,81 +14663,81 @@ function encodeXmlEntities(s) {
 
 // Word 다운로드
 // ── 구글 드라이브에 문서 저장 ──
+// ── 드라이브 공통 유틸 ──
+var _driveWorkGateFolderId = null;
+
+async function driveEnsureToken() {
+  if (state.driveAccessToken) return true;
+  return new Promise(function(resolve) {
+    if (!window.google || !window.google.accounts) { resolve(false); return; }
+    var tc = window.google.accounts.oauth2.initTokenClient({
+      client_id: CONFIG.CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      callback: function(resp) {
+        if (resp && resp.access_token) { state.driveAccessToken = resp.access_token; resolve(true); }
+        else resolve(false);
+      }
+    });
+    tc.requestAccessToken({prompt: ''});
+  });
+}
+
+async function driveEnsureFolder() {
+  if (_driveWorkGateFolderId) return _driveWorkGateFolderId;
+  var token = state.driveAccessToken;
+  var folderName = 'WorkGate_문서관리';
+  var r = await fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent("name='" + folderName + "' and mimeType='application/vnd.google-apps.folder' and trashed=false") + '&fields=files(id)', { headers: { Authorization: 'Bearer ' + token } });
+  var d = await r.json();
+  if (d.files && d.files.length > 0) {
+    _driveWorkGateFolderId = d.files[0].id;
+  } else {
+    var cr = await fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder' })
+    });
+    var cd = await cr.json();
+    _driveWorkGateFolderId = cd.id;
+  }
+  return _driveWorkGateFolderId;
+}
+
+async function driveUploadDocx(blob, fileName) {
+  var token = state.driveAccessToken;
+  var folderId = await driveEnsureFolder();
+  var metadata = { name: fileName, parents: folderId ? [folderId] : [] };
+  var form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', blob, fileName);
+  var r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token },
+    body: form
+  });
+  return r.json();
+}
+
 async function draftSaveToDrive() {
   if (!window._draftResultBlob) { showToast('❌ 먼저 내용 채우기를 실행하세요'); return; }
 
-  // 토큰 없으면 GIS로 먼저 요청
-  if (!state.driveAccessToken) {
-    if (window.google && window.google.accounts) {
-      var tokenClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: CONFIG.CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/drive.file',
-        callback: async function(resp) {
-          if (resp && resp.access_token) {
-            state.driveAccessToken = resp.access_token;
-            await draftSaveToDrive();
-          } else {
-            showToast('❌ 드라이브 권한 획득 실패');
-          }
-        }
-      });
-      tokenClient.requestAccessToken({prompt: ''});
-      return;
-    } else {
-      showToast('❌ 구글 계정 연결이 필요합니다. 로그아웃 후 다시 로그인해주세요');
-      return;
-    }
-  }
+  var ok = await driveEnsureToken();
+  if (!ok) { showToast('❌ 드라이브 권한 획득 실패'); return; }
 
-  var token = state.driveAccessToken;
   var btn = document.getElementById('draft-drive-btn');
   if (btn) { btn.textContent = '저장 중...'; btn.disabled = true; }
 
   try {
-    // 1) WorkGate_문서관리 폴더 찾거나 생성
-    var folderName = 'WorkGate_문서관리';
-    var searchResp = await fetch(
-      'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent("name='" + folderName + "' and mimeType='application/vnd.google-apps.folder' and trashed=false") + '&fields=files(id)',
-      { headers: { Authorization: 'Bearer ' + token } }
-    );
-    var searchData = await searchResp.json();
-    var folderId = null;
-
-    if (searchData.files && searchData.files.length > 0) {
-      folderId = searchData.files[0].id;
-    } else {
-      var folderResp = await fetch('https://www.googleapis.com/drive/v3/files', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder' })
-      });
-      var folderData = await folderResp.json();
-      folderId = folderData.id;
-    }
-
-    // 2) 파일명 생성 (템플릿명 or 날짜)
     var sel = document.getElementById('draft-tpl-select');
     var idx = sel ? parseInt(sel.value) : NaN;
     var tplName = (!isNaN(idx) && _docTemplates[idx]) ? _docTemplates[idx].name : null;
     var fileName = (tplName ? tplName + '_' : '문서_') + new Date().toISOString().substring(0,10) + '.docx';
 
-    // 3) multipart 업로드
-    var metadata = { name: fileName, parents: folderId ? [folderId] : [] };
-    var form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', window._draftResultBlob, fileName);
-
-    var uploadResp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + token },
-      body: form
-    });
-    var uploadData = await uploadResp.json();
+    var uploadData = await driveUploadDocx(window._draftResultBlob, fileName);
 
     if (uploadData.id) {
-      showToast('✅ 구글 드라이브에 저장되었습니다 (WorkGate_문서관리 폴더)');
+      showToast('✅ 구글 드라이브에 저장되었습니다');
       if (btn) {
-        btn.textContent = '✅ 드라이브 저장 완료 (클릭하면 열기)';
+        btn.textContent = '✅ 저장 완료 (클릭하면 열기)';
         btn.disabled = false;
         btn.style.background = 'var(--gr)';
         btn.onclick = function() { window.open(uploadData.webViewLink, '_blank'); };
@@ -14826,18 +14817,38 @@ function draftSaveAsTemplate() {
   for (var i=0; i<bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
   var base64 = btoa(binary);
 
-  db.collection('doc_templates').add({
+  var docData = {
     name: name,
     wordBase64: base64,
     vars: _draftVars,
     createdBy: state.user ? state.user.email : '',
     sharedWith: _draftTplSharedWith.slice(),
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function() {
-    showToast('✅ 템플릿으로 저장되었습니다');
+  };
+
+  showToast('저장 중...');
+
+  // Firestore 먼저 저장
+  db.collection('doc_templates').add(docData).then(function(docRef) {
     document.getElementById('draft-tpl-save-name').value = '';
     _draftTplSharedWith = [];
     draftTplRenderShared();
+    showToast('✅ 템플릿으로 저장되었습니다');
+
+    // 드라이브 토큰 있으면 원본 파일도 드라이브에 업로드
+    driveEnsureToken().then(function(ok) {
+      if (!ok) return;
+      var blob = new Blob([bytes], {type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+      driveUploadDocx(blob, name + '.docx').then(function(uploadData) {
+        if (uploadData.id) {
+          // driveFileId를 Firestore에 업데이트
+          db.collection('doc_templates').doc(docRef.id).update({
+            driveFileId: uploadData.id,
+            driveViewLink: uploadData.webViewLink
+          });
+        }
+      });
+    });
   }).catch(function(e){ showToast('❌ 저장 실패: ' + e.message); });
 }
 
@@ -14985,6 +14996,22 @@ function saveDocEdit() {
       .then(function() {
         closeModal('doc-edit-modal');
         showToast('✅ 템플릿이 수정되었습니다');
+        // 새 파일이 있으면 드라이브에도 업로드
+        if (_docEditNewBuffer && updateData.wordBase64) {
+          driveEnsureToken().then(function(ok) {
+            if (!ok) return;
+            var bytes = new Uint8Array(_docEditNewBuffer);
+            var blob = new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+            driveUploadDocx(blob, name + '.docx').then(function(uploadData) {
+              if (uploadData.id) {
+                db.collection('doc_templates').doc(_docEditId).update({
+                  driveFileId: uploadData.id,
+                  driveViewLink: uploadData.webViewLink
+                });
+              }
+            });
+          });
+        }
       }).catch(function(e){ showToast('❌ 수정 실패: ' + e.message); });
   };
 
