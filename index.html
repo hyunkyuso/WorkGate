@@ -2285,35 +2285,42 @@ function startMyRoleListener(email) {
 
 function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
-  provider.setCustomParameters({ hd: '', prompt: 'consent' });
-  provider.addScope('https://www.googleapis.com/auth/drive.file');
-  auth.signInWithPopup(provider).then(function(result) {
-    var credential = result.credential;
-    if (credential && credential.accessToken) {
-      driveSaveToken(credential.accessToken, 3600);
-    }
-    // credential.accessToken이 없으면 GIS로 별도 요청
-    if (!state.driveAccessToken) {
-      driveRequestToken();
-    }
-  }).catch(err => {
+  provider.setCustomParameters({ hd: '' });
+  auth.signInWithPopup(provider).catch(err => {
     showToast('❌ 로그인 실패: ' + err.message);
   });
+  // 드라이브 접근 권한은 별도의 통합 함수(driveAuthorize)에서 처리한다 (loginSuccess에서 호출됨)
 }
 
-function driveRequestToken() {
-  if (!window.google || !window.google.accounts) return;
-  var tokenClient = window.google.accounts.oauth2.initTokenClient({
-    client_id: CONFIG.CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/drive.file',
-    callback: function(resp) {
-      if (resp && resp.access_token) {
-        driveSaveToken(resp.access_token, resp.expires_in);
-        showToast('✅ 구글 드라이브 연결됨');
-      }
+// ── 드라이브 접근 권한을 한 곳에서만 처리 ──
+// interactive=true면 조용히 시도했다가 실패 시 동의 화면을 띄운다 (로그인 직후 1회만 필요)
+// interactive=false면 이미 저장된 토큰만 확인하고, 없으면 조용히만 시도한다 (자동 갱신용)
+function driveAuthorize(interactive) {
+  return new Promise(function(resolve) {
+    if (state.driveAccessToken && state.driveTokenExpiry > Date.now()) { resolve(true); return; }
+    if (!window.google || !window.google.accounts) { resolve(false); return; }
+
+    function requestWithPrompt(promptVal) {
+      var tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: CONFIG.CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: function(resp) {
+          if (resp && resp.access_token) {
+            driveSaveToken(resp.access_token, resp.expires_in);
+            if (promptVal === 'consent') showToast('✅ 구글 드라이브 연결됨');
+            resolve(true);
+          } else if (promptVal === '' && interactive) {
+            // 조용한 시도가 실패했으면 최초 1회에 한해 동의 화면을 띄운다
+            requestWithPrompt('consent');
+          } else {
+            resolve(false);
+          }
+        }
+      });
+      tokenClient.requestAccessToken({prompt: promptVal});
     }
+    requestWithPrompt('');
   });
-  tokenClient.requestAccessToken({prompt: ''});
 }
 
 async function loginSuccess(name, picture, email) {
@@ -2335,9 +2342,9 @@ async function loginSuccess(name, picture, email) {
   // 관리자 여부 UI 반영 (loadFirestoreData 내에서 이미 호출되지만 한 번 더)
   applyRoleUI();
   initApp();
-  // 새로고침 등으로 로그인 세션이 복원된 경우에도 드라이브 토큰을 미리 확보해둔다
-  // (템플릿 관리 등에서 실제로 필요해질 때 갑자기 로그인 팝업이 뜨는 것을 방지)
-  driveEnsureToken();
+  // 드라이브 접근 권한을 로그인 직후 여기서 한 번에 끝낸다.
+  // (필요하면 조용히 시도 → 실패 시에만 동의 화면 1회 표시. 이후 내용채우기 등에서는 재요청하지 않음)
+  driveAuthorize(true);
 }
 
 async function autoRegisterEmployee(email, name, picture) {
@@ -14763,21 +14770,9 @@ function encodeXmlEntities(s) {
 var _driveWorkGateFolderId = null;
 
 async function driveEnsureToken() {
-  // 저장된 토큰이 아직 유효하면 그대로 사용
-  if (state.driveAccessToken && state.driveTokenExpiry > Date.now()) return true;
-  return new Promise(function(resolve) {
-    if (!window.google || !window.google.accounts) { resolve(false); return; }
-    var tc = window.google.accounts.oauth2.initTokenClient({
-      client_id: CONFIG.CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/drive.file',
-      callback: function(resp) {
-        if (resp && resp.access_token) { driveSaveToken(resp.access_token, resp.expires_in); resolve(true); }
-        else resolve(false);
-      }
-    });
-    // prompt: '' → 이미 동의한 경우 팝업 없이 자동 갱신
-    tc.requestAccessToken({prompt: ''});
-  });
+  // 로그인 시점에 이미 처리된 동일한 로직을 재사용 — 별도의 새 팝업 로직을 만들지 않는다.
+  // 캐시된 토큰이 유효하면 즉시 true, 없으면 조용히 시도하고, 그래도 없으면(=로그인 때도 못 받은 경우) 이번 한 번만 동의 화면을 띄운다.
+  return driveAuthorize(true);
 }
 
 // 드라이브 API 호출 시 403(토큰 만료) 발생하면 토큰 초기화 후 재시도
