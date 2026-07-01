@@ -2206,7 +2206,37 @@ let state = {
   kpis:  JSON.parse(localStorage.getItem('wg_kpis')  || '[]'),
   driveFiles: [],
   members: JSON.parse(localStorage.getItem('wg_members') || '[]'),
+  driveAccessToken: null,
+  driveTokenExpiry: 0,
 };
+
+// ── 드라이브 토큰을 sessionStorage에 저장/복원 (새로고침해도 유지되도록) ──
+function driveSaveToken(token, expiresInSec) {
+  state.driveAccessToken = token;
+  // 만료 60초 전을 기준으로 삼아 여유를 둠
+  state.driveTokenExpiry = Date.now() + (Math.max((expiresInSec || 3600) - 60, 0) * 1000);
+  try {
+    sessionStorage.setItem('wg_drive_token', JSON.stringify({
+      token: state.driveAccessToken,
+      expiry: state.driveTokenExpiry,
+    }));
+  } catch(e) {}
+}
+
+function driveRestoreToken() {
+  try {
+    var raw = sessionStorage.getItem('wg_drive_token');
+    if (!raw) return false;
+    var saved = JSON.parse(raw);
+    if (saved && saved.token && saved.expiry > Date.now()) {
+      state.driveAccessToken = saved.token;
+      state.driveTokenExpiry = saved.expiry;
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+driveRestoreToken();
 
 // ══════════════════════════════════════════════════
 // GOOGLE AUTH
@@ -2260,7 +2290,7 @@ function signInWithGoogle() {
   auth.signInWithPopup(provider).then(function(result) {
     var credential = result.credential;
     if (credential && credential.accessToken) {
-      state.driveAccessToken = credential.accessToken;
+      driveSaveToken(credential.accessToken, 3600);
     }
     // credential.accessToken이 없으면 GIS로 별도 요청
     if (!state.driveAccessToken) {
@@ -2278,7 +2308,7 @@ function driveRequestToken() {
     scope: 'https://www.googleapis.com/auth/drive.file',
     callback: function(resp) {
       if (resp && resp.access_token) {
-        state.driveAccessToken = resp.access_token;
+        driveSaveToken(resp.access_token, resp.expires_in);
         showToast('✅ 구글 드라이브 연결됨');
       }
     }
@@ -2305,6 +2335,9 @@ async function loginSuccess(name, picture, email) {
   // 관리자 여부 UI 반영 (loadFirestoreData 내에서 이미 호출되지만 한 번 더)
   applyRoleUI();
   initApp();
+  // 새로고침 등으로 로그인 세션이 복원된 경우에도 드라이브 토큰을 미리 확보해둔다
+  // (템플릿 관리 등에서 실제로 필요해질 때 갑자기 로그인 팝업이 뜨는 것을 방지)
+  driveEnsureToken();
 }
 
 async function autoRegisterEmployee(email, name, picture) {
@@ -14730,14 +14763,15 @@ function encodeXmlEntities(s) {
 var _driveWorkGateFolderId = null;
 
 async function driveEnsureToken() {
-  if (state.driveAccessToken) return true;
+  // 저장된 토큰이 아직 유효하면 그대로 사용
+  if (state.driveAccessToken && state.driveTokenExpiry > Date.now()) return true;
   return new Promise(function(resolve) {
     if (!window.google || !window.google.accounts) { resolve(false); return; }
     var tc = window.google.accounts.oauth2.initTokenClient({
       client_id: CONFIG.CLIENT_ID,
       scope: 'https://www.googleapis.com/auth/drive.file',
       callback: function(resp) {
-        if (resp && resp.access_token) { state.driveAccessToken = resp.access_token; resolve(true); }
+        if (resp && resp.access_token) { driveSaveToken(resp.access_token, resp.expires_in); resolve(true); }
         else resolve(false);
       }
     });
@@ -14755,6 +14789,7 @@ async function driveApiCall(url, options) {
   if (resp.status === 401 || resp.status === 403) {
     // 토큰 만료 → 초기화 후 재발급
     state.driveAccessToken = null;
+    state.driveTokenExpiry = 0;
     var ok = await driveEnsureToken();
     if (!ok) throw new Error('드라이브 인증 실패');
     options.headers['Authorization'] = 'Bearer ' + state.driveAccessToken;
