@@ -14592,32 +14592,28 @@ async function draftPreviewViaDrive(blob) {
   try {
     var token = state.driveAccessToken;
     var folderId = await driveEnsureFolder();
-    var fileName = '_임시미리보기_.docx';
+    var fileName = '_임시미리보기_' + Date.now() + '_.docx';
 
-    var uploadData;
+    // 이전 임시 파일 삭제
     if (_draftTempDriveFileId) {
-      // 기존 임시 파일 덮어쓰기 (PATCH)
-      var form = new FormData();
-      form.append('file', blob, fileName);
-      var patchResp = await fetch(
-        'https://www.googleapis.com/upload/drive/v3/files/' + _draftTempDriveFileId + '?uploadType=multipart&fields=id,webViewLink',
-        { method: 'PATCH', headers: { Authorization: 'Bearer ' + token }, body: form }
-      );
-      uploadData = await patchResp.json();
-      if (!uploadData.id) throw new Error('PATCH 실패');
-    } else {
-      // 새로 업로드
-      var metadata = { name: fileName, parents: folderId ? [folderId] : [] };
-      var form2 = new FormData();
-      form2.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
-      form2.append('file', blob, fileName);
-      var uploadResp = await fetch(
-        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
-        { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form2 }
-      );
-      uploadData = await uploadResp.json();
-      _draftTempDriveFileId = uploadData.id;
+      fetch('https://www.googleapis.com/drive/v3/files/' + _draftTempDriveFileId, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token }
+      }).catch(function(){});
+      _draftTempDriveFileId = null;
     }
+
+    // 새 파일 업로드
+    var metadata = { name: fileName, parents: folderId ? [folderId] : [] };
+    var form2 = new FormData();
+    form2.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+    form2.append('file', blob, fileName);
+    var uploadResp = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+      { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form2 }
+    );
+    var uploadData = await uploadResp.json();
+    _draftTempDriveFileId = uploadData.id;
 
     // Google Docs Viewer로 표시
     var viewerUrl = 'https://docs.google.com/document/d/' + uploadData.id + '/preview';
