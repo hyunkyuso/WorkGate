@@ -344,6 +344,7 @@ select.form-input{cursor:pointer}
         <div id="manage-menu-items">
           <div class="nav-item admin-only" onclick="showPage('employees',this)"><span class="nav-icon">👤</span> 직원 관리</div>
           <div class="nav-item admin-only" onclick="showPage('myinfo-history',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 정보수정 이력</div>
+          <div class="nav-item admin-only" onclick="showPage('loginlogs',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🔑</span> 접속 이력</div>
           <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
           <div class="nav-item admin-only" onclick="showPage('codemanage',this)"><span class="nav-icon">🗂️</span> 코드 관리</div>
           <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
@@ -1023,6 +1024,50 @@ select.form-input{cursor:pointer}
         <div id="myinfo-history-content" style="padding:8px">
           <p style="color:#94a3b8">로딩 중...</p>
         </div>
+      </div>
+
+      <div id="page-loginlogs" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🔑 접속 이력</div><div class="page-sub">전 직원의 WorkGate 로그인 기록을 확인합니다</div></div>
+          <button onclick="renderLoginLogs()" style="padding:6px 12px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:13px">🔄 새로고침</button>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:140px;background:#fff;border:1px solid #e2e5ef;border-radius:12px;padding:14px 16px">
+            <div style="font-size:12px;color:#9ca0b8;margin-bottom:4px">오늘 로그인 건수</div>
+            <div id="loginlogs-today-count" style="font-size:22px;font-weight:700;color:#1a1d2e">-</div>
+          </div>
+          <div style="flex:1;min-width:140px;background:#fff;border:1px solid #e2e5ef;border-radius:12px;padding:14px 16px">
+            <div style="font-size:12px;color:#9ca0b8;margin-bottom:4px">오늘 접속 인원(중복제거)</div>
+            <div id="loginlogs-today-users" style="font-size:22px;font-weight:700;color:#1a1d2e">-</div>
+          </div>
+          <div style="flex:1;min-width:140px;background:#fff;border:1px solid #e2e5ef;border-radius:12px;padding:14px 16px">
+            <div style="font-size:12px;color:#9ca0b8;margin-bottom:4px">최근 조회 기록 수</div>
+            <div id="loginlogs-total-count" style="font-size:22px;font-weight:700;color:#1a1d2e">-</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <input id="loginlogs-search" type="text" placeholder="이름 또는 이메일로 검색" oninput="renderLoginLogs()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #d0d4e8;border-radius:8px;font-size:13px">
+          <select id="loginlogs-range" onchange="renderLoginLogs()" style="padding:8px 12px;border:1px solid #d0d4e8;border-radius:8px;font-size:13px">
+            <option value="7">최근 7일</option>
+            <option value="30" selected>최근 30일</option>
+            <option value="90">최근 90일</option>
+            <option value="0">전체(최근 500건)</option>
+          </select>
+        </div>
+        <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e5ef;border-radius:12px;overflow:hidden">
+          <thead>
+            <tr style="background:#f5f6fa;text-align:left">
+              <th style="padding:10px 12px;font-size:12px;color:#5a5f7a">로그인 일시</th>
+              <th style="padding:10px 12px;font-size:12px;color:#5a5f7a">이름</th>
+              <th style="padding:10px 12px;font-size:12px;color:#5a5f7a">이메일</th>
+              <th style="padding:10px 12px;font-size:12px;color:#5a5f7a">부서</th>
+              <th style="padding:10px 12px;font-size:12px;color:#5a5f7a">기기/브라우저</th>
+            </tr>
+          </thead>
+          <tbody id="loginlogs-tbody">
+            <tr><td colspan="5" style="text-align:center;color:#9ca0b8;padding:24px">로딩 중...</td></tr>
+          </tbody>
+        </table>
       </div>
 
       <div id="page-deptfund" class="page">
@@ -2338,6 +2383,7 @@ async function loginSuccess(name, picture, email) {
   state.myEmail = email;
   // 직원 자동 등록 (Firestore에 없으면 신규 등록)
   await autoRegisterEmployee(email, name, picture);
+  logLoginEvent(email, name);
   await loadFirestoreData();
   // 관리자 여부 UI 반영 (loadFirestoreData 내에서 이미 호출되지만 한 번 더)
   applyRoleUI();
@@ -2369,6 +2415,90 @@ async function autoRegisterEmployee(email, name, picture) {
       showToast('👋 ' + name + '님이 직원 목록에 자동 등록되었습니다!');
     }
   } catch(e) { console.error('직원 자동 등록 오류:', e); }
+}
+
+// ══════════════════════════════════════════════════
+// 접속 이력(로그인 로그)
+// ══════════════════════════════════════════════════
+function parseUserAgent(ua) {
+  ua = ua || '';
+  let device = /Mobi|Android|iPhone|iPad/.test(ua) ? '모바일' : 'PC';
+  let browser = 'Unknown';
+  if (ua.includes('Edg/')) browser = 'Edge';
+  else if (ua.includes('Chrome/')) browser = 'Chrome';
+  else if (ua.includes('Safari/') && !ua.includes('Chrome')) browser = 'Safari';
+  else if (ua.includes('Firefox/')) browser = 'Firefox';
+  return device + ' · ' + browser;
+}
+
+async function logLoginEvent(email, name) {
+  try {
+    await db.collection('loginLogs').add({
+      email: email,
+      name: name || email,
+      userAgent: navigator.userAgent,
+      device: parseUserAgent(navigator.userAgent),
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    // 직원 문서에도 마지막 로그인 시각을 함께 기록(빠른 조회용)
+    db.collection('employees').doc(email).set({
+      lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true }).catch(function(){});
+  } catch(e) { console.error('로그인 기록 오류:', e); }
+}
+
+async function renderLoginLogs() {
+  const tbody = document.getElementById('loginlogs-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#9ca0b8;padding:24px">불러오는 중...</td></tr>';
+  try {
+    const rangeVal = parseInt(document.getElementById('loginlogs-range').value) || 0;
+    let query = db.collection('loginLogs').orderBy('timestamp', 'desc').limit(500);
+    const snap = await query.get();
+    let rows = snap.docs.map(d => {
+      const v = d.data();
+      const ts = v.timestamp && v.timestamp.toDate ? v.timestamp.toDate() : null;
+      return { ...v, _date: ts };
+    });
+
+    if (rangeVal > 0) {
+      const cutoff = new Date(Date.now() - rangeVal * 24 * 60 * 60 * 1000);
+      rows = rows.filter(r => r._date && r._date >= cutoff);
+    }
+
+    const kw = (document.getElementById('loginlogs-search').value || '').trim().toLowerCase();
+    if (kw) {
+      rows = rows.filter(r => (r.name || '').toLowerCase().includes(kw) || (r.email || '').toLowerCase().includes(kw));
+    }
+
+    // 요약 카드
+    const today = new Date(); today.setHours(0,0,0,0);
+    const todayRows = rows.filter(r => r._date && r._date >= today);
+    document.getElementById('loginlogs-today-count').textContent = todayRows.length;
+    document.getElementById('loginlogs-today-users').textContent = new Set(todayRows.map(r => r.email)).size;
+    document.getElementById('loginlogs-total-count').textContent = rows.length;
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#9ca0b8;padding:24px">조회된 접속 기록이 없습니다</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r => {
+      const emp = employees.find(e => e.id === r.email);
+      const dept = emp ? (emp.dept || '-') : '-';
+      const dateStr = r._date ? r._date.toLocaleString('ko-KR') : '-';
+      return `<tr style="border-top:1px solid #eef1fe">
+        <td style="padding:9px 12px;font-size:13px">${dateStr}</td>
+        <td style="padding:9px 12px;font-size:13px">${r.name || '-'}</td>
+        <td style="padding:9px 12px;font-size:13px;color:#5a5f7a">${r.email || '-'}</td>
+        <td style="padding:9px 12px;font-size:13px">${dept}</td>
+        <td style="padding:9px 12px;font-size:13px;color:#5a5f7a">${r.device || '-'}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    console.error('접속 이력 로드 오류:', e);
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#dc2626;padding:24px">접속 이력을 불러오지 못했습니다</td></tr>';
+  }
 }
 
 async function loadFirestoreData() {
@@ -12119,6 +12249,7 @@ function showPage(id, el) {
   if(id === 'birthday') { renderBirthdayTable(); }
   if(id === 'deptfund') { renderDeptFund(); }
   if(id === 'myinfo-history') { renderMyInfoHistory(); }
+  if(id === 'loginlogs') { renderLoginLogs(); }
   if(id === 'parentbirthday') { renderParentBirthdayTable(); }
   if(id === 'organization') renderDeptTable();
   if(id === 'workforce') renderWorkforce();
