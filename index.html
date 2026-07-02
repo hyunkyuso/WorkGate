@@ -345,6 +345,7 @@ select.form-input{cursor:pointer}
           <div class="nav-item admin-only" onclick="showPage('employees',this)"><span class="nav-icon">👤</span> 직원 관리</div>
           <div class="nav-item admin-only" onclick="showPage('myinfo-history',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 정보수정 이력</div>
           <div class="nav-item admin-only" onclick="showPage('loginlogs',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🔑</span> 접속 이력</div>
+          <div class="nav-item admin-only" onclick="showPage('menuUsage',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📈</span> 메뉴 사용 현황</div>
           <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
           <div class="nav-item admin-only" onclick="showPage('codemanage',this)"><span class="nav-icon">🗂️</span> 코드 관리</div>
           <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
@@ -1068,6 +1069,55 @@ select.form-input{cursor:pointer}
             <tr><td colspan="5" style="text-align:center;color:#9ca0b8;padding:24px">로딩 중...</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <div id="page-menuUsage" class="page">
+        <div class="page-header">
+          <div><div class="page-title">📈 메뉴 사용 현황</div><div class="page-sub">직원들이 어떤 화면을 얼마나 이용하는지 확인합니다</div></div>
+          <button onclick="renderMenuUsage()" style="padding:6px 12px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:13px">🔄 새로고침</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+          <select id="menuusage-range" onchange="renderMenuUsage()" style="padding:8px 12px;border:1px solid #d0d4e8;border-radius:8px;font-size:13px">
+            <option value="7">최근 7일</option>
+            <option value="30" selected>최근 30일</option>
+            <option value="90">최근 90일</option>
+            <option value="0">전체(최근 1000건)</option>
+          </select>
+          <input id="menuusage-emp-search" type="text" placeholder="직원 이름/이메일로 이용 이력 검색" oninput="renderMenuUsage()" style="flex:1;min-width:220px;padding:8px 12px;border:1px solid #d0d4e8;border-radius:8px;font-size:13px">
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div style="background:#fff;border:1px solid #e2e5ef;border-radius:12px;padding:16px">
+            <div style="font-weight:700;color:#1a1d2e;margin-bottom:10px">화면별 방문 순위</div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr style="background:#f5f6fa;text-align:left">
+                  <th style="padding:8px 10px;font-size:12px;color:#5a5f7a">순위</th>
+                  <th style="padding:8px 10px;font-size:12px;color:#5a5f7a">화면명</th>
+                  <th style="padding:8px 10px;font-size:12px;color:#5a5f7a">방문 횟수</th>
+                </tr>
+              </thead>
+              <tbody id="menuusage-ranking-tbody">
+                <tr><td colspan="3" style="text-align:center;color:#9ca0b8;padding:20px">로딩 중...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="background:#fff;border:1px solid #e2e5ef;border-radius:12px;padding:16px">
+            <div style="font-weight:700;color:#1a1d2e;margin-bottom:10px">최근 이용 이력<span style="font-weight:400;color:#9ca0b8;font-size:12px"> (검색 시 해당 직원만 표시)</span></div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr style="background:#f5f6fa;text-align:left">
+                  <th style="padding:8px 10px;font-size:12px;color:#5a5f7a">일시</th>
+                  <th style="padding:8px 10px;font-size:12px;color:#5a5f7a">이름</th>
+                  <th style="padding:8px 10px;font-size:12px;color:#5a5f7a">화면</th>
+                </tr>
+              </thead>
+              <tbody id="menuusage-recent-tbody">
+                <tr><td colspan="3" style="text-align:center;color:#9ca0b8;padding:20px">로딩 중...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div id="page-deptfund" class="page">
@@ -2498,6 +2548,64 @@ async function renderLoginLogs() {
   } catch (e) {
     console.error('접속 이력 로드 오류:', e);
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#dc2626;padding:24px">접속 이력을 불러오지 못했습니다</td></tr>';
+  }
+}
+
+async function renderMenuUsage() {
+  const rankTbody = document.getElementById('menuusage-ranking-tbody');
+  const recentTbody = document.getElementById('menuusage-recent-tbody');
+  if (!rankTbody || !recentTbody) return;
+  rankTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#9ca0b8;padding:20px">불러오는 중...</td></tr>';
+  recentTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#9ca0b8;padding:20px">불러오는 중...</td></tr>';
+  try {
+    const rangeVal = parseInt(document.getElementById('menuusage-range').value) || 0;
+    const snap = await db.collection('pageViews').orderBy('timestamp', 'desc').limit(1000).get();
+    let rows = snap.docs.map(d => {
+      const v = d.data();
+      const ts = v.timestamp && v.timestamp.toDate ? v.timestamp.toDate() : null;
+      return { ...v, _date: ts };
+    });
+
+    if (rangeVal > 0) {
+      const cutoff = new Date(Date.now() - rangeVal * 24 * 60 * 60 * 1000);
+      rows = rows.filter(r => r._date && r._date >= cutoff);
+    }
+
+    // 화면별 방문 순위 집계
+    const countMap = {};
+    rows.forEach(r => {
+      const label = r.pageName || r.pageId || '알수없음';
+      countMap[label] = (countMap[label] || 0) + 1;
+    });
+    const ranking = Object.entries(countMap).sort((a, b) => b[1] - a[1]).slice(0, 20);
+
+    rankTbody.innerHTML = ranking.length ? ranking.map((r, i) => `
+      <tr style="border-top:1px solid #eef1fe">
+        <td style="padding:8px 10px;font-size:13px;color:#9ca0b8">${i + 1}</td>
+        <td style="padding:8px 10px;font-size:13px">${r[0]}</td>
+        <td style="padding:8px 10px;font-size:13px;font-weight:600">${r[1]}</td>
+      </tr>`).join('') : '<tr><td colspan="3" style="text-align:center;color:#9ca0b8;padding:20px">데이터가 없습니다</td></tr>';
+
+    // 최근 이용 이력(직원 검색 시 필터)
+    const kw = (document.getElementById('menuusage-emp-search').value || '').trim().toLowerCase();
+    let recentRows = rows;
+    if (kw) {
+      recentRows = rows.filter(r => (r.name || '').toLowerCase().includes(kw) || (r.email || '').toLowerCase().includes(kw));
+    }
+    recentRows = recentRows.slice(0, 100);
+
+    recentTbody.innerHTML = recentRows.length ? recentRows.map(r => {
+      const dateStr = r._date ? r._date.toLocaleString('ko-KR') : '-';
+      return `<tr style="border-top:1px solid #eef1fe">
+        <td style="padding:8px 10px;font-size:13px">${dateStr}</td>
+        <td style="padding:8px 10px;font-size:13px">${r.name || '-'}</td>
+        <td style="padding:8px 10px;font-size:13px">${r.pageName || r.pageId || '-'}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="3" style="text-align:center;color:#9ca0b8;padding:20px">조회된 이력이 없습니다</td></tr>';
+  } catch (e) {
+    console.error('메뉴 사용 현황 로드 오류:', e);
+    rankTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#dc2626;padding:20px">불러오지 못했습니다</td></tr>';
+    recentTbody.innerHTML = '';
   }
 }
 
@@ -12226,6 +12334,29 @@ async function deleteFundUsage(orgKey, period, rowIdx, year, mode) {
   }
 }
 
+const PAGE_LABELS = {
+  'dashboard':'대시보드','tasks':'업무보드','kpi':'KPI·OKR','drive':'구글드라이브','docs':'Docs·Sheets',
+  'cert-dashboard':'인증 대시보드','cert-bizcert':'기업인증현황','cert-copyright':'저작권','cert-gs':'GS인증',
+  'cert-patent':'특허증','cert-trademark':'상표등록증','cert-ogc':'OGC','cert-direct':'직접생산·SW사업자',
+  'cert-program':'프로그램 인증서','cert-excellence':'우수제품지정','cert-survey':'측량기기 성능검사',
+  'orgview':'직원 조회(조직도)','employees':'직원 관리','organization':'조직 관리','codemanage':'코드 관리',
+  'mypage':'마이페이지','parentbirthday':'부모님 생신현황','myinfo-history':'정보수정 이력','loginlogs':'접속 이력',
+  'menuUsage':'메뉴 사용 현황','deptfund':'부서장 운영비','birthday':'생일자 현황','welfare':'복리후생',
+  'workforce':'상시근로자수','workforce-join':'입퇴사 현황','workforce-gender':'인력구성 분석','workforce-edit':'수정',
+  'doc-draft':'공문·계약서 작성','doc-review':'계약서 검토','doc-templates':'템플릿 관리','settings':'설정',
+};
+
+function logPageView(id) {
+  if (!state.myEmail) return;
+  db.collection('pageViews').add({
+    email: state.myEmail,
+    name: (document.getElementById('user-name') && document.getElementById('user-name').textContent) || state.myEmail,
+    pageId: id,
+    pageName: PAGE_LABELS[id] || id,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+  }).catch(function(e){ console.error('메뉴 사용 기록 오류:', e); });
+}
+
 function showPage(id, el) {
   const target = document.getElementById('page-'+id);
   if (!target) { console.warn('페이지 없음:', id); return; }
@@ -12233,6 +12364,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   target.classList.add('active');
   if(el) el.classList.add('active');
+  logPageView(id);
   if(id === 'codemanage') {
     // 항상 최신 Firestore 데이터로 렌더
     db.collection('codes').doc('all').get().then(snap => {
@@ -12250,6 +12382,7 @@ function showPage(id, el) {
   if(id === 'deptfund') { renderDeptFund(); }
   if(id === 'myinfo-history') { renderMyInfoHistory(); }
   if(id === 'loginlogs') { renderLoginLogs(); }
+  if(id === 'menuUsage') { renderMenuUsage(); }
   if(id === 'parentbirthday') { renderParentBirthdayTable(); }
   if(id === 'organization') renderDeptTable();
   if(id === 'workforce') renderWorkforce();
