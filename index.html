@@ -287,11 +287,11 @@ select.form-input{cursor:pointer}
           <span id="main-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
         </div>
         <div id="main-menu-items">
-          <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">🏠</span> 대시보드</div>
-          <div class="nav-item" onclick="showPage('tasks',this)"><span class="nav-icon">📋</span> 업무보드 <span class="nav-badge" id="task-badge">3</span></div>
-          <div class="nav-item" onclick="showPage('kpi',this)"><span class="nav-icon">📈</span> KPI·OKR</div>
-          <div class="nav-item" onclick="showPage('drive',this)"><span class="nav-icon">📁</span> 구글드라이브</div>
-          <div class="nav-item" onclick="showPage('docs',this)"><span class="nav-icon">📝</span> Docs·Sheets</div>
+          <div class="nav-item active" onclick="showUnderMaintenance('대시보드', '🏠', this)"><span class="nav-icon">🏠</span> 대시보드</div>
+          <div class="nav-item" onclick="showUnderMaintenance('업무보드', '📋', this)"><span class="nav-icon">📋</span> 업무보드 <span class="nav-badge" id="task-badge">3</span></div>
+          <div class="nav-item" onclick="showUnderMaintenance('KPI·OKR', '📈', this)"><span class="nav-icon">📈</span> KPI·OKR</div>
+          <div class="nav-item" onclick="showUnderMaintenance('구글드라이브', '📁', this)"><span class="nav-icon">📁</span> 구글드라이브</div>
+          <div class="nav-item" onclick="showUnderMaintenance('Docs·Sheets', '📝', this)"><span class="nav-icon">📝</span> Docs·Sheets</div>
         </div>
       </div>
       <div class="sidebar-section">
@@ -12355,6 +12355,34 @@ function logPageView(id) {
     pageName: PAGE_LABELS[id] || id,
     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
   }).catch(function(e){ console.error('메뉴 사용 기록 오류:', e); });
+}
+
+function showUnderMaintenance(name, icon, el) {
+  // 사이드바 active 처리
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  if (el) el.classList.add('active');
+
+  // 모든 페이지 숨기기
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+
+  // 점검 중 화면 표시 (기존 maintenance 페이지 재활용)
+  var maintenancePage = document.getElementById('page-maintenance');
+  if (!maintenancePage) {
+    maintenancePage = document.createElement('div');
+    maintenancePage.id = 'page-maintenance';
+    maintenancePage.className = 'page active';
+    document.querySelector('.main-content') && document.querySelector('.main-content').appendChild(maintenancePage);
+  }
+  maintenancePage.className = 'page active';
+  maintenancePage.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:center;min-height:70vh;flex-direction:column;gap:16px;text-align:center">' +
+      '<div style="font-size:64px">' + icon + '</div>' +
+      '<div style="font-size:22px;font-weight:700;color:var(--t1)">' + name + '</div>' +
+      '<div style="display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:#fff3cd;border:1px solid #ffc107;border-radius:99px;font-size:14px;font-weight:600;color:#856404">' +
+        '🔧 현재 점검 중입니다' +
+      '</div>' +
+      '<div style="font-size:13px;color:var(--t3);max-width:320px;line-height:1.7">서비스 개선을 위해 점검 중입니다.<br>빠른 시일 내에 이용하실 수 있도록 준비하겠습니다.</div>' +
+    '</div>';
 }
 
 function showPage(id, el) {
