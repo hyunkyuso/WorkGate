@@ -2482,6 +2482,19 @@ select.form-input{cursor:pointer}
         </div>
       </div>
 
+      <!-- 파일 첨부 -->
+      <div style="margin-bottom:4px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <label style="font-size:11px;font-weight:600;color:var(--t2)">파일 첨부 (구글 드라이브)</label>
+          <label style="font-size:12px;padding:4px 10px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;color:var(--t2);background:var(--surface)">
+            📎 파일 선택
+            <input type="file" id="task-file-input" multiple style="display:none" onchange="taskFileSelected(this)">
+          </label>
+        </div>
+        <div id="task-file-list" style="display:flex;flex-direction:column;gap:5px"></div>
+        <div id="task-file-uploading" style="display:none;font-size:12px;color:var(--t3);padding:4px 0">⬆ 드라이브에 업로드 중...</div>
+      </div>
+
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('task-modal')">취소</button>
@@ -16562,9 +16575,12 @@ function taskCardHtml(t, myEmail, colColor) {
       '</div>' +
       '<span style="font-size:10px;font-weight:600;color:'+(pct===100?'#22c55e':'#94a3b8')+'">'+pct+'%</span>' +
     '</div>' +
-    // 검토자 본인에게 카드에서 바로 검토 완료 버튼 표시
-    (t.reviewer && t.reviewer === myEmail && t.status !== 'review' && t.status !== 'done' ?
-      '<button onclick="event.stopPropagation();taskMarkReviewed(\''+t.id+'\')" style="margin-top:8px;width:100%;padding:6px;font-size:11px;font-weight:600;background:#8B5CF6;color:white;border:none;border-radius:7px;cursor:pointer">✓ 검토 완료</button>' : '') +
+    // 검토자 본인 카드에 버튼 표시
+    (t.reviewer && t.reviewer === myEmail && !t.reviewed ?
+      '<div style="display:flex;gap:6px;margin-top:8px">' +
+        '<button onclick="event.stopPropagation();taskMarkReviewed(\''+t.id+'\')" style="flex:1;padding:6px;font-size:11px;font-weight:600;background:#EDE9FE;color:#7C3AED;border:1px solid #C4B5FD;border-radius:7px;cursor:pointer">👁 검토 중</button>' +
+        '<button onclick="event.stopPropagation();taskMarkReviewDone(\''+t.id+'\')" style="flex:1;padding:6px;font-size:11px;font-weight:600;background:#8B5CF6;color:white;border:none;border-radius:7px;cursor:pointer">✅ 검토 완료</button>' +
+      '</div>' : '') +
     (t.reviewer && t.reviewed && t.reviewer === myEmail ?
       '<button onclick="event.stopPropagation();taskUnmarkReviewed(\''+t.id+'\')" style="margin-top:8px;width:100%;padding:6px;font-size:11px;background:none;color:#166534;border:1px solid #bbf7d0;border-radius:7px;cursor:pointer">↩ 검토 취소</button>' : '') +
   '</div>';
@@ -16573,8 +16589,8 @@ function taskCardHtml(t, myEmail, colColor) {
 // ── 업무 등록 모달 ──
 function openTaskModal(defaultStatus) {
   _taskEditId = null;
-  _taskSharedWith = [];
-  _taskChecklist = [];
+  _taskFiles = [];
+  taskRenderFileList();
   document.getElementById('task-modal-title').textContent = '새 업무 등록';
   document.getElementById('task-title').value = '';
   document.getElementById('task-desc').value = '';
@@ -16736,6 +16752,112 @@ async function taskAiChecklist() {
 }
 
 // 업무 저장
+// ── 업무 파일 첨부 ──
+var _taskFiles = []; // [{name, driveId, driveLink, size}]
+
+function taskFileSelected(input) {
+  var files = Array.from(input.files);
+  input.value = '';
+  if (!files.length) return;
+
+  driveEnsureToken().then(function(ok) {
+    if (!ok) { showToast('❌ 드라이브 권한이 필요합니다'); return; }
+    var uploading = document.getElementById('task-file-uploading');
+    if (uploading) uploading.style.display = 'block';
+
+    var uploads = files.map(function(file) {
+      return driveUploadTaskFile(file);
+    });
+
+    Promise.all(uploads).then(function(results) {
+      results.forEach(function(r) { if (r && r.id) _taskFiles.push(r); });
+      taskRenderFileList();
+      if (uploading) uploading.style.display = 'none';
+      showToast('✅ ' + results.length + '개 파일 업로드 완료');
+    }).catch(function(e) {
+      if (uploading) uploading.style.display = 'none';
+      showToast('❌ 파일 업로드 실패: ' + e.message);
+    });
+  });
+}
+
+async function driveUploadTaskFile(file) {
+  var folderId = await driveEnsureTaskFolder();
+  var metadata = { name: file.name, parents: folderId ? [folderId] : [] };
+  var form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+  form.append('file', file);
+  var r = await driveApiCall('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,size', {
+    method:'POST', body: form
+  });
+  var d = await r.json();
+  return { name: d.name, driveId: d.id, driveLink: d.webViewLink, size: file.size };
+}
+
+var _driveTaskFolderId = null;
+async function driveEnsureTaskFolder() {
+  if (_driveTaskFolderId) return _driveTaskFolderId;
+  var folderName = 'WorkGate_업무파일';
+  var r = await driveApiCall('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("name='"+folderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false")+'&fields=files(id)');
+  var d = await r.json();
+  if (d.files && d.files.length) {
+    _driveTaskFolderId = d.files[0].id;
+  } else {
+    var cr = await driveApiCall('https://www.googleapis.com/drive/v3/files', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name:folderName, mimeType:'application/vnd.google-apps.folder'})
+    });
+    var cd = await cr.json();
+    _driveTaskFolderId = cd.id;
+  }
+  return _driveTaskFolderId;
+}
+
+function taskRenderFileList() {
+  var el = document.getElementById('task-file-list');
+  if (!el) return;
+  el.innerHTML = _taskFiles.map(function(f, i) {
+    var sizeStr = f.size ? (f.size > 1024*1024 ? (f.size/1024/1024).toFixed(1)+'MB' : (f.size/1024).toFixed(0)+'KB') : '';
+    var ext = (f.name||'').split('.').pop().toLowerCase();
+    var icon = {pdf:'📄',doc:'📝',docx:'📝',xls:'📊',xlsx:'📊',ppt:'📋',pptx:'📋',jpg:'🖼',jpeg:'🖼',png:'🖼',zip:'📦'}[ext] || '📎';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px">' +
+      '<span style="font-size:16px">'+icon+'</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:12px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.name+'</div>' +
+        (sizeStr ? '<div style="font-size:10px;color:var(--t3)">'+sizeStr+'</div>' : '') +
+      '</div>' +
+      (f.driveLink ? '<a href="'+f.driveLink+'" target="_blank" style="font-size:11px;color:var(--ac);text-decoration:none;flex-shrink:0">열기</a>' : '') +
+      '<button onclick="taskRemoveFile('+i+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:13px;padding:0;flex-shrink:0">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+function taskRemoveFile(i) {
+  _taskFiles.splice(i, 1);
+  taskRenderFileList();
+}
+
+function taskRenderDetailFiles(files) {
+  if (!files || !files.length) return '';
+  return '<div style="margin-bottom:14px">' +
+    '<div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">📎 첨부파일 ('+files.length+'개)</div>' +
+    '<div style="display:flex;flex-direction:column;gap:6px">' +
+    files.map(function(f) {
+      var ext = (f.name||'').split('.').pop().toLowerCase();
+      var icon = {pdf:'📄',doc:'📝',docx:'📝',xls:'📊',xlsx:'📊',ppt:'📋',pptx:'📋',jpg:'🖼',jpeg:'🖼',png:'🖼',zip:'📦'}[ext] || '📎';
+      var sizeStr = f.size ? (f.size > 1024*1024 ? (f.size/1024/1024).toFixed(1)+'MB' : (f.size/1024).toFixed(0)+'KB') : '';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px">' +
+        '<span style="font-size:18px">'+icon+'</span>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.name+'</div>' +
+          (sizeStr ? '<div style="font-size:11px;color:var(--t3)">'+sizeStr+'</div>' : '') +
+        '</div>' +
+        (f.driveLink ? '<a href="'+f.driveLink+'" target="_blank" style="font-size:12px;color:var(--ac);padding:4px 10px;border:0.5px solid var(--ac);border-radius:6px;text-decoration:none;flex-shrink:0">열기</a>' : '') +
+      '</div>';
+    }).join('') +
+    '</div></div>';
+}
+
 function taskSave() {
   var title = document.getElementById('task-title').value.trim();
   if (!title) { showToast('❌ 업무명을 입력해주세요'); return; }
@@ -16752,6 +16874,7 @@ function taskSave() {
     reviewer: document.getElementById('task-reviewer').value,
     sharedWith: _taskSharedWith.slice(),
     checklist: _taskChecklist.slice(),
+    files: _taskFiles.slice(),
     progress: _taskChecklist.length ? 0 : parseInt(document.getElementById('task-progress').value||0),
     createdBy: state.user ? state.user.email : '',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -16802,6 +16925,7 @@ function taskOpenDetail(id) {
     (t.project ? '<div style="margin-bottom:12px;font-size:12px;color:var(--t2)">📁 프로젝트: <strong>'+t.project+'</strong></div>' : '') +
     (t.desc ? '<div style="margin-bottom:14px;font-size:13px;color:var(--t1);line-height:1.7;background:var(--surface);border-radius:8px;padding:10px 12px;border:0.5px solid var(--border)">'+t.desc+'</div>' : '') +
     (sharedNames ? '<div style="margin-bottom:14px;font-size:12px;color:var(--t2)">👥 공유자: '+sharedNames+'</div>' : '') +
+    taskRenderDetailFiles(t.files) +
     // 검토자 + 검토 완료 버튼
     (t.reviewer ?
       (function(){
@@ -16816,7 +16940,10 @@ function taskOpenDetail(id) {
             '<div style="font-size:13px;color:var(--t1);font-weight:500">'+rname+(isReviewed?' · ✅ 검토 완료':'')+' </div>' +
           '</div>' +
           (isReviewer && !isReviewed ?
-            '<button onclick="taskMarkReviewed(\''+id+'\')" style="padding:7px 16px;font-size:12px;font-weight:600;background:#8B5CF6;color:white;border:none;border-radius:8px;cursor:pointer">✓ 검토 완료</button>' :
+            '<div style="display:flex;gap:6px">' +
+              '<button onclick="taskMarkReviewed(\''+id+'\')" style="padding:7px 14px;font-size:12px;font-weight:600;background:#EDE9FE;color:#7C3AED;border:1px solid #C4B5FD;border-radius:8px;cursor:pointer">👁 검토 중</button>' +
+              '<button onclick="taskMarkReviewDone(\''+id+'\')" style="padding:7px 14px;font-size:12px;font-weight:600;background:#8B5CF6;color:white;border:none;border-radius:8px;cursor:pointer">✅ 검토 완료</button>' +
+            '</div>' :
             (isReviewer && isReviewed ?
               '<button onclick="taskUnmarkReviewed(\''+id+'\')" style="padding:7px 16px;font-size:12px;background:none;color:#166534;border:1px solid #bbf7d0;border-radius:8px;cursor:pointer">↩ 검토 취소</button>' : '')
           ) +
@@ -16890,23 +17017,34 @@ function taskToggleDetailChecklist(taskId, idx) {
 }
 
 // 수동 진행률 저장
-// 검토 완료 → 검토 중으로 자동 이동
+// 검토 완료 버튼 → 검토 중으로
 function taskMarkReviewed(taskId) {
   db.collection('tasks').doc(taskId).update({
-    reviewed: true,
+    reviewed: true, reviewDone: false,
     status: 'review',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function() {
-    showToast('✅ 검토 완료! 상태가 "검토 중"으로 변경되었습니다');
+    showToast('👁 검토 중으로 변경되었습니다');
     taskOpenDetail(taskId);
   });
 }
 
-// 검토 취소
-function taskUnmarkReviewed(taskId) {
-  var t = _tasks.find(function(x){ return x.id===taskId; });
+// 검토 완료 → 완료로
+function taskMarkReviewDone(taskId) {
   db.collection('tasks').doc(taskId).update({
-    reviewed: false,
+    reviewed: true, reviewDone: true,
+    status: 'done',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    showToast('✅ 검토 완료! 업무가 완료되었습니다');
+    taskOpenDetail(taskId);
+  });
+}
+
+// 검토 취소 → 진행 중으로
+function taskUnmarkReviewed(taskId) {
+  db.collection('tasks').doc(taskId).update({
+    reviewed: false, reviewDone: false,
     status: 'doing',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function() {
@@ -16945,6 +17083,8 @@ function taskEditFromDetail() {
   _taskEditId = t.id;
   _taskSharedWith = (t.sharedWith||[]).slice();
   _taskChecklist = (t.checklist||[]).map(function(c){ return Object.assign({},c); });
+  _taskFiles = (t.files||[]).slice();
+  taskRenderFileList();
   document.getElementById('task-modal-title').textContent = '업무 수정';
   document.getElementById('task-title').value = t.title||'';
   document.getElementById('task-desc').value = t.desc||'';
