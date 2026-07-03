@@ -3052,7 +3052,7 @@ async function loadDriveFiles() {
     document.getElementById('drive-status').className = 'drive-status connected';
     document.getElementById('drive-status').textContent = `✅ 드라이브 연결됨 · 파일 ${state.driveFiles.length}개`;
     document.getElementById('drive-file-count').textContent = `${state.driveFiles.length}개 파일`;
-    document.getElementById('st-files').textContent = state.driveFiles.length;
+    var _stf=document.getElementById('st-files');if(_stf)_stf.textContent = state.driveFiles.length;
     renderDocsList();
   } catch(e) {
     document.getElementById('drive-status').className = 'drive-status disconnected';
@@ -3088,7 +3088,7 @@ async function uploadFiles(files) {
     await uploadFileToDrive(f);
     showToast(`✅ ${f.name} 드라이브에 저장됨`);
   }
-  document.getElementById('st-files').textContent = state.driveFiles.length;
+  var _stf=document.getElementById('st-files');if(_stf)_stf.textContent = state.driveFiles.length;
   renderRecentFiles();
 }
 
@@ -3222,7 +3222,7 @@ function loadDemoFiles() {
   document.getElementById('drive-status').className = 'drive-status loading';
   document.getElementById('drive-status').textContent = '💡 데모 모드 — 실제 드라이브 연동 시 실제 파일 표시';
   document.getElementById('drive-file-count').textContent = `${state.driveFiles.length}개 파일`;
-  document.getElementById('st-files').textContent = state.driveFiles.length;
+  var _stf=document.getElementById('st-files');if(_stf)_stf.textContent = state.driveFiles.length;
   renderDocsList();
 }
 
