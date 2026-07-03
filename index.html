@@ -16022,7 +16022,13 @@ function projectRenderGrid() {
   var filtered = _projects.filter(function(p) {
     if (_taskFilter === 'mine') return p.createdBy === myEmail;
     if (_taskFilter === 'shared') return (p.members||[]).indexOf(myEmail) >= 0 && p.createdBy !== myEmail;
-    return isAdmin || p.createdBy === myEmail || (p.members||[]).indexOf(myEmail) >= 0;
+    // 관리자 or 프로젝트 생성자 or 프로젝트 멤버 or 해당 프로젝트 업무의 공유자/검토자
+    var isTaskParticipant = _tasks.some(function(t) {
+      return t.projectId === p.id && (
+        (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail
+      );
+    });
+    return isAdmin || p.createdBy === myEmail || (p.members||[]).indexOf(myEmail) >= 0 || isTaskParticipant;
   });
 
   if (!filtered.length) {
@@ -16468,11 +16474,22 @@ function taskRefreshProjectFilter() {
 
 function taskGetFiltered() {
   var myEmail = state.user ? state.user.email : '';
+  var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
   return _tasks.filter(function(t) {
-    // 현재 프로젝트 기준
     if (_currentProjectId && t.projectId !== _currentProjectId) return false;
+    // 권한 체크: 관리자 or 담당자 or 공유자 or 검토자 or 프로젝트 멤버
+    if (!isAdmin) {
+      var p = _projects.find(function(x){ return x.id === t.projectId; });
+      var isProjMember = p && ((p.members||[]).indexOf(myEmail) >= 0 || p.createdBy === myEmail);
+      var canSee = t.assignee === myEmail ||
+        (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
+        t.reviewer === myEmail ||
+        t.createdBy === myEmail ||
+        isProjMember;
+      if (!canSee) return false;
+    }
     if (_taskFilter === 'mine') return t.assignee === myEmail;
-    if (_taskFilter === 'shared') return (t.sharedWith||[]).indexOf(myEmail) >= 0;
+    if (_taskFilter === 'shared') return (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail;
     if (_taskFilter === 'urgent') return t.due && t.due <= new Date(Date.now()+3*86400000).toISOString().substring(0,10) && t.status !== 'done';
     return true;
   });
@@ -16576,12 +16593,12 @@ function taskCardHtml(t, myEmail, colColor) {
       '<span style="font-size:10px;font-weight:600;color:'+(pct===100?'#22c55e':'#94a3b8')+'">'+pct+'%</span>' +
     '</div>' +
     // 검토자 본인 카드에 버튼 표시
-    (t.reviewer && t.reviewer === myEmail && !t.reviewed ?
+    (t.reviewer && t.reviewer === myEmail && !t.reviewDone ?
       '<div style="display:flex;gap:6px;margin-top:8px">' +
         '<button onclick="event.stopPropagation();taskMarkReviewed(\''+t.id+'\')" style="flex:1;padding:6px;font-size:11px;font-weight:600;background:#EDE9FE;color:#7C3AED;border:1px solid #C4B5FD;border-radius:7px;cursor:pointer">👁 검토 중</button>' +
         '<button onclick="event.stopPropagation();taskMarkReviewDone(\''+t.id+'\')" style="flex:1;padding:6px;font-size:11px;font-weight:600;background:#8B5CF6;color:white;border:none;border-radius:7px;cursor:pointer">✅ 검토 완료</button>' +
       '</div>' : '') +
-    (t.reviewer && t.reviewed && t.reviewer === myEmail ?
+    (t.reviewer && t.reviewDone && t.reviewer === myEmail ?
       '<button onclick="event.stopPropagation();taskUnmarkReviewed(\''+t.id+'\')" style="margin-top:8px;width:100%;padding:6px;font-size:11px;background:none;color:#166534;border:1px solid #bbf7d0;border-radius:7px;cursor:pointer">↩ 검토 취소</button>' : '') +
   '</div>';
 }
@@ -16770,10 +16787,10 @@ function taskFileSelected(input) {
     });
 
     Promise.all(uploads).then(function(results) {
-      results.forEach(function(r) { if (r && r.id) _taskFiles.push(r); });
+      results.forEach(function(r) { if (r && r.driveId) _taskFiles.push(r); });
       taskRenderFileList();
       if (uploading) uploading.style.display = 'none';
-      showToast('✅ ' + results.length + '개 파일 업로드 완료');
+      showToast('✅ ' + results.filter(function(r){ return r && r.driveId; }).length + '개 파일 업로드 완료');
     }).catch(function(e) {
       if (uploading) uploading.style.display = 'none';
       showToast('❌ 파일 업로드 실패: ' + e.message);
@@ -16933,7 +16950,7 @@ function taskOpenDetail(id) {
         var rname = re ? re.name : t.reviewer;
         var myEmail = state.user ? state.user.email : '';
         var isReviewer = t.reviewer === myEmail;
-        var isReviewed = t.reviewed;
+        var isReviewed = t.reviewDone;
         return '<div style="margin-bottom:14px;padding:12px 14px;background:'+(isReviewed?'#f0faf0':'#EEEDFE')+';border:1px solid '+(isReviewed?'#bbf7d0':'#CECBF6')+';border-radius:10px;display:flex;align-items:center;justify-content:space-between">' +
           '<div>' +
             '<div style="font-size:11px;color:'+(isReviewed?'#166534':'#534AB7')+';font-weight:600;margin-bottom:2px">👁 검토자</div>' +
