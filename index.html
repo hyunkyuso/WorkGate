@@ -2390,12 +2390,13 @@ select.form-input{cursor:pointer}
         </div>
         <div>
           <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">상태</label>
-          <select id="task-status" class="form-input" style="font-size:13px">
-            <option value="todo">할 일</option>
-            <option value="doing">진행 중</option>
-            <option value="review">검토 중</option>
-            <option value="done">완료</option>
-          </select>
+          <div style="display:flex;gap:4px">
+            <button type="button" onclick="taskSelectStatus('todo',this)" class="task-status-btn" style="flex:1;padding:6px 4px;font-size:11px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--t2)">📌 할 일</button>
+            <button type="button" onclick="taskSelectStatus('doing',this)" class="task-status-btn" style="flex:1;padding:6px 4px;font-size:11px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--t2)">🔵 진행 중</button>
+            <button type="button" onclick="taskSelectStatus('review',this)" class="task-status-btn" style="flex:1;padding:6px 4px;font-size:11px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--t2)">👀 검토 중</button>
+            <button type="button" onclick="taskSelectStatus('done',this)" class="task-status-btn" style="flex:1;padding:6px 4px;font-size:11px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--t2)">✅ 완료</button>
+          </div>
+          <input type="hidden" id="task-status" value="todo">
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
@@ -16387,7 +16388,7 @@ function openTaskModal(defaultStatus) {
   document.getElementById('task-title').value = '';
   document.getElementById('task-desc').value = '';
   document.getElementById('task-priority').value = '보통';
-  document.getElementById('task-status').value = defaultStatus || 'todo';
+  taskInitStatusBtns(defaultStatus || 'todo');
   document.getElementById('task-start').value = '';
   document.getElementById('task-due').value = '';
   document.getElementById('task-shared-tags').innerHTML = '';
@@ -16411,7 +16412,23 @@ function openTaskModal(defaultStatus) {
   openModal('task-modal');
 }
 
-// 공유자 검색
+function taskSelectStatus(val, el) {
+  document.getElementById('task-status').value = val;
+  var colors = {todo:'#888780', doing:'#378ADD', review:'#EF9F27', done:'#639922'};
+  document.querySelectorAll('.task-status-btn').forEach(function(b){ b.style.background='var(--surface)'; b.style.color='var(--t2)'; b.style.borderColor='var(--border)'; });
+  if (el) { el.style.background = colors[val]+'22'; el.style.color = colors[val]; el.style.borderColor = colors[val]; }
+}
+
+function taskInitStatusBtns(val) {
+  var colors = {todo:'#888780', doing:'#378ADD', review:'#EF9F27', done:'#639922'};
+  document.querySelectorAll('.task-status-btn').forEach(function(b){ b.style.background='var(--surface)'; b.style.color='var(--t2)'; b.style.borderColor='var(--border)'; });
+  document.querySelectorAll('.task-status-btn').forEach(function(b) {
+    if (b.onclick.toString().indexOf("'"+val+"'") >= 0) {
+      b.style.background = colors[val]+'22'; b.style.color = colors[val]; b.style.borderColor = colors[val];
+    }
+  });
+  document.getElementById('task-status').value = val;
+}
 function taskSearchShared() {
   var keyword = document.getElementById('task-shared-search').value.trim();
   var resultsEl = document.getElementById('task-shared-results');
@@ -16690,7 +16707,7 @@ function taskEditFromDetail() {
   document.getElementById('task-title').value = t.title||'';
   document.getElementById('task-desc').value = t.desc||'';
   document.getElementById('task-priority').value = t.priority||'보통';
-  document.getElementById('task-status').value = t.status||'todo';
+  taskInitStatusBtns(t.status||'todo');
   document.getElementById('task-start').value = t.start||'';
   document.getElementById('task-due').value = t.due||'';
   var sel = document.getElementById('task-assignee');
