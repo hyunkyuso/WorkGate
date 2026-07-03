@@ -287,7 +287,7 @@ select.form-input{cursor:pointer}
           <span id="main-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
         </div>
         <div id="main-menu-items">
-          <div class="nav-item active" onclick="showUnderMaintenance('대시보드', '🏠', this)"><span class="nav-icon">🏠</span> 대시보드</div>
+          <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">🏠</span> 대시보드</div>
           <div class="nav-item" onclick="showPage('tasks',this)"><span class="nav-icon">📋</span> 업무보드 <span class="nav-badge" id="task-badge" style="display:none"></span></div>
           <div class="nav-item" onclick="showUnderMaintenance('KPI·OKR', '📈', this)"><span class="nav-icon">📈</span> KPI·OKR</div>
           <div class="nav-item" onclick="showUnderMaintenance('구글드라이브', '📁', this)"><span class="nav-icon">📁</span> 구글드라이브</div>
@@ -388,18 +388,33 @@ select.form-input{cursor:pointer}
           </div>
           <button class="btn btn-primary" onclick="openTaskModal()">+ 새 업무</button>
         </div>
-        <div class="stats-grid">
-          <div class="stat-card"><div class="stat-val" style="color:var(--ac)" id="st-total">0</div><div class="stat-label">전체 업무</div><div class="stat-change up">↑ 이번 주 추가</div></div>
+
+        <!-- KPI 통계 -->
+        <div class="stats-grid" style="margin-bottom:20px">
+          <div class="stat-card"><div class="stat-val" style="color:var(--ac)" id="st-total">0</div><div class="stat-label">전체 업무</div></div>
           <div class="stat-card"><div class="stat-val" style="color:var(--am)" id="st-inprogress">0</div><div class="stat-label">진행 중</div></div>
-          <div class="stat-card"><div class="stat-val" style="color:var(--gr)" id="st-done">0</div><div class="stat-label">완료</div><div class="stat-change up">↑ 이번 주 완료</div></div>
-          <div class="stat-card"><div class="stat-val" style="color:var(--pu)" id="st-files">0</div><div class="stat-label">드라이브 파일</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:var(--gr)" id="st-done">0</div><div class="stat-label">완료</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:#E24B4A" id="st-urgent">0</div><div class="stat-label">기한 임박</div></div>
         </div>
+
+        <!-- 프로젝트 현황 -->
+        <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div style="font-size:14px;font-weight:600;color:var(--t1)">📋 프로젝트 현황</div>
+            <button onclick="showPage('tasks',document.querySelector('.nav-item[onclick*=tasks]'))" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer">전체 보기 →</button>
+          </div>
+          <div id="dash-project-list" style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:13px;color:var(--t3);padding:16px;text-align:center">프로젝트 로딩 중...</div>
+          </div>
+        </div>
+
+        <!-- 최근 업무 + 최근 파일 -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-          <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:16px">
-            <div style="font-size:14px;font-weight:600;margin-bottom:12px">📋 최근 업무</div>
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px">📌 최근 업무</div>
             <div id="recent-tasks-list" style="display:flex;flex-direction:column;gap:8px"></div>
           </div>
-          <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:16px">
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
             <div style="font-size:14px;font-weight:600;margin-bottom:12px">📁 최근 파일</div>
             <div id="recent-files-list" style="display:flex;flex-direction:column;gap:8px"></div>
           </div>
@@ -3233,9 +3248,49 @@ function renderDashboard() {
 }
 
 function updateStats() {
+  var today = new Date().toISOString().substring(0,10);
+  var soon = new Date(Date.now()+3*86400000).toISOString().substring(0,10);
   document.getElementById('st-total').textContent = _tasks.length;
   document.getElementById('st-inprogress').textContent = _tasks.filter(function(t){ return t.status==='doing'; }).length;
   document.getElementById('st-done').textContent = _tasks.filter(function(t){ return t.status==='done'; }).length;
+  var urgentEl = document.getElementById('st-urgent');
+  if (urgentEl) urgentEl.textContent = _tasks.filter(function(t){ return t.due && t.due <= soon && t.status !== 'done'; }).length;
+  renderDashProjectList();
+}
+
+function renderDashProjectList() {
+  var el = document.getElementById('dash-project-list');
+  if (!el) return;
+  var myEmail = state.user ? state.user.email : '';
+  var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
+  var visible = _projects.filter(function(p) {
+    return isAdmin || p.createdBy === myEmail || (p.members||[]).indexOf(myEmail) >= 0;
+  }).slice(0, 5);
+
+  if (!visible.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--t3);padding:8px 0;text-align:center">프로젝트가 없습니다</div>';
+    return;
+  }
+
+  el.innerHTML = visible.map(function(p) {
+    var taskCount = _tasks.filter(function(t){ return t.projectId === p.id; }).length;
+    var doneCount = _tasks.filter(function(t){ return t.projectId === p.id && t.status === 'done'; }).length;
+    var doingCount = _tasks.filter(function(t){ return t.projectId === p.id && t.status === 'doing'; }).length;
+    var pct = taskCount ? Math.round(doneCount/taskCount*100) : 0;
+    var color = p.color || '#378ADD';
+    return '<div onclick="showPage(\'tasks\',null);setTimeout(function(){taskOpenProject(\''+p.id+'\')},100)" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;cursor:pointer" onmouseover="this.style.borderColor=\''+color+'\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+      '<div style="width:8px;height:8px;border-radius:50%;background:'+color+';flex-shrink:0"></div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.name+'</div>' +
+        '<div style="height:3px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:5px"><div style="height:100%;background:'+color+';width:'+pct+'%;border-radius:99px"></div></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;font-size:11px;color:var(--t3);flex-shrink:0">' +
+        '<span style="color:#378ADD">진행 '+doingCount+'</span>' +
+        '<span style="color:#639922">완료 '+doneCount+'/'+taskCount+'</span>' +
+        '<span style="font-weight:600;color:'+color+'">'+pct+'%</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
 }
 
 function renderRecentTasks() {
@@ -15947,30 +16002,63 @@ function projectRenderGrid() {
     return;
   }
 
+  var avatarColors = ['#B5D4F4:#0C447C','#9FE1CB:#085041','#FAC775:#633806','#F4C0D1:#72243E','#CECBF6:#3C3489'];
+
   el.innerHTML = filtered.map(function(p) {
     var taskCount = _tasks.filter(function(t){ return t.projectId === p.id; }).length;
     var doneCount = _tasks.filter(function(t){ return t.projectId === p.id && t.status === 'done'; }).length;
+    var doingCount = _tasks.filter(function(t){ return t.projectId === p.id && t.status === 'doing'; }).length;
     var pct = taskCount ? Math.round(doneCount/taskCount*100) : 0;
     var canEdit = isAdmin || p.createdBy === myEmail;
-    var memberCount = (p.members||[]).length;
+    var color = p.color || '#378ADD';
+    var members = (p.members||[]).slice(0,4);
 
-    return '<div onclick="taskOpenProject(\''+p.id+'\')" style="background:var(--white);border:0.5px solid var(--border);border-radius:12px;padding:20px;cursor:pointer;transition:box-shadow .2s;position:relative" onmouseover="this.style.boxShadow=\'0 4px 16px rgba(0,0,0,0.1)\'" onmouseout="this.style.boxShadow=\'none\'">' +
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">' +
-        '<div style="width:40px;height:40px;border-radius:10px;background:'+(p.color||'#378ADD')+';display:flex;align-items:center;justify-content:center;font-size:18px">📁</div>' +
-        (canEdit ? '<button onclick="event.stopPropagation();openProjectEditModal(\''+p.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:16px;padding:4px">⚙</button>' : '') +
+    // 아바타
+    var avatarsHtml = members.map(function(email, i) {
+      var emp = employees.find(function(e){ return e.id===email||e.email===email; });
+      var name = emp ? emp.name.charAt(0) : '?';
+      var colors = avatarColors[i % avatarColors.length].split(':');
+      return '<div title="'+(emp?emp.name:email)+'" style="width:22px;height:22px;border-radius:50%;font-size:8px;font-weight:600;display:flex;align-items:center;justify-content:center;background:'+colors[0]+';color:'+colors[1]+';border:2px solid var(--white);margin-left:'+(i>0?'-6px':'0')+'px">'+name+'</div>';
+    }).join('');
+
+    return '<div onclick="taskOpenProject(\''+p.id+'\')" style="background:var(--white);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor=\''+color+'\';this.style.boxShadow=\'0 4px 16px rgba(0,0,0,0.08)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.boxShadow=\'none\'">' +
+      // 배너 영역
+      '<div style="height:80px;background:'+color+';position:relative;overflow:hidden">' +
+        // 배경 장식 원
+        '<div style="position:absolute;right:-20px;top:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.1)"></div>' +
+        '<div style="position:absolute;right:20px;bottom:-30px;width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,0.08)"></div>' +
+        // 아이콘
+        '<div style="position:absolute;top:14px;left:14px;width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:18px">📁</div>' +
+        // 진행률 텍스트
+        '<div style="position:absolute;top:14px;right:14px;font-size:22px;font-weight:700;color:rgba(255,255,255,0.95)">'+pct+'%</div>' +
+        // 진행바
+        '<div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,0.2)">' +
+          '<div style="height:100%;width:'+pct+'%;background:rgba(255,255,255,0.85);transition:width .3s"></div>' +
+        '</div>' +
+        // 설정 버튼
+        (canEdit ? '<button onclick="event.stopPropagation();openProjectEditModal(\''+p.id+'\')" style="position:absolute;bottom:10px;left:60px;background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:12px;padding:2px 8px;border-radius:4px;line-height:1.5">⚙ 설정</button>' : '') +
       '</div>' +
-      '<div style="font-size:15px;font-weight:600;color:var(--t1);margin-bottom:4px">'+(p.name||'')+'</div>' +
-      (p.desc ? '<div style="font-size:12px;color:var(--t3);margin-bottom:10px;line-height:1.5">'+p.desc+'</div>' : '<div style="margin-bottom:10px"></div>') +
-      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:11px;color:var(--t3)">' +
-        '<span>📌 업무 '+taskCount+'개</span>' +
-        '<span>👥 '+memberCount+'명</span>' +
+      // 카드 본문
+      '<div style="padding:14px">' +
+        '<div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(p.name||'')+'</div>' +
+        (p.desc ? '<div style="font-size:11px;color:var(--t3);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.desc+'</div>' : '<div style="margin-bottom:10px"></div>') +
+        '<div style="display:flex;align-items:center;justify-content:space-between">' +
+          '<div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--t3)">' +
+            '<span style="display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:#378ADD;display:inline-block"></span> '+doingCount+'개 진행</span>' +
+            '<span style="display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:#639922;display:inline-block"></span> '+doneCount+'/'+taskCount+'개 완료</span>' +
+          '</div>' +
+          '<div style="display:flex">' + avatarsHtml + (p.members&&p.members.length>4?'<div style="width:22px;height:22px;border-radius:50%;font-size:8px;font-weight:600;display:flex;align-items:center;justify-content:center;background:var(--surface);color:var(--t2);border:2px solid var(--white);margin-left:-6px">+'+( p.members.length-4)+'</div>':'') + '</div>' +
+        '</div>' +
       '</div>' +
-      '<div style="height:4px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:6px">' +
-        '<div style="height:100%;border-radius:99px;background:'+(p.color||'#378ADD')+';width:'+pct+'%"></div>' +
-      '</div>' +
-      '<div style="font-size:11px;color:var(--t3)">'+pct+'% 완료</div>' +
     '</div>';
-  }).join('');
+  }).join('') +
+  // 새 프로젝트 추가 카드
+  '<div onclick="openProjectModal()" style="background:var(--white);border:0.5px dashed var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;min-height:160px;cursor:pointer;transition:border-color .15s,background .15s" onmouseover="this.style.borderColor=\'var(--ac)\';this.style.background=\'var(--acd)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--white)\'">' +
+    '<div style="text-align:center;color:var(--t3)">' +
+      '<div style="font-size:28px;margin-bottom:6px">+</div>' +
+      '<div style="font-size:13px">새 프로젝트</div>' +
+    '</div>' +
+  '</div>';
 }
 
 function taskOpenProject(projectId) {
@@ -16626,7 +16714,9 @@ function taskOpenDetail(id) {
             '<div style="font-size:12px;font-weight:600;color:var(--t2)">진행률</div>' +
             '<span id="detail-progress-display" style="font-size:12px;font-weight:600;color:var(--ac)">'+pct+'%</span>' +
           '</div>' +
-          '<input type="range" id="detail-progress" min="0" max="100" step="5" value="'+pct+'" style="width:100%;accent-color:#378ADD" oninput="document.getElementById(\'detail-progress-display\').textContent=this.value+\'%\'">' +
+          '<div style="height:4px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:8px"><div id="detail-progress-bar" style="height:100%;border-radius:99px;background:#378ADD;width:'+pct+'%"></div></div>' +
+          '<input type="range" id="detail-progress" min="0" max="100" step="5" value="'+pct+'" style="width:100%;accent-color:#378ADD" oninput="document.getElementById(\'detail-progress-display\').textContent=this.value+\'%\';document.getElementById(\'detail-progress-bar\').style.width=this.value+\'%\'">' +
+          '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:2px"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>' +
           '<button onclick="taskSaveManualProgress(\''+id+'\')" style="margin-top:8px;padding:5px 14px;font-size:12px;border:0.5px solid var(--ac);color:var(--ac);background:var(--acd);border-radius:6px;cursor:pointer">진행률 저장</button>' +
         '</div>' :
         '<div style="margin-bottom:14px;font-size:12px;color:var(--t2)">진행률: <strong>'+pct+'%</strong></div>'
