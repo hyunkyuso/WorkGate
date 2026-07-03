@@ -408,31 +408,47 @@ select.form-input{cursor:pointer}
 
       <!-- 업무보드 (칸반) -->
       <div id="page-tasks" class="page">
-        <div class="page-header">
-          <div>
-            <div class="page-title">📋 업무보드</div>
-            <div class="page-sub">칸반 방식으로 업무를 관리하고 협업하세요</div>
+
+        <!-- ① 프로젝트 목록 화면 -->
+        <div id="task-project-list-view">
+          <div class="page-header">
+            <div>
+              <div class="page-title">📋 업무보드</div>
+              <div class="page-sub">프로젝트를 선택해서 칸반 보드로 이동하세요</div>
+            </div>
+            <button class="btn btn-primary" onclick="openProjectModal()">+ 프로젝트 추가</button>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <select id="task-project-filter" class="form-input" style="font-size:13px;width:200px" onchange="taskRender()">
-              <option value="">전체 프로젝트</option>
-            </select>
-            <button class="btn btn-primary" onclick="openTaskModal()">+ 새 업무</button>
+          <!-- 필터 탭 -->
+          <div style="display:flex;gap:6px;margin-bottom:16px">
+            <div style="display:flex;border:0.5px solid var(--border);border-radius:8px;overflow:hidden">
+              <button onclick="taskSetFilter('all',this)" class="task-filter-btn active" style="padding:6px 14px;font-size:12px;border:none;cursor:pointer;background:var(--acd);color:var(--ac)">전체</button>
+              <button onclick="taskSetFilter('mine',this)" class="task-filter-btn" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">내 프로젝트</button>
+              <button onclick="taskSetFilter('shared',this)" class="task-filter-btn" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">공유받은</button>
+            </div>
           </div>
+          <div id="project-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding-bottom:32px"></div>
         </div>
 
-        <!-- 필터 탭 -->
-        <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-          <div style="display:flex;border:0.5px solid var(--border);border-radius:8px;overflow:hidden">
-            <button onclick="taskSetFilter('all',this)" class="task-filter-btn active" style="padding:6px 14px;font-size:12px;border:none;cursor:pointer;background:var(--acd);color:var(--ac)">전체</button>
-            <button onclick="taskSetFilter('mine',this)" class="task-filter-btn" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">내 업무</button>
-            <button onclick="taskSetFilter('shared',this)" class="task-filter-btn" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">공유받은 업무</button>
-            <button onclick="taskSetFilter('urgent',this)" class="task-filter-btn" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">기한 임박</button>
+        <!-- ② 칸반 보드 화면 -->
+        <div id="task-kanban-view" style="display:none">
+          <div class="page-header">
+            <div style="display:flex;align-items:center;gap:10px">
+              <button onclick="taskBackToProjects()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--t2);padding:0;line-height:1">←</button>
+              <div>
+                <div class="page-title" id="kanban-project-title"></div>
+                <div class="page-sub" id="kanban-project-desc"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div style="display:flex;border:0.5px solid var(--border);border-radius:8px;overflow:hidden">
+                <button onclick="taskSetFilter('all',this)" class="task-filter-btn active" style="padding:5px 12px;font-size:12px;border:none;cursor:pointer;background:var(--acd);color:var(--ac)">전체</button>
+                <button onclick="taskSetFilter('mine',this)" class="task-filter-btn" style="padding:5px 12px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">내 업무</button>
+                <button onclick="taskSetFilter('urgent',this)" class="task-filter-btn" style="padding:5px 12px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">기한 임박</button>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="openProjectEditModal()">⚙ 프로젝트 설정</button>
+            </div>
           </div>
-        </div>
-
-        <!-- 칸반 보드 -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;padding-bottom:32px" id="kanban-board">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;padding-bottom:32px" id="kanban-board"></div>
         </div>
       </div>
 
@@ -2245,6 +2261,75 @@ select.form-input{cursor:pointer}
   </div>
 </div>
 
+<!-- 프로젝트 추가/수정 모달 -->
+<div id="project-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('project-modal')">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title" id="project-modal-title">프로젝트 추가</div>
+      <button class="modal-close" onclick="closeModal('project-modal')">✕</button>
+    </div>
+    <div style="padding:4px 0">
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">프로젝트명 *</label>
+        <input id="project-name" type="text" class="form-input" placeholder="예: 영양군 성장관리계획 수립 용역">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">설명</label>
+        <textarea id="project-desc" class="form-input" style="height:60px;resize:none" placeholder="프로젝트 설명 (선택)"></textarea>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">색상</label>
+        <div id="project-color-group" style="display:flex;gap:8px;flex-wrap:wrap">
+          <div onclick="projectSelectColor('#378ADD',this)" style="width:28px;height:28px;border-radius:50%;background:#378ADD;cursor:pointer;border:3px solid #378ADD"></div>
+          <div onclick="projectSelectColor('#639922',this)" style="width:28px;height:28px;border-radius:50%;background:#639922;cursor:pointer"></div>
+          <div onclick="projectSelectColor('#EF9F27',this)" style="width:28px;height:28px;border-radius:50%;background:#EF9F27;cursor:pointer"></div>
+          <div onclick="projectSelectColor('#E24B4A',this)" style="width:28px;height:28px;border-radius:50%;background:#E24B4A;cursor:pointer"></div>
+          <div onclick="projectSelectColor('#8B5CF6',this)" style="width:28px;height:28px;border-radius:50%;background:#8B5CF6;cursor:pointer"></div>
+          <div onclick="projectSelectColor('#EC4899',this)" style="width:28px;height:28px;border-radius:50%;background:#EC4899;cursor:pointer"></div>
+          <div onclick="projectSelectColor('#14B8A6',this)" style="width:28px;height:28px;border-radius:50%;background:#14B8A6;cursor:pointer"></div>
+          <div onclick="projectSelectColor('#888780',this)" style="width:28px;height:28px;border-radius:50%;background:#888780;cursor:pointer"></div>
+        </div>
+        <input type="hidden" id="project-color" value="#378ADD">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:6px">공유 멤버</label>
+        <input id="project-member-search" type="text" class="form-input" style="font-size:13px;margin-bottom:5px" placeholder="이름 검색..." oninput="projectSearchMember()">
+        <div id="project-member-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:120px;overflow-y:auto;margin-bottom:6px"></div>
+        <!-- 조직도 선택 버튼 -->
+        <button onclick="openProjectOrgPicker()" style="width:100%;padding:7px;font-size:12px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2);margin-bottom:8px">🏢 조직도에서 선택</button>
+        <div id="project-member-tags" style="display:flex;flex-wrap:wrap;gap:5px;min-height:28px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div>
+        <button id="project-delete-btn" onclick="deleteProject()" class="btn btn-danger btn-sm" style="display:none">삭제</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="closeModal('project-modal')">취소</button>
+        <button class="btn btn-primary" onclick="saveProject()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 조직도 멤버 선택 모달 -->
+<div id="project-org-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('project-org-modal')">
+  <div class="modal" style="max-width:500px;max-height:80vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">조직도에서 멤버 선택</div>
+      <button class="modal-close" onclick="closeModal('project-org-modal')">✕</button>
+    </div>
+    <div style="padding:4px 0">
+      <input id="org-picker-search" type="text" class="form-input" style="margin-bottom:12px" placeholder="이름 검색..." oninput="orgPickerSearch()">
+      <div id="org-picker-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('project-org-modal')">닫기</button>
+      <button class="btn btn-primary" onclick="closeModal('project-org-modal')">확인</button>
+    </div>
+  </div>
+</div>
+
 <!-- 업무 등록/수정 모달 -->
 <div id="task-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('task-modal')">
   <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">
@@ -2305,8 +2390,9 @@ select.form-input{cursor:pointer}
       <!-- 공유자 -->
       <div style="margin-bottom:12px">
         <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">공유자 (협업자/열람자)</label>
-        <input id="task-shared-search" type="text" class="form-input" style="font-size:13px;margin-bottom:5px" placeholder="이름 또는 이메일 검색..." oninput="taskSearchShared()">
-        <div id="task-shared-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:120px;overflow-y:auto;margin-bottom:6px"></div>
+        <input id="task-shared-search" type="text" class="form-input" style="font-size:13px;margin-bottom:5px" placeholder="이름 검색..." oninput="taskSearchShared()">
+        <div id="task-shared-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:120px;overflow-y:auto;margin-bottom:5px"></div>
+        <button onclick="openTaskOrgPicker()" style="width:100%;padding:7px;font-size:12px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2);margin-bottom:6px">🏢 조직도에서 선택</button>
         <div id="task-shared-tags" style="display:flex;flex-wrap:wrap;gap:5px;min-height:28px"></div>
       </div>
 
@@ -12502,7 +12588,12 @@ function showPage(id, el) {
   if(id === 'cert-dashboard') { certUpdateDashboard(); }
   if(id === 'doc-templates') docRenderTemplateGrid();
   if(id === 'doc-draft') docRefreshTplSelect();
-  if(id === 'tasks') taskRender();
+  if(id === 'tasks') {
+    _currentProjectId = null;
+    document.getElementById('task-project-list-view').style.display = 'block';
+    document.getElementById('task-kanban-view').style.display = 'none';
+    projectRenderGrid();
+  }
 }
 
 function openModal(id) { document.getElementById(id).style.display='flex'; }
@@ -15781,12 +15872,281 @@ var TASK_COLS = [
 var PRI_COLOR = {긴급:'#E24B4A',높음:'#EF9F27',보통:'#378ADD',낮음:'#888780'};
 var PRI_BG    = {긴급:'#FCEBEB',높음:'#FAEEDA',보통:'#E6F1FB',낮음:'#F1EFE8'};
 
+// ── 프로젝트 ──
+var _projects = [];
+var _currentProjectId = null;
+var _projectEditId = null;
+var _projectMembers = [];
+var _projectColor = '#378ADD';
+
+function projectStartListener() {
+  db.collection('projects').orderBy('createdAt','desc').onSnapshot(function(snap) {
+    _projects = [];
+    snap.forEach(function(d){ _projects.push(Object.assign({id:d.id}, d.data())); });
+    projectRenderGrid();
+  });
+}
+
+function projectRenderGrid() {
+  var el = document.getElementById('project-grid');
+  if (!el) return;
+  var myEmail = state.user ? state.user.email : '';
+  var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
+
+  var filtered = _projects.filter(function(p) {
+    if (_taskFilter === 'mine') return p.createdBy === myEmail;
+    if (_taskFilter === 'shared') return (p.members||[]).indexOf(myEmail) >= 0 && p.createdBy !== myEmail;
+    return isAdmin || p.createdBy === myEmail || (p.members||[]).indexOf(myEmail) >= 0;
+  });
+
+  if (!filtered.length) {
+    el.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3);grid-column:1/-1"><div style="font-size:48px;margin-bottom:12px">📋</div><div style="font-size:13px">프로젝트가 없습니다.<br>+ 프로젝트 추가 버튼으로 시작하세요.</div></div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map(function(p) {
+    var taskCount = _tasks.filter(function(t){ return t.projectId === p.id; }).length;
+    var doneCount = _tasks.filter(function(t){ return t.projectId === p.id && t.status === 'done'; }).length;
+    var pct = taskCount ? Math.round(doneCount/taskCount*100) : 0;
+    var canEdit = isAdmin || p.createdBy === myEmail;
+    var memberCount = (p.members||[]).length;
+
+    return '<div onclick="taskOpenProject(\''+p.id+'\')" style="background:var(--white);border:0.5px solid var(--border);border-radius:12px;padding:20px;cursor:pointer;transition:box-shadow .2s;position:relative" onmouseover="this.style.boxShadow=\'0 4px 16px rgba(0,0,0,0.1)\'" onmouseout="this.style.boxShadow=\'none\'">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">' +
+        '<div style="width:40px;height:40px;border-radius:10px;background:'+(p.color||'#378ADD')+';display:flex;align-items:center;justify-content:center;font-size:18px">📁</div>' +
+        (canEdit ? '<button onclick="event.stopPropagation();openProjectEditModal(\''+p.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:16px;padding:4px">⚙</button>' : '') +
+      '</div>' +
+      '<div style="font-size:15px;font-weight:600;color:var(--t1);margin-bottom:4px">'+(p.name||'')+'</div>' +
+      (p.desc ? '<div style="font-size:12px;color:var(--t3);margin-bottom:10px;line-height:1.5">'+p.desc+'</div>' : '<div style="margin-bottom:10px"></div>') +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:11px;color:var(--t3)">' +
+        '<span>📌 업무 '+taskCount+'개</span>' +
+        '<span>👥 '+memberCount+'명</span>' +
+      '</div>' +
+      '<div style="height:4px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:6px">' +
+        '<div style="height:100%;border-radius:99px;background:'+(p.color||'#378ADD')+';width:'+pct+'%"></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--t3)">'+pct+'% 완료</div>' +
+    '</div>';
+  }).join('');
+}
+
+function taskOpenProject(projectId) {
+  _currentProjectId = projectId;
+  var p = _projects.find(function(x){ return x.id === projectId; });
+  if (!p) return;
+  document.getElementById('task-project-list-view').style.display = 'none';
+  document.getElementById('task-kanban-view').style.display = 'block';
+  document.getElementById('kanban-project-title').textContent = p.name||'';
+  document.getElementById('kanban-project-desc').textContent = p.desc||'';
+  taskRender();
+}
+
+function taskBackToProjects() {
+  _currentProjectId = null;
+  document.getElementById('task-project-list-view').style.display = 'block';
+  document.getElementById('task-kanban-view').style.display = 'none';
+  projectRenderGrid();
+}
+
+// 프로젝트 모달
+function openProjectModal() {
+  _projectEditId = null;
+  _projectMembers = [];
+  _projectColor = '#378ADD';
+  document.getElementById('project-modal-title').textContent = '프로젝트 추가';
+  document.getElementById('project-name').value = '';
+  document.getElementById('project-desc').value = '';
+  document.getElementById('project-color').value = '#378ADD';
+  document.getElementById('project-delete-btn').style.display = 'none';
+  document.getElementById('project-member-tags').innerHTML = '';
+  document.getElementById('project-member-search').value = '';
+  document.getElementById('project-member-results').style.display = 'none';
+  // 색상 초기화
+  document.querySelectorAll('#project-color-group div').forEach(function(d){ d.style.border = 'none'; });
+  document.querySelector('#project-color-group div').style.border = '3px solid #378ADD';
+  openModal('project-modal');
+}
+
+function openProjectEditModal(id) {
+  var projectId = id || _currentProjectId;
+  var p = _projects.find(function(x){ return x.id === projectId; });
+  if (!p) return;
+  _projectEditId = projectId;
+  _projectMembers = (p.members||[]).slice();
+  _projectColor = p.color || '#378ADD';
+  document.getElementById('project-modal-title').textContent = '프로젝트 설정';
+  document.getElementById('project-name').value = p.name||'';
+  document.getElementById('project-desc').value = p.desc||'';
+  document.getElementById('project-color').value = _projectColor;
+  document.getElementById('project-delete-btn').style.display = '';
+  document.getElementById('project-member-search').value = '';
+  document.getElementById('project-member-results').style.display = 'none';
+  projectRenderMemberTags();
+  openModal('project-modal');
+}
+
+function projectSelectColor(color, el) {
+  _projectColor = color;
+  document.getElementById('project-color').value = color;
+  document.querySelectorAll('#project-color-group div').forEach(function(d){ d.style.border = 'none'; });
+  el.style.border = '3px solid ' + color;
+}
+
+function projectSearchMember() {
+  var keyword = document.getElementById('project-member-search').value.trim();
+  var resultsEl = document.getElementById('project-member-results');
+  if (!keyword) { resultsEl.style.display='none'; return; }
+  var myEmail = state.user ? state.user.email : '';
+  var filtered = employees.filter(function(e) {
+    var email = e.id||e.email||'';
+    return email !== myEmail && _projectMembers.indexOf(email) < 0 && e.status !== '퇴직' &&
+      ((e.name||'').indexOf(keyword) >= 0 || email.indexOf(keyword) >= 0);
+  }).slice(0, 6);
+  if (!filtered.length) { resultsEl.style.display='none'; return; }
+  resultsEl.innerHTML = filtered.map(function(e) {
+    var email = e.id||e.email||'';
+    return '<div onclick="projectAddMember(\''+email+'\')" style="padding:7px 12px;font-size:13px;cursor:pointer;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
+      '<strong>'+e.name+'</strong> <span style="font-size:11px;color:var(--t3)">'+(e.dept||'')+'</span></div>';
+  }).join('');
+  resultsEl.style.display = 'block';
+}
+
+function projectAddMember(email) {
+  if (_projectMembers.indexOf(email) < 0) _projectMembers.push(email);
+  document.getElementById('project-member-search').value = '';
+  document.getElementById('project-member-results').style.display = 'none';
+  projectRenderMemberTags();
+}
+
+function projectRemoveMember(email) {
+  _projectMembers = _projectMembers.filter(function(e){ return e !== email; });
+  projectRenderMemberTags();
+}
+
+function projectRenderMemberTags() {
+  var el = document.getElementById('project-member-tags');
+  if (!el) return;
+  el.innerHTML = _projectMembers.map(function(email) {
+    var emp = employees.find(function(e){ return e.id===email||e.email===email; });
+    var name = emp ? emp.name : email;
+    return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--acd);color:var(--ac);border-radius:99px;font-size:12px">'+name+
+      '<button onclick="projectRemoveMember(\''+email+'\')" style="background:none;border:none;cursor:pointer;color:var(--ac);font-size:11px;padding:0">✕</button></span>';
+  }).join('');
+}
+
+// 조직도 선택 (프로젝트용)
+function openProjectOrgPicker() {
+  orgPickerMode = 'project';
+  orgPickerRender();
+  openModal('project-org-modal');
+}
+
+// 조직도 선택 (업무용)
+function openTaskOrgPicker() {
+  orgPickerMode = 'task';
+  orgPickerRender();
+  openModal('project-org-modal');
+}
+
+var orgPickerMode = 'project';
+
+function orgPickerRender(keyword) {
+  var list = document.getElementById('org-picker-list');
+  if (!list) return;
+  var myEmail = state.user ? state.user.email : '';
+  var currentSelected = orgPickerMode === 'project' ? _projectMembers : _taskSharedWith;
+
+  // 부서별 그룹핑
+  var groups = {};
+  employees.filter(function(e){
+    if (e.status === '퇴직') return false;
+    var email = e.id||e.email||'';
+    if (email === myEmail) return false;
+    if (keyword) return (e.name||'').indexOf(keyword) >= 0;
+    return true;
+  }).forEach(function(e) {
+    var dept = e.dept || '기타';
+    if (!groups[dept]) groups[dept] = [];
+    groups[dept].push(e);
+  });
+
+  list.innerHTML = Object.keys(groups).map(function(dept) {
+    return '<div style="margin-bottom:12px">' +
+      '<div style="font-size:11px;font-weight:600;color:var(--t3);padding:4px 8px;background:var(--surface);border-radius:6px;margin-bottom:6px">'+dept+'</div>' +
+      groups[dept].map(function(e) {
+        var email = e.id||e.email||'';
+        var isSelected = currentSelected.indexOf(email) >= 0;
+        return '<div onclick="orgPickerToggle(\''+email+'\')" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer;background:'+(isSelected?'var(--acd)':'none')+'" onmouseover="this.style.background=\''+(isSelected?'var(--acd)':'var(--surface)')+'\'" onmouseout="this.style.background=\''+(isSelected?'var(--acd)':'none')+'\'">' +
+          '<div style="width:18px;height:18px;border-radius:4px;border:1.5px solid '+(isSelected?'var(--ac)':'var(--border)')+';background:'+(isSelected?'var(--ac)':'none')+';display:flex;align-items:center;justify-content:center">' +
+            (isSelected ? '<span style="color:#fff;font-size:11px">✓</span>' : '') +
+          '</div>' +
+          '<div style="width:28px;height:28px;border-radius:50%;background:var(--acd);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--ac)">'+(e.name||'').charAt(0)+'</div>' +
+          '<div><div style="font-size:13px;font-weight:500;color:var(--t1)">'+e.name+'</div><div style="font-size:11px;color:var(--t3)">'+(e.position||e.rank||'')+'</div></div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }).join('');
+}
+
+function orgPickerSearch() {
+  var keyword = document.getElementById('org-picker-search').value.trim();
+  orgPickerRender(keyword);
+}
+
+function orgPickerToggle(email) {
+  var list = orgPickerMode === 'project' ? _projectMembers : _taskSharedWith;
+  var idx = list.indexOf(email);
+  if (idx >= 0) list.splice(idx, 1);
+  else list.push(email);
+  // 태그 갱신
+  if (orgPickerMode === 'project') projectRenderMemberTags();
+  else taskRenderSharedTags();
+  orgPickerRender(document.getElementById('org-picker-search').value.trim());
+}
+
+function saveProject() {
+  var name = document.getElementById('project-name').value.trim();
+  if (!name) { showToast('❌ 프로젝트명을 입력해주세요'); return; }
+  var data = {
+    name: name,
+    desc: document.getElementById('project-desc').value.trim(),
+    color: _projectColor,
+    members: _projectMembers.slice(),
+    createdBy: state.user ? state.user.email : '',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  var p = _projectEditId
+    ? db.collection('projects').doc(_projectEditId).update(data)
+    : db.collection('projects').add(Object.assign(data, {createdAt: firebase.firestore.FieldValue.serverTimestamp()}));
+  p.then(function() {
+    closeModal('project-modal');
+    showToast('✅ 프로젝트가 ' + (_projectEditId ? '수정' : '추가') + '되었습니다');
+  }).catch(function(e){ showToast('❌ 저장 실패: ' + e.message); });
+}
+
+function deleteProject() {
+  if (!_projectEditId) return;
+  if (!confirm('프로젝트를 삭제하시겠습니까?\n해당 프로젝트의 업무도 모두 삭제됩니다.')) return;
+  // 연결된 업무도 삭제
+  var batch = db.batch();
+  _tasks.filter(function(t){ return t.projectId === _projectEditId; }).forEach(function(t) {
+    batch.delete(db.collection('tasks').doc(t.id));
+  });
+  batch.delete(db.collection('projects').doc(_projectEditId));
+  batch.commit().then(function() {
+    closeModal('project-modal');
+    taskBackToProjects();
+    showToast('🗑 프로젝트가 삭제되었습니다');
+  }).catch(function(e){ showToast('❌ 삭제 실패: ' + e.message); });
+}
+
 function taskStartListener() {
+  projectStartListener();
   db.collection('tasks').orderBy('createdAt','desc').onSnapshot(function(snap) {
     _tasks = [];
     snap.forEach(function(d){ _tasks.push(Object.assign({id:d.id}, d.data())); });
-    taskRender();
-    taskRefreshProjectFilter();
+    if (_currentProjectId) taskRender();
+    projectRenderGrid();
     taskUpdateBadge();
     updateStats();
     renderRecentTasks();
@@ -15810,7 +16170,8 @@ function taskSetFilter(f, el) {
     b.style.background = 'var(--white)'; b.style.color = 'var(--t2)';
   });
   if (el) { el.style.background = 'var(--acd)'; el.style.color = 'var(--ac)'; }
-  taskRender();
+  if (_currentProjectId) taskRender();
+  else projectRenderGrid();
 }
 
 function taskRefreshProjectFilter() {
@@ -15824,10 +16185,9 @@ function taskRefreshProjectFilter() {
 
 function taskGetFiltered() {
   var myEmail = state.user ? state.user.email : '';
-  var proj = document.getElementById('task-project-filter') ? document.getElementById('task-project-filter').value : '';
-  var today = new Date().toISOString().substring(0,10);
   return _tasks.filter(function(t) {
-    if (proj && t.project !== proj) return false;
+    // 현재 프로젝트 기준
+    if (_currentProjectId && t.projectId !== _currentProjectId) return false;
     if (_taskFilter === 'mine') return t.assignee === myEmail;
     if (_taskFilter === 'shared') return (t.sharedWith||[]).indexOf(myEmail) >= 0;
     if (_taskFilter === 'urgent') return t.due && t.due <= new Date(Date.now()+3*86400000).toISOString().substring(0,10) && t.status !== 'done';
@@ -16046,7 +16406,8 @@ function taskSave() {
     desc: document.getElementById('task-desc').value.trim(),
     priority: document.getElementById('task-priority').value,
     status: document.getElementById('task-status').value,
-    project: document.getElementById('task-project').value.trim(),
+    projectId: _currentProjectId || '',
+    project: (function(){ var p = _projects.find(function(x){ return x.id===_currentProjectId; }); return p ? p.name : ''; })(),
     start: document.getElementById('task-start').value,
     due: document.getElementById('task-due').value,
     assignee: document.getElementById('task-assignee').value,
