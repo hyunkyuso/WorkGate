@@ -2313,19 +2313,31 @@ select.form-input{cursor:pointer}
 </div>
 
 <!-- 조직도 멤버 선택 모달 -->
-<div id="project-org-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('project-org-modal')">
-  <div class="modal" style="max-width:500px;max-height:80vh;overflow-y:auto">
-    <div class="modal-header">
-      <div class="modal-title">조직도에서 멤버 선택</div>
+<div id="project-org-modal" class="modal-backdrop" style="display:none;z-index:9999" onclick="if(event.target===this)closeModal('project-org-modal')">
+  <div class="modal" style="max-width:640px;height:560px;display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0">
+      <div class="modal-title">🏢 조직도에서 멤버 선택</div>
       <button class="modal-close" onclick="closeModal('project-org-modal')">✕</button>
     </div>
-    <div style="padding:4px 0">
-      <input id="org-picker-search" type="text" class="form-input" style="margin-bottom:12px" placeholder="이름 검색..." oninput="orgPickerSearch()">
-      <div id="org-picker-list"></div>
+    <!-- 검색 -->
+    <div style="padding:10px 16px;border-bottom:0.5px solid var(--border);flex-shrink:0">
+      <input id="org-picker-search" type="text" class="form-input" style="font-size:13px" placeholder="이름으로 검색..." oninput="orgPickerSearch()">
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('project-org-modal')">닫기</button>
-      <button class="btn btn-primary" onclick="closeModal('project-org-modal')">확인</button>
+    <!-- 본문: 좌측 부서트리 + 우측 직원목록 -->
+    <div style="display:flex;flex:1;overflow:hidden">
+      <!-- 좌측 부서 트리 -->
+      <div id="org-dept-tree" style="width:180px;border-right:0.5px solid var(--border);overflow-y:auto;flex-shrink:0;padding:8px 0"></div>
+      <!-- 우측 직원 목록 -->
+      <div id="org-member-list" style="flex:1;overflow-y:auto;padding:8px 0"></div>
+    </div>
+    <!-- 하단: 선택된 멤버 + 확인 -->
+    <div style="padding:10px 16px;border-top:0.5px solid var(--border);flex-shrink:0">
+      <div style="font-size:11px;color:var(--t3);margin-bottom:6px">선택된 멤버</div>
+      <div id="org-selected-tags" style="display:flex;flex-wrap:wrap;gap:5px;min-height:28px;margin-bottom:10px"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn btn-ghost" onclick="closeModal('project-org-modal')">취소</button>
+        <button class="btn btn-primary" onclick="orgPickerConfirm()">확인</button>
+      </div>
     </div>
   </div>
 </div>
@@ -16032,60 +16044,128 @@ function projectRenderMemberTags() {
 // 조직도 선택 (프로젝트용)
 function openProjectOrgPicker() {
   orgPickerMode = 'project';
-  orgPickerRender();
-  openModal('project-org-modal');
+  orgPickerOpen();
 }
 
 // 조직도 선택 (업무용)
 function openTaskOrgPicker() {
   orgPickerMode = 'task';
-  orgPickerRender();
-  openModal('project-org-modal');
+  orgPickerOpen();
 }
 
 var orgPickerMode = 'project';
+var _orgSelectedDept = null;
 
-function orgPickerRender(keyword) {
-  var list = document.getElementById('org-picker-list');
+function orgPickerOpen() {
+  _orgSelectedDept = null;
+  document.getElementById('org-picker-search').value = '';
+  orgPickerRenderDeptTree();
+  orgPickerRenderMemberList(null);
+  orgPickerRenderSelectedTags();
+  openModal('project-org-modal');
+}
+
+function orgPickerRenderDeptTree() {
+  var tree = document.getElementById('org-dept-tree');
+  if (!tree) return;
+  var myEmail = state.user ? state.user.email : '';
+
+  // 부서 목록 추출 (상위조직 → 부서 계층)
+  var depts = {};
+  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(e) {
+    var org = e.orgName || e.dept || '기타';
+    var dept = e.dept || org;
+    if (!depts[org]) depts[org] = new Set();
+    depts[org].add(dept);
+  });
+
+  var html = Object.keys(depts).map(function(org) {
+    var subDepts = Array.from(depts[org]);
+    return '<div style="margin-bottom:2px">' +
+      '<div style="padding:6px 12px;font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">'+org+'</div>' +
+      subDepts.map(function(dept) {
+        var isSelected = _orgSelectedDept === dept;
+        var count = employees.filter(function(e){ return e.status!=='퇴직' && (e.dept||e.orgName||'기타')===dept; }).length;
+        return '<div onclick="orgPickerSelectDept(\''+dept+'\')" style="padding:7px 12px 7px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:'+(isSelected?'var(--acd)':'none')+';color:'+(isSelected?'var(--ac)':'var(--t1)')+';border-left:2px solid '+(isSelected?'var(--ac)':'transparent')+'" onmouseover="if(this.style.background===\'none\')this.style.background=\'var(--surface)\'" onmouseout="if(\''+dept+'\'!==window._orgSelectedDeptCache)this.style.background=\''+(isSelected?'var(--acd)':'none')+'\'">' +
+          '<span>'+dept+'</span>' +
+          '<span style="font-size:11px;color:'+(isSelected?'var(--ac)':'var(--t3)')+'">'+count+'</span>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }).join('');
+
+  // 전체 버튼
+  html = '<div onclick="orgPickerSelectDept(null)" style="padding:8px 12px;font-size:13px;cursor:pointer;font-weight:600;color:'+((_orgSelectedDept===null)?'var(--ac)':'var(--t2)')+';background:'+((_orgSelectedDept===null)?'var(--acd)':'none')+';border-bottom:0.5px solid var(--border);margin-bottom:4px">전체 보기</div>' + html;
+
+  tree.innerHTML = html;
+  window._orgSelectedDeptCache = _orgSelectedDept;
+}
+
+function orgPickerSelectDept(dept) {
+  _orgSelectedDept = dept;
+  document.getElementById('org-picker-search').value = '';
+  orgPickerRenderDeptTree();
+  orgPickerRenderMemberList(null);
+}
+
+function orgPickerRenderMemberList(keyword) {
+  var list = document.getElementById('org-member-list');
   if (!list) return;
   var myEmail = state.user ? state.user.email : '';
   var currentSelected = orgPickerMode === 'project' ? _projectMembers : _taskSharedWith;
 
-  // 부서별 그룹핑
-  var groups = {};
-  employees.filter(function(e){
-    if (e.status === '퇴직') return false;
+  var filtered = employees.filter(function(e) {
     var email = e.id||e.email||'';
     if (email === myEmail) return false;
+    if (e.status === '퇴직') return false;
+    if (_orgSelectedDept && (e.dept||e.orgName||'기타') !== _orgSelectedDept) return false;
     if (keyword) return (e.name||'').indexOf(keyword) >= 0;
     return true;
-  }).forEach(function(e) {
-    var dept = e.dept || '기타';
-    if (!groups[dept]) groups[dept] = [];
-    groups[dept].push(e);
   });
 
-  list.innerHTML = Object.keys(groups).map(function(dept) {
-    return '<div style="margin-bottom:12px">' +
-      '<div style="font-size:11px;font-weight:600;color:var(--t3);padding:4px 8px;background:var(--surface);border-radius:6px;margin-bottom:6px">'+dept+'</div>' +
-      groups[dept].map(function(e) {
-        var email = e.id||e.email||'';
-        var isSelected = currentSelected.indexOf(email) >= 0;
-        return '<div onclick="orgPickerToggle(\''+email+'\')" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer;background:'+(isSelected?'var(--acd)':'none')+'" onmouseover="this.style.background=\''+(isSelected?'var(--acd)':'var(--surface)')+'\'" onmouseout="this.style.background=\''+(isSelected?'var(--acd)':'none')+'\'">' +
-          '<div style="width:18px;height:18px;border-radius:4px;border:1.5px solid '+(isSelected?'var(--ac)':'var(--border)')+';background:'+(isSelected?'var(--ac)':'none')+';display:flex;align-items:center;justify-content:center">' +
-            (isSelected ? '<span style="color:#fff;font-size:11px">✓</span>' : '') +
-          '</div>' +
-          '<div style="width:28px;height:28px;border-radius:50%;background:var(--acd);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--ac)">'+(e.name||'').charAt(0)+'</div>' +
-          '<div><div style="font-size:13px;font-weight:500;color:var(--t1)">'+e.name+'</div><div style="font-size:11px;color:var(--t3)">'+(e.position||e.rank||'')+'</div></div>' +
-        '</div>';
-      }).join('') +
+  if (!filtered.length) {
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">직원이 없습니다</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(function(e) {
+    var email = e.id||e.email||'';
+    var isSelected = currentSelected.indexOf(email) >= 0;
+    return '<div onclick="orgPickerToggle(\''+email+'\')" style="display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:0.5px solid var(--border);background:'+(isSelected?'var(--acd)':'none')+'" onmouseover="this.style.background=\''+(isSelected?'var(--acd)':'var(--surface)')+'\'" onmouseout="this.style.background=\''+(isSelected?'var(--acd)':'none')+'\'">' +
+      '<div style="width:20px;height:20px;border-radius:5px;border:1.5px solid '+(isSelected?'var(--ac)':'var(--border)')+';background:'+(isSelected?'var(--ac)':'none')+';display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+        (isSelected ? '<span style="color:#fff;font-size:12px;line-height:1">✓</span>' : '') +
+      '</div>' +
+      '<div style="width:32px;height:32px;border-radius:50%;background:var(--acd);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--ac);flex-shrink:0">'+(e.name||'').charAt(0)+'</div>' +
+      '<div style="flex:1">' +
+        '<div style="font-size:13px;font-weight:500;color:var(--t1)">'+e.name+'</div>' +
+        '<div style="font-size:11px;color:var(--t3)">'+(e.dept||'')+(e.position?' · '+e.position:'')+(e.rank?' · '+e.rank:'')+'</div>' +
+      '</div>' +
+      (isSelected ? '<span style="font-size:11px;color:var(--ac);font-weight:500">선택됨</span>' : '') +
     '</div>';
+  }).join('');
+}
+
+function orgPickerRenderSelectedTags() {
+  var el = document.getElementById('org-selected-tags');
+  if (!el) return;
+  var currentSelected = orgPickerMode === 'project' ? _projectMembers : _taskSharedWith;
+  if (!currentSelected.length) {
+    el.innerHTML = '<span style="font-size:12px;color:var(--t3)">선택된 멤버 없음</span>';
+    return;
+  }
+  el.innerHTML = currentSelected.map(function(email) {
+    var emp = employees.find(function(e){ return e.id===email||e.email===email; });
+    var name = emp ? emp.name : email;
+    return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--acd);color:var(--ac);border-radius:99px;font-size:12px;font-weight:500">' +
+      name + '<button onclick="orgPickerToggle(\''+email+'\')" style="background:none;border:none;cursor:pointer;color:var(--ac);font-size:11px;padding:0;line-height:1">✕</button></span>';
   }).join('');
 }
 
 function orgPickerSearch() {
   var keyword = document.getElementById('org-picker-search').value.trim();
-  orgPickerRender(keyword);
+  if (keyword) _orgSelectedDept = null;
+  orgPickerRenderDeptTree();
+  orgPickerRenderMemberList(keyword || null);
 }
 
 function orgPickerToggle(email) {
@@ -16094,9 +16174,14 @@ function orgPickerToggle(email) {
   if (idx >= 0) list.splice(idx, 1);
   else list.push(email);
   // 태그 갱신
-  if (orgPickerMode === 'project') projectRenderMemberTags();
-  else taskRenderSharedTags();
-  orgPickerRender(document.getElementById('org-picker-search').value.trim());
+  if (orgPickerMode === 'project') { projectRenderMemberTags(); }
+  else { taskRenderSharedTags(); }
+  orgPickerRenderSelectedTags();
+  orgPickerRenderMemberList(document.getElementById('org-picker-search').value.trim() || null);
+}
+
+function orgPickerConfirm() {
+  closeModal('project-org-modal');
 }
 
 function saveProject() {
