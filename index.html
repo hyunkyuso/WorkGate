@@ -12690,6 +12690,8 @@ function showPage(id, el) {
     _currentProjectId = null;
     document.getElementById('task-project-list-view').style.display = 'block';
     document.getElementById('task-kanban-view').style.display = 'none';
+    _taskFilter = 'all';
+    document.querySelectorAll('.task-filter-btn').forEach(function(b,i){ b.style.background=i===0?'var(--acd)':'var(--white)'; b.style.color=i===0?'var(--ac)':'var(--t2)'; });
     projectRenderGrid();
   }
 }
@@ -15982,6 +15984,7 @@ function projectStartListener() {
     _projects = [];
     snap.forEach(function(d){ _projects.push(Object.assign({id:d.id}, d.data())); });
     projectRenderGrid();
+    renderDashProjectList();
   });
 }
 
