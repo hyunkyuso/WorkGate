@@ -16634,8 +16634,12 @@ function taskToggleDetailChecklist(taskId, idx) {
   if (total > 0) {
     if (done === total) {
       newStatus = 'done'; // 전부 체크 → 완료
-    } else if (done > 0 && t.status === 'todo') {
-      newStatus = 'doing'; // 1개 이상 체크 + 할 일 상태 → 진행 중
+    } else if (done > 0) {
+      if (t.status === 'todo') newStatus = 'doing'; // 할 일 → 진행 중
+      else if (t.status === 'done') newStatus = 'doing'; // 완료에서 해제 → 진행 중
+    } else {
+      // 전부 해제
+      if (t.status === 'done') newStatus = 'doing'; // 완료에서 전부 해제 → 진행 중
     }
   }
 
