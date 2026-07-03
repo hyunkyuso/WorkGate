@@ -2440,6 +2440,20 @@ select.form-input{cursor:pointer}
         <div id="task-ai-loading" style="display:none;font-size:12px;color:var(--t3);padding:6px 0;text-align:center">🤖 AI가 체크리스트를 생성 중입니다...</div>
       </div>
 
+      <!-- 수동 진행률 (체크리스트 없을 때만 표시) -->
+      <div id="task-manual-progress-wrap" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <label style="font-size:11px;font-weight:600;color:var(--t2)">진행률 (수동)</label>
+          <span id="task-progress-display" style="font-size:12px;font-weight:600;color:var(--ac)">0%</span>
+        </div>
+        <input type="range" id="task-progress" min="0" max="100" step="5" value="0"
+          oninput="document.getElementById('task-progress-display').textContent=this.value+'%'"
+          style="width:100%;accent-color:#378ADD">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:2px">
+          <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+        </div>
+      </div>
+
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('task-modal')">취소</button>
@@ -16381,6 +16395,10 @@ function openTaskModal(defaultStatus) {
   document.getElementById('task-shared-search').value = '';
   document.getElementById('task-checklist-items').innerHTML = '';
   document.getElementById('task-checklist-input').value = '';
+  var progressEl = document.getElementById('task-progress');
+  if (progressEl) { progressEl.value = 0; document.getElementById('task-progress-display').textContent = '0%'; }
+  var manualWrap = document.getElementById('task-manual-progress-wrap');
+  if (manualWrap) manualWrap.style.display = 'block';
 
   // 담당자 select 채우기
   var sel = document.getElementById('task-assignee');
@@ -16453,15 +16471,23 @@ function taskRenderChecklist() {
   var pct = _taskChecklist.length ? Math.round(done/_taskChecklist.length*100) : 0;
   document.getElementById('task-checklist-items').innerHTML = _taskChecklist.map(function(c,i) {
     return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border)">' +
-      '<input type="checkbox" '+(c.done?'checked':'')+' onchange="taskToggleChecklistItem('+i+')" style="accent-color:#378ADD"> ' +
-      '<span style="flex:1;font-size:12px;color:var(--t'+(c.done?'3':'1')+');'+(c.done?'text-decoration:line-through':'')+'">' + c.text + '</span>' +
-      '<button onclick="taskRemoveChecklistItem('+i+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:12px;padding:0">✕</button>' +
+      '<input type="checkbox" '+(c.done?'checked':'')+' onchange="taskToggleChecklistItem('+i+')" style="accent-color:#378ADD;flex-shrink:0"> ' +
+      '<input type="text" value="'+c.text.replace(/"/g,'&quot;')+'" onchange="taskEditChecklistItem('+i+',this.value)" style="flex:1;font-size:12px;border:none;background:none;color:var(--t'+(c.done?'3':'1')+');'+(c.done?'text-decoration:line-through':'')+';outline:none;padding:0" placeholder="항목 내용">' +
+      '<button onclick="taskRemoveChecklistItem('+i+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:12px;padding:0;flex-shrink:0">✕</button>' +
     '</div>';
   }).join('') + (_taskChecklist.length > 0 ?
     '<div style="padding-top:6px;font-size:11px;color:var(--t3);display:flex;align-items:center;gap:6px">' +
       '<div style="flex:1;height:3px;background:var(--border);border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;background:#378ADD;width:'+pct+'%"></div></div>' +
       pct+'% ('+done+'/'+_taskChecklist.length+')' +
     '</div>' : '');
+
+  // 체크리스트 없을 때 수동 진행률 슬라이더 표시
+  var manualWrap = document.getElementById('task-manual-progress-wrap');
+  if (manualWrap) manualWrap.style.display = _taskChecklist.length ? 'none' : 'block';
+}
+
+function taskEditChecklistItem(i, value) {
+  if (_taskChecklist[i]) _taskChecklist[i].text = value;
 }
 
 // AI 체크리스트 제안
@@ -16513,7 +16539,7 @@ function taskSave() {
     assignee: document.getElementById('task-assignee').value,
     sharedWith: _taskSharedWith.slice(),
     checklist: _taskChecklist.slice(),
-    progress: 0,
+    progress: _taskChecklist.length ? 0 : parseInt(document.getElementById('task-progress').value||0),
     createdBy: state.user ? state.user.email : '',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
@@ -16570,12 +16596,25 @@ function taskOpenDetail(id) {
           '<div style="height:4px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:8px"><div style="height:100%;border-radius:99px;background:#378ADD;width:'+pct+'%"></div></div>' +
           checklist.map(function(c,i) {
             return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border)">' +
-              '<input type="checkbox" '+(c.done?'checked':'')+' onchange="taskToggleDetailChecklist(\''+id+'\','+i+')" style="accent-color:#378ADD"> ' +
+              '<input type="checkbox" '+(c.done?'checked':'')+' onchange="taskToggleDetailChecklist(\''+id+'\','+i+')" style="accent-color:#378ADD;flex-shrink:0"> ' +
               '<span style="font-size:12px;color:var(--t'+(c.done?'3':'1')+');'+(c.done?'text-decoration:line-through':'')+'">' + c.text + '</span>' +
             '</div>';
           }).join('') +
         '</div>' +
-      '</div>' : '');
+      '</div>' :
+      // 체크리스트 없을 때 수동 진행률 슬라이더
+      (canEdit ?
+        '<div style="margin-bottom:14px">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+            '<div style="font-size:12px;font-weight:600;color:var(--t2)">진행률</div>' +
+            '<span id="detail-progress-display" style="font-size:12px;font-weight:600;color:var(--ac)">'+pct+'%</span>' +
+          '</div>' +
+          '<input type="range" id="detail-progress" min="0" max="100" step="5" value="'+pct+'" style="width:100%;accent-color:#378ADD" oninput="document.getElementById(\'detail-progress-display\').textContent=this.value+\'%\'">' +
+          '<button onclick="taskSaveManualProgress(\''+id+'\')" style="margin-top:8px;padding:5px 14px;font-size:12px;border:0.5px solid var(--ac);color:var(--ac);background:var(--acd);border-radius:6px;cursor:pointer">진행률 저장</button>' +
+        '</div>' :
+        '<div style="margin-bottom:14px;font-size:12px;color:var(--t2)">진행률: <strong>'+pct+'%</strong></div>'
+      )
+    );
 
   openModal('task-detail-modal');
 }
@@ -16587,8 +16626,53 @@ function taskToggleDetailChecklist(taskId, idx) {
   var cl = (t.checklist||[]).slice();
   cl[idx].done = !cl[idx].done;
   var done = cl.filter(function(c){ return c.done; }).length;
-  var pct = cl.length ? Math.round(done/cl.length*100) : 0;
-  db.collection('tasks').doc(taskId).update({checklist:cl, progress:pct, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  var total = cl.length;
+  var pct = total ? Math.round(done/total*100) : 0;
+
+  // 상태 자동 이동
+  var newStatus = t.status;
+  if (total > 0) {
+    if (done === total) {
+      newStatus = 'done'; // 전부 체크 → 완료
+    } else if (done > 0 && t.status === 'todo') {
+      newStatus = 'doing'; // 1개 이상 체크 + 할 일 상태 → 진행 중
+    }
+  }
+
+  var updateData = {checklist: cl, progress: pct, updatedAt: firebase.firestore.FieldValue.serverTimestamp()};
+  if (newStatus !== t.status) updateData.status = newStatus;
+
+  db.collection('tasks').doc(taskId).update(updateData).then(function() {
+    if (newStatus !== t.status) {
+      var statusLabel = {todo:'할 일', doing:'진행 중', review:'검토 중', done:'완료'};
+      showToast('📋 상태가 "' + statusLabel[newStatus] + '"으로 자동 변경되었습니다');
+    }
+    // 상세 모달 갱신
+    taskOpenDetail(taskId);
+  });
+}
+
+// 수동 진행률 저장
+function taskSaveManualProgress(taskId) {
+  var slider = document.getElementById('detail-progress');
+  if (!slider) return;
+  var pct = parseInt(slider.value);
+  var newStatus = undefined;
+  var t = _tasks.find(function(x){ return x.id===taskId; });
+  if (t) {
+    if (pct === 100 && t.status !== 'done') newStatus = 'done';
+    else if (pct > 0 && t.status === 'todo') newStatus = 'doing';
+  }
+  var updateData = {progress: pct, updatedAt: firebase.firestore.FieldValue.serverTimestamp()};
+  if (newStatus) updateData.status = newStatus;
+  db.collection('tasks').doc(taskId).update(updateData).then(function() {
+    showToast('✅ 진행률이 저장되었습니다');
+    if (newStatus) {
+      var statusLabel = {todo:'할 일', doing:'진행 중', review:'검토 중', done:'완료'};
+      showToast('📋 상태가 "' + statusLabel[newStatus] + '"으로 자동 변경되었습니다');
+    }
+    taskOpenDetail(taskId);
+  });
 }
 
 function taskEditFromDetail() {
@@ -16613,6 +16697,11 @@ function taskEditFromDetail() {
   }).join('');
   taskRenderSharedTags();
   taskRenderChecklist();
+  var progressEl = document.getElementById('task-progress');
+  if (progressEl) {
+    progressEl.value = t.progress || 0;
+    document.getElementById('task-progress-display').textContent = (t.progress||0) + '%';
+  }
   openModal('task-modal');
 }
 
