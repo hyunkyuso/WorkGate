@@ -16407,29 +16407,34 @@ function taskRender() {
 
   board.innerHTML = TASK_COLS.map(function(col) {
     var colTasks = filtered.filter(function(t){ return t.status === col.id; });
-    return '<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden">' +
-      '<div style="padding:10px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid var(--border)">' +
-        '<div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--t2)">' +
-          '<span style="width:8px;height:8px;border-radius:50%;background:'+col.color+';display:inline-block"></span>' + col.label +
+    var colBg = {todo:'#f8f9fa', doing:'#f0f7ff', review:'#fffbf0', done:'#f0faf0'};
+    var colBorder = {todo:'#e2e8f0', doing:'#bfdbfe', review:'#fde68a', done:'#bbf7d0'};
+    var colHeaderBg = {todo:'#f1f5f9', doing:'#dbeafe', review:'#fef9c3', done:'#dcfce7'};
+
+    return '<div style="background:'+(colBg[col.id]||'var(--surface)')+';border:1px solid '+(colBorder[col.id]||'var(--border)')+';border-radius:14px;display:flex;flex-direction:column;min-height:200px">' +
+      // 컬럼 헤더
+      '<div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;background:'+(colHeaderBg[col.id]||'var(--white)')+';border-radius:14px 14px 0 0;border-bottom:1px solid '+(colBorder[col.id]||'var(--border)')+'">' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="width:10px;height:10px;border-radius:50%;background:'+col.color+';display:inline-block;box-shadow:0 0 0 3px '+col.color+'33"></span>' +
+          '<span style="font-size:13px;font-weight:600;color:var(--t1)">'+col.label+'</span>' +
         '</div>' +
-        '<span style="font-size:11px;color:var(--t3);background:var(--white);border:0.5px solid var(--border);border-radius:99px;padding:1px 8px">'+colTasks.length+'</span>' +
+        '<span style="font-size:12px;font-weight:600;color:'+col.color+';background:white;border:1px solid '+col.color+'44;border-radius:99px;padding:2px 10px;min-width:28px;text-align:center">'+colTasks.length+'</span>' +
       '</div>' +
       '<div style="padding:10px;display:flex;flex-direction:column;gap:8px;flex:1">' +
-        colTasks.map(function(t) { return taskCardHtml(t, myEmail); }).join('') +
-        '<button onclick="openTaskModal(\''+col.id+'\')" style="padding:7px;border:0.5px dashed var(--border);border-radius:8px;font-size:12px;color:var(--t3);background:none;cursor:pointer;text-align:left" onmouseover="this.style.background=\'var(--white)\'" onmouseout="this.style.background=\'none\'">+ 업무 추가</button>' +
+        colTasks.map(function(t) { return taskCardHtml(t, myEmail, col.color); }).join('') +
+        '<button onclick="openTaskModal(\''+col.id+'\')" style="padding:8px 12px;border:1.5px dashed '+(colBorder[col.id]||'var(--border)')+';border-radius:10px;font-size:12px;color:var(--t3);background:none;cursor:pointer;text-align:left;transition:all .15s" onmouseover="this.style.background=\'rgba(255,255,255,0.8)\';this.style.color=\''+col.color+'\';" onmouseout="this.style.background=\'none\';this.style.color=\'var(--t3)\'">+ 업무 추가</button>' +
       '</div>' +
     '</div>';
   }).join('');
 }
 
-function taskCardHtml(t, myEmail) {
-  var isMe = t.assignee === myEmail;
-  var isShared = (t.sharedWith||[]).indexOf(myEmail) >= 0;
+function taskCardHtml(t, myEmail, colColor) {
   var checklist = t.checklist || [];
   var done = checklist.filter(function(c){ return c.done; }).length;
   var pct = checklist.length ? Math.round(done/checklist.length*100) : (t.progress||0);
   var dueStr = t.due ? t.due.replace(/(\d{4})-(\d{2})-(\d{2})/,'$2/$3') : '';
   var isOverdue = t.due && t.due < new Date().toISOString().substring(0,10) && t.status !== 'done';
+  var isSoon = t.due && !isOverdue && t.due <= new Date(Date.now()+3*86400000).toISOString().substring(0,10);
 
   // 아바타
   var allParticipants = [];
@@ -16441,29 +16446,41 @@ function taskCardHtml(t, myEmail) {
     var se = employees.find(function(e){ return e.id===email||e.email===email; });
     allParticipants.push({email:email, name:se?se.name:'?', isAssignee:false});
   });
-
   var avatarColors = ['#B5D4F4:#0C447C','#9FE1CB:#085041','#FAC775:#633806','#F4C0D1:#72243E','#CECBF6:#3C3489'];
   var avatarsHtml = allParticipants.slice(0,4).map(function(p,i) {
     var isMyAvatar = p.email === myEmail;
     var colors = isMyAvatar ? ['#378ADD','#fff'] : avatarColors[i%avatarColors.length].split(':');
-    var opacity = p.isAssignee ? '1' : '0.65';
-    return '<div title="'+(p.name)+(p.isAssignee?' (담당자)':' (공유자)')+'" style="width:22px;height:22px;border-radius:50%;font-size:8px;font-weight:600;display:flex;align-items:center;justify-content:center;background:'+colors[0]+';color:'+colors[1]+';border:2px solid var(--white);margin-left:'+(i>0?'-6px':'0')+'px;opacity:'+opacity+';flex-shrink:0">'+p.name.charAt(0)+'</div>';
+    var opacity = p.isAssignee ? '1' : '0.7';
+    return '<div title="'+p.name+(p.isAssignee?' (담당자)':' (공유자)')+'" style="width:24px;height:24px;border-radius:50%;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;background:'+colors[0]+';color:'+colors[1]+';border:2px solid white;margin-left:'+(i>0?'-7px':'0')+'px;opacity:'+opacity+';flex-shrink:0">'+p.name.charAt(0)+'</div>';
   }).join('');
 
-  return '<div onclick="taskOpenDetail(\''+t.id+'\')" style="background:var(--white);border:0.5px solid var(--border);border-radius:9px;padding:10px 12px;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor=\'var(--border2)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-    '<div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:7px;line-height:1.4">' + (t.title||'') + '</div>' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:5px">' +
-      '<span style="font-size:10px;padding:2px 7px;border-radius:99px;font-weight:500;background:'+PRI_BG[t.priority||'보통']+';color:'+PRI_COLOR[t.priority||'보통']+'">'+(t.priority||'보통')+'</span>' +
-      '<div style="display:flex;align-items:center;gap:6px">' +
-        (dueStr ? '<span style="font-size:10px;color:'+(isOverdue?'#E24B4A':'var(--t3)')+'">'+dueStr+'</span>' : '') +
-        '<div style="display:flex">' + avatarsHtml + '</div>' +
+  var pri = t.priority || '보통';
+  var priColor = PRI_COLOR[pri];
+  var priBg = PRI_BG[pri];
+  var priDot = {'긴급':'🔴','높음':'🟠','보통':'🔵','낮음':'⚪'}[pri] || '🔵';
+
+  return '<div onclick="taskOpenDetail(\''+t.id+'\')" style="background:white;border:1px solid #e8ecf0;border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .15s;border-left:3px solid '+priColor+'" onmouseover="this.style.borderColor=\''+priColor+'\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.08)\'" onmouseout="this.style.borderColor=\'#e8ecf0\';this.style.borderLeftColor=\''+priColor+'\';this.style.boxShadow=\'none\'">' +
+    // 제목
+    '<div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:9px;line-height:1.45">'+( t.title||'')+'</div>' +
+    // 태그 + 날짜 + 아바타
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:'+(pct>0||checklist.length>0?'9px':'0')+'">' +
+      '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">' +
+        '<span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:'+priBg+';color:'+priColor+'">'+priDot+' '+pri+'</span>' +
+        (checklist.length ? '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:#f1f5f9;color:#64748b">☑ '+done+'/'+checklist.length+'</span>' : '') +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:7px;flex-shrink:0">' +
+        (dueStr ? '<span style="font-size:10px;font-weight:500;padding:2px 7px;border-radius:5px;background:'+(isOverdue?'#fef2f2':isSoon?'#fffbeb':'#f8fafc')+';color:'+(isOverdue?'#dc2626':isSoon?'#d97706':'#94a3b8')+'">📅 '+dueStr+'</span>' : '') +
+        '<div style="display:flex">'+avatarsHtml+'</div>' +
       '</div>' +
     '</div>' +
-    (pct > 0 || checklist.length > 0 ? '<div style="margin-top:8px;padding-top:7px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:7px">' +
-      '<div style="flex:1;height:4px;background:var(--border);border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;background:#378ADD;width:'+pct+'%"></div></div>' +
-      '<span style="font-size:10px;color:var(--t3)">'+pct+'%</span>' +
-      (checklist.length ? '<span style="font-size:10px;color:var(--t3)">'+done+'/'+checklist.length+'</span>' : '') +
-    '</div>' : '') +
+    // 진행바
+    (pct > 0 || checklist.length > 0 ?
+      '<div style="display:flex;align-items:center;gap:7px">' +
+        '<div style="flex:1;height:5px;background:#f1f5f9;border-radius:99px;overflow:hidden">' +
+          '<div style="height:100%;border-radius:99px;background:'+(pct===100?'#22c55e':'#378ADD')+';width:'+pct+'%;transition:width .3s"></div>' +
+        '</div>' +
+        '<span style="font-size:10px;font-weight:600;color:'+(pct===100?'#22c55e':'#378ADD')+'">'+pct+'%</span>' +
+      '</div>' : '') +
   '</div>';
 }
 
