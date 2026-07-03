@@ -16650,13 +16650,13 @@ function taskToggleDetailChecklist(taskId, idx) {
   var newStatus = t.status;
   if (total > 0) {
     if (done === total) {
-      newStatus = 'done'; // 전부 체크 → 완료
+      newStatus = 'done';
     } else if (done > 0) {
-      if (t.status === 'todo') newStatus = 'doing'; // 할 일 → 진행 중
-      else if (t.status === 'done') newStatus = 'doing'; // 완료에서 해제 → 진행 중
+      if (t.status === 'todo') newStatus = 'doing';
+      else if (t.status === 'done') newStatus = 'doing';
     } else {
-      // 전부 해제
-      if (t.status === 'done') newStatus = 'doing'; // 완료에서 전부 해제 → 진행 중
+      // 전부 해제 → 할 일
+      if (t.status === 'done' || t.status === 'doing') newStatus = 'todo';
     }
   }
 
@@ -16682,7 +16682,8 @@ function taskSaveManualProgress(taskId) {
   var t = _tasks.find(function(x){ return x.id===taskId; });
   if (t) {
     if (pct === 100 && t.status !== 'done') newStatus = 'done';
-    else if (pct > 0 && t.status === 'todo') newStatus = 'doing';
+    else if (pct > 0 && (t.status === 'todo')) newStatus = 'doing';
+    else if (pct === 0 && (t.status === 'done' || t.status === 'doing')) newStatus = 'todo';
   }
   var updateData = {progress: pct, updatedAt: firebase.firestore.FieldValue.serverTimestamp()};
   if (newStatus) updateData.status = newStatus;
