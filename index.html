@@ -12358,31 +12358,25 @@ function logPageView(id) {
 }
 
 function showUnderMaintenance(name, icon, el) {
-  // 사이드바 active 처리
-  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
-  if (el) el.classList.add('active');
+  var pageMap = {
+    '대시보드': 'dashboard', '업무보드': 'tasks',
+    'KPI·OKR': 'kpi', '구글드라이브': 'drive', 'Docs·Sheets': 'docs'
+  };
+  var pageId = pageMap[name] || 'dashboard';
+  var pageEl = document.getElementById('page-' + pageId);
 
-  // 모든 페이지 숨기기
-  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
-
-  // 점검 중 화면 표시 (기존 maintenance 페이지 재활용)
-  var maintenancePage = document.getElementById('page-maintenance');
-  if (!maintenancePage) {
-    maintenancePage = document.createElement('div');
-    maintenancePage.id = 'page-maintenance';
-    maintenancePage.className = 'page active';
-    document.querySelector('.main-content') && document.querySelector('.main-content').appendChild(maintenancePage);
+  if (pageEl) {
+    pageEl.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:80vh;flex-direction:column;gap:20px;text-align:center">' +
+        '<div style="font-size:72px">' + icon + '</div>' +
+        '<div style="font-size:28px;font-weight:800;color:var(--t1)">' + name + '</div>' +
+        '<div style="display:inline-flex;align-items:center;gap:10px;padding:12px 28px;background:#fff3cd;border:2px solid #ffc107;border-radius:99px;font-size:18px;font-weight:700;color:#856404">' +
+          '🔧 현재 점검 중입니다' +
+        '</div>' +
+        '<div style="font-size:15px;color:var(--t3);line-height:1.8">서비스 개선을 위해 점검 중입니다.<br>빠른 시일 내에 이용하실 수 있도록 준비하겠습니다.</div>' +
+      '</div>';
   }
-  maintenancePage.className = 'page active';
-  maintenancePage.innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:center;min-height:70vh;flex-direction:column;gap:16px;text-align:center">' +
-      '<div style="font-size:64px">' + icon + '</div>' +
-      '<div style="font-size:22px;font-weight:700;color:var(--t1)">' + name + '</div>' +
-      '<div style="display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:#fff3cd;border:1px solid #ffc107;border-radius:99px;font-size:14px;font-weight:600;color:#856404">' +
-        '🔧 현재 점검 중입니다' +
-      '</div>' +
-      '<div style="font-size:13px;color:var(--t3);max-width:320px;line-height:1.7">서비스 개선을 위해 점검 중입니다.<br>빠른 시일 내에 이용하실 수 있도록 준비하겠습니다.</div>' +
-    '</div>';
+  showPage(pageId, el);
 }
 
 function showPage(id, el) {
