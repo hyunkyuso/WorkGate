@@ -2483,7 +2483,7 @@ let state = {
   user: null,
   accessToken: null,
   folderId: null,
-  tasks: JSON.parse(localStorage.getItem('wg_tasks') || '[]'),
+  tasks: [],
   kpis:  JSON.parse(localStorage.getItem('wg_kpis')  || '[]'),
   driveFiles: [],
   members: JSON.parse(localStorage.getItem('wg_members') || '[]'),
@@ -3016,74 +3016,6 @@ async function syncKpiFromSheets() {
 function saveSheetUrl() { showToast('✅ KPI Sheets URL 저장됨'); }
 function checkDriveConnection() { loadDriveFiles(); }
 
-// ══════════════════════════════════════════════════
-// TASKS (칸반)
-// ══════════════════════════════════════════════════
-const COLUMNS = [
-  { id:'todo',       label:'할 일',   color:'var(--t3)',  emoji:'📌' },
-  { id:'inprogress', label:'진행 중', color:'var(--am)',  emoji:'⚡' },
-  { id:'review',     label:'검토 중', color:'var(--pu)',  emoji:'👀' },
-  { id:'done',       label:'완료',    color:'var(--gr)',  emoji:'✅' },
-];
-
-function renderKanban() {
-  const board = document.getElementById('kanban-board');
-  board.innerHTML = COLUMNS.map(col => {
-    const cards = state.tasks.filter(t => t.status === col.id);
-    return `<div class="kanban-col">
-      <div class="kanban-col-header">
-        <div class="kanban-col-title" style="color:${col.color}">${col.emoji} ${col.label}</div>
-        <span class="kanban-col-count">${cards.length}</span>
-      </div>
-      ${cards.map(t => renderCard(t)).join('')}
-      <button class="kanban-add" onclick="openModal('task-modal')">+ 추가</button>
-    </div>`;
-  }).join('');
-  updateStats();
-  renderRecentTasks();
-}
-
-function renderCard(t) {
-  const pColor = t.priority === 'high' ? 'red' : t.priority === 'medium' ? 'amber' : 'blue';
-  const pLabel = t.priority === 'high' ? '높음' : t.priority === 'medium' ? '보통' : '낮음';
-  return `<div class="kanban-card">
-    <div class="kanban-card-title">${t.title}</div>
-    <div class="kanban-card-meta">
-      <span class="tag tag-${pColor}">${pLabel}</span>
-      ${t.due ? `<span class="tag tag-blue">📅 ${t.due}</span>` : ''}
-      ${t.fileCount ? `<span class="tag tag-green">📎 ${t.fileCount}</span>` : ''}
-      <div class="kanban-assignee">${(state.user?.name||'U')[0]}</div>
-    </div>
-  </div>`;
-}
-
-async function addTask() {
-  const title = document.getElementById('task-title').value.trim();
-  if (!title) { showToast('❌ 업무 제목을 입력하세요'); return; }
-  const files = document.getElementById('task-file').files;
-  let fileCount = 0;
-  if (files.length > 0) {
-    showToast('⬆ 파일을 구글 드라이브에 업로드 중...');
-    for (const f of files) { await uploadFileToDrive(f); fileCount++; }
-    showToast(`✅ 파일 ${fileCount}개 드라이브에 저장됨`);
-  }
-  const task = {
-    id: Date.now(), title,
-    desc: document.getElementById('task-desc').value,
-    status: document.getElementById('task-status').value,
-    priority: document.getElementById('task-priority').value,
-    due: document.getElementById('task-due').value,
-    fileCount, createdAt: new Date().toISOString()
-  };
-  state.tasks.unshift(task);
-  localStorage.setItem('wg_tasks', JSON.stringify(state.tasks));
-  closeModal('task-modal');
-  renderKanban();
-  showToast('✅ 업무가 추가되었습니다');
-  document.getElementById('task-title').value = '';
-  document.getElementById('task-desc').value = '';
-  document.getElementById('task-file').value = '';
-}
 
 // ══════════════════════════════════════════════════
 // KPI
@@ -3203,23 +3135,23 @@ function renderDashboard() {
 }
 
 function updateStats() {
-  document.getElementById('st-total').textContent = state.tasks.length;
-  document.getElementById('st-inprogress').textContent = state.tasks.filter(t=>t.status==='inprogress').length;
-  document.getElementById('st-done').textContent = state.tasks.filter(t=>t.status==='done').length;
-  document.getElementById('task-badge').textContent = state.tasks.filter(t=>t.status==='inprogress').length || '';
+  document.getElementById('st-total').textContent = _tasks.length;
+  document.getElementById('st-inprogress').textContent = _tasks.filter(function(t){ return t.status==='doing'; }).length;
+  document.getElementById('st-done').textContent = _tasks.filter(function(t){ return t.status==='done'; }).length;
 }
 
 function renderRecentTasks() {
-  const el = document.getElementById('recent-tasks-list');
-  const recent = state.tasks.slice(0,5);
+  var el = document.getElementById('recent-tasks-list');
+  if (!el) return;
+  var recent = _tasks.slice(0,5);
   if (!recent.length) { el.innerHTML = '<div style="color:var(--t3);font-size:12px">업무가 없습니다</div>'; return; }
-  el.innerHTML = recent.map(t => {
-    const col = COLUMNS.find(c=>c.id===t.status);
-    return `<div style="display:flex;align-items:center;gap:8px;font-size:12px">
-      <span>${col?.emoji||'📌'}</span>
-      <span style="flex:1;font-weight:500">${t.title}</span>
-      <span style="color:var(--t3)">${t.due||''}</span>
-    </div>`;
+  el.innerHTML = recent.map(function(t) {
+    var col = TASK_COLS.find(function(c){ return c.id===t.status; });
+    return '<div style="display:flex;align-items:center;gap:8px;font-size:12px">' +
+      '<span style="width:8px;height:8px;border-radius:50%;background:'+(col?col.color:'#888')+';display:inline-block;flex-shrink:0"></span>' +
+      '<span style="flex:1;font-weight:500">'+t.title+'</span>' +
+      '<span style="color:var(--t3)">'+(t.due||'')+'</span>' +
+    '</div>';
   }).join('');
 }
 
@@ -12797,16 +12729,7 @@ const _origOpenModal = openModal;
 // (HTML에서 onclick="openCodeAddModal()" → openCodeAddModal()로 수정)
 
 // ══════════════════════════════════════════════════
-// 초기 데모 태스크
-if (!state.tasks.length) {
-  state.tasks = [
-    {id:1, title:'Q2 마케팅 계획 수립', status:'inprogress', priority:'high', due:'2025-06-30', fileCount:2, createdAt:new Date().toISOString()},
-    {id:2, title:'사내 시스템 업그레이드 검토', status:'todo', priority:'medium', due:'2025-07-15', fileCount:0, createdAt:new Date().toISOString()},
-    {id:3, title:'신규 팀원 온보딩 자료 준비', status:'review', priority:'medium', due:'2025-05-31', fileCount:1, createdAt:new Date().toISOString()},
-    {id:4, title:'1분기 성과보고서 작성', status:'done', priority:'high', due:'2025-05-01', fileCount:3, createdAt:new Date().toISOString()},
-  ];
-  localStorage.setItem('wg_tasks', JSON.stringify(state.tasks));
-}
+// 초기 데모 태스크 (Firestore로 이관됨 - 삭제)
 if (!state.kpis.length) {
   state.kpis = [
     {id:1, name:'월간 신규 고객 수', target:100, actual:78, owner:'김영업'},
@@ -15896,6 +15819,8 @@ function taskStartListener() {
     taskRender();
     taskRefreshProjectFilter();
     taskUpdateBadge();
+    updateStats();
+    renderRecentTasks();
   });
 }
 
