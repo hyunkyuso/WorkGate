@@ -16562,6 +16562,11 @@ function taskCardHtml(t, myEmail, colColor) {
       '</div>' +
       '<span style="font-size:10px;font-weight:600;color:'+(pct===100?'#22c55e':'#94a3b8')+'">'+pct+'%</span>' +
     '</div>' +
+    // 검토자 본인에게 카드에서 바로 검토 완료 버튼 표시
+    (t.reviewer && t.reviewer === myEmail && t.status !== 'review' && t.status !== 'done' ?
+      '<button onclick="event.stopPropagation();taskMarkReviewed(\''+t.id+'\')" style="margin-top:8px;width:100%;padding:6px;font-size:11px;font-weight:600;background:#8B5CF6;color:white;border:none;border-radius:7px;cursor:pointer">✓ 검토 완료</button>' : '') +
+    (t.reviewer && t.reviewed && t.reviewer === myEmail ?
+      '<button onclick="event.stopPropagation();taskUnmarkReviewed(\''+t.id+'\')" style="margin-top:8px;width:100%;padding:6px;font-size:11px;background:none;color:#166534;border:1px solid #bbf7d0;border-radius:7px;cursor:pointer">↩ 검토 취소</button>' : '') +
   '</div>';
 }
 
@@ -16863,13 +16868,11 @@ function taskToggleDetailChecklist(taskId, idx) {
   var newStatus = t.status;
   if (total > 0) {
     if (done === total) {
-      newStatus = 'done';
+      newStatus = t.reviewer ? 'review' : 'done'; // 검토자 있으면 검토 중
     } else if (done > 0) {
-      if (t.status === 'todo') newStatus = 'doing';
-      else if (t.status === 'done') newStatus = 'doing';
+      if (t.status === 'todo' || t.status === 'done' || t.status === 'review') newStatus = 'doing';
     } else {
-      // 전부 해제 → 할 일
-      if (t.status === 'done' || t.status === 'doing') newStatus = 'todo';
+      if (t.status === 'done' || t.status === 'doing' || t.status === 'review') newStatus = 'todo';
     }
   }
 
@@ -16916,21 +16919,21 @@ function taskSaveManualProgress(taskId) {
   var slider = document.getElementById('detail-progress');
   if (!slider) return;
   var pct = parseInt(slider.value);
-  var newStatus = undefined;
   var t = _tasks.find(function(x){ return x.id===taskId; });
-  if (t) {
-    if (pct === 100 && t.status !== 'done') newStatus = 'done';
-    else if (pct > 0 && (t.status === 'todo')) newStatus = 'doing';
-    else if (pct === 0 && (t.status === 'done' || t.status === 'doing')) newStatus = 'todo';
+  if (!t) return;
+  var newStatus = t.status;
+  if (pct === 100) {
+    newStatus = t.reviewer ? 'review' : 'done'; // 검토자 있으면 검토 중, 없으면 완료
+  } else if (pct > 0) {
+    if (t.status === 'todo' || t.status === 'done' || t.status === 'review') newStatus = 'doing';
+  } else {
+    if (t.status === 'done' || t.status === 'doing' || t.status === 'review') newStatus = 'todo';
   }
   var updateData = {progress: pct, updatedAt: firebase.firestore.FieldValue.serverTimestamp()};
-  if (newStatus) updateData.status = newStatus;
+  if (newStatus !== t.status) updateData.status = newStatus;
   db.collection('tasks').doc(taskId).update(updateData).then(function() {
-    showToast('✅ 진행률이 저장되었습니다');
-    if (newStatus) {
-      var statusLabel = {todo:'할 일', doing:'진행 중', review:'검토 중', done:'완료'};
-      showToast('📋 상태가 "' + statusLabel[newStatus] + '"으로 자동 변경되었습니다');
-    }
+    var statusLabel = {todo:'할 일', doing:'진행 중', review:'검토 중', done:'완료'};
+    showToast(newStatus !== t.status ? '📋 상태가 "'+statusLabel[newStatus]+'"으로 변경되었습니다' : '✅ 진행률이 저장되었습니다');
     taskOpenDetail(taskId);
   });
 }
