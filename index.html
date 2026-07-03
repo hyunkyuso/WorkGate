@@ -2431,6 +2431,14 @@ select.form-input{cursor:pointer}
         <select id="task-assignee" class="form-input" style="font-size:13px"></select>
       </div>
 
+      <!-- 검토자 -->
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">검토자 <span style="font-size:10px;color:var(--t3);font-weight:400">(검토자가 검토 완료 체크 시 "검토 중"으로 자동 이동)</span></label>
+        <select id="task-reviewer" class="form-input" style="font-size:13px">
+          <option value="">검토자 없음</option>
+        </select>
+      </div>
+
       <!-- 공유자 -->
       <div style="margin-bottom:12px">
         <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">공유자 (협업자/열람자)</label>
@@ -16462,28 +16470,43 @@ function taskCardHtml(t, myEmail, colColor) {
   var priBg = PRI_BG[pri];
   var priDot = {'긴급':'🔴','높음':'🟠','보통':'🔵','낮음':'⚪'}[pri] || '🔵';
 
+  // 기간 표기
+  var startStr = t.start ? t.start.replace(/(\d{4})-(\d{2})-(\d{2})/,'$2/$3') : '';
+  var periodStr = startStr && dueStr ? startStr + ' ~ ' + dueStr : (dueStr ? '~ ' + dueStr : '');
+
+  // 검토자 아바타 (별도 표시)
+  var reviewerHtml = '';
+  if (t.reviewer) {
+    var re = employees.find(function(e){ return e.id===t.reviewer||e.email===t.reviewer; });
+    var rname = re ? re.name.charAt(0) : '?';
+    reviewerHtml = '<div title="'+(re?re.name:t.reviewer)+' (검토자)" style="width:24px;height:24px;border-radius:50%;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;background:#CECBF6;color:#3C3489;border:2px solid white;margin-left:-7px;flex-shrink:0">'+rname+'</div>';
+  }
+
+  // 진행바 항상 표시 (체크리스트 있거나 progress 필드 존재 시)
+  var showProgress = checklist.length > 0 || t.progress !== undefined;
+
   return '<div onclick="taskOpenDetail(\''+t.id+'\')" style="background:white;border:1px solid #e8ecf0;border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .15s;border-left:3px solid '+priColor+'" onmouseover="this.style.borderColor=\''+priColor+'\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.08)\'" onmouseout="this.style.borderColor=\'#e8ecf0\';this.style.borderLeftColor=\''+priColor+'\';this.style.boxShadow=\'none\'">' +
-    // 제목
-    '<div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:9px;line-height:1.45">'+( t.title||'')+'</div>' +
-    // 태그 + 날짜 + 아바타
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:'+(pct>0||checklist.length>0?'9px':'0')+'">' +
+    '<div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:8px;line-height:1.45">'+(t.title||'')+'</div>' +
+    // 기간 표기
+    (periodStr ? '<div style="font-size:10px;color:#94a3b8;margin-bottom:7px">📅 '+periodStr+'</div>' : '') +
+    // 태그 + 아바타
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:9px">' +
       '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">' +
         '<span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:'+priBg+';color:'+priColor+'">'+priDot+' '+pri+'</span>' +
         (checklist.length ? '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:#f1f5f9;color:#64748b">☑ '+done+'/'+checklist.length+'</span>' : '') +
+        (t.reviewer ? '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:#EEEDFE;color:#534AB7">👁 검토자</span>' : '') +
       '</div>' +
-      '<div style="display:flex;align-items:center;gap:7px;flex-shrink:0">' +
-        (dueStr ? '<span style="font-size:10px;font-weight:500;padding:2px 7px;border-radius:5px;background:'+(isOverdue?'#fef2f2':isSoon?'#fffbeb':'#f8fafc')+';color:'+(isOverdue?'#dc2626':isSoon?'#d97706':'#94a3b8')+'">📅 '+dueStr+'</span>' : '') +
-        '<div style="display:flex">'+avatarsHtml+'</div>' +
+      '<div style="display:flex;align-items:center">' +
+        avatarsHtml + reviewerHtml +
       '</div>' +
     '</div>' +
-    // 진행바
-    (pct > 0 || checklist.length > 0 ?
-      '<div style="display:flex;align-items:center;gap:7px">' +
-        '<div style="flex:1;height:5px;background:#f1f5f9;border-radius:99px;overflow:hidden">' +
-          '<div style="height:100%;border-radius:99px;background:'+(pct===100?'#22c55e':'#378ADD')+';width:'+pct+'%;transition:width .3s"></div>' +
-        '</div>' +
-        '<span style="font-size:10px;font-weight:600;color:'+(pct===100?'#22c55e':'#378ADD')+'">'+pct+'%</span>' +
-      '</div>' : '') +
+    // 진행바 항상 표시
+    '<div style="display:flex;align-items:center;gap:7px">' +
+      '<div style="flex:1;height:5px;background:#f1f5f9;border-radius:99px;overflow:hidden">' +
+        '<div style="height:100%;border-radius:99px;background:'+(pct===100?'#22c55e':'#378ADD')+';width:'+pct+'%;transition:width .3s"></div>' +
+      '</div>' +
+      '<span style="font-size:10px;font-weight:600;color:'+(pct===100?'#22c55e':'#94a3b8')+'">'+pct+'%</span>' +
+    '</div>' +
   '</div>';
 }
 
@@ -16508,14 +16531,16 @@ function openTaskModal(defaultStatus) {
   if (progressEl) { progressEl.value = 0; document.getElementById('task-progress-display').textContent = '0%'; }
   var manualWrap = document.getElementById('task-manual-progress-wrap');
   if (manualWrap) manualWrap.style.display = 'block';
+  document.getElementById('task-reviewer').value = '';
 
-  // 담당자 select 채우기
-  var sel = document.getElementById('task-assignee');
-  sel.innerHTML = employees.filter(function(e){ return e.status!=='퇴직'; }).map(function(e){
+  // 담당자/검토자 select 채우기
+  var empOptions = employees.filter(function(e){ return e.status!=='퇴직'; }).map(function(e){
     var email = e.id||e.email||'';
     var isMe = email === (state.user ? state.user.email : '');
     return '<option value="'+email+'"'+(isMe?' selected':'')+'>'+e.name+(isMe?' (나)':'')+'</option>';
   }).join('');
+  document.getElementById('task-assignee').innerHTML = empOptions;
+  document.getElementById('task-reviewer').innerHTML = '<option value="">검토자 없음</option>' + empOptions;
 
   openModal('task-modal');
 }
@@ -16662,6 +16687,7 @@ function taskSave() {
     start: document.getElementById('task-start').value,
     due: document.getElementById('task-due').value,
     assignee: document.getElementById('task-assignee').value,
+    reviewer: document.getElementById('task-reviewer').value,
     sharedWith: _taskSharedWith.slice(),
     checklist: _taskChecklist.slice(),
     progress: _taskChecklist.length ? 0 : parseInt(document.getElementById('task-progress').value||0),
@@ -16714,6 +16740,26 @@ function taskOpenDetail(id) {
     (t.project ? '<div style="margin-bottom:12px;font-size:12px;color:var(--t2)">📁 프로젝트: <strong>'+t.project+'</strong></div>' : '') +
     (t.desc ? '<div style="margin-bottom:14px;font-size:13px;color:var(--t1);line-height:1.7;background:var(--surface);border-radius:8px;padding:10px 12px;border:0.5px solid var(--border)">'+t.desc+'</div>' : '') +
     (sharedNames ? '<div style="margin-bottom:14px;font-size:12px;color:var(--t2)">👥 공유자: '+sharedNames+'</div>' : '') +
+    // 검토자 + 검토 완료 버튼
+    (t.reviewer ?
+      (function(){
+        var re = employees.find(function(e){ return e.id===t.reviewer||e.email===t.reviewer; });
+        var rname = re ? re.name : t.reviewer;
+        var myEmail = state.user ? state.user.email : '';
+        var isReviewer = t.reviewer === myEmail;
+        var isReviewed = t.reviewed;
+        return '<div style="margin-bottom:14px;padding:12px 14px;background:'+(isReviewed?'#f0faf0':'#EEEDFE')+';border:1px solid '+(isReviewed?'#bbf7d0':'#CECBF6')+';border-radius:10px;display:flex;align-items:center;justify-content:space-between">' +
+          '<div>' +
+            '<div style="font-size:11px;color:'+(isReviewed?'#166534':'#534AB7')+';font-weight:600;margin-bottom:2px">👁 검토자</div>' +
+            '<div style="font-size:13px;color:var(--t1);font-weight:500">'+rname+(isReviewed?' · ✅ 검토 완료':'')+' </div>' +
+          '</div>' +
+          (isReviewer && !isReviewed ?
+            '<button onclick="taskMarkReviewed(\''+id+'\')" style="padding:7px 16px;font-size:12px;font-weight:600;background:#8B5CF6;color:white;border:none;border-radius:8px;cursor:pointer">✓ 검토 완료</button>' :
+            (isReviewer && isReviewed ?
+              '<button onclick="taskUnmarkReviewed(\''+id+'\')" style="padding:7px 16px;font-size:12px;background:none;color:#166534;border:1px solid #bbf7d0;border-radius:8px;cursor:pointer">↩ 검토 취소</button>' : '')
+          ) +
+        '</div>';
+      })() : '') +
     (checklist.length > 0 ?
       '<div style="margin-bottom:14px">' +
         '<div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">체크리스트 · '+pct+'% ('+done+'/'+checklist.length+')</div>' +
@@ -16784,6 +16830,31 @@ function taskToggleDetailChecklist(taskId, idx) {
 }
 
 // 수동 진행률 저장
+// 검토 완료 → 검토 중으로 자동 이동
+function taskMarkReviewed(taskId) {
+  db.collection('tasks').doc(taskId).update({
+    reviewed: true,
+    status: 'review',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    showToast('✅ 검토 완료! 상태가 "검토 중"으로 변경되었습니다');
+    taskOpenDetail(taskId);
+  });
+}
+
+// 검토 취소
+function taskUnmarkReviewed(taskId) {
+  var t = _tasks.find(function(x){ return x.id===taskId; });
+  db.collection('tasks').doc(taskId).update({
+    reviewed: false,
+    status: 'doing',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    showToast('↩ 검토가 취소되었습니다');
+    taskOpenDetail(taskId);
+  });
+}
+
 function taskSaveManualProgress(taskId) {
   var slider = document.getElementById('detail-progress');
   if (!slider) return;
@@ -16821,12 +16892,16 @@ function taskEditFromDetail() {
   taskInitStatusBtns(t.status||'todo');
   document.getElementById('task-start').value = t.start||'';
   document.getElementById('task-due').value = t.due||'';
-  var sel = document.getElementById('task-assignee');
-  sel.innerHTML = employees.filter(function(e){ return e.status!=='퇴직'; }).map(function(e){
+  var empOptions2 = employees.filter(function(e){ return e.status!=='퇴직'; }).map(function(e){
     var email = e.id||e.email||'';
-    var isMe = email === (state.user ? state.user.email : '');
-    return '<option value="'+email+'"'+(email===t.assignee?' selected':'')+'>'+e.name+(isMe?' (나)':'')+'</option>';
+    return '<option value="'+email+'"'+(email===t.assignee?' selected':'')+'>'+e.name+'</option>';
   }).join('');
+  document.getElementById('task-assignee').innerHTML = empOptions2;
+  document.getElementById('task-reviewer').innerHTML = '<option value="">검토자 없음</option>' +
+    employees.filter(function(e){ return e.status!=='퇴직'; }).map(function(e){
+      var email = e.id||e.email||'';
+      return '<option value="'+email+'"'+(email===t.reviewer?' selected':'')+'>'+e.name+'</option>';
+    }).join('');
   taskRenderSharedTags();
   taskRenderChecklist();
   var progressEl = document.getElementById('task-progress');
