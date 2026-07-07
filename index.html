@@ -16280,9 +16280,17 @@ function projectRenderGrid() {
   var avatarColors = ['#B5D4F4:#0C447C','#9FE1CB:#085041','#FAC775:#633806','#F4C0D1:#72243E','#CECBF6:#3C3489'];
 
   el.innerHTML = filtered.map(function(p) {
-    var taskCount = _tasks.filter(function(t){ return t.projectId === p.id; }).length;
-    var doneCount = _tasks.filter(function(t){ return t.projectId === p.id && t.status === 'done'; }).length;
-    var doingCount = _tasks.filter(function(t){ return t.projectId === p.id && t.status === 'doing'; }).length;
+    // 본인 관련 업무만 카운트
+    var myTasks = _tasks.filter(function(t){
+      return t.projectId === p.id && (
+        t.assignee === myEmail ||
+        (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
+        t.reviewer === myEmail
+      );
+    });
+    var taskCount = myTasks.length;
+    var doneCount = myTasks.filter(function(t){ return t.status === 'done'; }).length;
+    var doingCount = myTasks.filter(function(t){ return t.status === 'doing'; }).length;
     var pct = taskCount ? Math.round(doneCount/taskCount*100) : 0;
     var canEdit = isAdmin || p.createdBy === myEmail;
     var color = p.color || '#378ADD';
@@ -16844,9 +16852,6 @@ function taskCardHtml(t, myEmail, colColor) {
       '</div>' : '') +
     (t.reviewer && t.reviewDone && t.reviewer === myEmail ?
       '<button onclick="event.stopPropagation();taskUnmarkReviewed(\''+t.id+'\')" style="margin-top:8px;width:100%;padding:6px;font-size:11px;background:none;color:#166534;border:1px solid #bbf7d0;border-radius:7px;cursor:pointer">↩ 검토 취소</button>' : '') +
-    // 보완 버튼: 담당자가 보완 후 다시 검토 중으로 보낼 수 있음
-    (t.reviewCancelled && t.status === 'doing' && (t.assignee === myEmail || t.createdBy === myEmail) ?
-      '<button onclick="event.stopPropagation();taskSendToReview(\''+t.id+'\')" style="margin-top:8px;width:100%;padding:6px;font-size:11px;font-weight:600;background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;border-radius:7px;cursor:pointer">🔄 보완 완료 → 검토 중</button>' : '') +
   '</div>';
 }
 
