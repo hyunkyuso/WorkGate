@@ -1706,6 +1706,112 @@ select.form-input{cursor:pointer}
         </div>
       </div>
 
+      <!-- ══════ 업무 현황 (관리자) ══════ -->
+      <div id="page-task-admin" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">📊 업무 현황</div>
+            <div class="page-sub">직원을 선택하여 업무 현황을 확인합니다</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="ta-project-filter" class="form-input" style="font-size:13px;width:180px" onchange="taskAdminRender()">
+              <option value="">전체 프로젝트</option>
+            </select>
+            <select id="ta-status-filter" class="form-input" style="font-size:13px;width:120px" onchange="taskAdminRender()">
+              <option value="">전체 상태</option>
+              <option value="todo">할 일</option>
+              <option value="doing">진행 중</option>
+              <option value="review">검토 중</option>
+              <option value="done">완료</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start">
+
+          <!-- 좌측: 조직도 트리 -->
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:16px;max-height:calc(100vh - 160px);display:flex;flex-direction:column">
+            <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+              <div style="font-size:13px;font-weight:600;color:var(--t1)">직원 선택</div>
+              <div style="display:flex;gap:6px">
+                <button onclick="taSelectAll()" style="font-size:11px;padding:3px 8px;border:0.5px solid var(--border);border-radius:5px;cursor:pointer;background:var(--surface);color:var(--t2)">전체</button>
+                <button onclick="taDeselectAll()" style="font-size:11px;padding:3px 8px;border:0.5px solid var(--border);border-radius:5px;cursor:pointer;background:var(--surface);color:var(--t2)">해제</button>
+              </div>
+            </div>
+            <div style="padding:8px">
+              <input id="ta-emp-search" type="text" class="form-input" style="font-size:12px;width:100%" placeholder="이름 검색..." oninput="taRenderOrgTree()">
+            </div>
+            <div id="ta-org-tree" style="overflow-y:auto;flex:1;padding:4px 0"></div>
+            <div style="padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--t3)" id="ta-selected-count">0명 선택</div>
+          </div>
+
+          <!-- 우측: 현황 -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+
+            <!-- KPI 요약 -->
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px" id="ta-kpi-wrap">
+              <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;grid-column:1/-1;color:var(--t3);font-size:13px">← 좌측에서 직원을 선택하세요</div>
+            </div>
+
+            <!-- 직원별 현황 -->
+            <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+              <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--t1)">👤 직원별 업무 현황</div>
+              <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                  <thead>
+                    <tr style="background:var(--surface);border-bottom:1px solid var(--border)">
+                      <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--t2)">직원</th>
+                      <th style="padding:9px 8px;text-align:center;font-weight:600;color:var(--t2);width:50px">전체</th>
+                      <th style="padding:9px 8px;text-align:center;font-weight:600;color:#888780;width:50px">할일</th>
+                      <th style="padding:9px 8px;text-align:center;font-weight:600;color:#378ADD;width:50px">진행</th>
+                      <th style="padding:9px 8px;text-align:center;font-weight:600;color:#EF9F27;width:50px">검토</th>
+                      <th style="padding:9px 8px;text-align:center;font-weight:600;color:#639922;width:50px">완료</th>
+                      <th style="padding:9px 8px;text-align:center;font-weight:600;color:#E24B4A;width:60px">초과</th>
+                      <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--t2)">진행률</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ta-emp-tbody">
+                    <tr><td colspan="8" style="padding:20px;text-align:center;color:var(--t3);font-size:13px">직원을 선택하면 현황이 표시됩니다</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 전체 업무 리스트 -->
+            <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+              <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+                <div style="font-size:13px;font-weight:600;color:var(--t1)">📋 업무 리스트</div>
+                <input id="ta-search" type="text" class="form-input" style="font-size:12px;width:150px" placeholder="업무명 검색..." oninput="taskAdminRender()">
+              </div>
+              <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                  <thead>
+                    <tr style="background:var(--surface);border-bottom:1px solid var(--border)">
+                      <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--t2)">업무명</th>
+                      <th style="padding:9px 8px;text-align:left;font-weight:600;color:var(--t2);width:90px">프로젝트</th>
+                      <th style="padding:9px 8px;text-align:center;font-weight:600;color:var(--t2);width:65px">상태</th>
+                      <th style="padding:9px 8px;text-align:center;font-weight:600;color:var(--t2);width:60px">우선순위</th>
+                      <th style="padding:9px 8px;text-align:center;font-weight:600;color:var(--t2);width:70px">담당자</th>
+                      <th style="padding:9px 8px;text-align:center;font-weight:600;color:var(--t2);width:75px">마감일</th>
+                      <th style="padding:9px 14px;text-align:center;font-weight:600;color:var(--t2);width:75px">진행률</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ta-task-tbody">
+                    <tr><td colspan="7" style="padding:20px;text-align:center;color:var(--t3);font-size:13px">직원을 선택하면 업무가 표시됩니다</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <!-- 페이지네이션 -->
+              <div id="ta-pagination" style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;display:none">
+                <span id="ta-page-info" style="font-size:12px;color:var(--t3)"></span>
+                <div style="display:flex;gap:4px" id="ta-page-btns"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
       <!-- ══════ 시연영상 ══════ -->
       <div id="page-videos" class="page">
         <div class="page-header">
@@ -12920,7 +13026,7 @@ function showPage(id, el) {
     document.querySelectorAll('.task-filter-btn').forEach(function(b,i){ b.style.background=i===0?'var(--acd)':'var(--white)'; b.style.color=i===0?'var(--ac)':'var(--t2)'; });
     projectRenderGrid();
   }
-  if(id === 'task-admin') taskAdminRender();
+  if(id === 'task-admin') { taRenderOrgTree(); taskAdminRender(); }
 }
 
 function openModal(id) { document.getElementById(id).style.display='flex'; }
@@ -17166,176 +17272,195 @@ function taskRenderDetailFiles(files) {
 // ══════════════════════════════════════════════════
 // 업무 현황 (관리자)
 // ══════════════════════════════════════════════════
-function taskAdminRender() {
-  var projFilter = document.getElementById('ta-project-filter') ? document.getElementById('ta-project-filter').value : '';
-  var statusFilter = document.getElementById('ta-status-filter') ? document.getElementById('ta-status-filter').value : '';
-  var search = document.getElementById('ta-search') ? document.getElementById('ta-search').value.trim() : '';
-  var today = new Date().toISOString().substring(0,10);
+// ══════════════════════════════════════════════════
+// 업무 현황 (관리자)
+// ══════════════════════════════════════════════════
+var _taSelected = new Set();
+var _taPage = 1;
+var _taPageSize = 20;
 
+function taRenderOrgTree() {
+  var tree = document.getElementById('ta-org-tree');
+  if (!tree) return;
+  var keyword = (document.getElementById('ta-emp-search')||{}).value||'';
+  var roots = departments.filter(function(d){ return !d.parent; });
+  var html = '';
+
+  function renderNode(dept, depth) {
+    var indent = depth * 12;
+    var deptEmps = employees.filter(function(e){
+      return e.status !== '퇴직' && e.dept === dept.name &&
+        (!keyword || (e.name||'').indexOf(keyword) >= 0);
+    });
+    var children = departments.filter(function(d){ return d.parent === dept.id; });
+    if (!deptEmps.length && !children.length) return '';
+    var allEmails = deptEmps.map(function(e){ return e.id||e.email||''; });
+    var allChecked = allEmails.length && allEmails.every(function(em){ return _taSelected.has(em); });
+    var result = '<div style="padding:5px 10px 3px '+(10+indent)+'px;font-size:11px;font-weight:600;color:var(--t3);display:flex;align-items:center;gap:6px;cursor:pointer" onclick="taDeptToggle(\''+dept.name+'\')">' +
+      '<input type="checkbox" '+(allChecked?'checked':'')+' onclick="event.stopPropagation();taDeptToggle(\''+dept.name+'\')" style="accent-color:var(--ac);flex-shrink:0">' +
+      (depth===0?'🏢 ':depth===1?'📁 ':'📂 ') + dept.name +
+    '</div>';
+    result += deptEmps.map(function(e) {
+      var email = e.id||e.email||'';
+      var isChecked = _taSelected.has(email);
+      return '<div style="padding:5px 10px 5px '+(22+indent)+'px;display:flex;align-items:center;gap:7px;cursor:pointer;border-radius:6px;margin:1px 6px" onclick="taToggleEmp(\''+email+'\')" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
+        '<input type="checkbox" '+(isChecked?'checked':'')+' onclick="event.stopPropagation();taToggleEmp(\''+email+'\')" style="accent-color:var(--ac);flex-shrink:0">' +
+        '<div style="width:24px;height:24px;border-radius:50%;background:var(--acd);color:var(--ac);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+(e.name||'?').charAt(0)+'</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:var(--t1)">'+e.name+'</div><div style="font-size:10px;color:var(--t3)">'+(e.rank||e.position||'')+'</div></div>' +
+      '</div>';
+    }).join('');
+    children.forEach(function(child){ result += renderNode(child, depth+1); });
+    return result;
+  }
+
+  if (keyword) {
+    var filtered = employees.filter(function(e){ return e.status!=='퇴직' && (e.name||'').indexOf(keyword)>=0; });
+    html = filtered.map(function(e) {
+      var email = e.id||e.email||'';
+      var isChecked = _taSelected.has(email);
+      return '<div style="padding:6px 10px;display:flex;align-items:center;gap:7px;cursor:pointer;border-radius:6px;margin:1px 6px" onclick="taToggleEmp(\''+email+'\')" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
+        '<input type="checkbox" '+(isChecked?'checked':'')+' onclick="event.stopPropagation();taToggleEmp(\''+email+'\')" style="accent-color:var(--ac);flex-shrink:0">' +
+        '<div style="width:24px;height:24px;border-radius:50%;background:var(--acd);color:var(--ac);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+(e.name||'?').charAt(0)+'</div>' +
+        '<div><div style="font-size:12px;font-weight:500;color:var(--t1)">'+e.name+'</div><div style="font-size:10px;color:var(--t3)">'+(e.dept||'')+(e.rank?' · '+e.rank:'')+'</div></div>' +
+      '</div>';
+    }).join('');
+  } else {
+    roots.forEach(function(d){ html += renderNode(d, 0); });
+  }
+  tree.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">검색 결과 없음</div>';
+  var cnt = document.getElementById('ta-selected-count');
+  if (cnt) cnt.textContent = _taSelected.size + '명 선택';
+}
+
+function taToggleEmp(email) {
+  if (_taSelected.has(email)) _taSelected.delete(email); else _taSelected.add(email);
+  _taPage = 1; taRenderOrgTree(); taskAdminRender();
+}
+function taDeptToggle(deptName) {
+  var emps = employees.filter(function(e){ return e.status!=='퇴직' && e.dept===deptName; });
+  var allEmails = emps.map(function(e){ return e.id||e.email||''; });
+  var allChecked = allEmails.every(function(em){ return _taSelected.has(em); });
+  allEmails.forEach(function(em){ allChecked ? _taSelected.delete(em) : _taSelected.add(em); });
+  _taPage = 1; taRenderOrgTree(); taskAdminRender();
+}
+function taSelectAll() {
+  employees.filter(function(e){ return e.status!=='퇴직'; }).forEach(function(e){ _taSelected.add(e.id||e.email||''); });
+  _taPage = 1; taRenderOrgTree(); taskAdminRender();
+}
+function taDeselectAll() {
+  _taSelected.clear(); _taPage = 1; taRenderOrgTree(); taskAdminRender();
+}
+function taGoPage(p) { _taPage = p; taskAdminRender(); }
+
+function taskAdminRender() {
+  if (!_taSelected.size) {
+    var kpiEl = document.getElementById('ta-kpi-wrap');
+    if (kpiEl) kpiEl.innerHTML = '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;grid-column:1/-1;color:var(--t3);font-size:13px">← 좌측에서 직원을 선택하세요</div>';
+    var et = document.getElementById('ta-emp-tbody'); if (et) et.innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--t3)">직원을 선택하면 현황이 표시됩니다</td></tr>';
+    var tt = document.getElementById('ta-task-tbody'); if (tt) tt.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--t3)">직원을 선택하면 업무가 표시됩니다</td></tr>';
+    var pg = document.getElementById('ta-pagination'); if (pg) pg.style.display = 'none';
+    return;
+  }
+  var projFilter = (document.getElementById('ta-project-filter')||{}).value||'';
+  var statusFilter = (document.getElementById('ta-status-filter')||{}).value||'';
+  var search = ((document.getElementById('ta-search')||{}).value||'').trim();
+  var today = new Date().toISOString().substring(0,10);
   var filtered = _tasks.filter(function(t) {
+    if (!_taSelected.has(t.assignee)) return false;
     if (projFilter && t.projectId !== projFilter) return false;
     if (statusFilter && t.status !== statusFilter) return false;
     if (search && (t.title||'').indexOf(search) < 0) return false;
     return true;
   });
-
-  // 프로젝트 필터 옵션 갱신
   var projSel = document.getElementById('ta-project-filter');
-  if (projSel) {
-    var curProj = projSel.value;
-    projSel.innerHTML = '<option value="">전체 프로젝트</option>' +
-      _projects.map(function(p){ return '<option value="'+p.id+'"'+(curProj===p.id?' selected':'')+'>'+p.name+'</option>'; }).join('');
-  }
-
-  // KPI 요약
-  var total = filtered.length;
-  var todo = filtered.filter(function(t){ return t.status==='todo'; }).length;
-  var doing = filtered.filter(function(t){ return t.status==='doing'; }).length;
-  var review = filtered.filter(function(t){ return t.status==='review'; }).length;
-  var done = filtered.filter(function(t){ return t.status==='done'; }).length;
-  var overdue = filtered.filter(function(t){ return t.due && t.due < today && t.status !== 'done'; }).length;
-
+  if (projSel) { var cur=projSel.value; projSel.innerHTML = '<option value="">전체 프로젝트</option>'+_projects.map(function(p){ return '<option value="'+p.id+'"'+(cur===p.id?' selected':'')+'>'+p.name+'</option>'; }).join(''); }
+  var total=filtered.length, todo=0, doing=0, review=0, done=0, overdue=0;
+  filtered.forEach(function(t){ if(t.status==='todo')todo++; else if(t.status==='doing')doing++; else if(t.status==='review')review++; else if(t.status==='done')done++; if(t.due&&t.due<today&&t.status!=='done')overdue++; });
   var kpiEl = document.getElementById('ta-kpi-wrap');
-  if (kpiEl) {
-    kpiEl.innerHTML = [
-      {label:'전체 업무', val:total, color:'var(--ac)'},
-      {label:'할 일', val:todo, color:'#888780'},
-      {label:'진행 중', val:doing, color:'#378ADD'},
-      {label:'검토 중', val:review, color:'#EF9F27'},
-      {label:'완료', val:done, color:'#639922'},
-    ].map(function(k) {
-      return '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center">' +
-        '<div style="font-size:24px;font-weight:700;color:'+k.color+'">'+k.val+'</div>' +
-        '<div style="font-size:11px;color:var(--t3);margin-top:3px">'+k.label+'</div>' +
-      '</div>';
-    }).join('') +
-    '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:14px 16px;text-align:center">' +
-      '<div style="font-size:24px;font-weight:700;color:#DC2626">'+overdue+'</div>' +
-      '<div style="font-size:11px;color:#DC2626;margin-top:3px">기한 초과</div>' +
-    '</div>';
-  }
-
-  // 직원별 현황
+  if (kpiEl) kpiEl.innerHTML = [{label:'전체',val:total,color:'var(--ac)',bg:'var(--acd)'},{label:'할 일',val:todo,color:'#888780',bg:'#F1EFE8'},{label:'진행 중',val:doing,color:'#378ADD',bg:'#E6F1FB'},{label:'검토 중',val:review,color:'#EF9F27',bg:'#FAEEDA'},{label:'완료',val:done,color:'#639922',bg:'#EAF3DE'},{label:'기한 초과',val:overdue,color:'#DC2626',bg:'#FEF2F2'}].map(function(k){ return '<div style="background:'+k.bg+';border:1px solid '+k.color+'33;border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:700;color:'+k.color+'">'+k.val+'</div><div style="font-size:11px;color:'+k.color+';margin-top:2px;opacity:.8">'+k.label+'</div></div>'; }).join('');
   var empMap = {};
-  filtered.forEach(function(t) {
-    var email = t.assignee || '';
-    if (!email) return;
-    if (!empMap[email]) empMap[email] = {todo:0,doing:0,review:0,done:0,overdue:0,total:0,pctSum:0};
-    empMap[email].total++;
-    empMap[email][t.status] = (empMap[email][t.status]||0) + 1;
-    if (t.due && t.due < today && t.status !== 'done') empMap[email].overdue++;
-    var cl = t.checklist||[];
-    var d = cl.filter(function(c){ return c.done; }).length;
-    empMap[email].pctSum += cl.length ? Math.round(d/cl.length*100) : (t.progress||0);
-  });
-
+  filtered.forEach(function(t) { var em=t.assignee||''; if(!em)return; if(!empMap[em])empMap[em]={todo:0,doing:0,review:0,done:0,overdue:0,total:0,pctSum:0}; empMap[em].total++; empMap[em][t.status]=(empMap[em][t.status]||0)+1; if(t.due&&t.due<today&&t.status!=='done')empMap[em].overdue++; var cl=t.checklist||[]; var d=cl.filter(function(c){return c.done;}).length; empMap[em].pctSum+=cl.length?Math.round(d/cl.length*100):(t.progress||0); });
   var tbody = document.getElementById('ta-emp-tbody');
   if (tbody) {
-    var empRows = Object.keys(empMap).map(function(email) {
-      var emp = employees.find(function(e){ return e.id===email||e.email===email; });
-      var name = emp ? emp.name : email;
-      var dept = emp ? (emp.dept||'') : '';
-      var m = empMap[email];
-      var avgPct = m.total ? Math.round(m.pctSum/m.total) : 0;
-      return {name:name, dept:dept, email:email, m:m, avgPct:avgPct};
-    }).sort(function(a,b){ return b.m.overdue - a.m.overdue || b.m.total - a.m.total; });
-
-    tbody.innerHTML = empRows.length ? empRows.map(function(r) {
-      return '<tr style="border-bottom:0.5px solid var(--border);cursor:pointer" onclick="taskAdminEmpFilter(\''+r.email+'\')" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
-        '<td style="padding:10px 14px"><div style="font-weight:500;color:var(--t1)">'+r.name+'</div><div style="font-size:11px;color:var(--t3)">'+r.dept+'</div></td>' +
-        '<td style="padding:10px;text-align:center;font-weight:600;color:var(--t1)">'+r.m.total+'</td>' +
-        '<td style="padding:10px;text-align:center;color:#888780">'+r.m.todo+'</td>' +
-        '<td style="padding:10px;text-align:center;color:#378ADD">'+r.m.doing+'</td>' +
-        '<td style="padding:10px;text-align:center;color:#EF9F27">'+r.m.review+'</td>' +
-        '<td style="padding:10px;text-align:center;color:#639922">'+r.m.done+'</td>' +
-        '<td style="padding:10px;text-align:center;color:'+(r.m.overdue>0?'#DC2626':'var(--t3)')+'">'+r.m.overdue+'</td>' +
-        '<td style="padding:10px 14px">' +
-          '<div style="display:flex;align-items:center;gap:8px">' +
-            '<div style="flex:1;height:6px;background:var(--border);border-radius:99px;overflow:hidden">' +
-              '<div style="height:100%;border-radius:99px;background:#378ADD;width:'+r.avgPct+'%"></div>' +
-            '</div>' +
-            '<span style="font-size:11px;color:var(--t2);white-space:nowrap">'+r.avgPct+'%</span>' +
-          '</div>' +
-        '</td>' +
+    var rows = Array.from(_taSelected).map(function(email) { var emp=employees.find(function(e){return e.id===email||e.email===email;}); var m=empMap[email]||{todo:0,doing:0,review:0,done:0,overdue:0,total:0,pctSum:0}; var avgPct=m.total?Math.round(m.pctSum/m.total):0; return {emp:emp,email:email,m:m,avgPct:avgPct}; }).sort(function(a,b){ return b.m.overdue-a.m.overdue||b.m.total-a.m.total; });
+    tbody.innerHTML = rows.map(function(r) {
+      var name = r.emp ? r.emp.name : r.email;
+      var dept = r.emp ? (r.emp.dept||'') : '';
+      return '<tr style="border-bottom:0.5px solid var(--border);cursor:pointer" onclick="taEmpClick(\''+r.email+'\')" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
+        '<td style="padding:9px 14px"><div style="font-weight:500;color:var(--t1)">'+name+'</div><div style="font-size:10px;color:var(--t3)">'+dept+'</div></td>' +
+        '<td style="padding:9px 8px;text-align:center;font-weight:600">'+r.m.total+'</td>' +
+        '<td style="padding:9px 8px;text-align:center;color:#888780">'+r.m.todo+'</td>' +
+        '<td style="padding:9px 8px;text-align:center;color:#378ADD">'+r.m.doing+'</td>' +
+        '<td style="padding:9px 8px;text-align:center;color:#EF9F27">'+r.m.review+'</td>' +
+        '<td style="padding:9px 8px;text-align:center;color:#639922">'+r.m.done+'</td>' +
+        '<td style="padding:9px 8px;text-align:center;color:'+(r.m.overdue>0?'#DC2626':'var(--t3)')+'">'+r.m.overdue+'</td>' +
+        '<td style="padding:9px 14px"><div style="display:flex;align-items:center;gap:7px"><div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;background:#378ADD;width:'+r.avgPct+'%"></div></div><span style="font-size:11px;color:var(--t2);white-space:nowrap">'+r.avgPct+'%</span></div></td>' +
       '</tr>';
-    }).join('') : '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--t3)">업무가 없습니다</td></tr>';
+    }).join('') || '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--t3)">업무 없음</td></tr>';
   }
-
-  // 전체 업무 리스트
-  var statusLabel = {todo:'할 일',doing:'진행 중',review:'검토 중',done:'완료'};
-  var statusColor = {todo:'#888780',doing:'#378ADD',review:'#EF9F27',done:'#639922'};
-  var priColor = {긴급:'#E24B4A',높음:'#EF9F27',보통:'#378ADD',낮음:'#888780'};
-
-  var taskTbody = document.getElementById('ta-task-tbody');
-  if (taskTbody) {
-    taskTbody.innerHTML = filtered.length ? filtered.map(function(t) {
-      var emp = employees.find(function(e){ return e.id===t.assignee||e.email===t.assignee; });
-      var assigneeName = emp ? emp.name : (t.assignee||'-');
-      var proj = _projects.find(function(p){ return p.id===t.projectId; });
-      var projName = proj ? proj.name : '-';
-      var cl = t.checklist||[];
-      var d = cl.filter(function(c){ return c.done; }).length;
-      var pct = cl.length ? Math.round(d/cl.length*100) : (t.progress||0);
-      var isOverdue = t.due && t.due < today && t.status !== 'done';
-      return '<tr style="border-bottom:0.5px solid var(--border);cursor:pointer" onclick="taskOpenDetailFromAdmin(\''+t.id+'\')" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
-        '<td style="padding:10px 14px;font-weight:500;color:var(--t1);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+( t.title||'')+'</td>' +
-        '<td style="padding:10px;color:var(--t2);max-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+projName+'</td>' +
-        '<td style="padding:10px;text-align:center"><span style="font-size:11px;padding:2px 8px;border-radius:99px;background:'+(statusColor[t.status]||'#888')+'22;color:'+(statusColor[t.status]||'#888')+'">'+(statusLabel[t.status]||t.status)+'</span></td>' +
-        '<td style="padding:10px;text-align:center"><span style="font-size:11px;color:'+(priColor[t.priority||'보통'])+'">'+(t.priority||'보통')+'</span></td>' +
-        '<td style="padding:10px;text-align:center;color:var(--t2)">'+assigneeName+'</td>' +
-        '<td style="padding:10px;text-align:center;color:'+(isOverdue?'#DC2626':'var(--t2)')+'">'+( t.due||'-')+'</td>' +
-        '<td style="padding:10px 14px">' +
-          '<div style="display:flex;align-items:center;gap:6px">' +
-            '<div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden">' +
-              '<div style="height:100%;border-radius:99px;background:'+(pct===100?'#22c55e':'#378ADD')+';width:'+pct+'%"></div>' +
-            '</div>' +
-            '<span style="font-size:11px;color:var(--t2)">'+pct+'%</span>' +
-          '</div>' +
-        '</td>' +
-      '</tr>';
-    }).join('') : '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--t3)">업무가 없습니다</td></tr>';
-  }
-}
-
-function taskAdminEmpFilter(email) {
-  // 해당 직원 클릭 시 업무 리스트 필터
-  var search = document.getElementById('ta-search');
-  var emp = employees.find(function(e){ return e.id===email||e.email===email; });
-  if (search && emp) { search.value = ''; }
-  // 담당자 기준으로 리스트 필터링
-  var tbody = document.getElementById('ta-task-tbody');
-  if (!tbody) return;
-  var today = new Date().toISOString().substring(0,10);
-  var statusLabel = {todo:'할 일',doing:'진행 중',review:'검토 중',done:'완료'};
-  var statusColor = {todo:'#888780',doing:'#378ADD',review:'#EF9F27',done:'#639922'};
-  var priColor = {긴급:'#E24B4A',높음:'#EF9F27',보통:'#378ADD',낮음:'#888780'};
-  var filtered = _tasks.filter(function(t){ return t.assignee === email; });
-  tbody.innerHTML = filtered.length ? filtered.map(function(t) {
+  var pageSize=_taPageSize, totalPages=Math.ceil(filtered.length/pageSize);
+  if(_taPage>totalPages)_taPage=1;
+  var pageItems=filtered.slice((_taPage-1)*pageSize,_taPage*pageSize);
+  var sL={todo:'할 일',doing:'진행 중',review:'검토 중',done:'완료'}, sC={todo:'#888780',doing:'#378ADD',review:'#EF9F27',done:'#639922'}, pC={긴급:'#E24B4A',높음:'#EF9F27',보통:'#378ADD',낮음:'#888780'};
+  var taskTbody=document.getElementById('ta-task-tbody');
+  if (taskTbody) taskTbody.innerHTML = pageItems.map(function(t) {
+    var emp = employees.find(function(e){ return e.id===t.assignee||e.email===t.assignee; });
     var proj = _projects.find(function(p){ return p.id===t.projectId; });
-    var projName = proj ? proj.name : '-';
-    var cl = t.checklist||[];
-    var d = cl.filter(function(c){ return c.done; }).length;
+    var cl = t.checklist||[]; var d = cl.filter(function(c){ return c.done; }).length;
     var pct = cl.length ? Math.round(d/cl.length*100) : (t.progress||0);
-    var isOverdue = t.due && t.due < today && t.status !== 'done';
-    return '<tr style="border-bottom:0.5px solid var(--border);cursor:pointer;background:var(--acd)" onclick="taskOpenDetailFromAdmin(\''+t.id+'\')" onmouseover="this.style.background=\'var(--acd)\'" onmouseout="this.style.background=\'var(--acd)\'">' +
-      '<td style="padding:10px 14px;font-weight:500;color:var(--t1)">'+( t.title||'')+'</td>' +
-      '<td style="padding:10px;color:var(--t2)">'+projName+'</td>' +
-      '<td style="padding:10px;text-align:center"><span style="font-size:11px;padding:2px 8px;border-radius:99px;background:'+(statusColor[t.status]||'#888')+'22;color:'+(statusColor[t.status]||'#888')+'">'+(statusLabel[t.status]||t.status)+'</span></td>' +
-      '<td style="padding:10px;text-align:center;color:'+(priColor[t.priority||'보통'])+'">'+(t.priority||'보통')+'</td>' +
-      '<td style="padding:10px;text-align:center;color:var(--ac);font-weight:500">'+(emp?emp.name:email)+'</td>' +
-      '<td style="padding:10px;text-align:center;color:'+(isOverdue?'#DC2626':'var(--t2)')+'">'+( t.due||'-')+'</td>' +
-      '<td style="padding:10px 14px"><div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;background:'+(pct===100?'#22c55e':'#378ADD')+';width:'+pct+'%"></div></div><span style="font-size:11px;color:var(--t2)">'+pct+'%</span></div></td>' +
+    var isOD = t.due && t.due < today && t.status !== 'done';
+    return '<tr style="border-bottom:0.5px solid var(--border);cursor:pointer" onclick="taskOpenDetail(\''+t.id+'\')" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
+      '<td style="padding:9px 14px;font-weight:500;color:var(--t1);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(t.title||'')+'</td>' +
+      '<td style="padding:9px 8px;color:var(--t2);max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(proj?proj.name:'-')+'</td>' +
+      '<td style="padding:9px 8px;text-align:center"><span style="font-size:10px;padding:2px 6px;border-radius:99px;background:'+(sC[t.status]||'#888')+'22;color:'+(sC[t.status]||'#888')+'">'+(sL[t.status]||t.status)+'</span></td>' +
+      '<td style="padding:9px 8px;text-align:center;font-size:11px;color:'+(pC[t.priority||'보통'])+'">'+(t.priority||'보통')+'</td>' +
+      '<td style="padding:9px 8px;text-align:center;color:var(--t2)">'+(emp?emp.name:'-')+'</td>' +
+      '<td style="padding:9px 8px;text-align:center;color:'+(isOD?'#DC2626':'var(--t2)')+'">'+(t.due||'-')+'</td>' +
+      '<td style="padding:9px 14px"><div style="display:flex;align-items:center;gap:5px"><div style="flex:1;height:4px;background:var(--border);border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;background:'+(pct===100?'#22c55e':'#378ADD')+';width:'+pct+'%"></div></div><span style="font-size:10px;color:var(--t2)">'+pct+'%</span></div></td>' +
     '</tr>';
-  }).join('') : '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--t3)">업무가 없습니다</td></tr>';
-  // 스크롤
-  var el = document.getElementById('ta-task-list');
-  if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  }).join('') || '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--t3)">업무 없음</td></tr>';
+
+  var pg = document.getElementById('ta-pagination');
+  if (pg) {
+    pg.style.display = totalPages > 1 ? 'flex' : 'none';
+    document.getElementById('ta-page-info').textContent = '총 '+filtered.length+'개 · '+_taPage+'/'+totalPages+' 페이지';
+    var btnHtml = '';
+    if (_taPage > 1) btnHtml += '<button onclick="taGoPage('+(_taPage-1)+')" style="padding:4px 10px;border:0.5px solid var(--border);border-radius:5px;cursor:pointer;background:var(--white);font-size:12px">‹</button>';
+    for (var p = Math.max(1,_taPage-2); p <= Math.min(totalPages,_taPage+2); p++)
+      btnHtml += '<button onclick="taGoPage('+p+')" style="padding:4px 10px;border:0.5px solid var(--border);border-radius:5px;cursor:pointer;font-size:12px;background:'+(p===_taPage?'var(--ac)':'var(--white)')+';color:'+(p===_taPage?'#fff':'var(--t2)')+'">'+p+'</button>';
+    if (_taPage < totalPages) btnHtml += '<button onclick="taGoPage('+(_taPage+1)+')" style="padding:4px 10px;border:0.5px solid var(--border);border-radius:5px;cursor:pointer;background:var(--white);font-size:12px">›</button>';
+    document.getElementById('ta-page-btns').innerHTML = btnHtml;
+  }
 }
 
-function taskOpenDetailFromAdmin(taskId) {
-  // 업무 상세 모달 열기
-  taskOpenDetail(taskId);
+function taEmpClick(email) {
+  var taskTbody = document.getElementById('ta-task-tbody'); if (!taskTbody) return;
+  var today = new Date().toISOString().substring(0,10);
+  var sL = {todo:'할 일',doing:'진행 중',review:'검토 중',done:'완료'};
+  var sC = {todo:'#888780',doing:'#378ADD',review:'#EF9F27',done:'#639922'};
+  var pC = {긴급:'#E24B4A',높음:'#EF9F27',보통:'#378ADD',낮음:'#888780'};
+  var filtered = _tasks.filter(function(t){ return t.assignee===email; });
+  var emp = employees.find(function(e){ return e.id===email||e.email===email; });
+  taskTbody.innerHTML = filtered.map(function(t) {
+    var proj = _projects.find(function(p){ return p.id===t.projectId; });
+    var cl = t.checklist||[]; var d = cl.filter(function(c){ return c.done; }).length;
+    var pct = cl.length ? Math.round(d/cl.length*100) : (t.progress||0);
+    var isOD = t.due && t.due < today && t.status !== 'done';
+    return '<tr style="border-bottom:0.5px solid var(--border);cursor:pointer;background:var(--acd)" onclick="taskOpenDetail(\''+t.id+'\')" onmouseover="this.style.background=\'#dbeafe\'" onmouseout="this.style.background=\'var(--acd)\'">' +
+      '<td style="padding:9px 14px;font-weight:500;color:var(--t1)">'+(t.title||'')+'</td>' +
+      '<td style="padding:9px 8px;color:var(--t2)">'+(proj?proj.name:'-')+'</td>' +
+      '<td style="padding:9px 8px;text-align:center"><span style="font-size:10px;padding:2px 6px;border-radius:99px;background:'+(sC[t.status]||'#888')+'22;color:'+(sC[t.status]||'#888')+'">'+(sL[t.status]||t.status)+'</span></td>' +
+      '<td style="padding:9px 8px;text-align:center;font-size:11px;color:'+(pC[t.priority||'보통'])+'">'+(t.priority||'보통')+'</td>' +
+      '<td style="padding:9px 8px;text-align:center;color:var(--ac);font-weight:500">'+(emp?emp.name:'-')+'</td>' +
+      '<td style="padding:9px 8px;text-align:center;color:'+(isOD?'#DC2626':'var(--t2)')+'">'+( t.due||'-')+'</td>' +
+      '<td style="padding:9px 14px"><div style="display:flex;align-items:center;gap:5px"><div style="flex:1;height:4px;background:var(--border);border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;background:'+(pct===100?'#22c55e':'#378ADD')+';width:'+pct+'%"></div></div><span style="font-size:10px;color:var(--t2)">'+pct+'%</span></div></td>' +
+    '</tr>';
+  }).join('') || '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--t3)">업무 없음</td></tr>';
+  var el = document.getElementById('ta-task-list'); if (el) el.scrollIntoView({behavior:'smooth',block:'start'});
 }
+
+function taskOpenDetailFromAdmin(taskId) { taskOpenDetail(taskId); }
+
 var _dpPrefix = '';
 var _dpYear = 0;
 var _dpMonth = 0;
