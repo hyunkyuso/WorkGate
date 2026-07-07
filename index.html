@@ -16300,13 +16300,6 @@ function projectRenderGrid() {
     var canEdit = isAdmin || p.createdBy === myEmail;
     var color = p.color || '#378ADD';
 
-    // 아바타
-    var avatarsHtml = members.map(function(email, i) {
-      var emp = employees.find(function(e){ return e.id===email||e.email===email; });
-      var name = emp ? emp.name.charAt(0) : '?';
-      var colors = avatarColors[i % avatarColors.length].split(':');
-      return '<div title="'+(emp?emp.name:email)+'" style="width:22px;height:22px;border-radius:50%;font-size:8px;font-weight:600;display:flex;align-items:center;justify-content:center;background:'+colors[0]+';color:'+colors[1]+';border:2px solid var(--white);margin-left:'+(i>0?'-6px':'0')+'px">'+name+'</div>';
-    }).join('');
 
     return '<div onclick="taskOpenProject(\''+p.id+'\')" style="background:var(--white);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor=\''+color+'\';this.style.boxShadow=\'0 4px 16px rgba(0,0,0,0.08)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.boxShadow=\'none\'">' +
       '<div style="height:80px;background:'+color+';position:relative;overflow:hidden">' +
