@@ -16262,13 +16262,15 @@ function projectRenderGrid() {
   var filtered = _projects.filter(function(p) {
     if (_taskFilter === 'mine') return p.createdBy === myEmail;
     if (_taskFilter === 'shared') return (p.members||[]).indexOf(myEmail) >= 0 && p.createdBy !== myEmail;
-    // 관리자 or 프로젝트 생성자 or 프로젝트 멤버 or 해당 프로젝트 업무의 공유자/검토자
-    var isTaskParticipant = _tasks.some(function(t) {
+    if (isAdmin) return true;
+    // 일반 직원: 담당자/공유자/검토자로 포함된 업무가 있는 프로젝트만
+    return _tasks.some(function(t) {
       return t.projectId === p.id && (
-        (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail
+        t.assignee === myEmail ||
+        (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
+        t.reviewer === myEmail
       );
     });
-    return isAdmin || p.createdBy === myEmail || (p.members||[]).indexOf(myEmail) >= 0 || isTaskParticipant;
   });
 
   if (!filtered.length) {
@@ -16725,13 +16727,9 @@ function taskGetFiltered() {
     if (_currentProjectId && t.projectId !== _currentProjectId) return false;
     // 권한 체크: 관리자 or 담당자 or 공유자 or 검토자 or 프로젝트 멤버
     if (!isAdmin) {
-      var p = _projects.find(function(x){ return x.id === t.projectId; });
-      var isProjMember = p && ((p.members||[]).indexOf(myEmail) >= 0 || p.createdBy === myEmail);
       var canSee = t.assignee === myEmail ||
         (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
-        t.reviewer === myEmail ||
-        t.createdBy === myEmail ||
-        isProjMember;
+        t.reviewer === myEmail;
       if (!canSee) return false;
     }
     if (_taskFilter === 'mine') return t.assignee === myEmail;
