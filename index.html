@@ -16243,9 +16243,15 @@ var _projectMembers = [];
 var _projectColor = '#378ADD';
 
 function projectStartListener() {
-  db.collection('projects').orderBy('createdAt','desc').onSnapshot(function(snap) {
+  db.collection('projects').onSnapshot(function(snap) {
     _projects = [];
     snap.forEach(function(d){ _projects.push(Object.assign({id:d.id}, d.data())); });
+    // createdAt 기준 정렬 (없는 것은 뒤로)
+    _projects.sort(function(a,b){
+      var ta = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : 0) : 0;
+      var tb = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : 0) : 0;
+      return tb - ta;
+    });
     projectRenderGrid();
     renderDashProjectList();
   });
@@ -16260,9 +16266,9 @@ function projectRenderGrid() {
   var filtered = _projects.filter(function(p) {
     if (_taskFilter === 'mine') return p.createdBy === myEmail;
     if (_taskFilter === 'shared') return (p.members||[]).indexOf(myEmail) >= 0 && p.createdBy !== myEmail;
-    // 생성자이거나, 본인이 담당자/공유자/검토자인 업무가 있는 프로젝트
-    // createdBy 없는 기존 데이터도 관리자면 표시
-    if (isAdmin && !p.createdBy) return true;
+    // 관리자는 전체 프로젝트 표시
+    if (isAdmin) return true;
+    // 일반 직원: 생성자이거나 담당자/공유자/검토자인 업무가 있는 프로젝트
     if (p.createdBy === myEmail) return true;
     return _tasks.some(function(t) {
       return t.projectId === p.id && (
@@ -16717,12 +16723,13 @@ function taskGetFiltered() {
   return _tasks.filter(function(t) {
     if (_currentProjectId && t.projectId !== _currentProjectId) return false;
     // 권한 체크: 관리자 or 담당자 or 공유자 or 검토자 or 프로젝트 멤버
-    // 관리자 포함 모든 사용자: 담당자/공유자/검토자만 볼 수 있음
-    // (전체 현황은 업무현황 페이지에서 확인)
-    var canSee = t.assignee === myEmail ||
-      (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
-      t.reviewer === myEmail;
-    if (!canSee) return false;
+    // 관리자는 현재 프로젝트 내 전체 업무 표시, 일반 직원은 본인 관련만
+    if (!isAdmin) {
+      var canSee = t.assignee === myEmail ||
+        (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
+        t.reviewer === myEmail;
+      if (!canSee) return false;
+    }
     if (_taskFilter === 'mine') return t.assignee === myEmail;
     if (_taskFilter === 'shared') return (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail;
     if (_taskFilter === 'urgent') return t.due && t.due <= new Date(Date.now()+3*86400000).toISOString().substring(0,10) && t.status !== 'done';
