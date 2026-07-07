@@ -16262,8 +16262,7 @@ function projectRenderGrid() {
   var filtered = _projects.filter(function(p) {
     if (_taskFilter === 'mine') return p.createdBy === myEmail;
     if (_taskFilter === 'shared') return (p.members||[]).indexOf(myEmail) >= 0 && p.createdBy !== myEmail;
-    if (isAdmin) return true;
-    // 일반 직원: 담당자/공유자/검토자로 포함된 업무가 있는 프로젝트만
+    // 관리자 포함 모두: 본인이 담당자/공유자/검토자인 업무가 있는 프로젝트만
     return _tasks.some(function(t) {
       return t.projectId === p.id && (
         t.assignee === myEmail ||
@@ -16726,12 +16725,12 @@ function taskGetFiltered() {
   return _tasks.filter(function(t) {
     if (_currentProjectId && t.projectId !== _currentProjectId) return false;
     // 권한 체크: 관리자 or 담당자 or 공유자 or 검토자 or 프로젝트 멤버
-    if (!isAdmin) {
-      var canSee = t.assignee === myEmail ||
-        (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
-        t.reviewer === myEmail;
-      if (!canSee) return false;
-    }
+    // 관리자 포함 모든 사용자: 담당자/공유자/검토자만 볼 수 있음
+    // (전체 현황은 업무현황 페이지에서 확인)
+    var canSee = t.assignee === myEmail ||
+      (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
+      t.reviewer === myEmail;
+    if (!canSee) return false;
     if (_taskFilter === 'mine') return t.assignee === myEmail;
     if (_taskFilter === 'shared') return (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail;
     if (_taskFilter === 'urgent') return t.due && t.due <= new Date(Date.now()+3*86400000).toISOString().substring(0,10) && t.status !== 'done';
