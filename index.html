@@ -2557,11 +2557,21 @@ select.form-input{cursor:pointer}
     <div style="border-top:0.5px solid var(--border);padding:16px 20px">
       <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:12px">💬 댓글</div>
       <div id="task-comments-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:14px;max-height:300px;overflow-y:auto"></div>
-      <div style="display:flex;gap:8px;align-items:flex-end">
-        <textarea id="task-comment-input" class="form-input" style="flex:1;height:60px;resize:none;font-size:13px" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&event.ctrlKey){taskAddComment();event.preventDefault()}"></textarea>
-        <button onclick="taskAddComment()" style="padding:8px 14px;font-size:13px;background:var(--ac);color:#fff;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;height:60px">전송</button>
+      <!-- 첨부 파일 미리보기 -->
+      <div id="task-comment-files" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
+      <div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden;background:var(--white)">
+        <textarea id="task-comment-input" class="form-input" style="border:none;border-radius:0;height:60px;resize:none;font-size:13px;outline:none;border-bottom:0.5px solid var(--border)" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&event.ctrlKey){taskAddComment();event.preventDefault()}"></textarea>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--surface)">
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--t2);cursor:pointer;padding:4px 8px;border-radius:6px" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='none'">
+            📎 파일
+            <input type="file" id="task-comment-file-input" multiple style="display:none" onchange="taskCommentFileSelect(this)">
+          </label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:10px;color:var(--t3)">Ctrl+Enter</span>
+            <button onclick="taskAddComment()" style="padding:5px 14px;font-size:13px;background:var(--ac);color:#fff;border:none;border-radius:6px;cursor:pointer">전송</button>
+          </div>
+        </div>
       </div>
-      <div style="font-size:10px;color:var(--t3);margin-top:4px">Ctrl+Enter로 전송</div>
     </div>
   </div>
 </div>
@@ -12781,6 +12791,7 @@ function closeModal(id) {
   if (id === 'task-detail-modal') {
     if (_commentsUnsubscribe) { _commentsUnsubscribe(); _commentsUnsubscribe = null; }
     _commentTaskId = null;
+    _commentFiles = [];
   }
 }
 
@@ -17184,7 +17195,16 @@ function taskRenderComments(comments) {
           '<span style="font-size:10px;color:var(--t3)">'+timeStr+'</span>' +
           (isMe ? '<button onclick="taskDeleteComment(\''+c.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:10px;padding:0">삭제</button>' : '') +
         '</div>' +
-        '<div style="padding:8px 12px;background:'+(isMe?'var(--acd)':'var(--surface)')+';border-radius:'+(isMe?'12px 4px 12px 12px':'4px 12px 12px 12px')+';border:0.5px solid var(--border);font-size:13px;color:var(--t1);line-height:1.5;word-break:break-word">'+c.text.replace(/\n/g,'<br>')+'</div>' +
+        '<div style="padding:8px 12px;background:'+(isMe?'var(--acd)':'var(--surface)')+';border-radius:'+(isMe?'12px 4px 12px 12px':'4px 12px 12px 12px')+';border:0.5px solid var(--border);font-size:13px;color:var(--t1);line-height:1.5;word-break:break-word">'+(c.text?c.text.replace(/\n/g,'<br>'):'')+'</div>' +
+        // 첨부파일
+        ((c.attachments&&c.attachments.length) ?
+          '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;'+(isMe?'justify-content:flex-end':'')+'">' +
+            c.attachments.map(function(f) {
+              var ext = (f.name||'').split('.').pop().toLowerCase();
+              var icon = {pdf:'📄',doc:'📝',docx:'📝',xls:'📊',xlsx:'📊',jpg:'🖼',jpeg:'🖼',png:'🖼',zip:'📦'}[ext]||'📎';
+              return '<a href="'+(f.driveLink||'#')+'" target="_blank" style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;background:var(--white);border:0.5px solid var(--border);border-radius:6px;font-size:11px;color:var(--t2);text-decoration:none">'+icon+' '+f.name+'</a>';
+            }).join('') +
+          '</div>' : '') +
       '</div>' +
     '</div>';
   }).join('');
@@ -17193,31 +17213,84 @@ function taskRenderComments(comments) {
   el.scrollTop = el.scrollHeight;
 }
 
+var _commentFiles = []; // 댓글에 첨부할 파일 목록
+
+function taskCommentFileSelect(input) {
+  var files = Array.from(input.files);
+  input.value = '';
+  if (!files.length) return;
+  files.forEach(function(f) { _commentFiles.push(f); });
+  taskRenderCommentFiles();
+}
+
+function taskRenderCommentFiles() {
+  var el = document.getElementById('task-comment-files');
+  if (!el) return;
+  el.innerHTML = _commentFiles.map(function(f, i) {
+    var ext = f.name.split('.').pop().toLowerCase();
+    var icon = {pdf:'📄',doc:'📝',docx:'📝',xls:'📊',xlsx:'📊',jpg:'🖼',jpeg:'🖼',png:'🖼',zip:'📦'}[ext]||'📎';
+    return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--surface);border:0.5px solid var(--border);border-radius:6px;font-size:11px;color:var(--t2)">' +
+      icon+' '+f.name+
+      '<button onclick="taskRemoveCommentFile('+i+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:11px;padding:0;line-height:1">✕</button></span>';
+  }).join('');
+}
+
+function taskRemoveCommentFile(i) {
+  _commentFiles.splice(i, 1);
+  taskRenderCommentFiles();
+}
+
 function taskAddComment() {
   var input = document.getElementById('task-comment-input');
   var text = input ? input.value.trim() : '';
-  if (!text || !_commentTaskId) return;
+  if (!text && !_commentFiles.length) return;
+  if (!_commentTaskId) return;
   var myEmail = state.user ? state.user.email : '';
   var emp = employees.find(function(e){ return e.id===myEmail||e.email===myEmail; });
 
-  db.collection('tasks').doc(_commentTaskId).collection('comments').add({
-    text: text,
-    authorEmail: myEmail,
-    authorName: emp ? emp.name : myEmail,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function() {
-    input.value = '';
-    // 카드 댓글 수 업데이트
-    var t = _tasks.find(function(x){ return x.id === _commentTaskId; });
-    var curCount = t ? (t.commentCount || 0) : 0;
-    db.collection('tasks').doc(_commentTaskId).update({ commentCount: curCount + 1 });
-  }).catch(function(e){ showToast('❌ 댓글 저장 실패: ' + e.message); });
+  var doSave = function(attachments) {
+    db.collection('tasks').doc(_commentTaskId).collection('comments').add({
+      text: text,
+      authorEmail: myEmail,
+      authorName: emp ? emp.name : myEmail,
+      attachments: attachments,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+      if (input) input.value = '';
+      _commentFiles = [];
+      taskRenderCommentFiles();
+      // 카드 댓글 수 업데이트
+      var t = _tasks.find(function(x){ return x.id === _commentTaskId; });
+      var curCount = t ? (t.commentCount || 0) : 0;
+      db.collection('tasks').doc(_commentTaskId).update({ commentCount: curCount + 1 });
+    }).catch(function(e){ showToast('❌ 댓글 저장 실패: ' + e.message); });
+  };
+
+  // 파일 있으면 드라이브에 업로드 후 저장
+  if (_commentFiles.length) {
+    driveEnsureToken().then(function(ok) {
+      if (!ok) { doSave([]); return; }
+      Promise.all(_commentFiles.map(function(f){ return driveUploadTaskFile(f); }))
+        .then(function(results) { doSave(results.filter(function(r){ return r && r.driveId; })); })
+        .catch(function() { doSave([]); });
+    });
+  } else {
+    doSave([]);
+  }
 }
 
 function taskDeleteComment(commentId) {
   if (!_commentTaskId) return;
   if (!confirm('댓글을 삭제하시겠습니까?')) return;
   db.collection('tasks').doc(_commentTaskId).collection('comments').doc(commentId).delete()
+    .then(function() {
+      // 카드 댓글 수 감소
+      var t = _tasks.find(function(x){ return x.id === _commentTaskId; });
+      var curCount = t ? (t.commentCount || 0) : 0;
+      if (curCount > 0) {
+        db.collection('tasks').doc(_commentTaskId).update({ commentCount: curCount - 1 });
+      }
+    })
     .catch(function(e){ showToast('❌ 삭제 실패: ' + e.message); });
 }
 
