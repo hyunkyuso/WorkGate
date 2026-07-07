@@ -2431,11 +2431,19 @@ select.form-input{cursor:pointer}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
           <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">시작일</div>
-          <input id="task-start" type="date" class="form-input" style="font-size:13px">
+          <div style="display:flex;gap:4px">
+            <select id="task-start-y" class="form-input" style="flex:2;font-size:12px;padding:6px 4px"></select>
+            <select id="task-start-m" class="form-input" style="flex:1;font-size:12px;padding:6px 4px"></select>
+            <select id="task-start-d" class="form-input" style="flex:1;font-size:12px;padding:6px 4px"></select>
+          </div>
         </div>
         <div>
           <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">마감일</div>
-          <input id="task-due" type="date" class="form-input" style="font-size:13px">
+          <div style="display:flex;gap:4px">
+            <select id="task-due-y" class="form-input" style="flex:2;font-size:12px;padding:6px 4px"></select>
+            <select id="task-due-m" class="form-input" style="flex:1;font-size:12px;padding:6px 4px"></select>
+            <select id="task-due-d" class="form-input" style="flex:1;font-size:12px;padding:6px 4px"></select>
+          </div>
         </div>
       </div>
 
@@ -16726,8 +16734,9 @@ function openTaskModal(defaultStatus) {
   taskInitPriBtns('보통');
   var rph = document.getElementById('task-reviewer-placeholder'); if (rph) rph.style.display = '';
   var sph = document.getElementById('task-shared-placeholder'); if (sph) sph.style.display = '';
-  document.getElementById('task-start').value = '';
-  document.getElementById('task-due').value = '';
+  initDateSelects();
+  setDateVal('task-start', '');
+  setDateVal('task-due', '');
   document.getElementById('task-shared-tags').innerHTML = '';
   document.getElementById('task-shared-results').style.display = 'none';
   document.getElementById('task-shared-search').value = '';
@@ -17035,6 +17044,60 @@ function taskRenderDetailFiles(files) {
     '</div></div>';
 }
 
+// ── 날짜 select 유틸 ──
+function initDateSelects() {
+  var curYear = new Date().getFullYear();
+  var years = '<option value="">년</option>';
+  for (var y = curYear + 5; y >= 2000; y--) years += '<option value="'+y+'">'+y+'</option>';
+  var months = '<option value="">월</option>';
+  for (var m = 1; m <= 12; m++) months += '<option value="'+String(m).padStart(2,'0')+'">'+m+'월</option>';
+
+  ['task-start-y','task-due-y'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.innerHTML = years;
+  });
+  ['task-start-m','task-due-m'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) { el.innerHTML = months; el.onchange = function(){ updateDays(id.replace('-m','')); }; }
+  });
+  ['task-start-y','task-due-y'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.onchange = function(){ updateDays(id.replace('-y','')); };
+  });
+  updateDays('task-start'); updateDays('task-due');
+}
+
+function updateDays(prefix) {
+  var yEl = document.getElementById(prefix+'-y');
+  var mEl = document.getElementById(prefix+'-m');
+  var dEl = document.getElementById(prefix+'-d');
+  if (!dEl) return;
+  var y = parseInt(yEl&&yEl.value) || new Date().getFullYear();
+  var m = parseInt(mEl&&mEl.value) || 1;
+  var maxDay = new Date(y, m, 0).getDate();
+  var curD = dEl.value;
+  var days = '<option value="">일</option>';
+  for (var d = 1; d <= maxDay; d++) days += '<option value="'+String(d).padStart(2,'0')+'">'+d+'일</option>';
+  dEl.innerHTML = days;
+  if (curD && parseInt(curD) <= maxDay) dEl.value = curD;
+}
+
+function getDateVal(prefix) {
+  var y = document.getElementById(prefix+'-y').value;
+  var m = document.getElementById(prefix+'-m').value;
+  var d = document.getElementById(prefix+'-d').value;
+  if (!y || !m || !d) return '';
+  return y+'-'+m+'-'+d;
+}
+
+function setDateVal(prefix, val) {
+  if (!val) { ['y','m','d'].forEach(function(p){ var el=document.getElementById(prefix+'-'+p); if(el) el.value=''; }); return; }
+  var parts = val.split('-');
+  var yEl = document.getElementById(prefix+'-y'); if(yEl) yEl.value = parts[0]||'';
+  var mEl = document.getElementById(prefix+'-m'); if(mEl) mEl.value = parts[1]||'';
+  updateDays(prefix);
+  var dEl = document.getElementById(prefix+'-d'); if(dEl) dEl.value = parts[2]||'';
+}
+
 function taskSave() {
   var title = document.getElementById('task-title').value.trim();
   if (!title) { showToast('❌ 업무명을 입력해주세요'); return; }
@@ -17045,8 +17108,8 @@ function taskSave() {
     status: document.getElementById('task-status').value,
     projectId: _currentProjectId || '',
     project: (function(){ var p = _projects.find(function(x){ return x.id===_currentProjectId; }); return p ? p.name : ''; })(),
-    start: document.getElementById('task-start').value,
-    due: document.getElementById('task-due').value,
+    start: getDateVal('task-start'),
+    due: getDateVal('task-due'),
     assignee: document.getElementById('task-assignee').value,
     reviewer: document.getElementById('task-reviewer').value,
     sharedWith: _taskSharedWith.slice(),
@@ -17446,8 +17509,9 @@ function taskEditFromDetail() {
   document.getElementById('task-priority').value = t.priority||'보통';
   taskInitStatusBtns(t.status||'todo');
   taskInitPriBtns(t.priority||'보통');
-  document.getElementById('task-start').value = t.start||'';
-  document.getElementById('task-due').value = t.due||'';
+  initDateSelects();
+  setDateVal('task-start', t.start||'');
+  setDateVal('task-due', t.due||'');
   var empOptions2 = employees.filter(function(e){ return e.status!=='퇴직'; }).map(function(e){
     var email = e.id||e.email||'';
     return '<option value="'+email+'"'+(email===t.assignee?' selected':'')+'>'+e.name+'</option>';
