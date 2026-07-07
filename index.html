@@ -2379,99 +2379,127 @@ select.form-input{cursor:pointer}
 
 <!-- 업무 등록/수정 모달 -->
 <div id="task-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('task-modal')">
-  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">
-    <div class="modal-header">
-      <div class="modal-title" id="task-modal-title">새 업무 등록</div>
+  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;border-radius:16px">
+
+    <!-- 헤더 -->
+    <div class="modal-header" style="padding:16px 20px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:16px">☑️</span>
+        <div class="modal-title" id="task-modal-title" style="font-size:15px;font-weight:500">새 업무 등록</div>
+      </div>
       <button class="modal-close" onclick="closeModal('task-modal')">✕</button>
     </div>
-    <div style="padding:4px 0">
-      <div style="margin-bottom:12px">
-        <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">업무명 *</label>
-        <input id="task-title" type="text" class="form-input" placeholder="업무 제목을 입력하세요" oninput="taskTitleChanged()">
+
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:16px">
+
+      <!-- 기본 정보 -->
+      <div>
+        <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">업무명 *</div>
+        <input id="task-title" type="text" class="form-input" style="font-size:14px;font-weight:500" placeholder="업무 제목을 입력하세요" oninput="taskTitleChanged()">
       </div>
-      <div style="margin-bottom:12px">
-        <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">설명</label>
-        <textarea id="task-desc" class="form-input" style="height:72px;resize:none" placeholder="업무 내용, 목적, 참고사항 등"></textarea>
+
+      <div>
+        <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">설명</div>
+        <textarea id="task-desc" class="form-input" style="height:68px;resize:none" placeholder="업무 내용, 목적, 참고사항 등"></textarea>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-        <div>
-          <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">우선순위</label>
-          <select id="task-priority" class="form-input" style="font-size:13px">
-            <option value="긴급">🔴 긴급</option>
-            <option value="높음">🟠 높음</option>
-            <option value="보통" selected>🔵 보통</option>
-            <option value="낮음">⚪ 낮음</option>
-          </select>
+
+      <!-- 우선순위 -->
+      <div>
+        <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">우선순위</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px">
+          <button type="button" onclick="taskSelectPriority('긴급',this)" class="task-pri-btn" style="padding:7px 4px;font-size:11px;font-weight:500;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2)">🔴 긴급</button>
+          <button type="button" onclick="taskSelectPriority('높음',this)" class="task-pri-btn" style="padding:7px 4px;font-size:11px;font-weight:500;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2)">🟠 높음</button>
+          <button type="button" onclick="taskSelectPriority('보통',this)" class="task-pri-btn" style="padding:7px 4px;font-size:11px;font-weight:500;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2)">🔵 보통</button>
+          <button type="button" onclick="taskSelectPriority('낮음',this)" class="task-pri-btn" style="padding:7px 4px;font-size:11px;font-weight:500;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2)">⚪ 낮음</button>
         </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">상태</label>
-          <div style="display:flex;gap:4px">
-            <button type="button" onclick="taskSelectStatus('todo',this)" class="task-status-btn" style="flex:1;padding:6px 4px;font-size:11px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--t2)">📌 할 일</button>
-            <button type="button" onclick="taskSelectStatus('doing',this)" class="task-status-btn" style="flex:1;padding:6px 4px;font-size:11px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--t2)">🔵 진행 중</button>
-            <button type="button" onclick="taskSelectStatus('review',this)" class="task-status-btn" style="flex:1;padding:6px 4px;font-size:11px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--t2)">👀 검토 중</button>
-            <button type="button" onclick="taskSelectStatus('done',this)" class="task-status-btn" style="flex:1;padding:6px 4px;font-size:11px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--t2)">✅ 완료</button>
-          </div>
-          <input type="hidden" id="task-status" value="todo">
-        </div>
+        <input type="hidden" id="task-priority" value="보통">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+
+      <!-- 상태 -->
+      <div>
+        <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">상태</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px">
+          <button type="button" onclick="taskSelectStatus('todo',this)" class="task-status-btn" style="padding:7px 4px;font-size:11px;font-weight:500;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2)">📌 할 일</button>
+          <button type="button" onclick="taskSelectStatus('doing',this)" class="task-status-btn" style="padding:7px 4px;font-size:11px;font-weight:500;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2)">🔵 진행 중</button>
+          <button type="button" onclick="taskSelectStatus('review',this)" class="task-status-btn" style="padding:7px 4px;font-size:11px;font-weight:500;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2)">👀 검토 중</button>
+          <button type="button" onclick="taskSelectStatus('done',this)" class="task-status-btn" style="padding:7px 4px;font-size:11px;font-weight:500;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2)">✅ 완료</button>
+        </div>
+        <input type="hidden" id="task-status" value="todo">
+      </div>
+
+      <!-- 날짜 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
-          <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">시작일</label>
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">시작일</div>
           <input id="task-start" type="date" class="form-input" style="font-size:13px">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">마감일</label>
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">마감일</div>
           <input id="task-due" type="date" class="form-input" style="font-size:13px">
         </div>
       </div>
 
-      <!-- 담당자 -->
-      <div style="margin-bottom:12px">
-        <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">담당자</label>
-        <select id="task-assignee" class="form-input" style="font-size:13px"></select>
-      </div>
+      <!-- 담당자 및 협업자 섹션 -->
+      <div style="border-top:0.5px solid var(--border);padding-top:16px">
+        <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px">담당자 및 협업자</div>
 
-      <!-- 검토자 -->
-      <div style="margin-bottom:12px">
-        <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">검토자 <span style="font-size:10px;color:var(--t3);font-weight:400">(검토자가 검토 완료 체크 시 "검토 중"으로 자동 이동)</span></label>
-        <div style="display:flex;gap:6px;margin-bottom:5px">
-          <input id="task-reviewer-search" type="text" class="form-input" style="flex:1;font-size:13px" placeholder="이름 검색..." oninput="taskReviewerSearch()">
-          <button type="button" onclick="openReviewerOrgPicker()" style="padding:6px 12px;font-size:12px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2);white-space:nowrap">🏢 조직도</button>
+        <!-- 담당자 -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">담당자</div>
+          <select id="task-assignee" class="form-input" style="font-size:13px"></select>
         </div>
-        <div id="task-reviewer-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:120px;overflow-y:auto;margin-bottom:6px"></div>
-        <div id="task-reviewer-tag" style="min-height:28px"></div>
-        <input type="hidden" id="task-reviewer" value="">
-      </div>
 
-      <!-- 공유자 -->
-      <div style="margin-bottom:12px">
-        <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">공유자 (협업자/열람자)</label>
-        <input id="task-shared-search" type="text" class="form-input" style="font-size:13px;margin-bottom:5px" placeholder="이름 검색..." oninput="taskSearchShared()">
-        <div id="task-shared-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:120px;overflow-y:auto;margin-bottom:5px"></div>
-        <button onclick="openTaskOrgPicker()" style="width:100%;padding:7px;font-size:12px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2);margin-bottom:6px">🏢 조직도에서 선택</button>
-        <div id="task-shared-tags" style="display:flex;flex-wrap:wrap;gap:5px;min-height:28px"></div>
-      </div>
-
-      <!-- 체크리스트 -->
-      <div style="margin-bottom:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <label style="font-size:11px;font-weight:600;color:var(--t2)">체크리스트</label>
-          <button onclick="taskAiChecklist()" style="font-size:11px;padding:3px 10px;background:var(--acd);color:var(--ac);border:0.5px solid var(--ac);border-radius:6px;cursor:pointer" id="task-ai-checklist-btn">🤖 AI 제안</button>
+        <!-- 검토자 -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">검토자</div>
+            <span style="font-size:10px;color:var(--t3)">검토 완료 시 → 완료 이동</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:6px">
+            <input id="task-reviewer-search" type="text" class="form-input" style="flex:1;font-size:13px" placeholder="이름 검색..." oninput="taskReviewerSearch()">
+            <button type="button" onclick="openReviewerOrgPicker()" style="padding:6px 12px;font-size:12px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2);white-space:nowrap;display:flex;align-items:center;gap:4px">🏢 조직도</button>
+          </div>
+          <div id="task-reviewer-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:120px;overflow-y:auto;margin-bottom:6px"></div>
+          <div style="padding:8px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;min-height:36px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+            <div id="task-reviewer-tag"></div>
+            <span id="task-reviewer-placeholder" style="font-size:12px;color:var(--t3)">검토자 없음</span>
+          </div>
+          <input type="hidden" id="task-reviewer" value="">
         </div>
-        <div id="task-checklist-wrap" style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:8px 10px;min-height:40px">
-          <div id="task-checklist-items"></div>
-          <div style="display:flex;gap:6px;margin-top:6px">
-            <input id="task-checklist-input" type="text" class="form-input" style="font-size:12px;flex:1" placeholder="항목 입력 후 Enter" onkeydown="if(event.key==='Enter'){taskAddChecklistItem();event.preventDefault()}">
-            <button onclick="taskAddChecklistItem()" style="padding:5px 10px;font-size:12px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--white)">추가</button>
+
+        <!-- 공유자 -->
+        <div>
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">공유자</div>
+          <div style="display:flex;gap:6px;margin-bottom:6px">
+            <input id="task-shared-search" type="text" class="form-input" style="flex:1;font-size:13px" placeholder="이름 검색..." oninput="taskSearchShared()">
+            <button type="button" onclick="openTaskOrgPicker()" style="padding:6px 12px;font-size:12px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2);white-space:nowrap;display:flex;align-items:center;gap:4px">🏢 조직도</button>
+          </div>
+          <div id="task-shared-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:120px;overflow-y:auto;margin-bottom:6px"></div>
+          <div style="padding:8px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;min-height:36px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+            <div id="task-shared-tags" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+            <span id="task-shared-placeholder" style="font-size:12px;color:var(--t3)">공유자 없음</span>
           </div>
         </div>
-        <div id="task-ai-loading" style="display:none;font-size:12px;color:var(--t3);padding:6px 0;text-align:center">🤖 AI가 체크리스트를 생성 중입니다...</div>
       </div>
 
-      <!-- 수동 진행률 (체크리스트 없을 때만 표시) -->
-      <div id="task-manual-progress-wrap" style="margin-bottom:12px">
+      <!-- 체크리스트 섹션 -->
+      <div style="border-top:0.5px solid var(--border);padding-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px">체크리스트</div>
+          <button onclick="taskAiChecklist()" id="task-ai-checklist-btn" style="display:flex;align-items:center;gap:4px;font-size:11px;padding:4px 10px;background:var(--acd);color:var(--ac);border:0.5px solid var(--ac);border-radius:6px;cursor:pointer">✨ AI 제안</button>
+        </div>
+        <div id="task-checklist-items"></div>
+        <div id="task-ai-loading" style="display:none;font-size:12px;color:var(--t3);padding:6px 0;text-align:center">✨ AI가 체크리스트를 생성 중입니다...</div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <input id="task-checklist-input" type="text" class="form-input" style="font-size:12px;flex:1" placeholder="항목 입력 후 Enter" onkeydown="if(event.key==='Enter'){taskAddChecklistItem();event.preventDefault()}">
+          <button onclick="taskAddChecklistItem()" style="padding:6px 12px;font-size:12px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2)">추가</button>
+        </div>
+      </div>
+
+      <!-- 수동 진행률 -->
+      <div id="task-manual-progress-wrap">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <label style="font-size:11px;font-weight:600;color:var(--t2)">진행률 (수동)</label>
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">진행률 (수동)</div>
           <span id="task-progress-display" style="font-size:12px;font-weight:600;color:var(--ac)">0%</span>
         </div>
         <input type="range" id="task-progress" min="0" max="100" step="5" value="0"
@@ -2482,21 +2510,31 @@ select.form-input{cursor:pointer}
         </div>
       </div>
 
-      <!-- 파일 첨부 -->
-      <div style="margin-bottom:4px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <label style="font-size:11px;font-weight:600;color:var(--t2)">파일 첨부 (구글 드라이브)</label>
-          <label style="font-size:12px;padding:4px 10px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;color:var(--t2);background:var(--surface)">
+      <!-- 파일 첨부 섹션 -->
+      <div style="border-top:0.5px solid var(--border);padding-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px">파일 첨부</div>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;padding:4px 10px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;color:var(--t2);background:var(--surface)">
             📎 파일 선택
             <input type="file" id="task-file-input" multiple style="display:none" onchange="taskFileSelected(this)">
           </label>
         </div>
-        <div id="task-file-list" style="display:flex;flex-direction:column;gap:5px"></div>
-        <div id="task-file-uploading" style="display:none;font-size:12px;color:var(--t3);padding:4px 0">⬆ 드라이브에 업로드 중...</div>
+        <div id="task-file-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div id="task-file-uploading" style="display:none;font-size:12px;color:var(--t3);padding:4px 0;text-align:center">⬆ 드라이브에 업로드 중...</div>
+        <!-- 드래그앤드롭 영역 -->
+        <div id="task-drop-zone" style="border:1.5px dashed var(--border);border-radius:10px;padding:16px;text-align:center;color:var(--t3);font-size:12px;cursor:pointer;transition:all .15s;margin-top:8px"
+          onclick="document.getElementById('task-file-input').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--ac)';this.style.background='var(--acd)'"
+          ondragleave="this.style.borderColor='var(--border)';this.style.background='none'"
+          ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='none';taskFileSelected({files:event.dataTransfer.files})">
+          <div style="font-size:20px;margin-bottom:4px">☁️</div>
+          드래그하거나 클릭해서 파일 업로드
+        </div>
       </div>
 
     </div>
-    <div class="modal-footer">
+
+    <div class="modal-footer" style="padding:14px 20px">
       <button class="btn btn-ghost" onclick="closeModal('task-modal')">취소</button>
       <button class="btn btn-primary" onclick="taskSave()">업무 등록</button>
     </div>
@@ -16239,9 +16277,15 @@ function taskSetReviewer(email) {
 
 function taskRenderReviewerTag() {
   var el = document.getElementById('task-reviewer-tag');
+  var ph = document.getElementById('task-reviewer-placeholder');
   if (!el) return;
   var email = document.getElementById('task-reviewer').value;
-  if (!email) { el.innerHTML = ''; return; }
+  if (!email) {
+    el.innerHTML = '';
+    if (ph) ph.style.display = '';
+    return;
+  }
+  if (ph) ph.style.display = 'none';
   var emp = employees.find(function(e){ return e.id===email||e.email===email; });
   var name = emp ? emp.name : email;
   el.innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:#EEEDFE;color:#534AB7;border-radius:99px;font-size:12px;font-weight:500">👁 '+name+
@@ -16613,6 +16657,9 @@ function openTaskModal(defaultStatus) {
   document.getElementById('task-desc').value = '';
   document.getElementById('task-priority').value = '보통';
   taskInitStatusBtns(defaultStatus || 'todo');
+  taskInitPriBtns('보통');
+  var rph = document.getElementById('task-reviewer-placeholder'); if (rph) rph.style.display = '';
+  var sph = document.getElementById('task-shared-placeholder'); if (sph) sph.style.display = '';
   document.getElementById('task-start').value = '';
   document.getElementById('task-due').value = '';
   document.getElementById('task-shared-tags').innerHTML = '';
@@ -16638,6 +16685,26 @@ function openTaskModal(defaultStatus) {
   document.getElementById('task-assignee').innerHTML = empOptions;
 
   openModal('task-modal');
+}
+
+function taskSelectPriority(val, el) {
+  document.getElementById('task-priority').value = val;
+  var colors = {긴급:'#E24B4A',높음:'#EF9F27',보통:'#378ADD',낮음:'#888780'};
+  var bgs = {긴급:'#FCEBEB',높음:'#FAEEDA',보통:'#E6F1FB',낮음:'#F1EFE8'};
+  document.querySelectorAll('.task-pri-btn').forEach(function(b){ b.style.background='var(--surface)'; b.style.color='var(--t2)'; b.style.borderColor='var(--border)'; });
+  if (el) { el.style.background = bgs[val]; el.style.color = colors[val]; el.style.borderColor = colors[val]; }
+}
+
+function taskInitPriBtns(val) {
+  var colors = {긴급:'#E24B4A',높음:'#EF9F27',보통:'#378ADD',낮음:'#888780'};
+  var bgs = {긴급:'#FCEBEB',높음:'#FAEEDA',보통:'#E6F1FB',낮음:'#F1EFE8'};
+  document.querySelectorAll('.task-pri-btn').forEach(function(b){
+    b.style.background='var(--surface)'; b.style.color='var(--t2)'; b.style.borderColor='var(--border)';
+    if (b.onclick && b.onclick.toString().indexOf("'"+val+"'") >= 0) {
+      b.style.background = bgs[val]; b.style.color = colors[val]; b.style.borderColor = colors[val];
+    }
+  });
+  document.getElementById('task-priority').value = val;
 }
 
 function taskSelectStatus(val, el) {
@@ -16686,7 +16753,16 @@ function taskRemoveShared(email) {
   taskRenderSharedTags();
 }
 function taskRenderSharedTags() {
-  document.getElementById('task-shared-tags').innerHTML = _taskSharedWith.map(function(email) {
+  var el = document.getElementById('task-shared-tags');
+  var ph = document.getElementById('task-shared-placeholder');
+  if (!el) return;
+  if (!_taskSharedWith.length) {
+    el.innerHTML = '';
+    if (ph) ph.style.display = '';
+    return;
+  }
+  if (ph) ph.style.display = 'none';
+  el.innerHTML = _taskSharedWith.map(function(email) {
     var emp = employees.find(function(e){ return e.id===email||e.email===email; });
     var name = emp ? emp.name : email;
     return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--acd);color:var(--ac);border-radius:99px;font-size:12px;font-weight:500">'+name+
@@ -17107,6 +17183,7 @@ function taskEditFromDetail() {
   document.getElementById('task-desc').value = t.desc||'';
   document.getElementById('task-priority').value = t.priority||'보통';
   taskInitStatusBtns(t.status||'todo');
+  taskInitPriBtns(t.priority||'보통');
   document.getElementById('task-start').value = t.start||'';
   document.getElementById('task-due').value = t.due||'';
   var empOptions2 = employees.filter(function(e){ return e.status!=='퇴직'; }).map(function(e){
