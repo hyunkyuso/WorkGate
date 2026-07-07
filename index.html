@@ -434,14 +434,6 @@ select.form-input{cursor:pointer}
             </div>
             <button class="btn btn-primary" onclick="openProjectModal()">+ 프로젝트 추가</button>
           </div>
-          <!-- 필터 탭 -->
-          <div style="display:flex;gap:6px;margin-bottom:16px">
-            <div style="display:flex;border:0.5px solid var(--border);border-radius:8px;overflow:hidden">
-              <button onclick="taskSetFilter('all',this)" class="task-filter-btn active" style="padding:6px 14px;font-size:12px;border:none;cursor:pointer;background:var(--acd);color:var(--ac)">전체</button>
-              <button onclick="taskSetFilter('mine',this)" class="task-filter-btn" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">내 프로젝트</button>
-              <button onclick="taskSetFilter('shared',this)" class="task-filter-btn" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">공유받은</button>
-            </div>
-          </div>
           <div id="project-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding-bottom:32px"></div>
         </div>
 
@@ -12949,7 +12941,6 @@ function showPage(id, el) {
     document.getElementById('task-project-list-view').style.display = 'block';
     document.getElementById('task-kanban-view').style.display = 'none';
     _taskFilter = 'all';
-    document.querySelectorAll('.task-filter-btn').forEach(function(b,i){ b.style.background=i===0?'var(--acd)':'var(--white)'; b.style.color=i===0?'var(--ac)':'var(--t2)'; });
     projectRenderGrid();
   }
   if(id === 'task-admin') { taRenderOrgTree(); taskAdminRender(); }
