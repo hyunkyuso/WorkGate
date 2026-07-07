@@ -2553,6 +2553,16 @@ select.form-input{cursor:pointer}
       </div>
     </div>
     <div id="task-detail-body" style="padding:4px 0"></div>
+    <!-- 댓글 섹션 -->
+    <div style="border-top:0.5px solid var(--border);padding:16px 20px">
+      <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:12px">💬 댓글</div>
+      <div id="task-comments-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:14px;max-height:300px;overflow-y:auto"></div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <textarea id="task-comment-input" class="form-input" style="flex:1;height:60px;resize:none;font-size:13px" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&event.ctrlKey){taskAddComment();event.preventDefault()}"></textarea>
+        <button onclick="taskAddComment()" style="padding:8px 14px;font-size:13px;background:var(--ac);color:#fff;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;height:60px">전송</button>
+      </div>
+      <div style="font-size:10px;color:var(--t3);margin-top:4px">Ctrl+Enter로 전송</div>
+    </div>
   </div>
 </div>
 
@@ -12762,10 +12772,13 @@ function showPage(id, el) {
 function openModal(id) { document.getElementById(id).style.display='flex'; }
 function closeModal(id) {
   document.getElementById(id).style.display='none';
-  // 직원 모달 닫을 때 크롭 상태 초기화
   if (id === 'emp-modal') {
     clearPhoto();
     editingEmpId = null;
+  }
+  if (id === 'task-detail-modal') {
+    if (_commentsUnsubscribe) { _commentsUnsubscribe(); _commentsUnsubscribe = null; }
+    _commentTaskId = null;
   }
 }
 
@@ -16624,6 +16637,7 @@ function taskCardHtml(t, myEmail, colColor) {
         '<span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;background:'+priBg+';color:'+priColor+'">'+priDot+' '+pri+'</span>' +
         (checklist.length ? '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:#f1f5f9;color:#64748b">☑ '+done+'/'+checklist.length+'</span>' : '') +
         (t.reviewer ? '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:#EEEDFE;color:#534AB7">👁 검토자</span>' : '') +
+        (t.commentCount ? '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:#f1f5f9;color:#64748b">💬 '+t.commentCount+'</span>' : '') +
       '</div>' +
       '<div style="display:flex;align-items:center">' +
         avatarsHtml + reviewerHtml +
@@ -16636,10 +16650,10 @@ function taskCardHtml(t, myEmail, colColor) {
       '</div>' +
       '<span style="font-size:10px;font-weight:600;color:'+(pct===100?'#22c55e':'#94a3b8')+'">'+pct+'%</span>' +
     '</div>' +
-    // 검토자 본인 카드에 버튼 표시 (진행률 100%일 때만)
-    (t.reviewer && t.reviewer === myEmail && !t.reviewDone && pct === 100 ?
+    // 검토자 본인 카드 버튼: 검토 중 상태일 때만 표시
+    (t.reviewer && t.reviewer === myEmail && t.status === 'review' && !t.reviewDone ?
       '<div style="display:flex;gap:6px;margin-top:8px">' +
-        '<button onclick="event.stopPropagation();taskMarkReviewed(\''+t.id+'\')" style="flex:1;padding:6px;font-size:11px;font-weight:600;background:#EDE9FE;color:#7C3AED;border:1px solid #C4B5FD;border-radius:7px;cursor:pointer">👁 검토 중</button>' +
+        '<button onclick="event.stopPropagation();taskUnmarkReviewed(\''+t.id+'\')" style="flex:1;padding:6px;font-size:11px;font-weight:600;background:none;color:#7C3AED;border:1px solid #C4B5FD;border-radius:7px;cursor:pointer">↩ 검토 취소</button>' +
         '<button onclick="event.stopPropagation();taskMarkReviewDone(\''+t.id+'\')" style="flex:1;padding:6px;font-size:11px;font-weight:600;background:#8B5CF6;color:white;border:none;border-radius:7px;cursor:pointer">✅ 검토 완료</button>' +
       '</div>' : '') +
     (t.reviewer && t.reviewDone && t.reviewer === myEmail ?
@@ -17032,15 +17046,15 @@ function taskOpenDetail(id) {
             '<div style="font-size:11px;color:'+(isReviewed?'#166534':'#534AB7')+';font-weight:600;margin-bottom:2px">👁 검토자</div>' +
             '<div style="font-size:13px;color:var(--t1);font-weight:500">'+rname+(isReviewed?' · ✅ 검토 완료':'')+' </div>' +
           '</div>' +
-          (isReviewer && !isReviewed && pct === 100 ?
+          (isReviewer && t.status === 'review' && !isReviewed ?
             '<div style="display:flex;gap:6px">' +
-              '<button onclick="taskMarkReviewed(\''+id+'\')" style="padding:7px 14px;font-size:12px;font-weight:600;background:#EDE9FE;color:#7C3AED;border:1px solid #C4B5FD;border-radius:8px;cursor:pointer">👁 검토 중</button>' +
+              '<button onclick="taskUnmarkReviewed(\''+id+'\')" style="padding:7px 14px;font-size:12px;font-weight:600;background:none;color:#7C3AED;border:1px solid #C4B5FD;border-radius:8px;cursor:pointer">↩ 검토 취소</button>' +
               '<button onclick="taskMarkReviewDone(\''+id+'\')" style="padding:7px 14px;font-size:12px;font-weight:600;background:#8B5CF6;color:white;border:none;border-radius:8px;cursor:pointer">✅ 검토 완료</button>' +
             '</div>' :
-            (isReviewer && !isReviewed && pct < 100 ?
-              '<span style="font-size:11px;color:#7C3AED;opacity:.6">진행률 100% 시 활성화</span>' : '') +
             (isReviewer && isReviewed ?
-              '<button onclick="taskUnmarkReviewed(\''+id+'\')" style="padding:7px 16px;font-size:12px;background:none;color:#166534;border:1px solid #bbf7d0;border-radius:8px;cursor:pointer">↩ 검토 취소</button>' : '')
+              '<button onclick="taskUnmarkReviewed(\''+id+'\')" style="padding:7px 16px;font-size:12px;background:none;color:#166534;border:1px solid #bbf7d0;border-radius:8px;cursor:pointer">↩ 검토 취소</button>' :
+              (isReviewer && pct < 100 ?
+                '<span style="font-size:11px;color:#7C3AED;opacity:.6">진행률 100% 시 활성화</span>' : ''))
           ) +
         '</div>';
       })() : '') +
@@ -17074,6 +17088,9 @@ function taskOpenDetail(id) {
     );
 
   openModal('task-detail-modal');
+
+  // 댓글 로드
+  taskLoadComments(id);
 }
 
 // 상세에서 체크리스트 토글
@@ -17113,6 +17130,95 @@ function taskToggleDetailChecklist(taskId, idx) {
 
 // 수동 진행률 저장
 // 검토 완료 버튼 → 검토 중으로
+// ── 댓글 기능 ──
+var _commentTaskId = null;
+var _commentsUnsubscribe = null;
+
+function taskLoadComments(taskId) {
+  _commentTaskId = taskId;
+  // 기존 리스너 해제
+  if (_commentsUnsubscribe) { _commentsUnsubscribe(); _commentsUnsubscribe = null; }
+
+  var el = document.getElementById('task-comments-list');
+  if (!el) return;
+  el.innerHTML = '<div style="font-size:12px;color:var(--t3);text-align:center;padding:8px">불러오는 중...</div>';
+
+  _commentsUnsubscribe = db.collection('tasks').doc(taskId).collection('comments')
+    .orderBy('createdAt', 'asc')
+    .onSnapshot(function(snap) {
+      var comments = [];
+      snap.forEach(function(d){ comments.push(Object.assign({id:d.id}, d.data())); });
+      taskRenderComments(comments);
+    }, function() {
+      if (el) el.innerHTML = '<div style="font-size:12px;color:var(--t3);text-align:center;padding:8px">댓글을 불러올 수 없습니다</div>';
+    });
+}
+
+function taskRenderComments(comments) {
+  var el = document.getElementById('task-comments-list');
+  if (!el) return;
+  var myEmail = state.user ? state.user.email : '';
+
+  if (!comments.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--t3);text-align:center;padding:8px">아직 댓글이 없습니다</div>';
+    return;
+  }
+
+  el.innerHTML = comments.map(function(c) {
+    var isMe = c.authorEmail === myEmail;
+    var emp = employees.find(function(e){ return e.id===c.authorEmail||e.email===c.authorEmail; });
+    var name = emp ? emp.name : (c.authorName || c.authorEmail || '?');
+    var initial = name.charAt(0);
+    var timeStr = '';
+    if (c.createdAt && c.createdAt.toDate) {
+      var d = c.createdAt.toDate();
+      timeStr = (d.getMonth()+1)+'/'+d.getDate()+' '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+    }
+    return '<div style="display:flex;gap:8px;align-items:flex-start'+(isMe?';flex-direction:row-reverse':'')+'">' +
+      '<div style="width:30px;height:30px;border-radius:50%;background:'+(isMe?'var(--acd)':'var(--surface)')+';color:'+(isMe?'var(--ac)':'var(--t2)')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;border:0.5px solid var(--border)">'+initial+'</div>' +
+      '<div style="flex:1;max-width:80%">' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px'+(isMe?';justify-content:flex-end':'')+'">' +
+          '<span style="font-size:11px;font-weight:600;color:var(--t1)">'+name+'</span>' +
+          '<span style="font-size:10px;color:var(--t3)">'+timeStr+'</span>' +
+          (isMe ? '<button onclick="taskDeleteComment(\''+c.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:10px;padding:0">삭제</button>' : '') +
+        '</div>' +
+        '<div style="padding:8px 12px;background:'+(isMe?'var(--acd)':'var(--surface)')+';border-radius:'+(isMe?'12px 4px 12px 12px':'4px 12px 12px 12px')+';border:0.5px solid var(--border);font-size:13px;color:var(--t1);line-height:1.5;word-break:break-word">'+c.text.replace(/\n/g,'<br>')+'</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  // 스크롤 최하단
+  el.scrollTop = el.scrollHeight;
+}
+
+function taskAddComment() {
+  var input = document.getElementById('task-comment-input');
+  var text = input ? input.value.trim() : '';
+  if (!text || !_commentTaskId) return;
+  var myEmail = state.user ? state.user.email : '';
+  var emp = employees.find(function(e){ return e.id===myEmail||e.email===myEmail; });
+
+  db.collection('tasks').doc(_commentTaskId).collection('comments').add({
+    text: text,
+    authorEmail: myEmail,
+    authorName: emp ? emp.name : myEmail,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    input.value = '';
+    // 카드 댓글 수 업데이트
+    var t = _tasks.find(function(x){ return x.id === _commentTaskId; });
+    var curCount = t ? (t.commentCount || 0) : 0;
+    db.collection('tasks').doc(_commentTaskId).update({ commentCount: curCount + 1 });
+  }).catch(function(e){ showToast('❌ 댓글 저장 실패: ' + e.message); });
+}
+
+function taskDeleteComment(commentId) {
+  if (!_commentTaskId) return;
+  if (!confirm('댓글을 삭제하시겠습니까?')) return;
+  db.collection('tasks').doc(_commentTaskId).collection('comments').doc(commentId).delete()
+    .catch(function(e){ showToast('❌ 삭제 실패: ' + e.message); });
+}
+
 function taskMarkReviewed(taskId) {
   db.collection('tasks').doc(taskId).update({
     reviewed: true, reviewDone: false,
