@@ -16671,6 +16671,9 @@ function taskCardHtml(t, myEmail, colColor) {
       '</div>' : '') +
     (t.reviewer && t.reviewDone && t.reviewer === myEmail ?
       '<button onclick="event.stopPropagation();taskUnmarkReviewed(\''+t.id+'\')" style="margin-top:8px;width:100%;padding:6px;font-size:11px;background:none;color:#166534;border:1px solid #bbf7d0;border-radius:7px;cursor:pointer">↩ 검토 취소</button>' : '') +
+    // 보완 버튼: 담당자가 보완 후 다시 검토 중으로 보낼 수 있음
+    (t.reviewCancelled && t.status === 'doing' && (t.assignee === myEmail || t.createdBy === myEmail) ?
+      '<button onclick="event.stopPropagation();taskSendToReview(\''+t.id+'\')" style="margin-top:8px;width:100%;padding:6px;font-size:11px;font-weight:600;background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;border-radius:7px;cursor:pointer">🔄 보완 완료 → 검토 중</button>' : '') +
   '</div>';
 }
 
@@ -17069,6 +17072,16 @@ function taskOpenDetail(id) {
               (isReviewer && pct < 100 ?
                 '<span style="font-size:11px;color:#7C3AED;opacity:.6">진행률 100% 시 활성화</span>' : ''))
           ) +
+        '</div>' +
+        // 보완 버튼 (담당자용)
+        (t.reviewCancelled && t.status === 'doing' && (t.assignee === myEmail || t.createdBy === myEmail) ?
+          '<div style="margin-top:10px;padding:10px 14px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;display:flex;align-items:center;justify-content:space-between">' +
+            '<div>' +
+              '<div style="font-size:11px;color:#92400E;font-weight:600;margin-bottom:2px">⚠️ 검토가 취소되었습니다</div>' +
+              '<div style="font-size:12px;color:#78350F">보완 후 다시 검토자에게 보내세요</div>' +
+            '</div>' +
+            '<button onclick="taskSendToReview(\''+id+'\')" style="padding:7px 14px;font-size:12px;font-weight:600;background:#F59E0B;color:white;border:none;border-radius:8px;cursor:pointer;white-space:nowrap">🔄 보완 완료</button>' +
+          '</div>' : '') +
         '</div>';
       })() : '') +
     (checklist.length > 0 ?
@@ -17294,6 +17307,18 @@ function taskDeleteComment(commentId) {
     .catch(function(e){ showToast('❌ 삭제 실패: ' + e.message); });
 }
 
+// 보완 완료 → 다시 검토 중으로
+function taskSendToReview(taskId) {
+  db.collection('tasks').doc(taskId).update({
+    reviewed: true, reviewDone: false, reviewCancelled: false,
+    status: 'review',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    showToast('📋 검토 중으로 이동되었습니다');
+    taskOpenDetail(taskId);
+  });
+}
+
 function taskMarkReviewed(taskId) {
   db.collection('tasks').doc(taskId).update({
     reviewed: true, reviewDone: false,
@@ -17317,14 +17342,14 @@ function taskMarkReviewDone(taskId) {
   });
 }
 
-// 검토 취소 → 진행 중으로
+// 검토 취소 → 진행 중 + 보완 버튼 표시
 function taskUnmarkReviewed(taskId) {
   db.collection('tasks').doc(taskId).update({
-    reviewed: false, reviewDone: false,
+    reviewed: false, reviewDone: false, reviewCancelled: true,
     status: 'doing',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function() {
-    showToast('↩ 검토가 취소되었습니다');
+    showToast('↩ 검토가 취소되었습니다. 보완 후 다시 검토 중으로 보내세요');
     taskOpenDetail(taskId);
   });
 }
