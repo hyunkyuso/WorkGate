@@ -16268,7 +16268,8 @@ function projectRenderGrid() {
   var filtered = _projects.filter(function(p) {
     if (_taskFilter === 'mine') return p.createdBy === myEmail;
     if (_taskFilter === 'shared') return (p.members||[]).indexOf(myEmail) >= 0 && p.createdBy !== myEmail;
-    // 관리자 포함 모두: 본인이 담당자/공유자/검토자인 업무가 있는 프로젝트만
+    // 생성자이거나, 본인이 담당자/공유자/검토자인 업무가 있는 프로젝트
+    if (p.createdBy === myEmail) return true;
     return _tasks.some(function(t) {
       return t.projectId === p.id && (
         t.assignee === myEmail ||
