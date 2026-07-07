@@ -4074,6 +4074,7 @@ function saveEmployee() {
     const idx = employees.findIndex(e => e.uid === editingEmpId);
     if (idx < 0) return;
     const prev = {...employees[idx]};
+    const prevId = prev.id; // 기존 ID
     const empData = {
       ...prev,
       id, name,
@@ -4107,6 +4108,10 @@ function saveEmployee() {
       }].filter(h => h.changes.length > 0),
     };
     employees[idx] = empData;
+    // ID가 변경된 경우 기존 Firestore 문서 삭제
+    if (prevId && prevId !== id) {
+      db.collection('employees').doc(prevId).delete().catch(err => console.error('기존 직원 문서 삭제 오류:', err));
+    }
     // 직책 변경 시 dept.head 자동 업데이트
     const leaderTitles = ['본부장','부서장','팀장'];
     const newTitle = empData.title || '';
