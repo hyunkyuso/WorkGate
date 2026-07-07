@@ -2434,14 +2434,6 @@ select.form-input{cursor:pointer}
         </div>
         <input type="hidden" id="project-color" value="#378ADD">
       </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:var(--t2);display:block;margin-bottom:6px">공유 멤버</label>
-        <input id="project-member-search" type="text" class="form-input" style="font-size:13px;margin-bottom:5px" placeholder="이름 검색..." oninput="projectSearchMember()">
-        <div id="project-member-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:120px;overflow-y:auto;margin-bottom:6px"></div>
-        <!-- 조직도 선택 버튼 -->
-        <button onclick="openProjectOrgPicker()" style="width:100%;padding:7px;font-size:12px;border:0.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);color:var(--t2);margin-bottom:8px">🏢 조직도에서 선택</button>
-        <div id="project-member-tags" style="display:flex;flex-wrap:wrap;gap:5px;min-height:28px"></div>
-      </div>
     </div>
     <div class="modal-footer">
       <div>
@@ -16284,8 +16276,6 @@ function projectRenderGrid() {
     return;
   }
 
-  var avatarColors = ['#B5D4F4:#0C447C','#9FE1CB:#085041','#FAC775:#633806','#F4C0D1:#72243E','#CECBF6:#3C3489'];
-
   el.innerHTML = filtered.map(function(p) {
     // 본인 관련 업무만 카운트
     var myTasks = _tasks.filter(function(t){
@@ -16301,7 +16291,6 @@ function projectRenderGrid() {
     var pct = taskCount ? Math.round(doneCount/taskCount*100) : 0;
     var canEdit = isAdmin || p.createdBy === myEmail;
     var color = p.color || '#378ADD';
-    var members = (p.members||[]).slice(0,4);
 
     // 아바타
     var avatarsHtml = members.map(function(email, i) {
@@ -16312,32 +16301,22 @@ function projectRenderGrid() {
     }).join('');
 
     return '<div onclick="taskOpenProject(\''+p.id+'\')" style="background:var(--white);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor=\''+color+'\';this.style.boxShadow=\'0 4px 16px rgba(0,0,0,0.08)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.boxShadow=\'none\'">' +
-      // 배너 영역
       '<div style="height:80px;background:'+color+';position:relative;overflow:hidden">' +
-        // 배경 장식 원
         '<div style="position:absolute;right:-20px;top:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.1)"></div>' +
         '<div style="position:absolute;right:20px;bottom:-30px;width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,0.08)"></div>' +
-        // 아이콘
         '<div style="position:absolute;top:14px;left:14px;width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:18px">📁</div>' +
-        // 진행률 텍스트
         '<div style="position:absolute;top:14px;right:14px;font-size:22px;font-weight:700;color:rgba(255,255,255,0.95)">'+pct+'%</div>' +
-        // 진행바
         '<div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,0.2)">' +
           '<div style="height:100%;width:'+pct+'%;background:rgba(255,255,255,0.85);transition:width .3s"></div>' +
         '</div>' +
-        // 설정 버튼
         (canEdit ? '<button onclick="event.stopPropagation();openProjectEditModal(\''+p.id+'\')" style="position:absolute;bottom:10px;left:60px;background:rgba(255,255,255,0.2);border:none;cursor:pointer;color:#fff;font-size:12px;padding:2px 8px;border-radius:4px;line-height:1.5">⚙ 설정</button>' : '') +
       '</div>' +
-      // 카드 본문
       '<div style="padding:14px">' +
         '<div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(p.name||'')+'</div>' +
         (p.desc ? '<div style="font-size:11px;color:var(--t3);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.desc+'</div>' : '<div style="margin-bottom:10px"></div>') +
-        '<div style="display:flex;align-items:center;justify-content:space-between">' +
-          '<div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--t3)">' +
-            '<span style="display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:#378ADD;display:inline-block"></span> '+doingCount+'개 진행</span>' +
-            '<span style="display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:#639922;display:inline-block"></span> '+doneCount+'/'+taskCount+'개 완료</span>' +
-          '</div>' +
-          '<div style="display:flex">' + avatarsHtml + (p.members&&p.members.length>4?'<div style="width:22px;height:22px;border-radius:50%;font-size:8px;font-weight:600;display:flex;align-items:center;justify-content:center;background:var(--surface);color:var(--t2);border:2px solid var(--white);margin-left:-6px">+'+( p.members.length-4)+'</div>':'') + '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--t3)">' +
+          '<span style="display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:#378ADD;display:inline-block"></span> '+doingCount+'개 진행</span>' +
+          '<span style="display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:#639922;display:inline-block"></span> '+doneCount+'/'+taskCount+'개 완료</span>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -16662,7 +16641,6 @@ function saveProject() {
     name: name,
     desc: document.getElementById('project-desc').value.trim(),
     color: _projectColor,
-    members: _projectMembers.slice(),
     createdBy: state.user ? state.user.email : '',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
