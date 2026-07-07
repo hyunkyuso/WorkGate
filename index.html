@@ -2431,18 +2431,22 @@ select.form-input{cursor:pointer}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
           <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">시작일</div>
-          <div style="display:flex;gap:4px">
-            <select id="task-start-y" class="form-input" style="flex:2;font-size:12px;padding:6px 4px"></select>
-            <select id="task-start-m" class="form-input" style="flex:1;font-size:12px;padding:6px 4px"></select>
-            <select id="task-start-d" class="form-input" style="flex:1;font-size:12px;padding:6px 4px"></select>
+          <div style="display:flex;align-items:center;gap:4px;border:0.5px solid var(--border);border-radius:8px;padding:7px 10px;background:var(--white)">
+            <input id="task-start-y" type="text" maxlength="4" placeholder="년" oninput="dateAutoNext(this,'task-start-m',4)" style="width:40px;border:none;outline:none;font-size:13px;background:none;text-align:center;color:var(--t1)">
+            <span style="color:var(--t3);font-size:12px">-</span>
+            <input id="task-start-m" type="text" maxlength="2" placeholder="월" oninput="dateAutoNext(this,'task-start-d',2)" onblur="datePad(this)" style="width:24px;border:none;outline:none;font-size:13px;background:none;text-align:center;color:var(--t1)">
+            <span style="color:var(--t3);font-size:12px">-</span>
+            <input id="task-start-d" type="text" maxlength="2" placeholder="일" onblur="datePad(this)" style="width:24px;border:none;outline:none;font-size:13px;background:none;text-align:center;color:var(--t1)">
           </div>
         </div>
         <div>
           <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">마감일</div>
-          <div style="display:flex;gap:4px">
-            <select id="task-due-y" class="form-input" style="flex:2;font-size:12px;padding:6px 4px"></select>
-            <select id="task-due-m" class="form-input" style="flex:1;font-size:12px;padding:6px 4px"></select>
-            <select id="task-due-d" class="form-input" style="flex:1;font-size:12px;padding:6px 4px"></select>
+          <div style="display:flex;align-items:center;gap:4px;border:0.5px solid var(--border);border-radius:8px;padding:7px 10px;background:var(--white)">
+            <input id="task-due-y" type="text" maxlength="4" placeholder="년" oninput="dateAutoNext(this,'task-due-m',4)" style="width:40px;border:none;outline:none;font-size:13px;background:none;text-align:center;color:var(--t1)">
+            <span style="color:var(--t3);font-size:12px">-</span>
+            <input id="task-due-m" type="text" maxlength="2" placeholder="월" oninput="dateAutoNext(this,'task-due-d',2)" onblur="datePad(this)" style="width:24px;border:none;outline:none;font-size:13px;background:none;text-align:center;color:var(--t1)">
+            <span style="color:var(--t3);font-size:12px">-</span>
+            <input id="task-due-d" type="text" maxlength="2" placeholder="일" onblur="datePad(this)" style="width:24px;border:none;outline:none;font-size:13px;background:none;text-align:center;color:var(--t1)">
           </div>
         </div>
       </div>
@@ -17044,59 +17048,49 @@ function taskRenderDetailFiles(files) {
     '</div></div>';
 }
 
-// ── 날짜 select 유틸 ──
-function initDateSelects() {
-  var curYear = new Date().getFullYear();
-  var years = '<option value="">년</option>';
-  for (var y = curYear + 5; y >= 2000; y--) years += '<option value="'+y+'">'+y+'</option>';
-  var months = '<option value="">월</option>';
-  for (var m = 1; m <= 12; m++) months += '<option value="'+String(m).padStart(2,'0')+'">'+m+'월</option>';
-
-  ['task-start-y','task-due-y'].forEach(function(id){
-    var el = document.getElementById(id); if(el) el.innerHTML = years;
-  });
-  ['task-start-m','task-due-m'].forEach(function(id){
-    var el = document.getElementById(id);
-    if(el) { el.innerHTML = months; el.onchange = function(){ updateDays(id.replace('-m','')); }; }
-  });
-  ['task-start-y','task-due-y'].forEach(function(id){
-    var el = document.getElementById(id);
-    if(el) el.onchange = function(){ updateDays(id.replace('-y','')); };
-  });
-  updateDays('task-start'); updateDays('task-due');
+// ── 날짜 입력 유틸 ──
+function dateAutoNext(el, nextId, len) {
+  // 숫자만 허용
+  el.value = el.value.replace(/[^0-9]/g, '');
+  if (el.value.length >= len) {
+    var next = document.getElementById(nextId);
+    if (next) { next.focus(); next.select(); }
+  }
 }
 
-function updateDays(prefix) {
-  var yEl = document.getElementById(prefix+'-y');
-  var mEl = document.getElementById(prefix+'-m');
-  var dEl = document.getElementById(prefix+'-d');
-  if (!dEl) return;
-  var y = parseInt(yEl&&yEl.value) || new Date().getFullYear();
-  var m = parseInt(mEl&&mEl.value) || 1;
-  var maxDay = new Date(y, m, 0).getDate();
-  var curD = dEl.value;
-  var days = '<option value="">일</option>';
-  for (var d = 1; d <= maxDay; d++) days += '<option value="'+String(d).padStart(2,'0')+'">'+d+'일</option>';
-  dEl.innerHTML = days;
-  if (curD && parseInt(curD) <= maxDay) dEl.value = curD;
+function datePad(el) {
+  if (el.value && el.value.length === 1) el.value = '0' + el.value;
+}
+
+function initDateSelects() {
+  // 입력 방식이므로 별도 초기화 불필요
 }
 
 function getDateVal(prefix) {
-  var y = document.getElementById(prefix+'-y').value;
-  var m = document.getElementById(prefix+'-m').value;
-  var d = document.getElementById(prefix+'-d').value;
+  var y = document.getElementById(prefix+'-y').value.trim();
+  var m = document.getElementById(prefix+'-m').value.trim();
+  var d = document.getElementById(prefix+'-d').value.trim();
   if (!y || !m || !d) return '';
+  if (m.length === 1) m = '0'+m;
+  if (d.length === 1) d = '0'+d;
   return y+'-'+m+'-'+d;
 }
 
 function setDateVal(prefix, val) {
-  if (!val) { ['y','m','d'].forEach(function(p){ var el=document.getElementById(prefix+'-'+p); if(el) el.value=''; }); return; }
+  var yEl = document.getElementById(prefix+'-y');
+  var mEl = document.getElementById(prefix+'-m');
+  var dEl = document.getElementById(prefix+'-d');
+  if (!val) {
+    if(yEl) yEl.value=''; if(mEl) mEl.value=''; if(dEl) dEl.value='';
+    return;
+  }
   var parts = val.split('-');
-  var yEl = document.getElementById(prefix+'-y'); if(yEl) yEl.value = parts[0]||'';
-  var mEl = document.getElementById(prefix+'-m'); if(mEl) mEl.value = parts[1]||'';
-  updateDays(prefix);
-  var dEl = document.getElementById(prefix+'-d'); if(dEl) dEl.value = parts[2]||'';
+  if(yEl) yEl.value = parts[0]||'';
+  if(mEl) mEl.value = parts[1]||'';
+  if(dEl) dEl.value = parts[2]||'';
 }
+
+function updateDays(prefix) {}
 
 function taskSave() {
   var title = document.getElementById('task-title').value.trim();
