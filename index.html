@@ -16636,8 +16636,8 @@ function taskCardHtml(t, myEmail, colColor) {
       '</div>' +
       '<span style="font-size:10px;font-weight:600;color:'+(pct===100?'#22c55e':'#94a3b8')+'">'+pct+'%</span>' +
     '</div>' +
-    // 검토자 본인 카드에 버튼 표시
-    (t.reviewer && t.reviewer === myEmail && !t.reviewDone ?
+    // 검토자 본인 카드에 버튼 표시 (진행률 100%일 때만)
+    (t.reviewer && t.reviewer === myEmail && !t.reviewDone && pct === 100 ?
       '<div style="display:flex;gap:6px;margin-top:8px">' +
         '<button onclick="event.stopPropagation();taskMarkReviewed(\''+t.id+'\')" style="flex:1;padding:6px;font-size:11px;font-weight:600;background:#EDE9FE;color:#7C3AED;border:1px solid #C4B5FD;border-radius:7px;cursor:pointer">👁 검토 중</button>' +
         '<button onclick="event.stopPropagation();taskMarkReviewDone(\''+t.id+'\')" style="flex:1;padding:6px;font-size:11px;font-weight:600;background:#8B5CF6;color:white;border:none;border-radius:7px;cursor:pointer">✅ 검토 완료</button>' +
@@ -17032,11 +17032,13 @@ function taskOpenDetail(id) {
             '<div style="font-size:11px;color:'+(isReviewed?'#166534':'#534AB7')+';font-weight:600;margin-bottom:2px">👁 검토자</div>' +
             '<div style="font-size:13px;color:var(--t1);font-weight:500">'+rname+(isReviewed?' · ✅ 검토 완료':'')+' </div>' +
           '</div>' +
-          (isReviewer && !isReviewed ?
+          (isReviewer && !isReviewed && pct === 100 ?
             '<div style="display:flex;gap:6px">' +
               '<button onclick="taskMarkReviewed(\''+id+'\')" style="padding:7px 14px;font-size:12px;font-weight:600;background:#EDE9FE;color:#7C3AED;border:1px solid #C4B5FD;border-radius:8px;cursor:pointer">👁 검토 중</button>' +
               '<button onclick="taskMarkReviewDone(\''+id+'\')" style="padding:7px 14px;font-size:12px;font-weight:600;background:#8B5CF6;color:white;border:none;border-radius:8px;cursor:pointer">✅ 검토 완료</button>' +
             '</div>' :
+            (isReviewer && !isReviewed && pct < 100 ?
+              '<span style="font-size:11px;color:#7C3AED;opacity:.6">진행률 100% 시 활성화</span>' : '') +
             (isReviewer && isReviewed ?
               '<button onclick="taskUnmarkReviewed(\''+id+'\')" style="padding:7px 16px;font-size:12px;background:none;color:#166534;border:1px solid #bbf7d0;border-radius:8px;cursor:pointer">↩ 검토 취소</button>' : '')
           ) +
