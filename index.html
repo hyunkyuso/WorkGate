@@ -3081,6 +3081,37 @@ function signOut() {
 // INIT
 // ══════════════════════════════════════════════════
 function initApp() {
+  // date input 년도 4자리 입력 시 자동으로 월로 이동
+  document.addEventListener('keyup', function(e) {
+    var el = e.target;
+    if (el.type !== 'date') return;
+    var val = el.value;
+    if (!val) return;
+    // 년도 부분(첫 4자리)이 입력 완료되면 자동으로 월로 이동
+    var year = val.split('-')[0];
+    if (year && year.length === 4 && parseInt(year) >= 1900 && parseInt(year) <= 2100) {
+      // 월 부분이 비어있으면 강제로 포커스 재설정하여 월로 이동
+      var parts = val.split('-');
+      if (parts.length === 1 || (parts.length > 1 && !parts[1])) {
+        el.value = year + '-01-01';
+        el.focus();
+      }
+    }
+  }, true);
+
+  document.addEventListener('input', function(e) {
+    var el = e.target;
+    if (el.type !== 'date') return;
+    var val = el.value;
+    if (!val) return;
+    var year = val.split('-')[0];
+    if (year && year.length === 4) {
+      var parts = val.split('-');
+      if (!parts[1]) {
+        el.value = year + '-01-01';
+      }
+    }
+  }, true);
   startWelfareListener();
   taskRender();
   renderKpi();
