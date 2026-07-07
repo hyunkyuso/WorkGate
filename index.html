@@ -16261,6 +16261,8 @@ function projectRenderGrid() {
     if (_taskFilter === 'mine') return p.createdBy === myEmail;
     if (_taskFilter === 'shared') return (p.members||[]).indexOf(myEmail) >= 0 && p.createdBy !== myEmail;
     // 생성자이거나, 본인이 담당자/공유자/검토자인 업무가 있는 프로젝트
+    // createdBy 없는 기존 데이터도 관리자면 표시
+    if (isAdmin && !p.createdBy) return true;
     if (p.createdBy === myEmail) return true;
     return _tasks.some(function(t) {
       return t.projectId === p.id && (
@@ -16351,16 +16353,12 @@ function taskBackToProjects() {
 // 프로젝트 모달
 function openProjectModal() {
   _projectEditId = null;
-  _projectMembers = [];
   _projectColor = '#378ADD';
   document.getElementById('project-modal-title').textContent = '프로젝트 추가';
   document.getElementById('project-name').value = '';
   document.getElementById('project-desc').value = '';
   document.getElementById('project-color').value = '#378ADD';
   document.getElementById('project-delete-btn').style.display = 'none';
-  document.getElementById('project-member-tags').innerHTML = '';
-  document.getElementById('project-member-search').value = '';
-  document.getElementById('project-member-results').style.display = 'none';
   // 색상 초기화
   document.querySelectorAll('#project-color-group div').forEach(function(d){ d.style.border = 'none'; });
   document.querySelector('#project-color-group div').style.border = '3px solid #378ADD';
@@ -16372,16 +16370,17 @@ function openProjectEditModal(id) {
   var p = _projects.find(function(x){ return x.id === projectId; });
   if (!p) return;
   _projectEditId = projectId;
-  _projectMembers = (p.members||[]).slice();
   _projectColor = p.color || '#378ADD';
   document.getElementById('project-modal-title').textContent = '프로젝트 설정';
   document.getElementById('project-name').value = p.name||'';
   document.getElementById('project-desc').value = p.desc||'';
   document.getElementById('project-color').value = _projectColor;
   document.getElementById('project-delete-btn').style.display = '';
-  document.getElementById('project-member-search').value = '';
-  document.getElementById('project-member-results').style.display = 'none';
-  projectRenderMemberTags();
+  // 색상 선택 표시
+  document.querySelectorAll('#project-color-group div').forEach(function(d){ d.style.border = 'none'; });
+  document.querySelectorAll('#project-color-group div').forEach(function(d){
+    if (d.style.background === _projectColor) d.style.border = '3px solid ' + _projectColor;
+  });
   openModal('project-modal');
 }
 
