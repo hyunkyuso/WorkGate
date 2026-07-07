@@ -16880,7 +16880,17 @@ function taskAddChecklistItem() {
   taskRenderChecklist();
 }
 function taskToggleChecklistItem(i) {
-  _taskChecklist[i].done = !_taskChecklist[i].done;
+  var item = _taskChecklist[i];
+  item.done = !item.done;
+  if (item.done) {
+    var myEmail = state.user ? state.user.email : '';
+    var emp = employees.find(function(e){ return e.id===myEmail||e.email===myEmail; });
+    item.doneBy = emp ? emp.name : myEmail;
+    item.doneAt = new Date().toISOString();
+  } else {
+    item.doneBy = null;
+    item.doneAt = null;
+  }
   taskRenderChecklist();
 }
 function taskRemoveChecklistItem(i) {
@@ -16891,6 +16901,14 @@ function taskRenderChecklist() {
   var done = _taskChecklist.filter(function(c){ return c.done; }).length;
   var pct = _taskChecklist.length ? Math.round(done/_taskChecklist.length*100) : 0;
   document.getElementById('task-checklist-items').innerHTML = _taskChecklist.map(function(c,i) {
+    var doneInfo = '';
+    if (c.done && c.doneBy) {
+      var doneTime = c.doneAt ? (function(){
+        var d = new Date(c.doneAt);
+        return (d.getMonth()+1)+'/'+d.getDate()+' '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+      })() : '';
+      doneInfo = '<span style="font-size:10px;color:var(--t3);white-space:nowrap;flex-shrink:0">'+c.doneBy+(doneTime?' · '+doneTime:'')+'</span>';
+    }
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)">' +
       '<input type="checkbox" '+(c.done?'checked':'')+' onchange="taskToggleChecklistItem('+i+')" style="accent-color:#378ADD;flex-shrink:0"> ' +
       '<input type="text" value="'+c.text.replace(/"/g,'&quot;')+'" onchange="taskEditChecklistItem('+i+',this.value)" '+
@@ -16898,6 +16916,7 @@ function taskRenderChecklist() {
         'onfocus="this.style.background=\'var(--acd)\';this.style.outline=\'1px solid var(--ac)\'" '+
         'onblur="this.style.background=\'none\';this.style.outline=\'none\'" '+
         'placeholder="항목 내용" title="클릭하여 수정">' +
+      doneInfo +
       '<button onclick="taskRemoveChecklistItem('+i+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:12px;padding:0;flex-shrink:0" title="삭제">✕</button>' +
     '</div>';
   }).join('') + (_taskChecklist.length > 0 ?
@@ -17297,9 +17316,18 @@ function taskOpenDetail(id) {
         '<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:8px 12px">' +
           '<div style="height:4px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:8px"><div style="height:100%;border-radius:99px;background:#378ADD;width:'+pct+'%"></div></div>' +
           checklist.map(function(c,i) {
-            return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border)">' +
-              '<input type="checkbox" '+(c.done?'checked':'')+' onchange="taskToggleDetailChecklist(\''+id+'\','+i+')" style="accent-color:#378ADD;flex-shrink:0"> ' +
-              '<span style="font-size:12px;color:var(--t'+(c.done?'3':'1')+');'+(c.done?'text-decoration:line-through':'')+'">' + c.text + '</span>' +
+            var doneInfo = '';
+            if (c.done && c.doneBy) {
+              var doneTime = c.doneAt ? (function(){
+                var d = new Date(c.doneAt);
+                return (d.getMonth()+1)+'/'+d.getDate()+' '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+              })() : '';
+              doneInfo = '<span style="font-size:10px;color:var(--t3);white-space:nowrap;margin-left:auto;padding-left:6px">'+c.doneBy+(doneTime?' · '+doneTime:'')+'</span>';
+            }
+            return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)">' +
+              '<input type="checkbox" '+(c.done?'checked':'')+' onchange="taskToggleDetailChecklist(\''+taskId+'\','+i+')" style="accent-color:#378ADD;flex-shrink:0"> ' +
+              '<span style="font-size:12px;color:var(--t'+(c.done?'3':'1')+');flex:1;'+(c.done?'text-decoration:line-through':'')+'">' + c.text + '</span>' +
+              doneInfo +
             '</div>';
           }).join('') +
         '</div>' +
@@ -17332,6 +17360,18 @@ function taskToggleDetailChecklist(taskId, idx) {
   if (!t) return;
   var cl = (t.checklist||[]).slice();
   cl[idx].done = !cl[idx].done;
+
+  // 완료자/시간 기록
+  if (cl[idx].done) {
+    var myEmail = state.user ? state.user.email : '';
+    var emp = employees.find(function(e){ return e.id===myEmail||e.email===myEmail; });
+    cl[idx].doneBy = emp ? emp.name : myEmail;
+    cl[idx].doneAt = new Date().toISOString();
+  } else {
+    cl[idx].doneBy = null;
+    cl[idx].doneAt = null;
+  }
+
   var done = cl.filter(function(c){ return c.done; }).length;
   var total = cl.length;
   var pct = total ? Math.round(done/total*100) : 0;
@@ -17340,7 +17380,7 @@ function taskToggleDetailChecklist(taskId, idx) {
   var newStatus = t.status;
   if (total > 0) {
     if (done === total) {
-      newStatus = t.reviewer ? 'review' : 'done'; // 검토자 있으면 검토 중
+      newStatus = t.reviewer ? 'review' : 'done';
     } else if (done > 0) {
       if (t.status === 'todo' || t.status === 'done' || t.status === 'review') newStatus = 'doing';
     } else {
@@ -17356,7 +17396,6 @@ function taskToggleDetailChecklist(taskId, idx) {
       var statusLabel = {todo:'할 일', doing:'진행 중', review:'검토 중', done:'완료'};
       showToast('📋 상태가 "' + statusLabel[newStatus] + '"으로 자동 변경되었습니다');
     }
-    // 상세 모달 갱신
     taskOpenDetail(taskId);
   });
 }
