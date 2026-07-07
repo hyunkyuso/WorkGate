@@ -1730,7 +1730,7 @@ select.form-input{cursor:pointer}
         <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start">
 
           <!-- 좌측: 조직도 트리 -->
-          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:16px;max-height:calc(100vh - 160px);display:flex;flex-direction:column">
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:16px">
             <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
               <div style="font-size:13px;font-weight:600;color:var(--t1)">직원 선택</div>
               <div style="display:flex;gap:6px">
@@ -1738,11 +1738,11 @@ select.form-input{cursor:pointer}
                 <button onclick="taDeselectAll()" style="font-size:11px;padding:3px 8px;border:0.5px solid var(--border);border-radius:5px;cursor:pointer;background:var(--surface);color:var(--t2)">해제</button>
               </div>
             </div>
-            <div style="padding:8px">
+            <div style="padding:8px;border-bottom:1px solid var(--border)">
               <input id="ta-emp-search" type="text" class="form-input" style="font-size:12px;width:100%" placeholder="이름 검색..." oninput="taRenderOrgTree()">
             </div>
-            <div id="ta-org-tree" style="overflow-y:auto;flex:1;padding:4px 0"></div>
-            <div style="padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--t3)" id="ta-selected-count">0명 선택</div>
+            <div id="ta-org-tree" style="overflow-y:auto;max-height:calc(100vh - 280px);padding:4px 0"></div>
+            <div style="padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--t3);background:var(--surface)" id="ta-selected-count">0명 선택</div>
           </div>
 
           <!-- 우측: 현황 -->
@@ -17283,39 +17283,12 @@ function taRenderOrgTree() {
   var tree = document.getElementById('ta-org-tree');
   if (!tree) return;
   var keyword = (document.getElementById('ta-emp-search')||{}).value||'';
-  var roots = departments.filter(function(d){ return !d.parent; });
   var html = '';
 
-  function renderNode(dept, depth) {
-    var indent = depth * 12;
-    var deptEmps = employees.filter(function(e){
-      return e.status !== '퇴직' && e.dept === dept.name &&
-        (!keyword || (e.name||'').indexOf(keyword) >= 0);
-    });
-    var children = departments.filter(function(d){ return d.parent === dept.id; });
-    if (!deptEmps.length && !children.length) return '';
-    var allEmails = deptEmps.map(function(e){ return e.id||e.email||''; });
-    var allChecked = allEmails.length && allEmails.every(function(em){ return _taSelected.has(em); });
-    var result = '<div style="padding:5px 10px 3px '+(10+indent)+'px;font-size:11px;font-weight:600;color:var(--t3);display:flex;align-items:center;gap:6px;cursor:pointer" onclick="taDeptToggle(\''+dept.name+'\')">' +
-      '<input type="checkbox" '+(allChecked?'checked':'')+' onclick="event.stopPropagation();taDeptToggle(\''+dept.name+'\')" style="accent-color:var(--ac);flex-shrink:0">' +
-      (depth===0?'🏢 ':depth===1?'📁 ':'📂 ') + dept.name +
-    '</div>';
-    result += deptEmps.map(function(e) {
-      var email = e.id||e.email||'';
-      var isChecked = _taSelected.has(email);
-      return '<div style="padding:5px 10px 5px '+(22+indent)+'px;display:flex;align-items:center;gap:7px;cursor:pointer;border-radius:6px;margin:1px 6px" onclick="taToggleEmp(\''+email+'\')" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
-        '<input type="checkbox" '+(isChecked?'checked':'')+' onclick="event.stopPropagation();taToggleEmp(\''+email+'\')" style="accent-color:var(--ac);flex-shrink:0">' +
-        '<div style="width:24px;height:24px;border-radius:50%;background:var(--acd);color:var(--ac);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+(e.name||'?').charAt(0)+'</div>' +
-        '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:var(--t1)">'+e.name+'</div><div style="font-size:10px;color:var(--t3)">'+(e.rank||e.position||'')+'</div></div>' +
-      '</div>';
-    }).join('');
-    children.forEach(function(child){ result += renderNode(child, depth+1); });
-    return result;
-  }
-
   if (keyword) {
-    var filtered = employees.filter(function(e){ return e.status!=='퇴직' && (e.name||'').indexOf(keyword)>=0; });
-    html = filtered.map(function(e) {
+    // 검색 시 전체 직원 평탄화
+    var filteredEmps = employees.filter(function(e){ return e.status!=='퇴직' && (e.name||'').indexOf(keyword)>=0; });
+    html = filteredEmps.map(function(e) {
       var email = e.id||e.email||'';
       var isChecked = _taSelected.has(email);
       return '<div style="padding:6px 10px;display:flex;align-items:center;gap:7px;cursor:pointer;border-radius:6px;margin:1px 6px" onclick="taToggleEmp(\''+email+'\')" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
@@ -17324,9 +17297,62 @@ function taRenderOrgTree() {
         '<div><div style="font-size:12px;font-weight:500;color:var(--t1)">'+e.name+'</div><div style="font-size:10px;color:var(--t3)">'+(e.dept||'')+(e.rank?' · '+e.rank:'')+'</div></div>' +
       '</div>';
     }).join('');
-  } else {
+  } else if (departments && departments.length) {
+    // departments 데이터 있으면 계층 구조
+    var roots = departments.filter(function(d){ return !d.parent; });
+
+    function renderNode(dept, depth) {
+      var indent = depth * 12;
+      var deptEmps = employees.filter(function(e){ return e.status!=='퇴직' && e.dept===dept.name; });
+      var children = departments.filter(function(d){ return d.parent===dept.id; });
+      if (!deptEmps.length && !children.length) return '';
+      var allEmails = deptEmps.map(function(e){ return e.id||e.email||''; });
+      var allChecked = allEmails.length && allEmails.every(function(em){ return _taSelected.has(em); });
+      var result = '<div style="padding:5px 10px 3px '+(10+indent)+'px;font-size:11px;font-weight:600;color:var(--t3);display:flex;align-items:center;gap:6px;cursor:pointer" onclick="taDeptToggle(\''+dept.name+'\')">' +
+        '<input type="checkbox" '+(allChecked?'checked':'')+' onclick="event.stopPropagation();taDeptToggle(\''+dept.name+'\')" style="accent-color:var(--ac);flex-shrink:0">' +
+        (depth===0?'🏢 ':depth===1?'📁 ':'📂 ') + dept.name +
+      '</div>';
+      result += deptEmps.map(function(e) {
+        var email = e.id||e.email||'';
+        var isChecked = _taSelected.has(email);
+        return '<div style="padding:5px 10px 5px '+(22+indent)+'px;display:flex;align-items:center;gap:7px;cursor:pointer;border-radius:6px;margin:1px 6px" onclick="taToggleEmp(\''+email+'\')" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
+          '<input type="checkbox" '+(isChecked?'checked':'')+' onclick="event.stopPropagation();taToggleEmp(\''+email+'\')" style="accent-color:var(--ac);flex-shrink:0">' +
+          '<div style="width:24px;height:24px;border-radius:50%;background:var(--acd);color:var(--ac);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+(e.name||'?').charAt(0)+'</div>' +
+          '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:var(--t1)">'+e.name+'</div><div style="font-size:10px;color:var(--t3)">'+(e.rank||e.position||'')+'</div></div>' +
+        '</div>';
+      }).join('');
+      children.forEach(function(child){ result += renderNode(child, depth+1); });
+      return result;
+    }
     roots.forEach(function(d){ html += renderNode(d, 0); });
+  } else {
+    // departments 없으면 부서별 그룹핑
+    var deptMap = {};
+    employees.filter(function(e){ return e.status!=='퇴직'; }).forEach(function(e){
+      var dept = e.dept || e.orgName || '기타';
+      if (!deptMap[dept]) deptMap[dept] = [];
+      deptMap[dept].push(e);
+    });
+    Object.keys(deptMap).forEach(function(dept) {
+      var deptEmps = deptMap[dept];
+      var allEmails = deptEmps.map(function(e){ return e.id||e.email||''; });
+      var allChecked = allEmails.every(function(em){ return _taSelected.has(em); });
+      html += '<div style="padding:5px 10px 3px;font-size:11px;font-weight:600;color:var(--t3);display:flex;align-items:center;gap:6px;cursor:pointer" onclick="taDeptToggle(\''+dept+'\')">' +
+        '<input type="checkbox" '+(allChecked?'checked':'')+' onclick="event.stopPropagation();taDeptToggle(\''+dept+'\')" style="accent-color:var(--ac);flex-shrink:0">' +
+        '📁 '+dept +
+      '</div>';
+      html += deptEmps.map(function(e) {
+        var email = e.id||e.email||'';
+        var isChecked = _taSelected.has(email);
+        return '<div style="padding:5px 10px 5px 22px;display:flex;align-items:center;gap:7px;cursor:pointer;border-radius:6px;margin:1px 6px" onclick="taToggleEmp(\''+email+'\')" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
+          '<input type="checkbox" '+(isChecked?'checked':'')+' onclick="event.stopPropagation();taToggleEmp(\''+email+'\')" style="accent-color:var(--ac);flex-shrink:0">' +
+          '<div style="width:24px;height:24px;border-radius:50%;background:var(--acd);color:var(--ac);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+(e.name||'?').charAt(0)+'</div>' +
+          '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:var(--t1)">'+e.name+'</div><div style="font-size:10px;color:var(--t3)">'+(e.rank||e.position||'')+'</div></div>' +
+        '</div>';
+      }).join('');
+    });
   }
+
   tree.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">검색 결과 없음</div>';
   var cnt = document.getElementById('ta-selected-count');
   if (cnt) cnt.textContent = _taSelected.size + '명 선택';
