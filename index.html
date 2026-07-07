@@ -2437,6 +2437,7 @@ select.form-input{cursor:pointer}
             <input id="task-start-m" type="text" maxlength="2" placeholder="월" oninput="dateAutoNext(this,'task-start-d',2)" onblur="datePad(this)" style="width:24px;border:none;outline:none;font-size:13px;background:none;text-align:center;color:var(--t1)">
             <span style="color:var(--t3);font-size:12px">-</span>
             <input id="task-start-d" type="text" maxlength="2" placeholder="일" onblur="datePad(this)" style="width:24px;border:none;outline:none;font-size:13px;background:none;text-align:center;color:var(--t1)">
+            <button type="button" onclick="openDatePicker('task-start')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:15px;padding:0 0 0 2px;line-height:1" title="달력에서 선택">📅</button>
           </div>
         </div>
         <div>
@@ -2447,6 +2448,7 @@ select.form-input{cursor:pointer}
             <input id="task-due-m" type="text" maxlength="2" placeholder="월" oninput="dateAutoNext(this,'task-due-d',2)" onblur="datePad(this)" style="width:24px;border:none;outline:none;font-size:13px;background:none;text-align:center;color:var(--t1)">
             <span style="color:var(--t3);font-size:12px">-</span>
             <input id="task-due-d" type="text" maxlength="2" placeholder="일" onblur="datePad(this)" style="width:24px;border:none;outline:none;font-size:13px;background:none;text-align:center;color:var(--t1)">
+            <button type="button" onclick="openDatePicker('task-due')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:15px;padding:0 0 0 2px;line-height:1" title="달력에서 선택">📅</button>
           </div>
         </div>
       </div>
@@ -2589,6 +2591,25 @@ select.form-input{cursor:pointer}
       </div>
     </div>
   </div>
+</div>
+
+<!-- 달력 팝업 -->
+<div id="date-picker-popup" style="display:none;position:fixed;z-index:99999;background:var(--white);border:0.5px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.15);padding:14px;width:260px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <button onclick="datePickerPrevMonth()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--t2);padding:4px 8px;border-radius:6px" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='none'">‹</button>
+    <span id="dp-title" style="font-size:13px;font-weight:600;color:var(--t1)"></span>
+    <button onclick="datePickerNextMonth()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--t2);padding:4px 8px;border-radius:6px" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='none'">›</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px">
+    <div style="text-align:center;font-size:10px;color:var(--t3);padding:3px">일</div>
+    <div style="text-align:center;font-size:10px;color:var(--t3);padding:3px">월</div>
+    <div style="text-align:center;font-size:10px;color:var(--t3);padding:3px">화</div>
+    <div style="text-align:center;font-size:10px;color:var(--t3);padding:3px">수</div>
+    <div style="text-align:center;font-size:10px;color:var(--t3);padding:3px">목</div>
+    <div style="text-align:center;font-size:10px;color:var(--t3);padding:3px">금</div>
+    <div style="text-align:center;font-size:10px;color:var(--t3);padding:3px">토</div>
+  </div>
+  <div id="dp-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
 </div>
 
 <!-- 템플릿 수정 모달 -->
@@ -17048,7 +17069,82 @@ function taskRenderDetailFiles(files) {
     '</div></div>';
 }
 
-// ── 날짜 입력 유틸 ──
+// ── 달력 팝업 ──
+var _dpPrefix = '';
+var _dpYear = 0;
+var _dpMonth = 0;
+
+function openDatePicker(prefix) {
+  _dpPrefix = prefix;
+  var y = parseInt(document.getElementById(prefix+'-y').value) || new Date().getFullYear();
+  var m = parseInt(document.getElementById(prefix+'-m').value) || new Date().getMonth()+1;
+  _dpYear = y; _dpMonth = m;
+  renderDatePicker();
+
+  // 버튼 위치 기준으로 팝업 위치 설정
+  var btn = document.querySelector('button[onclick="openDatePicker(\''+prefix+'\')"]');
+  if (btn) {
+    var rect = btn.getBoundingClientRect();
+    var popup = document.getElementById('date-picker-popup');
+    popup.style.top = (rect.bottom + 6 + window.scrollY) + 'px';
+    popup.style.left = Math.min(rect.left, window.innerWidth - 270) + 'px';
+  }
+  document.getElementById('date-picker-popup').style.display = 'block';
+
+  // 외부 클릭 시 닫기
+  setTimeout(function() {
+    document.addEventListener('click', closeDatePickerOutside);
+  }, 100);
+}
+
+function closeDatePickerOutside(e) {
+  var popup = document.getElementById('date-picker-popup');
+  if (popup && !popup.contains(e.target)) {
+    popup.style.display = 'none';
+    document.removeEventListener('click', closeDatePickerOutside);
+  }
+}
+
+function renderDatePicker() {
+  document.getElementById('dp-title').textContent = _dpYear + '년 ' + _dpMonth + '월';
+  var firstDay = new Date(_dpYear, _dpMonth - 1, 1).getDay();
+  var lastDate = new Date(_dpYear, _dpMonth, 0).getDate();
+  var today = new Date().toISOString().substring(0, 10);
+  var selectedDate = getDateVal(_dpPrefix);
+
+  var html = '';
+  for (var i = 0; i < firstDay; i++) html += '<div></div>';
+  for (var d = 1; d <= lastDate; d++) {
+    var dateStr = _dpYear + '-' + String(_dpMonth).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    var isToday = dateStr === today;
+    var isSelected = dateStr === selectedDate;
+    var isSun = (firstDay + d - 1) % 7 === 0;
+    var isSat = (firstDay + d - 1) % 7 === 6;
+    var color = isSelected ? '#fff' : (isToday ? 'var(--ac)' : isSun ? '#E24B4A' : isSat ? '#378ADD' : 'var(--t1)');
+    var bg = isSelected ? 'var(--ac)' : (isToday ? 'var(--acd)' : 'none');
+    html += '<div onclick="selectDate('+d+')" style="text-align:center;padding:5px 2px;font-size:12px;cursor:pointer;border-radius:6px;color:'+color+';background:'+bg+';font-weight:'+(isSelected||isToday?'600':'400')+'" onmouseover="if(this.style.background===\'none\')this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\''+bg+'\'">'+d+'</div>';
+  }
+  document.getElementById('dp-days').innerHTML = html;
+}
+
+function selectDate(d) {
+  setDateVal(_dpPrefix, _dpYear+'-'+String(_dpMonth).padStart(2,'0')+'-'+String(d).padStart(2,'0'));
+  document.getElementById('date-picker-popup').style.display = 'none';
+  document.removeEventListener('click', closeDatePickerOutside);
+}
+
+function datePickerPrevMonth() {
+  _dpMonth--;
+  if (_dpMonth < 1) { _dpMonth = 12; _dpYear--; }
+  renderDatePicker();
+}
+
+function datePickerNextMonth() {
+  _dpMonth++;
+  if (_dpMonth > 12) { _dpMonth = 1; _dpYear++; }
+  renderDatePicker();
+}
+
 function dateAutoNext(el, nextId, len) {
   // 숫자만 허용
   el.value = el.value.replace(/[^0-9]/g, '');
