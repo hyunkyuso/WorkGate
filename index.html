@@ -483,6 +483,7 @@ select.form-input{cursor:pointer}
                   <div class="page-sub" id="kanban-project-desc"></div>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center">
+                  <button onclick="taskShowArchive()" class="btn btn-ghost" style="font-size:13px">📦 아카이브</button>
                   <button onclick="openTaskModal()" class="btn btn-primary">+ 업무 추가</button>
                   <button id="kanban-edit-btn" class="btn btn-ghost" style="font-size:13px">⚙ 설정</button>
                 </div>
@@ -2689,6 +2690,8 @@ select.form-input{cursor:pointer}
     <div class="modal-header">
       <div class="modal-title" id="task-detail-title"></div>
       <div style="display:flex;gap:6px">
+        <button id="task-detail-copy-btn" onclick="taskCopyFromDetail()" class="btn btn-ghost btn-sm" title="이 업무를 복사해서 새 업무 등록">📋 복사</button>
+        <button id="task-detail-archive-btn" onclick="taskArchiveFromDetail()" class="btn btn-ghost btn-sm" title="아카이브 (업무보드에서 숨김)">📦 아카이브</button>
         <button id="task-detail-edit-btn" onclick="taskEditFromDetail()" class="btn btn-ghost btn-sm">수정</button>
         <button id="task-detail-delete-btn" onclick="taskDeleteFromDetail()" class="btn btn-danger btn-sm">삭제</button>
         <button class="modal-close" onclick="closeModal('task-detail-modal')">✕</button>
@@ -16741,9 +16744,8 @@ function taskGetFiltered() {
   var myEmail = state.user ? state.user.email : '';
   var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
   return _tasks.filter(function(t) {
+    if (t.archived) return false; // 아카이브된 업무 제외
     if (_currentProjectId && t.projectId !== _currentProjectId) return false;
-    // 권한 체크: 관리자 or 담당자 or 공유자 or 검토자 or 프로젝트 멤버
-    // 관리자 포함 모두 담당자/공유자/검토자만
     var canSee = t.assignee === myEmail ||
       (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
       t.reviewer === myEmail;
@@ -17742,7 +17744,107 @@ function taskSave() {
 }
 
 // 업무 상세
+// ── 아카이브 ──
+var _detailTaskId = null;
+
+function taskArchiveFromDetail() {
+  if (!_detailTaskId) return;
+  var t = _tasks.find(function(x){ return x.id === _detailTaskId; });
+  if (!t) return;
+  if (!confirm('"'+t.title+'" 업무를 아카이브하시겠습니까?\n아카이브된 업무는 업무보드에서 숨겨집니다.')) return;
+  db.collection('tasks').doc(_detailTaskId).update({
+    archived: true,
+    archivedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    showToast('📦 아카이브 완료. 업무보드에서 숨겨졌습니다.');
+    closeModal('task-detail-modal');
+  });
+}
+
+// ── 업무 복사 ──
+function taskCopyFromDetail() {
+  if (!_detailTaskId) return;
+  var t = _tasks.find(function(x){ return x.id === _detailTaskId; });
+  if (!t) return;
+  closeModal('task-detail-modal');
+
+  // 모달 열고 값 채우기
+  openTaskModal(t.status);
+  setTimeout(function() {
+    document.getElementById('task-title').value = t.title ? '[복사] '+t.title : '';
+    document.getElementById('task-desc').value = t.desc||'';
+    taskInitPriBtns(t.priority||'보통');
+    taskInitStatusBtns('todo');
+    // 체크리스트 복사 (완료 상태는 초기화)
+    _taskChecklist = (t.checklist||[]).map(function(c){ return {text:c.text, done:false}; });
+    taskRenderChecklist();
+    // 담당자 복사
+    var assigneeSel = document.getElementById('task-assignee');
+    if (assigneeSel && t.assignee) assigneeSel.value = t.assignee;
+    showToast('📋 업무가 복사되었습니다. 내용을 수정 후 등록하세요.');
+  }, 100);
+}
+
+// ── 아카이브 조회 ──
+function taskShowArchive() {
+  var myEmail = state.user ? state.user.email : '';
+  var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
+  var archived = _tasks.filter(function(t) {
+    if (!t.archived) return false;
+    if (_currentProjectId && t.projectId !== _currentProjectId) return false;
+    if (isAdmin) return true;
+    return t.assignee === myEmail || (t.sharedWith||[]).indexOf(myEmail)>=0 || t.reviewer===myEmail;
+  });
+
+  var html = '<div style="padding:16px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
+      '<div style="font-size:15px;font-weight:600;color:var(--t1)">📦 아카이브된 업무 ('+archived.length+'개)</div>' +
+      '<button onclick="closeModal(\'task-archive-modal\')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--t3)">✕</button>' +
+    '</div>';
+
+  if (!archived.length) {
+    html += '<div style="padding:32px;text-align:center;color:var(--t3)">아카이브된 업무가 없습니다</div>';
+  } else {
+    var sC = {todo:'#888780',doing:'#378ADD',review:'#EF9F27',done:'#639922'};
+    var sL = {todo:'할 일',doing:'진행 중',review:'검토 중',done:'완료'};
+    html += archived.map(function(t) {
+      var proj = _projects.find(function(p){ return p.id===t.projectId; });
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin-bottom:6px">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:500;color:var(--t1)">'+(t.title||'')+'</div>' +
+          '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+(proj?proj.name:'')+(t.archivedAt?' · 아카이브: '+(function(){ var d=t.archivedAt.toDate?t.archivedAt.toDate():new Date(t.archivedAt); return (d.getMonth()+1)+'/'+d.getDate(); })():'')+'</div>' +
+        '</div>' +
+        '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:'+(sC[t.status]||'#888')+'22;color:'+(sC[t.status]||'#888')+'">'+(sL[t.status]||'')+'</span>' +
+        '<button onclick="taskUnarchive(\''+t.id+'\')" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--white);color:var(--t2);white-space:nowrap">↩ 복원</button>' +
+      '</div>';
+    }).join('');
+  }
+  html += '</div>';
+
+  var modal = document.getElementById('task-archive-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'task-archive-modal';
+    modal.className = 'modal-backdrop';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center';
+    modal.onclick = function(e){ if(e.target===modal) closeModal('task-archive-modal'); };
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<div style="background:var(--white);border-radius:14px;max-width:540px;width:90%;max-height:80vh;overflow-y:auto">'+html+'</div>';
+  modal.style.display = 'flex';
+}
+
+function taskUnarchive(taskId) {
+  db.collection('tasks').doc(taskId).update({
+    archived: false, archivedAt: null
+  }).then(function() {
+    showToast('↩ 업무가 복원되었습니다');
+    taskShowArchive(); // 목록 갱신
+  });
+}
+
 function taskOpenDetail(id) {
+  _detailTaskId = id;
   var t = _tasks.find(function(x){ return x.id===id; });
   if (!t) return;
   _taskDetailId = id;
