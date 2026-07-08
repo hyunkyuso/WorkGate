@@ -1673,7 +1673,6 @@ select.form-input{cursor:pointer}
               <button onclick="reportSwitchTab('weekly','review',this)" id="weekly-tab-review" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">👁 검토 요청 <span id="weekly-review-badge" style="display:none;background:#E24B4A;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;margin-left:4px"></span></button>
             </div>
             <button onclick="reportGenerate('weekly')" class="btn btn-primary" id="weekly-gen-btn">✨ AI 보고서 생성</button>
-            <button onclick="reportSave('weekly')" class="btn btn-ghost" id="weekly-save-btn" style="display:none">💾 저장</button>
           </div>
         </div>
         <!-- 작성 탭 -->
@@ -1706,10 +1705,6 @@ select.form-input{cursor:pointer}
               <div id="weekly-reviewer-tag" style="min-height:24px"></div>
               <input type="hidden" id="weekly-reviewer" value="">
             </div>
-            <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
-              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">저장된 보고서</div>
-              <div id="weekly-saved-list" style="display:flex;flex-direction:column;gap:4px"></div>
-            </div>
           </div>
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
             <div id="weekly-report-area">
@@ -1739,7 +1734,6 @@ select.form-input{cursor:pointer}
               <button onclick="reportSwitchTab('monthly','review',this)" id="monthly-tab-review" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">👁 검토 요청 <span id="monthly-review-badge" style="display:none;background:#E24B4A;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;margin-left:4px"></span></button>
             </div>
             <button onclick="reportGenerate('monthly')" class="btn btn-primary" id="monthly-gen-btn">✨ AI 보고서 생성</button>
-            <button onclick="reportSave('monthly')" class="btn btn-ghost" id="monthly-save-btn" style="display:none">💾 저장</button>
           </div>
         </div>
         <!-- 작성 탭 -->
@@ -1772,10 +1766,6 @@ select.form-input{cursor:pointer}
               <div id="monthly-reviewer-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:100px;overflow-y:auto;margin-bottom:6px"></div>
               <div id="monthly-reviewer-tag" style="min-height:24px"></div>
               <input type="hidden" id="monthly-reviewer" value="">
-            </div>
-            <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
-              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">저장된 보고서</div>
-              <div id="monthly-saved-list" style="display:flex;flex-direction:column;gap:4px"></div>
             </div>
           </div>
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
@@ -18454,9 +18444,6 @@ async function reportGenerate(type) {
 
 function reportRenderContent(type, parsed, periodLabel, name, dept, reviewerName) {
   var areaEl = document.getElementById(type+'-report-area');
-  // 헤더 저장 버튼 표시
-  var saveBtn = document.getElementById(type+'-save-btn');
-  if (saveBtn) saveBtn.style.display = '';
   var thisWeek = parsed.this_week||[];
   var nextWeek = parsed.next_week||[];
   var issues = parsed.issues||'없음';
