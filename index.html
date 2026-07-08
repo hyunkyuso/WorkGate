@@ -2945,7 +2945,7 @@ select.form-input{cursor:pointer}
 <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.1.22/dist/docx-preview.min.js"></script>
 <!-- JSZip (Word XML 직접 치환) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
 <!-- pdf.js (PDF 렌더링) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- jsPDF (캔버스 → PDF 저장) -->
@@ -18417,15 +18417,31 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
   areaEl.innerHTML = html;
 }
 
-// ── 월간 보고 docx 다운로드 ──
 async function reportDownloadDocx() {
   var d = _reportData['monthly'];
   if (!d || !d.parsed) { showToast('❌ 먼저 보고서를 생성해주세요'); return; }
-  if (!window.docx) { showToast('❌ docx 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요'); return; }
+
+  // docx 라이브러리 찾기
+  var docxLib = window.docx || window.docx_1 || (typeof docx !== 'undefined' ? docx : null);
+  if (!docxLib || !docxLib.Document) {
+    showToast('❌ docx 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요');
+    return;
+  }
   showToast('📄 워드 파일 생성 중...');
 
   try {
-    var { Document, Packer, Table, TableRow, TableCell, Paragraph, TextRun, WidthType, AlignmentType, VerticalAlign, BorderStyle } = window.docx;
+    var Document = docxLib.Document;
+    var Packer = docxLib.Packer;
+    var Table = docxLib.Table;
+    var TableRow = docxLib.TableRow;
+    var TableCell = docxLib.TableCell;
+    var Paragraph = docxLib.Paragraph;
+    var TextRun = docxLib.TextRun;
+    var WidthType = docxLib.WidthType;
+    var AlignmentType = docxLib.AlignmentType;
+    var VerticalAlign = docxLib.VerticalAlign;
+    var BorderStyle = docxLib.BorderStyle;
+
     var parsed = d.parsed;
     var tasks = parsed.tasks || [];
     var highlight = parsed.highlight || [];
@@ -18434,9 +18450,13 @@ async function reportDownloadDocx() {
     var monthEl = document.getElementById('monthly-month');
     var month = monthEl ? monthEl.value : new Date().getMonth()+1;
 
-    var border = { style: BorderStyle.SINGLE, size: 1, color: '000000' };
+    var bStyle = BorderStyle ? BorderStyle.SINGLE : 'single';
+    var border = { style: bStyle, size: 1, color: '000000' };
     var borders = { top: border, bottom: border, left: border, right: border };
     var COL_W = [700, 1200, 2600, 350, 500, 2600, 350, 500, 400, 800];
+    var wAlign = AlignmentType || { LEFT: 'left', CENTER: 'center', RIGHT: 'right' };
+    var vAlign = VerticalAlign || { CENTER: 'center', TOP: 'top' };
+    var wType = WidthType || { DXA: 'dxa', PERCENTAGE: 'pct' };
 
     function getStatusSym(status, pct) {
       if (status==='완료'||pct===100) return '√';
@@ -18446,55 +18466,70 @@ async function reportDownloadDocx() {
     function mkPara(text, opts) {
       opts = opts||{};
       return new Paragraph({
-        alignment: opts.align||AlignmentType.LEFT,
+        alignment: opts.align || wAlign.LEFT,
         spacing: { before: 20, after: 20 },
         children: [new TextRun({ text: text||'', bold: opts.bold||false, size: opts.size||16, font: '맑은 고딕', color: opts.color||'000000' })]
       });
     }
     function mkCell(children, opts) {
       opts = opts||{};
+      var arr = Array.isArray(children) ? (children.length ? children : [mkPara('')]) : [children];
       return new TableCell({
-        width: { size: opts.w||500, type: WidthType.DXA },
+        width: { size: opts.w||500, type: wType.DXA },
         rowSpan: opts.rowSpan, columnSpan: opts.colSpan,
-        verticalAlign: opts.valign||VerticalAlign.CENTER,
+        verticalAlign: opts.valign || vAlign.CENTER,
         shading: opts.shade ? { fill: opts.shade } : undefined,
         borders,
-        children: Array.isArray(children) ? (children.length ? children : [mkPara('')]) : [children]
+        children: arr
       });
     }
 
     var rows = [];
-    rows.push(new TableRow({ children: [mkCell(mkPara('경영관리본부 '+deptName+' ( '+month+' )월 업무계획',{bold:true,size:22,color:'FFFFFF',align:AlignmentType.CENTER}),{w:12240,colSpan:10,shade:'1F4E79'})] }));
-    rows.push(new TableRow({ children: [mkCell(mkPara('√완료, →연기, ×취소, ◉위임, ●진행중, ■대기중',{size:14}),{w:12240,colSpan:10})] }));
-    rows.push(new TableRow({ tableHeader: true, children: [
-      mkCell(mkPara('구 분',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[0],shade:'D9E1F2'}),
-      mkCell(mkPara('업무분장',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[1],shade:'D9E1F2'}),
-      mkCell(mkPara('금월 월간업무 내용',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[2],shade:'D9E1F2'}),
-      mkCell(mkPara('공정',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[3],shade:'D9E1F2'}),
-      mkCell(mkPara('진행률(100%)',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[4],shade:'D9E1F2'}),
-      mkCell(mkPara('익월 월간업무 내용',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[5],shade:'D9E1F2'}),
-      mkCell(mkPara('공정',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[6],shade:'D9E1F2'}),
-      mkCell(mkPara('진행률(100%)',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[7],shade:'D9E1F2'}),
-      mkCell(mkPara('업무순위',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[8],shade:'D9E1F2'}),
-      mkCell(mkPara('시작일~완료(예정)일',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[9],shade:'D9E1F2'}),
+
+    // 제목행 - 진한 파란 배경 흰 글자
+    rows.push(new TableRow({ children: [
+      mkCell(mkPara('경영관리본부 '+deptName+' ( '+month+' )월 업무계획', {bold:true,size:22,color:'FFFFFF',align:wAlign.CENTER}), {w:12240,colSpan:10,shade:'1F4E79'})
     ]}));
 
+    // 범례행
+    rows.push(new TableRow({ children: [
+      mkCell(mkPara('√완료, →연기, ×취소, ◉위임, ●진행중, ■대기중', {size:14}), {w:12240,colSpan:10})
+    ]}));
+
+    // 헤더행 - 연한 파란 배경 검정 글자
+    rows.push(new TableRow({ tableHeader: true, children: [
+      mkCell(mkPara('구 분',{bold:true,align:wAlign.CENTER}),{w:COL_W[0],shade:'D9E1F2'}),
+      mkCell(mkPara('업무분장',{bold:true,align:wAlign.CENTER}),{w:COL_W[1],shade:'D9E1F2'}),
+      mkCell(mkPara('금월 월간업무 내용',{bold:true,align:wAlign.CENTER}),{w:COL_W[2],shade:'D9E1F2'}),
+      mkCell(mkPara('공정',{bold:true,align:wAlign.CENTER}),{w:COL_W[3],shade:'D9E1F2'}),
+      mkCell(mkPara('진행률(100%)',{bold:true,align:wAlign.CENTER}),{w:COL_W[4],shade:'D9E1F2'}),
+      mkCell(mkPara('익월 월간업무 내용',{bold:true,align:wAlign.CENTER}),{w:COL_W[5],shade:'D9E1F2'}),
+      mkCell(mkPara('공정',{bold:true,align:wAlign.CENTER}),{w:COL_W[6],shade:'D9E1F2'}),
+      mkCell(mkPara('진행률(100%)',{bold:true,align:wAlign.CENTER}),{w:COL_W[7],shade:'D9E1F2'}),
+      mkCell(mkPara('업무순위',{bold:true,align:wAlign.CENTER}),{w:COL_W[8],shade:'D9E1F2'}),
+      mkCell(mkPara('시작일~완료(예정)일',{bold:true,align:wAlign.CENTER}),{w:COL_W[9],shade:'D9E1F2'}),
+    ]}));
+
+    // 업무 데이터 행
     tasks.forEach(function(task, tIdx) {
       var tm = task.this_month||[]; var nm = task.next_month||[];
       var cells = [];
-      if (tIdx===0) cells.push(mkCell(mkPara(deptName,{bold:true,align:AlignmentType.CENTER}),{w:COL_W[0],rowSpan:tasks.length,valign:VerticalAlign.CENTER}));
-      cells.push(mkCell(mkPara(task.category),{w:COL_W[1],valign:VerticalAlign.TOP}));
-      cells.push(mkCell(tm.map(function(t){ return mkPara('• '+t.title+(t.note?' - '+t.note:'')); }),{w:COL_W[2],valign:VerticalAlign.TOP}));
-      cells.push(mkCell(tm.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:AlignmentType.CENTER,bold:t.status==='진행중'}); }),{w:COL_W[3],valign:VerticalAlign.TOP}));
-      cells.push(mkCell(tm.map(function(t){ return mkPara(t.pct+'%',{align:AlignmentType.CENTER}); }),{w:COL_W[4],valign:VerticalAlign.TOP}));
-      cells.push(mkCell(nm.map(function(t){ return mkPara('• '+t.title+(t.note?' - '+t.note:'')); }),{w:COL_W[5],valign:VerticalAlign.TOP}));
-      cells.push(mkCell(nm.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:AlignmentType.CENTER,bold:t.status==='진행중'}); }),{w:COL_W[6],valign:VerticalAlign.TOP}));
-      cells.push(mkCell(nm.map(function(t){ return mkPara(t.pct>0?t.pct+'%':'',{align:AlignmentType.CENTER}); }),{w:COL_W[7],valign:VerticalAlign.TOP}));
-      cells.push(mkCell(nm.map(function(t,i){ return mkPara(String(t.priority||i+1),{align:AlignmentType.CENTER}); }),{w:COL_W[8],valign:VerticalAlign.TOP}));
-      cells.push(mkCell(tm.map(function(t){ return mkPara(t.start&&t.end?t.start+'~'+t.end:'',{align:AlignmentType.CENTER,size:14}); }),{w:COL_W[9],valign:VerticalAlign.TOP}));
+      if (tIdx===0) {
+        cells.push(mkCell(mkPara(deptName,{bold:true,align:wAlign.CENTER}),{w:COL_W[0],rowSpan:tasks.length,valign:vAlign.CENTER}));
+      }
+      cells.push(mkCell(mkPara(task.category),{w:COL_W[1],valign:vAlign.TOP}));
+      cells.push(mkCell(tm.length ? tm.map(function(t){ return mkPara('• '+t.title+(t.note?' - '+t.note:'')); }) : [mkPara('')],{w:COL_W[2],valign:vAlign.TOP}));
+      cells.push(mkCell(tm.length ? tm.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:wAlign.CENTER,bold:t.status==='진행중'}); }) : [mkPara('')],{w:COL_W[3],valign:vAlign.TOP}));
+      cells.push(mkCell(tm.length ? tm.map(function(t){ return mkPara(t.pct+'%',{align:wAlign.CENTER}); }) : [mkPara('')],{w:COL_W[4],valign:vAlign.TOP}));
+      cells.push(mkCell(nm.length ? nm.map(function(t){ return mkPara('• '+t.title+(t.note?' - '+t.note:'')); }) : [mkPara('')],{w:COL_W[5],valign:vAlign.TOP}));
+      cells.push(mkCell(nm.length ? nm.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:wAlign.CENTER,bold:t.status==='진행중'}); }) : [mkPara('')],{w:COL_W[6],valign:vAlign.TOP}));
+      cells.push(mkCell(nm.length ? nm.map(function(t){ return mkPara(t.pct>0?t.pct+'%':'',{align:wAlign.CENTER}); }) : [mkPara('')],{w:COL_W[7],valign:vAlign.TOP}));
+      cells.push(mkCell(nm.length ? nm.map(function(t,i){ return mkPara(String(t.priority||i+1),{align:wAlign.CENTER}); }) : [mkPara('')],{w:COL_W[8],valign:vAlign.TOP}));
+      cells.push(mkCell(tm.length ? tm.map(function(t){ return mkPara(t.start&&t.end?t.start+'~'+t.end:'',{align:wAlign.CENTER,size:14}); }) : [mkPara('')],{w:COL_W[9],valign:vAlign.TOP}));
       rows.push(new TableRow({ children: cells }));
     });
 
+    // 협조사항 행
     rows.push(new TableRow({ children: [
       mkCell(mkPara('■본부내 업무 협조 사항 및 이슈'),{w:COL_W[0]}),
       mkCell([mkPara('')],{w:COL_W[1]}),
@@ -18505,24 +18540,32 @@ async function reportDownloadDocx() {
       mkCell([mkPara('')],{w:COL_W[9]}),
     ]}));
 
+    // 중점업무 행
+    var hl = highlight.length ? highlight : [{title:'',status:'예정',pct:0,priority:1,start:'',end:''}];
     rows.push(new TableRow({ children: [
       mkCell(mkPara('■금월 중점업무'),{w:COL_W[0]+COL_W[1],colSpan:2}),
-      mkCell(highlight.map(function(t){ return mkPara('• '+t.title); }),{w:COL_W[2],valign:VerticalAlign.TOP}),
-      mkCell(highlight.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:AlignmentType.CENTER}); }),{w:COL_W[3],valign:VerticalAlign.TOP}),
-      mkCell(highlight.map(function(t){ return mkPara(t.pct+'%',{align:AlignmentType.CENTER}); }),{w:COL_W[4],valign:VerticalAlign.TOP}),
-      mkCell(highlight.map(function(t){ return mkPara('• '+t.title); }),{w:COL_W[5],valign:VerticalAlign.TOP}),
-      mkCell(highlight.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:AlignmentType.CENTER}); }),{w:COL_W[6],valign:VerticalAlign.TOP}),
-      mkCell(highlight.map(function(t){ return mkPara(t.pct+'%',{align:AlignmentType.CENTER}); }),{w:COL_W[7],valign:VerticalAlign.TOP}),
-      mkCell(highlight.map(function(t,i){ return mkPara(String(t.priority||i+1),{align:AlignmentType.CENTER}); }),{w:COL_W[8],valign:VerticalAlign.TOP}),
-      mkCell(highlight.map(function(t){ return mkPara(t.start&&t.end?t.start+'~'+t.end:'',{size:14}); }),{w:COL_W[9],valign:VerticalAlign.TOP}),
+      mkCell(hl.map(function(t){ return mkPara('• '+t.title); }),{w:COL_W[2],valign:vAlign.TOP}),
+      mkCell(hl.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:wAlign.CENTER}); }),{w:COL_W[3],valign:vAlign.TOP}),
+      mkCell(hl.map(function(t){ return mkPara(t.pct+'%',{align:wAlign.CENTER}); }),{w:COL_W[4],valign:vAlign.TOP}),
+      mkCell(hl.map(function(t){ return mkPara('• '+t.title); }),{w:COL_W[5],valign:vAlign.TOP}),
+      mkCell(hl.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:wAlign.CENTER}); }),{w:COL_W[6],valign:vAlign.TOP}),
+      mkCell(hl.map(function(t){ return mkPara(t.pct+'%',{align:wAlign.CENTER}); }),{w:COL_W[7],valign:vAlign.TOP}),
+      mkCell(hl.map(function(t,i){ return mkPara(String(t.priority||i+1),{align:wAlign.CENTER}); }),{w:COL_W[8],valign:vAlign.TOP}),
+      mkCell(hl.map(function(t){ return mkPara(t.start&&t.end?t.start+'~'+t.end:'',{size:14}); }),{w:COL_W[9],valign:vAlign.TOP}),
     ]}));
 
+    // 질의응답 행
     rows.push(new TableRow({ children: [
       mkCell(mkPara('■질의/응답 등 회의내용'),{w:COL_W[0]}),
       mkCell([mkPara('')],{w:COL_W[1]+COL_W[2]+COL_W[3]+COL_W[4]+COL_W[5]+COL_W[6]+COL_W[7]+COL_W[8]+COL_W[9],colSpan:9}),
     ]}));
 
-    var table = new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, columnWidths: COL_W, rows: rows });
+    var table = new Table({
+      width: { size: 100, type: wType.PERCENTAGE },
+      columnWidths: COL_W,
+      rows: rows
+    });
+
     var doc = new Document({
       sections: [{ properties: { page: { size: { width: 16838, height: 11906 }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } }, children: [table] }]
     });
@@ -18540,7 +18583,6 @@ async function reportDownloadDocx() {
     console.error(e);
   }
 }
-
 function reportReviewerSearch(type) {
   var keyword = document.getElementById(type+'-reviewer-search').value.trim();
   var resultsEl = document.getElementById(type+'-reviewer-results');
@@ -18807,49 +18849,49 @@ function reportEditMonthly() {
       var maxLen = Math.max(tm.length, nm.length, 1);
       var html = '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px">' +
         '<div style="padding:8px 12px;background:#f8f9fa;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px">' +
-          '<input type="text" value="'+task.category+'" oninput="window._editParsed.tasks['+tIdx+'].category=this.value" style="font-size:13px;font-weight:500;flex:1;border:none;background:transparent;color:var(--t1)">' +
+          '<input type="text" class="me-category" data-idx="'+tIdx+'" value="'+task.category+'" style="font-size:13px;font-weight:500;flex:1;border:none;background:transparent;color:var(--t1)">' +
           '<button onclick="reportEditMonthlyRemoveTask('+tIdx+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px">✕ 카테고리 삭제</button>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0">' +
           '<div style="padding:8px;border-right:0.5px solid var(--border)">' +
             '<div style="font-size:11px;font-weight:500;color:#0C447C;margin-bottom:6px">금월 업무내용</div>' +
             tm.map(function(t,i){
-              return '<div style="display:flex;gap:6px;margin-bottom:6px;align-items:flex-start">' +
-                '<select oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].status=this.value" style="font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px;flex-shrink:0">' +
+              return '<div style="display:flex;gap:6px;margin-bottom:8px;align-items:flex-start">' +
+                '<select class="me-status" data-task="'+tIdx+'" data-item="'+i+'" data-side="this" style="font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px;flex-shrink:0">' +
                   ['완료','진행중','예정','대기'].map(function(s){ return '<option value="'+s+'"'+(t.status===s?' selected':'')+'>'+s+'</option>'; }).join('') +
                 '</select>' +
                 '<div style="flex:1">' +
-                  '<textarea oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].title=this.value" rows="2" style="width:100%;font-size:12px;border:0.5px solid var(--border);border-radius:5px;padding:4px;resize:vertical">'+t.title+'</textarea>' +
-                  '<input type="text" value="'+(t.note||'')+'" oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].note=this.value" placeholder="비고" style="width:100%;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:3px 6px;margin-top:3px">' +
+                  '<textarea class="me-title form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="this" rows="2" style="font-size:12px;resize:vertical;padding:4px">'+t.title+'</textarea>' +
+                  '<input type="text" class="me-note form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="this" value="'+(t.note||'')+'" placeholder="비고" style="font-size:11px;padding:3px 6px;margin-top:3px">' +
                   '<div style="display:flex;gap:4px;margin-top:3px">' +
-                    '<input type="number" value="'+(t.pct||0)+'" oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].pct=parseInt(this.value)||0" min="0" max="100" style="width:60px;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px" placeholder="진행률">' +
-                    '<input type="text" value="'+(t.start||'')+'" oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].start=this.value" placeholder="시작" style="width:60px;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px">' +
-                    '<input type="text" value="'+(t.end||'')+'" oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].end=this.value" placeholder="완료" style="width:60px;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px">' +
-                    '<button onclick="window._editParsed.tasks['+tIdx+'].this_month.splice('+i+',1);reportEditMonthly()" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:12px">✕</button>' +
+                    '<input type="number" class="me-pct form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.pct||0)+'" min="0" max="100" style="width:60px;font-size:11px;padding:2px 4px" placeholder="진행률%">' +
+                    '<input type="text" class="me-start form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.start||'')+'" placeholder="시작" style="width:55px;font-size:11px;padding:2px 4px">' +
+                    '<input type="text" class="me-end form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.end||'')+'" placeholder="완료" style="width:55px;font-size:11px;padding:2px 4px">' +
+                    '<button onclick="reportEditMonthlyRemoveItem('+tIdx+',\'this\','+i+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px;flex-shrink:0">✕</button>' +
                   '</div>' +
                 '</div>' +
               '</div>';
             }).join('') +
-            '<button onclick="window._editParsed.tasks['+tIdx+'].this_month.push({title:\'\',note:\'\',status:\'예정\',pct:0,priority:1,start:\'\',end:\'\'});reportEditMonthly()" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:4px 0">+ 항목 추가</button>' +
+            '<button onclick="reportMonthlyAddItem('+tIdx+',\'this\')" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:4px 0">+ 항목 추가</button>' +
           '</div>' +
           '<div style="padding:8px">' +
             '<div style="font-size:11px;font-weight:500;color:#27500A;margin-bottom:6px">익월 업무내용</div>' +
             nm.map(function(t,i){
-              return '<div style="display:flex;gap:6px;margin-bottom:6px;align-items:flex-start">' +
-                '<select oninput="window._editParsed.tasks['+tIdx+'].next_month['+i+'].status=this.value" style="font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px;flex-shrink:0">' +
+              return '<div style="display:flex;gap:6px;margin-bottom:8px;align-items:flex-start">' +
+                '<select class="me-status" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" style="font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px;flex-shrink:0">' +
                   ['예정','진행중','완료','대기'].map(function(s){ return '<option value="'+s+'"'+(t.status===s?' selected':'')+'>'+s+'</option>'; }).join('') +
                 '</select>' +
                 '<div style="flex:1">' +
-                  '<textarea oninput="window._editParsed.tasks['+tIdx+'].next_month['+i+'].title=this.value" rows="2" style="width:100%;font-size:12px;border:0.5px solid var(--border);border-radius:5px;padding:4px;resize:vertical">'+t.title+'</textarea>' +
-                  '<input type="text" value="'+(t.note||'')+'" oninput="window._editParsed.tasks['+tIdx+'].next_month['+i+'].note=this.value" placeholder="비고" style="width:100%;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:3px 6px;margin-top:3px">' +
+                  '<textarea class="me-title form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" rows="2" style="font-size:12px;resize:vertical;padding:4px">'+t.title+'</textarea>' +
+                  '<input type="text" class="me-note form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" value="'+(t.note||'')+'" placeholder="비고" style="font-size:11px;padding:3px 6px;margin-top:3px">' +
                   '<div style="display:flex;gap:4px;margin-top:3px">' +
-                    '<input type="number" value="'+(t.priority||i+1)+'" oninput="window._editParsed.tasks['+tIdx+'].next_month['+i+'].priority=parseInt(this.value)||1" min="1" style="width:50px;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px" placeholder="순위">' +
-                    '<button onclick="window._editParsed.tasks['+tIdx+'].next_month.splice('+i+',1);reportEditMonthly()" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:12px">✕</button>' +
+                    '<input type="number" class="me-priority form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.priority||i+1)+'" min="1" style="width:50px;font-size:11px;padding:2px 4px" placeholder="순위">' +
+                    '<button onclick="reportEditMonthlyRemoveItem('+tIdx+',\'next\','+i+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px;flex-shrink:0">✕</button>' +
                   '</div>' +
                 '</div>' +
               '</div>';
             }).join('') +
-            '<button onclick="window._editParsed.tasks['+tIdx+'].next_month.push({title:\'\',note:\'\',status:\'예정\',pct:0,priority:1});reportEditMonthly()" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:4px 0">+ 항목 추가</button>' +
+            '<button onclick="reportMonthlyAddItem('+tIdx+',\'next\')" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:4px 0">+ 항목 추가</button>' +
           '</div>' +
         '</div></div>';
       return html;
@@ -18862,23 +18904,89 @@ function reportEditMonthly() {
       '<button onclick="reportEditMonthlyApply()" class="btn btn-primary" style="font-size:12px">적용</button>' +
     '</div>' +
     editTaskRows() +
-    '<button onclick="window._editParsed.tasks.push({category:\'새 업무분장\',this_month:[],next_month:[]});reportEditMonthly()" style="font-size:12px;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;cursor:pointer;padding:8px 16px;width:100%;margin-bottom:12px">+ 업무분장 추가</button>' +
+    '<button onclick="reportMonthlyAddTask()" style="font-size:12px;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;cursor:pointer;padding:8px 16px;width:100%;margin-bottom:12px">+ 업무분장 추가</button>' +
     '<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">' +
       '<div style="font-size:11px;color:var(--t3);margin-bottom:6px">■협조사항</div>' +
       '<textarea id="edit-monthly-issue" class="form-input" style="height:50px;resize:none;font-size:13px">'+(window._editParsed.issue||'')+'</textarea>' +
     '</div>';
 }
 
+function reportMonthlyAddItem(tIdx, side) {
+  if (!window._editParsed) return;
+  reportEditMonthlySyncDOM(); // 현재 입력값 먼저 수집
+  var arr = side==='this' ? window._editParsed.tasks[tIdx].this_month : window._editParsed.tasks[tIdx].next_month;
+  arr.push({title:'', note:'', status: side==='this'?'진행중':'예정', pct:0, priority:arr.length+1, start:'', end:''});
+  reportEditMonthly();
+}
+
+function reportMonthlyAddTask() {
+  if (!window._editParsed) return;
+  reportEditMonthlySyncDOM();
+  window._editParsed.tasks.push({category:'새 업무분장', this_month:[], next_month:[]});
+  reportEditMonthly();
+}
+
+function reportEditMonthlySyncDOM() {
+  if (!window._editParsed) return;
+  // 카테고리명 수집
+  document.querySelectorAll('.me-category').forEach(function(el) {
+    var i = parseInt(el.dataset.idx);
+    if (window._editParsed.tasks[i]) window._editParsed.tasks[i].category = el.value;
+  });
+  // 업무 제목/비고/상태 수집
+  document.querySelectorAll('.me-title').forEach(function(el) {
+    var ti = parseInt(el.dataset.task); var ii = parseInt(el.dataset.item); var side = el.dataset.side;
+    var arr = side==='this' ? window._editParsed.tasks[ti].this_month : window._editParsed.tasks[ti].next_month;
+    if (arr[ii]) arr[ii].title = el.value;
+  });
+  document.querySelectorAll('.me-note').forEach(function(el) {
+    var ti = parseInt(el.dataset.task); var ii = parseInt(el.dataset.item); var side = el.dataset.side;
+    var arr = side==='this' ? window._editParsed.tasks[ti].this_month : window._editParsed.tasks[ti].next_month;
+    if (arr[ii]) arr[ii].note = el.value;
+  });
+  document.querySelectorAll('.me-status').forEach(function(el) {
+    var ti = parseInt(el.dataset.task); var ii = parseInt(el.dataset.item); var side = el.dataset.side;
+    var arr = side==='this' ? window._editParsed.tasks[ti].this_month : window._editParsed.tasks[ti].next_month;
+    if (arr[ii]) arr[ii].status = el.value;
+  });
+  document.querySelectorAll('.me-pct').forEach(function(el) {
+    var ti = parseInt(el.dataset.task); var ii = parseInt(el.dataset.item);
+    if (window._editParsed.tasks[ti] && window._editParsed.tasks[ti].this_month[ii]) window._editParsed.tasks[ti].this_month[ii].pct = parseInt(el.value)||0;
+  });
+  document.querySelectorAll('.me-start').forEach(function(el) {
+    var ti = parseInt(el.dataset.task); var ii = parseInt(el.dataset.item);
+    if (window._editParsed.tasks[ti] && window._editParsed.tasks[ti].this_month[ii]) window._editParsed.tasks[ti].this_month[ii].start = el.value;
+  });
+  document.querySelectorAll('.me-end').forEach(function(el) {
+    var ti = parseInt(el.dataset.task); var ii = parseInt(el.dataset.item);
+    if (window._editParsed.tasks[ti] && window._editParsed.tasks[ti].this_month[ii]) window._editParsed.tasks[ti].this_month[ii].end = el.value;
+  });
+  document.querySelectorAll('.me-priority').forEach(function(el) {
+    var ti = parseInt(el.dataset.task); var ii = parseInt(el.dataset.item);
+    if (window._editParsed.tasks[ti] && window._editParsed.tasks[ti].next_month[ii]) window._editParsed.tasks[ti].next_month[ii].priority = parseInt(el.value)||1;
+  });
+  var ia = document.getElementById('edit-monthly-issue');
+  if (ia) window._editParsed.issue = ia.value;
+}
+
 function reportEditMonthlyRemoveTask(idx) {
   if (!window._editParsed) return;
+  reportEditMonthlySyncDOM();
   window._editParsed.tasks.splice(idx, 1);
+  reportEditMonthly();
+}
+
+function reportEditMonthlyRemoveItem(tIdx, side, iIdx) {
+  if (!window._editParsed) return;
+  reportEditMonthlySyncDOM();
+  var arr = side==='this' ? window._editParsed.tasks[tIdx].this_month : window._editParsed.tasks[tIdx].next_month;
+  arr.splice(iIdx, 1);
   reportEditMonthly();
 }
 
 function reportEditMonthlyApply() {
   if (!window._editParsed || !_reportData['monthly']) return;
-  var ia = document.getElementById('edit-monthly-issue');
-  if (ia) window._editParsed.issue = ia.value;
+  reportEditMonthlySyncDOM();
   _reportData['monthly'].parsed = window._editParsed;
   window._editParsed = null;
   var d = _reportData['monthly'];
