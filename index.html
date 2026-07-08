@@ -18206,9 +18206,16 @@ async function reportGenerate(type) {
       }).join('\n')+'\n\n'+
       '다음 예정 업무 ('+data.upcoming.length+'건):\n'+
       data.upcoming.map(function(t){ return '- '+t.title+(t.due?' (~'+t.due+')':''); }).join('\n') :
-      '완료 업무:\n'+data.done.map(function(t){ return '- '+t.title; }).join('\n')+'\n'+
-      '진행 중:\n'+data.doing.map(function(t){ return '- '+t.title; }).join('\n')+'\n'+
-      '다음달 예정:\n'+data.upcoming.map(function(t){ return '- '+t.title; }).join('\n')
+      '이번 달 완료 업무 ('+data.done.length+'건):\n'+
+      data.done.map(function(t){ return '- [완료] '+t.title+(t.desc?' : '+t.desc.substring(0,40):''); }).join('\n')+'\n'+
+      '이번 달 진행 중 ('+data.doing.length+'건):\n'+
+      data.doing.map(function(t){
+        var cl=t.checklist||[]; var d=cl.filter(function(c){return c.done;}).length;
+        var pct=cl.length?Math.round(d/cl.length*100):(t.progress||0);
+        return '- [진행중] '+t.title+' ('+pct+'%)';
+      }).join('\n')+'\n\n'+
+      '다음 달 예정 ('+data.upcoming.length+'건):\n'+
+      data.upcoming.map(function(t){ return '- '+t.title+(t.due?' (~'+t.due+')':''); }).join('\n')
     )+'\n\n'+(issues?'이슈: '+issues+'\n\n':'')+
     'JSON 형식: {"this_week":[{"status":"완료|진행중","title":"업무명","note":"비고(선택)","pct":숫자}],"next_week":[{"status":"예정|긴급","title":"업무명","note":"비고(선택)"}],"issues":"이슈내용또는없음"}\n'+
     'JSON만 출력하세요.';
@@ -18233,6 +18240,9 @@ function reportRenderContent(type, parsed, periodLabel, name, dept, reviewerName
   var thisWeek = parsed.this_week||[];
   var nextWeek = parsed.next_week||[];
   var issues = parsed.issues||'없음';
+  var leftLabel = type==='weekly' ? '이번 주 한 일' : '이번 달 한 일';
+  var rightLabel = type==='weekly' ? '다음 주 할 일' : '다음 달 할 일';
+  var reportTitle = type==='weekly' ? '주간 업무 보고' : '월간 업무 보고';
 
   var sC = {완료:'#27500A',진행중:'#0C447C',예정:'#444441',긴급:'#791F1F'};
   var sB = {완료:'#EAF3DE',진행중:'#E6F1FB',예정:'#F1EFE8',긴급:'#FCEBEB'};
@@ -18255,27 +18265,24 @@ function reportRenderContent(type, parsed, periodLabel, name, dept, reviewerName
       '<button onclick="reportCopy(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">📋 복사</button>' +
       '<button onclick="reportSaveToDrive(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">☁️ 드라이브 저장</button>' +
     '</div>' +
-    // 헤더
     '<div style="border-bottom:2px solid var(--border-strong);padding-bottom:10px;margin-bottom:14px">' +
-      '<div style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px">주간 업무 보고</div>' +
+      '<div style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px">'+reportTitle+'</div>' +
       '<div style="display:flex;gap:14px;font-size:12px;color:var(--t3)">' +
         '<span>작성자: '+name+(dept?' ('+dept+')':'')+'</span>' +
         '<span>기간: '+periodLabel+'</span>' +
         (reviewerName?'<span>검토자: '+reviewerName+'</span>':'') +
       '</div>' +
     '</div>' +
-    // 좌우 컬럼
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">' +
       '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden">' +
-        '<div style="padding:9px 14px;font-size:12px;font-weight:500;background:#E6F1FB;color:#0C447C;border-bottom:0.5px solid #B5D4F4;letter-spacing:.3px">이번 주 한 일</div>' +
+        '<div style="padding:9px 14px;font-size:12px;font-weight:500;background:#E6F1FB;color:#0C447C;border-bottom:0.5px solid #B5D4F4;letter-spacing:.3px">'+leftLabel+'</div>' +
         (thisWeek.length ? thisWeek.map(taskRow).join('') : '<div style="padding:16px;text-align:center;color:var(--t3);font-size:12px">업무 없음</div>') +
       '</div>' +
       '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden">' +
-        '<div style="padding:9px 14px;font-size:12px;font-weight:500;background:#EAF3DE;color:#27500A;border-bottom:0.5px solid #C0DD97;letter-spacing:.3px">다음 주 할 일</div>' +
+        '<div style="padding:9px 14px;font-size:12px;font-weight:500;background:#EAF3DE;color:#27500A;border-bottom:0.5px solid #C0DD97;letter-spacing:.3px">'+rightLabel+'</div>' +
         (nextWeek.length ? nextWeek.map(taskRow).join('') : '<div style="padding:16px;text-align:center;color:var(--t3);font-size:12px">업무 없음</div>') +
       '</div>' +
     '</div>' +
-    // 이슈
     '<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:12px 14px">' +
       '<div style="font-size:11px;font-weight:500;color:var(--t3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">이슈 및 건의사항</div>' +
       '<div id="'+type+'-report-text" style="font-size:13px;color:var(--t1);line-height:1.6">'+issues+'</div>' +
@@ -18342,53 +18349,81 @@ function reportSaveToDrive(type) {
 }
 
 function reportEdit(type) {
-  var textEl = document.getElementById(type+'-report-text');
-  if (!textEl) return;
-  var current = textEl.textContent;
+  var d = _reportData[type];
+  if (!d || !d.parsed) return;
+  var parsed = d.parsed;
+  // 텍스트로 변환해서 편집
+  var text = '=== 이번 주/달 한 일 ===\n';
+  (parsed.this_week||[]).forEach(function(t){ text += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+(t.pct?' ('+t.pct+'%)':'')+'\n'; });
+  text += '\n=== 다음 주/달 할 일 ===\n';
+  (parsed.next_week||[]).forEach(function(t){ text += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+'\n'; });
+  text += '\n=== 이슈 및 건의사항 ===\n'+(parsed.issues||'없음');
+
   var areaEl = document.getElementById(type+'-report-area');
   areaEl.innerHTML =
     '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">' +
-      '<button onclick="reportCancelEdit(\''+type+'\',this)" class="btn btn-ghost" style="font-size:12px">취소</button>' +
+      '<button onclick="reportCancelEdit(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">취소</button>' +
       '<button onclick="reportSaveEdit(\''+type+'\')" class="btn btn-primary" style="font-size:12px">저장</button>' +
     '</div>' +
-    '<textarea id="'+type+'-edit-textarea" class="form-input" style="width:100%;height:500px;font-size:13px;line-height:1.8;resize:vertical">'+current+'</textarea>';
-  document.getElementById(type+'-edit-textarea').dataset.prev = current;
+    '<textarea id="'+type+'-edit-textarea" class="form-input" style="width:100%;height:500px;font-size:13px;line-height:1.8;resize:vertical">'+text+'</textarea>';
 }
 
 function reportSaveEdit(type) {
   var ta = document.getElementById(type+'-edit-textarea');
-  if (!ta) return;
-  var text = ta.value;
-  if (_reportData[type]) _reportData[type].text = text;
-  reportRenderContent(type, text);
+  if (!ta || !_reportData[type]) return;
+  // 텍스트를 파싱해서 구조화
+  var lines = ta.value.split('\n');
+  var thisWeek = [], nextWeek = [], issues = '없음';
+  var section = '';
+  lines.forEach(function(line) {
+    if (line.indexOf('=== 이번') >= 0) { section = 'this'; return; }
+    if (line.indexOf('=== 다음') >= 0) { section = 'next'; return; }
+    if (line.indexOf('=== 이슈') >= 0) { section = 'issue'; return; }
+    if (!line.trim()) return;
+    if (section === 'this' || section === 'next') {
+      var m = line.match(/^\[(.+?)\]\s*(.+?)(?:\s*-\s*(.+?))?(?:\s*\((\d+)%\))?$/);
+      var item = m ? {status:m[1], title:m[2], note:m[3]||'', pct:m[4]?parseInt(m[4]):undefined} : {status:'완료', title:line};
+      if (section === 'this') thisWeek.push(item); else nextWeek.push(item);
+    } else if (section === 'issue') {
+      issues = (issues === '없음' ? '' : issues+'\n') + line;
+    }
+  });
+  if (!issues) issues = '없음';
+  _reportData[type].parsed = {this_week:thisWeek, next_week:nextWeek, issues:issues};
+  reportRenderContent(type, _reportData[type].parsed, _reportData[type].period, _reportData[type].author, _reportData[type].dept, _reportData[type].reviewer);
 }
 
-function reportCancelEdit(type, btn) {
-  var ta = document.getElementById(type+'-edit-textarea');
-  var text = ta ? ta.dataset.prev : '';
-  reportRenderContent(type, text);
+function reportCancelEdit(type) {
+  var d = _reportData[type];
+  if (d && d.parsed) reportRenderContent(type, d.parsed, d.period, d.author, d.dept, d.reviewer);
 }
 
 function reportCopy(type) {
-  var textEl = document.getElementById(type+'-report-text');
-  if (!textEl) return;
-  navigator.clipboard.writeText(textEl.textContent).then(function(){
-    showToast('📋 보고서가 클립보드에 복사되었습니다');
-  });
+  var d = _reportData[type];
+  if (!d || !d.parsed) return;
+  var parsed = d.parsed;
+  var text = (type==='weekly'?'주간':'월간')+' 업무 보고\n';
+  text += '작성자: '+d.author+(d.dept?' ('+d.dept+')':'')+'\n';
+  text += '기간: '+d.period+'\n';
+  if (d.reviewer) text += '검토자: '+d.reviewer+'\n';
+  text += '\n■ '+(type==='weekly'?'이번 주 한 일':'이번 달 한 일')+'\n';
+  (parsed.this_week||[]).forEach(function(t){ text += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+(t.pct?' ('+t.pct+'%)':'')+'\n'; });
+  text += '\n■ '+(type==='weekly'?'다음 주 할 일':'다음 달 할 일')+'\n';
+  (parsed.next_week||[]).forEach(function(t){ text += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+'\n'; });
+  text += '\n■ 이슈 및 건의사항\n'+(parsed.issues||'없음');
+  navigator.clipboard.writeText(text).then(function(){ showToast('📋 보고서가 클립보드에 복사되었습니다'); });
 }
 
 function reportSave(type) {
-  if (!_reportData[type] || !_reportData[type].text) { showToast('❌ 먼저 보고서를 생성해주세요'); return; }
+  if (!_reportData[type] || !_reportData[type].parsed) { showToast('❌ 먼저 보고서를 생성해주세요'); return; }
   var myEmail = state.user ? state.user.email : '';
-  var docId = myEmail.replace('@','_').replace('.','_')+'_'+type+'_'+new Date().getTime();
-  var textEl = document.getElementById(type+'-report-text');
-  var finalText = textEl ? textEl.textContent : _reportData[type].text;
-
+  var d = _reportData[type];
+  var parsed = d.parsed;
+  var text = (type==='weekly'?'주간':'월간')+' 업무 보고\n작성자: '+d.author+'\n기간: '+d.period;
+  var docId = myEmail.replace(/[@.]/g,'_')+'_'+type+'_'+new Date().getTime();
   db.collection('reports').doc(docId).set({
-    type: type,
-    period: _reportData[type].period,
-    text: finalText,
-    author: myEmail,
+    type: type, period: d.period, text: text,
+    parsed: parsed, author: myEmail, reviewer: d.reviewer||'',
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function() {
     showToast('💾 보고서가 저장되었습니다');
@@ -18425,8 +18460,13 @@ function reportLoadDoc(docId, type) {
   db.collection('reports').doc(docId).get().then(function(d) {
     if (!d.exists) return;
     var data = d.data();
-    _reportData[type] = { text: data.text, period: data.period };
-    reportRenderContent(type, data.text);
+    var emp = employees.find(function(e){ return e.id===data.author||e.email===data.author; });
+    var name = emp ? emp.name : data.author;
+    var dept = emp ? (emp.dept||'') : '';
+    _reportData[type] = { parsed: data.parsed, period: data.period, author: name, dept: dept, reviewer: data.reviewer||'' };
+    if (data.parsed) {
+      reportRenderContent(type, data.parsed, data.period, name, dept, data.reviewer||'');
+    }
   });
 }
 
