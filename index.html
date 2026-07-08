@@ -18966,6 +18966,406 @@ function reportDeleteDoc(docId, type) {
   });
 }
 
+// ── 보고서 복사 ──
+function reportCopy(type) {
+  var d = _reportData[type];
+  if (!d || !d.parsed) return;
+  var parsed = d.parsed;
+  var text = (type==='weekly'?'주간':'월간')+' 업무 보고\n';
+  text += '작성자: '+d.author+(d.dept?' ('+d.dept+')':'')+'\n기간: '+d.period+'\n';
+  if (d.reviewer) text += '검토자: '+d.reviewer+'\n';
+  if (type==='weekly') {
+    text += '\n■ 이번 주 한 일\n';
+    (parsed.this_week||[]).forEach(function(t){ text += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+'\n'; });
+    text += '\n■ 다음 주 할 일\n';
+    (parsed.next_week||[]).forEach(function(t){ text += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+'\n'; });
+    text += '\n■ 이슈\n'+(parsed.issues||'없음');
+  } else {
+    (parsed.tasks||[]).forEach(function(task) {
+      text += '\n['+task.category+']\n';
+      (task.this_month||[]).forEach(function(t){ text += '• '+t.title+'\n'; });
+    });
+  }
+  navigator.clipboard.writeText(text).then(function(){ showToast('📋 복사되었습니다'); });
+}
+
+// ── Firestore 저장 ──
+function reportSave(type) {
+  if (!_reportData[type] || !_reportData[type].parsed) return;
+  var myEmail = state.user ? state.user.email : '';
+  var d = _reportData[type];
+  var docId = myEmail.replace(/[@.]/g,'_')+'_'+type+'_'+Date.now();
+  db.collection('reports').doc(docId).set({
+    type: type, period: d.period, parsed: d.parsed,
+    author: myEmail, reviewer: d.reviewer||'',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){ showToast('💾 저장되었습니다'); })
+    .catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
+}
+
+// ── 주간 보고 수정 ──
+function reportEdit(type) {
+  var d = _reportData[type];
+  if (!d || !d.parsed) { showToast('❌ 먼저 보고서를 생성해주세요'); return; }
+  if (type === 'monthly') { reportEditMonthly(); return; }
+
+  if (!window._editParsed) {
+    window._editParsed = JSON.parse(JSON.stringify(d.parsed));
+  } else {
+    // 현재 DOM 수집
+    document.querySelectorAll('.edit-title').forEach(function(el) {
+      var s=el.dataset.side; var i=parseInt(el.dataset.idx);
+      var arr = s==='this' ? window._editParsed.this_week : window._editParsed.next_week;
+      if (arr[i]) arr[i].title = el.value;
+    });
+    document.querySelectorAll('.edit-note').forEach(function(el) {
+      var s=el.dataset.side; var i=parseInt(el.dataset.idx);
+      var arr = s==='this' ? window._editParsed.this_week : window._editParsed.next_week;
+      if (arr[i]) arr[i].note = el.value;
+    });
+    document.querySelectorAll('.edit-status').forEach(function(el) {
+      var s=el.dataset.side; var i=parseInt(el.dataset.idx);
+      var arr = s==='this' ? window._editParsed.this_week : window._editParsed.next_week;
+      if (arr[i]) arr[i].status = el.value;
+    });
+    var ia = document.getElementById('edit-issues-area');
+    if (ia) window._editParsed.issues = ia.value;
+  }
+  window._editType = type;
+  var parsed = window._editParsed;
+  var leftLabel = '이번 주 한 일'; var rightLabel = '다음 주 할 일';
+  var sOptions = ['완료','진행중','예정','긴급'];
+
+  function editRow(t, idx, side) {
+    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px;border-bottom:0.5px solid var(--border)">' +
+      '<select class="edit-status" data-side="'+side+'" data-idx="'+idx+'" style="font-size:11px;border:0.5px solid var(--border);border-radius:6px;padding:2px 4px;flex-shrink:0">' +
+        sOptions.map(function(s){ return '<option value="'+s+'"'+(t.status===s?' selected':'')+'>'+s+'</option>'; }).join('') +
+      '</select>' +
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">' +
+        '<textarea class="edit-title form-input" data-side="'+side+'" data-idx="'+idx+'" rows="2" style="font-size:13px;resize:vertical;padding:4px">'+t.title+'</textarea>' +
+        '<textarea class="edit-note form-input" data-side="'+side+'" data-idx="'+idx+'" rows="1" style="font-size:11px;color:var(--t3);resize:vertical;padding:3px 6px">'+t.note+'</textarea>' +
+      '</div>' +
+      '<button onclick="reportEditRemove(\''+type+'\',\''+side+'\','+idx+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:16px;padding:0;flex-shrink:0">✕</button>' +
+    '</div>';
+  }
+
+  var areaEl = document.getElementById(type+'-report-area');
+  areaEl.innerHTML =
+    '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">' +
+      '<button onclick="reportCancelEdit(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">취소</button>' +
+      '<button onclick="reportApplyEdit(\''+type+'\')" class="btn btn-primary" style="font-size:12px">적용</button>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">' +
+      '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden">' +
+        '<div style="padding:9px 14px;font-size:12px;font-weight:500;background:#E6F1FB;color:#0C447C;border-bottom:0.5px solid #B5D4F4">'+leftLabel+'</div>' +
+        (parsed.this_week||[]).map(function(t,i){ return editRow(t,i,'this'); }).join('') +
+        '<div style="padding:8px 14px;border-top:0.5px solid var(--border)"><button onclick="reportEditAdd(\''+type+'\',\'this\')" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:0">+ 항목 추가</button></div>' +
+      '</div>' +
+      '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden">' +
+        '<div style="padding:9px 14px;font-size:12px;font-weight:500;background:#EAF3DE;color:#27500A;border-bottom:0.5px solid #C0DD97">'+rightLabel+'</div>' +
+        (parsed.next_week||[]).map(function(t,i){ return editRow(t,i,'next'); }).join('') +
+        '<div style="padding:8px 14px;border-top:0.5px solid var(--border)"><button onclick="reportEditAdd(\''+type+'\',\'next\')" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:0">+ 항목 추가</button></div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:12px">' +
+      '<div style="font-size:11px;color:var(--t3);margin-bottom:6px">이슈 및 건의사항</div>' +
+      '<textarea id="edit-issues-area" class="form-input" style="height:60px;resize:none;font-size:13px">'+(parsed.issues||'없음')+'</textarea>' +
+    '</div>';
+}
+
+function reportEditAdd(type, side) {
+  if (!window._editParsed) return;
+  // DOM 현재값 수집
+  document.querySelectorAll('.edit-title').forEach(function(el){
+    var s=el.dataset.side; var i=parseInt(el.dataset.idx);
+    var arr=s==='this'?window._editParsed.this_week:window._editParsed.next_week;
+    if(arr[i]) arr[i].title=el.value;
+  });
+  document.querySelectorAll('.edit-note').forEach(function(el){
+    var s=el.dataset.side; var i=parseInt(el.dataset.idx);
+    var arr=s==='this'?window._editParsed.this_week:window._editParsed.next_week;
+    if(arr[i]) arr[i].note=el.value;
+  });
+  document.querySelectorAll('.edit-status').forEach(function(el){
+    var s=el.dataset.side; var i=parseInt(el.dataset.idx);
+    var arr=s==='this'?window._editParsed.this_week:window._editParsed.next_week;
+    if(arr[i]) arr[i].status=el.value;
+  });
+  var ia=document.getElementById('edit-issues-area'); if(ia) window._editParsed.issues=ia.value;
+  var arr=side==='this'?window._editParsed.this_week:window._editParsed.next_week;
+  arr.push({status:side==='this'?'완료':'예정',title:'',note:''});
+  reportEdit(type);
+}
+
+function reportEditRemove(type, side, idx) {
+  if (!window._editParsed) return;
+  document.querySelectorAll('.edit-title').forEach(function(el){
+    var s=el.dataset.side; var i=parseInt(el.dataset.idx);
+    var arr=s==='this'?window._editParsed.this_week:window._editParsed.next_week;
+    if(arr[i]) arr[i].title=el.value;
+  });
+  var arr=side==='this'?window._editParsed.this_week:window._editParsed.next_week;
+  arr.splice(idx,1);
+  reportEdit(type);
+}
+
+function reportApplyEdit(type) {
+  if (!window._editParsed || !_reportData[type]) return;
+  document.querySelectorAll('.edit-title').forEach(function(el){
+    var s=el.dataset.side; var i=parseInt(el.dataset.idx);
+    var arr=s==='this'?window._editParsed.this_week:window._editParsed.next_week;
+    if(arr[i]) arr[i].title=el.value;
+  });
+  document.querySelectorAll('.edit-note').forEach(function(el){
+    var s=el.dataset.side; var i=parseInt(el.dataset.idx);
+    var arr=s==='this'?window._editParsed.this_week:window._editParsed.next_week;
+    if(arr[i]) arr[i].note=el.value;
+  });
+  document.querySelectorAll('.edit-status').forEach(function(el){
+    var s=el.dataset.side; var i=parseInt(el.dataset.idx);
+    var arr=s==='this'?window._editParsed.this_week:window._editParsed.next_week;
+    if(arr[i]) arr[i].status=el.value;
+  });
+  var ia=document.getElementById('edit-issues-area'); if(ia) window._editParsed.issues=ia.value;
+  _reportData[type].parsed=window._editParsed; window._editParsed=null;
+  var d=_reportData[type];
+  reportRenderContent(type,d.parsed,d.period,d.author,d.dept,d.reviewer);
+}
+
+function reportCancelEdit(type) {
+  window._editParsed=null;
+  var d=_reportData[type];
+  if(d&&d.parsed) reportRenderContent(type,d.parsed,d.period,d.author,d.dept,d.reviewer);
+}
+
+// ── 월간 수정 ──
+function reportEditMonthly() {
+  var d = _reportData['monthly'];
+  if (!d || !d.parsed) return;
+  if (!window._editParsed) window._editParsed = JSON.parse(JSON.stringify(d.parsed));
+  var areaEl = document.getElementById('monthly-report-area');
+  var tasks = window._editParsed.tasks || [];
+
+  function taskBlock(task, tIdx) {
+    var tm = task.this_month||[]; var nm = task.next_month||[];
+    return '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px">' +
+      '<div style="padding:8px 12px;background:#f8f9fa;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px">' +
+        '<input type="text" class="me-category form-input" data-idx="'+tIdx+'" value="'+task.category+'" style="font-size:13px;font-weight:500;flex:1;padding:3px 6px">' +
+        '<button onclick="reportEditMonthlyRemoveTask('+tIdx+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:13px;white-space:nowrap">✕ 삭제</button>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0">' +
+        '<div style="padding:8px;border-right:0.5px solid var(--border)">' +
+          '<div style="font-size:11px;font-weight:500;color:#0C447C;margin-bottom:6px">금월 업무내용</div>' +
+          tm.map(function(t,i){
+            return '<div style="display:flex;gap:6px;margin-bottom:8px;align-items:flex-start">' +
+              '<select class="me-status form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="this" style="font-size:11px;padding:2px 4px;flex-shrink:0">' +
+                ['완료','진행중','예정','대기'].map(function(s){ return '<option value="'+s+'"'+(t.status===s?' selected':'')+'>'+s+'</option>'; }).join('') +
+              '</select>' +
+              '<div style="flex:1">' +
+                '<textarea class="me-title form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="this" rows="2" style="font-size:12px;resize:vertical;padding:4px">'+t.title+'</textarea>' +
+                '<input type="text" class="me-note form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="this" value="'+(t.note||'')+'" placeholder="비고" style="font-size:11px;padding:3px 6px;margin-top:3px">' +
+                '<div style="display:flex;gap:4px;margin-top:3px">' +
+                  '<input type="number" class="me-pct form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.pct||0)+'" min="0" max="100" style="width:58px;font-size:11px;padding:2px 4px" placeholder="%">' +
+                  '<input type="text" class="me-start form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.start||'')+'" placeholder="시작" style="width:54px;font-size:11px;padding:2px 4px">' +
+                  '<input type="text" class="me-end form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.end||'')+'" placeholder="완료" style="width:54px;font-size:11px;padding:2px 4px">' +
+                  '<button onclick="reportEditMonthlyRemoveItem('+tIdx+',\'this\','+i+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px">✕</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          }).join('') +
+          '<button onclick="reportMonthlyAddItem('+tIdx+',\'this\')" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:4px 0">+ 항목 추가</button>' +
+        '</div>' +
+        '<div style="padding:8px">' +
+          '<div style="font-size:11px;font-weight:500;color:#27500A;margin-bottom:6px">익월 업무내용</div>' +
+          nm.map(function(t,i){
+            return '<div style="display:flex;gap:6px;margin-bottom:8px;align-items:flex-start">' +
+              '<select class="me-status form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" style="font-size:11px;padding:2px 4px;flex-shrink:0">' +
+                ['예정','진행중','완료','대기'].map(function(s){ return '<option value="'+s+'"'+(t.status===s?' selected':'')+'>'+s+'</option>'; }).join('') +
+              '</select>' +
+              '<div style="flex:1">' +
+                '<textarea class="me-title form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" rows="2" style="font-size:12px;resize:vertical;padding:4px">'+t.title+'</textarea>' +
+                '<input type="text" class="me-note form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" value="'+(t.note||'')+'" placeholder="비고" style="font-size:11px;padding:3px 6px;margin-top:3px">' +
+                '<div style="display:flex;gap:4px;margin-top:3px">' +
+                  '<input type="number" class="me-priority form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.priority||i+1)+'" min="1" style="width:46px;font-size:11px;padding:2px 4px" placeholder="순위">' +
+                  '<input type="text" class="me-end form-input me-next-end" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.end||'')+'" placeholder="완료일" style="width:70px;font-size:11px;padding:2px 4px">' +
+                  '<button onclick="reportEditMonthlyRemoveItem('+tIdx+',\'next\','+i+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px">✕</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          }).join('') +
+          '<button onclick="reportMonthlyAddItem('+tIdx+',\'next\')" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:4px 0">+ 항목 추가</button>' +
+        '</div>' +
+      '</div></div>';
+  }
+
+  areaEl.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+      '<button onclick="reportShowImport()" class="btn btn-ghost" style="font-size:12px">📥 업무 가져오기</button>' +
+      '<div style="display:flex;gap:6px">' +
+        '<button onclick="reportEditMonthlyCancel()" class="btn btn-ghost" style="font-size:12px">취소</button>' +
+        '<button onclick="reportEditMonthlyApply()" class="btn btn-primary" style="font-size:12px">적용</button>' +
+      '</div>' +
+    '</div>' +
+    '<div id="monthly-import-panel" style="display:none;border:0.5px solid var(--ac);border-radius:10px;padding:12px;margin-bottom:12px;background:var(--acd)">' +
+      '<div style="font-size:12px;font-weight:600;color:var(--ac);margin-bottom:8px">📥 업무 가져오기 (할일/진행중)</div>' +
+      '<div id="monthly-import-list" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto"></div>' +
+    '</div>' +
+    tasks.map(function(task, tIdx){ return taskBlock(task, tIdx); }).join('') +
+    '<button onclick="reportMonthlyAddTask()" style="font-size:12px;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;cursor:pointer;padding:8px 16px;width:100%;margin-bottom:12px">+ 업무분장 추가</button>' +
+    '<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:12px">' +
+      '<div style="font-size:11px;color:var(--t3);margin-bottom:6px">■협조사항</div>' +
+      '<textarea id="edit-monthly-issue" class="form-input" style="height:50px;resize:none;font-size:13px">'+(window._editParsed.issue||'')+'</textarea>' +
+    '</div>';
+}
+
+function reportShowImport() {
+  var panel = document.getElementById('monthly-import-panel');
+  var listEl = document.getElementById('monthly-import-list');
+  if (!panel || !listEl) return;
+  panel.style.display = panel.style.display==='none' ? 'block' : 'none';
+  if (panel.style.display === 'none') return;
+
+  var myEmail = state.user ? state.user.email : '';
+  var pending = _tasks.filter(function(t) {
+    return !t.archived && (t.status==='todo'||t.status==='doing') &&
+      (t.assignee===myEmail || (t.sharedWith||[]).indexOf(myEmail)>=0);
+  });
+
+  if (!pending.length) { listEl.innerHTML = '<div style="font-size:12px;color:var(--t3);padding:8px">가져올 업무가 없습니다</div>'; return; }
+
+  listEl.innerHTML = pending.map(function(t) {
+    var proj = _projects.find(function(p){ return p.id===t.projectId; });
+    var projName = proj ? proj.name : '기타';
+    var statusLabel = t.status==='todo'?'할일':'진행중';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--white);border-radius:6px;border:0.5px solid var(--border)">' +
+      '<input type="checkbox" id="import-'+t.id+'" value="'+t.id+'" style="flex-shrink:0">' +
+      '<label for="import-'+t.id+'" style="flex:1;font-size:12px;cursor:pointer">' +
+        '<span style="font-weight:500">'+t.title+'</span>' +
+        '<span style="font-size:10px;color:var(--t3);margin-left:6px">'+projName+' · '+statusLabel+(t.due?' · ~'+t.due:'')+'</span>' +
+      '</label>' +
+    '</div>';
+  }).join('');
+
+  // 가져오기 버튼
+  listEl.innerHTML += '<button onclick="reportDoImport()" class="btn btn-primary" style="font-size:12px;margin-top:8px;width:100%">선택 항목 가져오기</button>';
+}
+
+function reportDoImport() {
+  if (!window._editParsed) return;
+  reportEditMonthlySyncDOM();
+  var checked = document.querySelectorAll('#monthly-import-list input[type=checkbox]:checked');
+  checked.forEach(function(cb) {
+    var t = _tasks.find(function(x){ return x.id===cb.value; });
+    if (!t) return;
+    var proj = _projects.find(function(p){ return p.id===t.projectId; });
+    var projName = proj ? proj.name : '기타';
+    var cl = t.checklist||[]; var done = cl.filter(function(c){ return c.done; }).length;
+    var pct = cl.length ? Math.round(done/cl.length*100) : (t.progress||0);
+    var item = {
+      title: t.title, note: t.desc||'',
+      status: t.status==='done'?'완료':t.status==='doing'?'진행중':'예정',
+      pct: pct, priority: 1, start: t.start||'', end: t.due||''
+    };
+    // 해당 프로젝트 카테고리 찾기 or 생성
+    var taskGroup = window._editParsed.tasks.find(function(g){ return g.category===projName; });
+    if (!taskGroup) {
+      taskGroup = {category: projName, this_month: [], next_month: []};
+      window._editParsed.tasks.push(taskGroup);
+    }
+    taskGroup.this_month.push(item);
+  });
+  document.getElementById('monthly-import-panel').style.display = 'none';
+  reportEditMonthly();
+}
+
+function reportEditMonthlySyncDOM() {
+  if (!window._editParsed) return;
+  document.querySelectorAll('.me-category').forEach(function(el) {
+    var i=parseInt(el.dataset.idx);
+    if (window._editParsed.tasks[i]) window._editParsed.tasks[i].category=el.value;
+  });
+  document.querySelectorAll('.me-title').forEach(function(el) {
+    var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item); var side=el.dataset.side;
+    var arr=side==='this'?window._editParsed.tasks[ti].this_month:window._editParsed.tasks[ti].next_month;
+    if(arr&&arr[ii]) arr[ii].title=el.value;
+  });
+  document.querySelectorAll('.me-note').forEach(function(el) {
+    var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item); var side=el.dataset.side;
+    var arr=side==='this'?window._editParsed.tasks[ti].this_month:window._editParsed.tasks[ti].next_month;
+    if(arr&&arr[ii]) arr[ii].note=el.value;
+  });
+  document.querySelectorAll('.me-status').forEach(function(el) {
+    var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item); var side=el.dataset.side;
+    var arr=side==='this'?window._editParsed.tasks[ti].this_month:window._editParsed.tasks[ti].next_month;
+    if(arr&&arr[ii]) arr[ii].status=el.value;
+  });
+  document.querySelectorAll('.me-pct').forEach(function(el) {
+    var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item);
+    if(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].this_month[ii]) window._editParsed.tasks[ti].this_month[ii].pct=parseInt(el.value)||0;
+  });
+  document.querySelectorAll('.me-start').forEach(function(el) {
+    if(el.classList.contains('me-next-end')) return;
+    var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item);
+    if(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].this_month[ii]) window._editParsed.tasks[ti].this_month[ii].start=el.value;
+  });
+  document.querySelectorAll('.me-end').forEach(function(el) {
+    var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item); var side=el.dataset.side||'this';
+    var arr=side==='next'?window._editParsed.tasks[ti].next_month:window._editParsed.tasks[ti].this_month;
+    if(arr&&arr[ii]) arr[ii].end=el.value;
+  });
+  document.querySelectorAll('.me-priority').forEach(function(el) {
+    var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item);
+    if(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].next_month[ii]) window._editParsed.tasks[ti].next_month[ii].priority=parseInt(el.value)||1;
+  });
+  var ia=document.getElementById('edit-monthly-issue'); if(ia) window._editParsed.issue=ia.value;
+}
+
+function reportMonthlyAddItem(tIdx, side) {
+  if (!window._editParsed) return;
+  reportEditMonthlySyncDOM();
+  var arr=side==='this'?window._editParsed.tasks[tIdx].this_month:window._editParsed.tasks[tIdx].next_month;
+  arr.push({title:'',note:'',status:side==='this'?'진행중':'예정',pct:0,priority:arr.length+1,start:'',end:''});
+  reportEditMonthly();
+}
+
+function reportMonthlyAddTask() {
+  if (!window._editParsed) return;
+  reportEditMonthlySyncDOM();
+  window._editParsed.tasks.push({category:'새 업무분장',this_month:[],next_month:[]});
+  reportEditMonthly();
+}
+
+function reportEditMonthlyRemoveTask(idx) {
+  if (!window._editParsed) return;
+  reportEditMonthlySyncDOM();
+  window._editParsed.tasks.splice(idx,1);
+  reportEditMonthly();
+}
+
+function reportEditMonthlyRemoveItem(tIdx, side, iIdx) {
+  if (!window._editParsed) return;
+  reportEditMonthlySyncDOM();
+  var arr=side==='this'?window._editParsed.tasks[tIdx].this_month:window._editParsed.tasks[tIdx].next_month;
+  arr.splice(iIdx,1);
+  reportEditMonthly();
+}
+
+function reportEditMonthlyApply() {
+  if (!window._editParsed||!_reportData['monthly']) return;
+  reportEditMonthlySyncDOM();
+  _reportData['monthly'].parsed=window._editParsed; window._editParsed=null;
+  var d=_reportData['monthly'];
+  reportRenderMonthly(d.parsed,d.period,d.author,d.dept,d.reviewer);
+}
+
+function reportEditMonthlyCancel() {
+  window._editParsed=null;
+  var d=_reportData['monthly'];
+  if(d&&d.parsed) reportRenderMonthly(d.parsed,d.period,d.author,d.dept,d.reviewer);
+}
+
+
+
 function taskOpenDetail(id) {
   _detailTaskId = id;
   var t = _tasks.find(function(x){ return x.id===id; });
