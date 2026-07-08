@@ -18415,6 +18415,14 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
   var nextMonthLastDay = new Date(nextYear, nextMonth, 0).getDate();
   var nextMonthEndStr = nextYear+'-'+String(nextMonth).padStart(2,'0')+'-'+String(nextMonthLastDay).padStart(2,'0');
 
+  function fmtDate(d) {
+    if (!d) return '';
+    // YYYY-MM-DD → M/D
+    var m = d.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return parseInt(m[2])+'/'+parseInt(m[3]);
+    return d;
+  }
+
   function nextStatusSym(t) {
     if (!t.end) return '■'; // 마감일 없으면 대기
     if (t.end <= nextMonthEndStr) return '√'; // 익월 내 완료 예정
@@ -18455,7 +18463,7 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
       '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + nm.map(function(t){ return '<div>'+nextStatusSym(t)+'</div>'; }).join('') + '</td>' +
       '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + nm.map(function(t){ return '<div>'+nextPct(t)+'</div>'; }).join('') + '</td>' +
       '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + nm.map(function(t,i){ return '<div>'+(t.priority||i+1)+'</div>'; }).join('') + '</td>' +
-      '<td style="padding:6px 6px;border:0.5px solid #ddd;font-size:11px">' + nm.map(function(t){ return '<div>'+(t.start&&t.end?t.start+'~'+t.end:t.end?'~'+t.end:'')+'</div>'; }).join('') + '</td>' +
+      '<td style="padding:6px 6px;border:0.5px solid #ddd;font-size:11px">' + nm.map(function(t){ var s=fmtDate(t.start); var e=fmtDate(t.end); return '<div>'+(s&&e?s+'~'+e:e||s||'')+'</div>'; }).join('') + '</td>' +
     '</tr>';
   });
 
@@ -18759,6 +18767,17 @@ async function reportGenerate(type) {
           });
         });
       });
+      // 프로젝트 순서대로 정렬 (사이드바 프로젝트 순서 기준)
+      var projOrder = _projects.map(function(p){ return p.name; });
+      if (parsed.tasks) {
+        parsed.tasks.sort(function(a, b) {
+          var ai = projOrder.indexOf(a.category);
+          var bi = projOrder.indexOf(b.category);
+          if (ai === -1) ai = 999;
+          if (bi === -1) bi = 999;
+          return ai - bi;
+        });
+      }
     }
     _reportData[type] = { parsed: parsed, period: periodLabel, author: name, dept: dept, reviewer: reviewerName, issues: issues };
     if (type === 'monthly') {
