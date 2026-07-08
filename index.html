@@ -18146,11 +18146,22 @@ function reportGetTasks(type) {
       if (!projMap[projName]) projMap[projName] = { this_month: [], next_month: [] };
       // 금월: 이번달 마감이거나 진행중
       if ((t.due && t.due >= start && t.due <= end) || (t.status==='doing'&&(!t.due||t.due<=end))) {
-        projMap[projName].this_month.push(t);
+        projMap[projName].this_month.push({
+          id: t.id, title: t.title, note: t.desc||'',
+          status: t.status==='done'?'완료':t.status==='doing'?'진행중':'예정',
+          pct: (function(){ var cl=t.checklist||[]; var d=cl.filter(function(c){return c.done;}).length; return cl.length?Math.round(d/cl.length*100):(t.progress||0); })(),
+          start: t.start||'', end: t.due||''
+        });
       }
       // 익월: 다음달 예정
       else if (t.due && t.due >= nextStart && t.due <= nextEnd) {
-        projMap[projName].next_month.push(t);
+        projMap[projName].next_month.push({
+          id: t.id, title: t.title, note: t.desc||'',
+          status: t.status==='done'?'완료':t.status==='doing'?'진행중':'예정',
+          pct: (function(){ var cl=t.checklist||[]; var d=cl.filter(function(c){return c.done;}).length; return cl.length?Math.round(d/cl.length*100):(t.progress||0); })(),
+          start: t.start||'', end: t.due||'',
+          priority: 1
+        });
       }
     });
     return { start: start, end: end, nextStart: nextStart, nextEnd: nextEnd, projMap: projMap };
@@ -18405,13 +18416,13 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
   var nextMonthEndStr = nextYear+'-'+String(nextMonth).padStart(2,'0')+'-'+String(nextMonthLastDay).padStart(2,'0');
 
   function nextStatusSym(t) {
-    if (!t.pct && (t.status==='todo'||t.status==='예정')) return '■';
-    if (t.end && t.end <= nextMonthEndStr) return '√';
-    return '●';
+    if (!t.end) return '■'; // 마감일 없으면 대기
+    if (t.end <= nextMonthEndStr) return '√'; // 익월 내 완료 예정
+    return '●'; // 익월 초과
   }
   function nextPct(t) {
-    if (!t.pct && (t.status==='todo'||t.status==='예정')) return '0%';
-    if (t.end && t.end <= nextMonthEndStr) return '100%';
+    if (!t.end) return '0%';
+    if (t.end <= nextMonthEndStr) return '100%';
     return (t.pct||0)+'%';
   }
 
@@ -18730,11 +18741,27 @@ async function reportGenerate(type) {
     var result = await resp.json();
     var raw = result.content && result.content[0] ? result.content[0].text : '';
     var parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    // 월간: 원본 task에서 start/end 보완
+    if (type === 'monthly' && data.projMap) {
+      var origAll = [];
+      Object.keys(data.projMap).forEach(function(k) {
+        origAll = origAll.concat(data.projMap[k].this_month||[]).concat(data.projMap[k].next_month||[]);
+      });
+      (parsed.tasks||[]).forEach(function(task) {
+        [(task.this_month||[]), (task.next_month||[])].forEach(function(arr) {
+          arr.forEach(function(item) {
+            var orig = origAll.find(function(o){ return o.title===item.title; });
+            if (orig) {
+              if (!item.start) item.start = orig.start||'';
+              if (!item.end) item.end = orig.end||'';
+              if (!item.pct) item.pct = orig.pct||0;
+            }
+          });
+        });
+      });
+    }
     _reportData[type] = { parsed: parsed, period: periodLabel, author: name, dept: dept, reviewer: reviewerName, issues: issues };
     if (type === 'monthly') {
-      // 월간은 docx 다운로드 버튼 표시
-      var docxBtn = document.getElementById('monthly-docx-btn');
-      if (docxBtn) docxBtn.style.display = '';
       reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName);
     } else {
       reportRenderContent(type, parsed, periodLabel, name, dept, reviewerName);
