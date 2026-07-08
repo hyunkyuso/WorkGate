@@ -1734,6 +1734,7 @@ select.form-input{cursor:pointer}
               <button onclick="reportSwitchTab('monthly','review',this)" id="monthly-tab-review" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">👁 검토 요청 <span id="monthly-review-badge" style="display:none;background:#E24B4A;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;margin-left:4px"></span></button>
             </div>
             <button onclick="reportGenerate('monthly')" class="btn btn-primary" id="monthly-gen-btn">✨ AI 보고서 생성</button>
+            <button onclick="reportDownloadDocx()" class="btn btn-ghost" id="monthly-docx-btn" style="display:none">📄 워드 다운로드</button>
           </div>
         </div>
         <!-- 작성 탭 -->
@@ -2944,6 +2945,7 @@ select.form-input{cursor:pointer}
 <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.1.22/dist/docx-preview.min.js"></script>
 <!-- JSZip (Word XML 직접 치환) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 <!-- pdf.js (PDF 렌더링) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- jsPDF (캔버스 → PDF 저장) -->
@@ -18345,6 +18347,200 @@ function reportUpdateReviewBadge() {
     });
   }).catch(function(){});
 }
+// ── 월간 보고 화면 렌더링 ──
+function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
+  var areaEl = document.getElementById('monthly-report-area');
+  var tasks = parsed.tasks || [];
+  var highlight = parsed.highlight || [];
+  var sC = {완료:'#27500A',진행중:'#0C447C',예정:'#444441',긴급:'#791F1F'};
+  var sB = {완료:'#EAF3DE',진행중:'#E6F1FB',예정:'#F1EFE8',긴급:'#FCEBEB'};
+
+  function badge(status) {
+    return '<span style="font-size:10px;padding:1px 6px;border-radius:99px;background:'+(sB[status]||'#F1EFE8')+';color:'+(sC[status]||'#444')+';white-space:nowrap">'+status+'</span>';
+  }
+  function statusSym(status, pct) {
+    if (status==='완료'||pct===100) return '√';
+    if (status==='진행중') return '●';
+    return '■';
+  }
+
+  var html = '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">' +
+    '<button onclick="reportEdit(\'monthly\')" class="btn btn-ghost" style="font-size:12px">✏️ 수정</button>' +
+    '<button onclick="reportCopy(\'monthly\')" class="btn btn-ghost" style="font-size:12px">📋 복사</button>' +
+    '<button onclick="reportSaveToDrive(\'monthly\')" class="btn btn-ghost" style="font-size:12px">☁️ 드라이브 저장</button>' +
+  '</div>';
+
+  html += '<div style="border-bottom:2px solid var(--border-strong);padding-bottom:10px;margin-bottom:14px">' +
+    '<div style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px">월간 업무 보고</div>' +
+    '<div style="display:flex;gap:14px;font-size:12px;color:var(--t3)">' +
+      '<span>작성자: '+name+(dept?' ('+dept+')':'')+'</span><span>기간: '+periodLabel+'</span>' +
+      (reviewerName?'<span>검토자: '+reviewerName+'</span>':'') +
+    '</div></div>';
+
+  html += '<div style="overflow-x:auto;margin-bottom:14px"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
+    '<thead><tr style="background:#1F4E79;color:#fff">' +
+      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:14%">업무분장</th>' +
+      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:24%">금월 업무내용</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%">공정</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:6%">진행률</th>' +
+      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:24%">익월 업무내용</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%">공정</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:6%">진행률</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%">순위</th>' +
+      '<th style="padding:7px 6px;border:0.5px solid #ccc;width:8%">기간</th>' +
+    '</tr></thead><tbody>';
+
+  tasks.forEach(function(task) {
+    var tm = task.this_month||[]; var nm = task.next_month||[];
+    html += '<tr style="vertical-align:top">' +
+      '<td style="padding:6px 8px;border:0.5px solid #ddd;font-weight:500;background:#f8f9fa">'+task.category+'</td>' +
+      '<td style="padding:6px 8px;border:0.5px solid #ddd">' + tm.map(function(t){ return '<div style="margin-bottom:3px">• '+t.title+(t.note?'<div style="font-size:10px;color:var(--t3);padding-left:8px">'+t.note+'</div>':'')+'</div>'; }).join('') + '</td>' +
+      '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + tm.map(function(t){ return '<div>'+statusSym(t.status,t.pct)+'</div>'; }).join('') + '</td>' +
+      '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + tm.map(function(t){ return '<div>'+t.pct+'%</div>'; }).join('') + '</td>' +
+      '<td style="padding:6px 8px;border:0.5px solid #ddd">' + nm.map(function(t){ return '<div style="margin-bottom:3px">• '+t.title+(t.note?'<div style="font-size:10px;color:var(--t3);padding-left:8px">'+t.note+'</div>':'')+'</div>'; }).join('') + '</td>' +
+      '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + nm.map(function(t){ return '<div>'+statusSym(t.status,t.pct)+'</div>'; }).join('') + '</td>' +
+      '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + nm.map(function(t){ return '<div>'+(t.pct>0?t.pct+'%':'')+'</div>'; }).join('') + '</td>' +
+      '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + nm.map(function(t,i){ return '<div>'+(t.priority||i+1)+'</div>'; }).join('') + '</td>' +
+      '<td style="padding:6px 6px;border:0.5px solid #ddd;font-size:11px">' + tm.map(function(t){ return '<div>'+(t.start&&t.end?t.start+'~'+t.end:'')+'</div>'; }).join('') + '</td>' +
+    '</tr>';
+  });
+
+  html += '<tr><td style="padding:6px 8px;border:0.5px solid #ddd;font-weight:500">■협조사항</td>' +
+    '<td colspan="8" style="padding:6px 8px;border:0.5px solid #ddd">'+(parsed.issue||'')+'</td></tr>';
+
+  html += '<tr style="vertical-align:top"><td colspan="2" style="padding:6px 8px;border:0.5px solid #ddd;font-weight:500">■금월 중점업무</td>' +
+    '<td style="padding:6px 8px;border:0.5px solid #ddd" colspan="7">' +
+      highlight.map(function(t){ return '<div style="margin-bottom:2px">• '+t.title+' '+badge(t.status)+' '+t.pct+'%</div>'; }).join('') +
+    '</td></tr>';
+
+  html += '</tbody></table></div>';
+  areaEl.innerHTML = html;
+}
+
+// ── 월간 보고 docx 다운로드 ──
+async function reportDownloadDocx() {
+  var d = _reportData['monthly'];
+  if (!d || !d.parsed) { showToast('❌ 먼저 보고서를 생성해주세요'); return; }
+  if (!window.docx) { showToast('❌ docx 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요'); return; }
+  showToast('📄 워드 파일 생성 중...');
+
+  try {
+    var { Document, Packer, Table, TableRow, TableCell, Paragraph, TextRun, WidthType, AlignmentType, VerticalAlign, BorderStyle } = window.docx;
+    var parsed = d.parsed;
+    var tasks = parsed.tasks || [];
+    var highlight = parsed.highlight || [];
+    var emp = employees.find(function(e){ return e.id===(state.user?state.user.email:'') || e.email===(state.user?state.user.email:''); });
+    var deptName = emp ? (emp.dept||'인사총무부') : '인사총무부';
+    var monthEl = document.getElementById('monthly-month');
+    var month = monthEl ? monthEl.value : new Date().getMonth()+1;
+
+    var border = { style: BorderStyle.SINGLE, size: 1, color: '000000' };
+    var borders = { top: border, bottom: border, left: border, right: border };
+    var COL_W = [700, 1200, 2600, 350, 500, 2600, 350, 500, 400, 800];
+
+    function getStatusSym(status, pct) {
+      if (status==='완료'||pct===100) return '√';
+      if (status==='진행중') return '●';
+      return '■';
+    }
+    function mkPara(text, opts) {
+      opts = opts||{};
+      return new Paragraph({
+        alignment: opts.align||AlignmentType.LEFT,
+        spacing: { before: 20, after: 20 },
+        children: [new TextRun({ text: text||'', bold: opts.bold||false, size: opts.size||16, font: '맑은 고딕', color: opts.color||'000000' })]
+      });
+    }
+    function mkCell(children, opts) {
+      opts = opts||{};
+      return new TableCell({
+        width: { size: opts.w||500, type: WidthType.DXA },
+        rowSpan: opts.rowSpan, columnSpan: opts.colSpan,
+        verticalAlign: opts.valign||VerticalAlign.CENTER,
+        shading: opts.shade ? { fill: opts.shade } : undefined,
+        borders,
+        children: Array.isArray(children) ? (children.length ? children : [mkPara('')]) : [children]
+      });
+    }
+
+    var rows = [];
+    rows.push(new TableRow({ children: [mkCell(mkPara('경영관리본부 '+deptName+' ( '+month+' )월 업무계획',{bold:true,size:22,color:'FFFFFF',align:AlignmentType.CENTER}),{w:12240,colSpan:10,shade:'1F4E79'})] }));
+    rows.push(new TableRow({ children: [mkCell(mkPara('√완료, →연기, ×취소, ◉위임, ●진행중, ■대기중',{size:14}),{w:12240,colSpan:10})] }));
+    rows.push(new TableRow({ tableHeader: true, children: [
+      mkCell(mkPara('구 분',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[0],shade:'D9E1F2'}),
+      mkCell(mkPara('업무분장',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[1],shade:'D9E1F2'}),
+      mkCell(mkPara('금월 월간업무 내용',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[2],shade:'D9E1F2'}),
+      mkCell(mkPara('공정',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[3],shade:'D9E1F2'}),
+      mkCell(mkPara('진행률(100%)',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[4],shade:'D9E1F2'}),
+      mkCell(mkPara('익월 월간업무 내용',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[5],shade:'D9E1F2'}),
+      mkCell(mkPara('공정',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[6],shade:'D9E1F2'}),
+      mkCell(mkPara('진행률(100%)',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[7],shade:'D9E1F2'}),
+      mkCell(mkPara('업무순위',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[8],shade:'D9E1F2'}),
+      mkCell(mkPara('시작일~완료(예정)일',{bold:true,align:AlignmentType.CENTER}),{w:COL_W[9],shade:'D9E1F2'}),
+    ]}));
+
+    tasks.forEach(function(task, tIdx) {
+      var tm = task.this_month||[]; var nm = task.next_month||[];
+      var cells = [];
+      if (tIdx===0) cells.push(mkCell(mkPara(deptName,{bold:true,align:AlignmentType.CENTER}),{w:COL_W[0],rowSpan:tasks.length,valign:VerticalAlign.CENTER}));
+      cells.push(mkCell(mkPara(task.category),{w:COL_W[1],valign:VerticalAlign.TOP}));
+      cells.push(mkCell(tm.map(function(t){ return mkPara('• '+t.title+(t.note?' - '+t.note:'')); }),{w:COL_W[2],valign:VerticalAlign.TOP}));
+      cells.push(mkCell(tm.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:AlignmentType.CENTER,bold:t.status==='진행중'}); }),{w:COL_W[3],valign:VerticalAlign.TOP}));
+      cells.push(mkCell(tm.map(function(t){ return mkPara(t.pct+'%',{align:AlignmentType.CENTER}); }),{w:COL_W[4],valign:VerticalAlign.TOP}));
+      cells.push(mkCell(nm.map(function(t){ return mkPara('• '+t.title+(t.note?' - '+t.note:'')); }),{w:COL_W[5],valign:VerticalAlign.TOP}));
+      cells.push(mkCell(nm.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:AlignmentType.CENTER,bold:t.status==='진행중'}); }),{w:COL_W[6],valign:VerticalAlign.TOP}));
+      cells.push(mkCell(nm.map(function(t){ return mkPara(t.pct>0?t.pct+'%':'',{align:AlignmentType.CENTER}); }),{w:COL_W[7],valign:VerticalAlign.TOP}));
+      cells.push(mkCell(nm.map(function(t,i){ return mkPara(String(t.priority||i+1),{align:AlignmentType.CENTER}); }),{w:COL_W[8],valign:VerticalAlign.TOP}));
+      cells.push(mkCell(tm.map(function(t){ return mkPara(t.start&&t.end?t.start+'~'+t.end:'',{align:AlignmentType.CENTER,size:14}); }),{w:COL_W[9],valign:VerticalAlign.TOP}));
+      rows.push(new TableRow({ children: cells }));
+    });
+
+    rows.push(new TableRow({ children: [
+      mkCell(mkPara('■본부내 업무 협조 사항 및 이슈'),{w:COL_W[0]}),
+      mkCell([mkPara('')],{w:COL_W[1]}),
+      mkCell([mkPara('')],{w:COL_W[2]}),
+      mkCell([mkPara('')],{w:COL_W[3]}),
+      mkCell(mkPara(parsed.issue||''),{w:COL_W[4]+COL_W[5]+COL_W[6]+COL_W[7],colSpan:4}),
+      mkCell([mkPara('')],{w:COL_W[8]}),
+      mkCell([mkPara('')],{w:COL_W[9]}),
+    ]}));
+
+    rows.push(new TableRow({ children: [
+      mkCell(mkPara('■금월 중점업무'),{w:COL_W[0]+COL_W[1],colSpan:2}),
+      mkCell(highlight.map(function(t){ return mkPara('• '+t.title); }),{w:COL_W[2],valign:VerticalAlign.TOP}),
+      mkCell(highlight.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:AlignmentType.CENTER}); }),{w:COL_W[3],valign:VerticalAlign.TOP}),
+      mkCell(highlight.map(function(t){ return mkPara(t.pct+'%',{align:AlignmentType.CENTER}); }),{w:COL_W[4],valign:VerticalAlign.TOP}),
+      mkCell(highlight.map(function(t){ return mkPara('• '+t.title); }),{w:COL_W[5],valign:VerticalAlign.TOP}),
+      mkCell(highlight.map(function(t){ return mkPara(getStatusSym(t.status,t.pct),{align:AlignmentType.CENTER}); }),{w:COL_W[6],valign:VerticalAlign.TOP}),
+      mkCell(highlight.map(function(t){ return mkPara(t.pct+'%',{align:AlignmentType.CENTER}); }),{w:COL_W[7],valign:VerticalAlign.TOP}),
+      mkCell(highlight.map(function(t,i){ return mkPara(String(t.priority||i+1),{align:AlignmentType.CENTER}); }),{w:COL_W[8],valign:VerticalAlign.TOP}),
+      mkCell(highlight.map(function(t){ return mkPara(t.start&&t.end?t.start+'~'+t.end:'',{size:14}); }),{w:COL_W[9],valign:VerticalAlign.TOP}),
+    ]}));
+
+    rows.push(new TableRow({ children: [
+      mkCell(mkPara('■질의/응답 등 회의내용'),{w:COL_W[0]}),
+      mkCell([mkPara('')],{w:COL_W[1]+COL_W[2]+COL_W[3]+COL_W[4]+COL_W[5]+COL_W[6]+COL_W[7]+COL_W[8]+COL_W[9],colSpan:9}),
+    ]}));
+
+    var table = new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, columnWidths: COL_W, rows: rows });
+    var doc = new Document({
+      sections: [{ properties: { page: { size: { width: 16838, height: 11906 }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } }, children: [table] }]
+    });
+
+    var buf = await Packer.toBlob(doc);
+    var now = new Date();
+    var dateStr = now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(buf);
+    a.download = deptName+'_'+month+'월_월간업무계획_'+dateStr+'.docx';
+    a.click();
+    showToast('✅ 워드 파일 다운로드 완료!');
+  } catch(e) {
+    showToast('❌ 워드 생성 실패: '+e.message);
+    console.error(e);
+  }
+}
+
 function reportReviewerSearch(type) {
   var keyword = document.getElementById(type+'-reviewer-search').value.trim();
   var resultsEl = document.getElementById(type+'-reviewer-results');
@@ -18414,18 +18610,20 @@ async function reportGenerate(type) {
       '다음 예정 업무 ('+data.upcoming.length+'건):\n'+
       data.upcoming.map(function(t){ return '- '+t.title+(t.due?' (~'+t.due+')':''); }).join('\n') :
       '이번 달 완료 업무 ('+data.done.length+'건):\n'+
-      data.done.map(function(t){ return '- [완료] '+t.title+(t.desc?' : '+t.desc.substring(0,40):''); }).join('\n')+'\n'+
+      data.done.map(function(t){ return '- [완료] '+t.title+(t.desc?' : '+t.desc.substring(0,40):'')+(t.due?' ('+t.due+')':''); }).join('\n')+'\n'+
       '이번 달 진행 중 ('+data.doing.length+'건):\n'+
       data.doing.map(function(t){
         var cl=t.checklist||[]; var d=cl.filter(function(c){return c.done;}).length;
         var pct=cl.length?Math.round(d/cl.length*100):(t.progress||0);
-        return '- [진행중] '+t.title+' ('+pct+'%)';
+        return '- [진행중] '+t.title+' ('+pct+'%)'+(t.start?' ('+t.start+'~'+t.due+')':'');
       }).join('\n')+'\n\n'+
       '다음 달 예정 ('+data.upcoming.length+'건):\n'+
       data.upcoming.map(function(t){ return '- '+t.title+(t.due?' (~'+t.due+')':''); }).join('\n')
     )+'\n\n'+(issues?'이슈: '+issues+'\n\n':'')+
-    'JSON 형식: {"this_week":[{"status":"완료|진행중","title":"업무명","note":"비고(선택)","pct":숫자}],"next_week":[{"status":"예정|긴급","title":"업무명","note":"비고(선택)"}],"issues":"이슈내용또는없음"}\n'+
-    'JSON만 출력하세요.';
+    (type==='monthly' ?
+      'JSON 형식 (월간): {"tasks":[{"category":"업무분장명","this_month":[{"title":"업무명","note":"상세내용","status":"완료|진행중|예정","pct":숫자,"priority":숫자,"start":"M/D","end":"M/D"}],"next_month":[{"title":"업무명","note":"","status":"예정","pct":0,"priority":숫자,"start":"M/D","end":"M/D"}]}],"highlight":[{"title":"중점업무명","status":"완료|진행중","pct":숫자,"priority":숫자,"start":"M/D","end":"M/D"}],"issue":"협조사항","qa":""}' :
+      'JSON 형식: {"this_week":[{"status":"완료|진행중","title":"업무명","note":"비고(선택)","pct":숫자}],"next_week":[{"status":"예정|긴급","title":"업무명","note":"비고(선택)"}],"issues":"이슈내용또는없음"}'
+    )+'\nJSON만 출력하세요.';
 
   try {
     var resp = await fetch(CF_URL, {
@@ -18436,7 +18634,14 @@ async function reportGenerate(type) {
     var raw = result.content && result.content[0] ? result.content[0].text : '';
     var parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
     _reportData[type] = { parsed: parsed, period: periodLabel, author: name, dept: dept, reviewer: reviewerName, issues: issues };
-    reportRenderContent(type, parsed, periodLabel, name, dept, reviewerName);
+    if (type === 'monthly') {
+      // 월간은 docx 다운로드 버튼 표시
+      var docxBtn = document.getElementById('monthly-docx-btn');
+      if (docxBtn) docxBtn.style.display = '';
+      reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName);
+    } else {
+      reportRenderContent(type, parsed, periodLabel, name, dept, reviewerName);
+    }
   } catch(e) {
     areaEl.innerHTML = '<div style="padding:20px;color:#E24B4A">❌ 보고서 생성 실패: '+e.message+'</div>';
   }
