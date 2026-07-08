@@ -1692,11 +1692,20 @@ select.form-input{cursor:pointer}
               <textarea id="weekly-issues" class="form-input" style="height:80px;resize:none;font-size:12px" placeholder="이슈, 특이사항, 협조 요청 등"></textarea>
             </div>
             <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
+              <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">검토자</div>
+              <div style="display:flex;gap:6px;margin-bottom:6px">
+                <input id="weekly-reviewer-search" type="text" class="form-input" style="flex:1;font-size:12px" placeholder="이름 검색..." oninput="reportReviewerSearch('weekly')">
+                <button onclick="reportOpenOrgPicker('weekly')" style="padding:5px 10px;font-size:11px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--t2)">🏢</button>
+              </div>
+              <div id="weekly-reviewer-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:100px;overflow-y:auto;margin-bottom:6px"></div>
+              <div id="weekly-reviewer-tag" style="min-height:24px"></div>
+              <input type="hidden" id="weekly-reviewer" value="">
+            </div>
+            <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
               <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">저장된 보고서</div>
               <div id="weekly-saved-list" style="display:flex;flex-direction:column;gap:4px"></div>
             </div>
           </div>
-          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
             <div id="weekly-report-area">
               <div style="text-align:center;padding:48px;color:var(--t3)">
                 <div style="font-size:36px;margin-bottom:8px">📝</div>
@@ -1738,6 +1747,16 @@ select.form-input{cursor:pointer}
             <div style="border-top:0.5px solid var(--border);padding-top:12px">
               <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">이슈/특이사항</div>
               <textarea id="monthly-issues" class="form-input" style="height:80px;resize:none;font-size:12px" placeholder="이슈, 특이사항, 협조 요청 등"></textarea>
+            </div>
+            <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
+              <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">검토자</div>
+              <div style="display:flex;gap:6px;margin-bottom:6px">
+                <input id="monthly-reviewer-search" type="text" class="form-input" style="flex:1;font-size:12px" placeholder="이름 검색..." oninput="reportReviewerSearch('monthly')">
+                <button onclick="reportOpenOrgPicker('monthly')" style="padding:5px 10px;font-size:11px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--t2)">🏢</button>
+              </div>
+              <div id="monthly-reviewer-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:100px;overflow-y:auto;margin-bottom:6px"></div>
+              <div id="monthly-reviewer-tag" style="min-height:24px"></div>
+              <input type="hidden" id="monthly-reviewer" value="">
             </div>
             <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
               <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">저장된 보고서</div>
@@ -18118,58 +18137,208 @@ function reportGetTasks(type) {
   };
 }
 
+// 검토자 검색
+function reportReviewerSearch(type) {
+  var keyword = document.getElementById(type+'-reviewer-search').value.trim();
+  var resultsEl = document.getElementById(type+'-reviewer-results');
+  if (!keyword) { resultsEl.style.display='none'; return; }
+  var filtered = employees.filter(function(e){ return e.status!=='퇴직' && (e.name||'').indexOf(keyword)>=0; }).slice(0,5);
+  if (!filtered.length) { resultsEl.style.display='none'; return; }
+  resultsEl.innerHTML = filtered.map(function(e) {
+    var email = e.id||e.email||'';
+    return '<div onclick="reportSetReviewer(\''+type+'\',\''+email+'\',\''+e.name+'\')" style="padding:7px 12px;font-size:13px;cursor:pointer;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
+      '<div style="width:26px;height:26px;border-radius:50%;background:var(--acd);color:var(--ac);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600">'+e.name.charAt(0)+'</div>' +
+      '<div><strong>'+e.name+'</strong> <span style="font-size:11px;color:var(--t3)">'+(e.dept||'')+'</span></div>' +
+    '</div>';
+  }).join('');
+  resultsEl.style.display='block';
+}
+
+function reportSetReviewer(type, email, name) {
+  document.getElementById(type+'-reviewer').value = email;
+  document.getElementById(type+'-reviewer-search').value = '';
+  document.getElementById(type+'-reviewer-results').style.display='none';
+  var tagEl = document.getElementById(type+'-reviewer-tag');
+  if (tagEl) tagEl.innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:#EEEDFE;color:#534AB7;border-radius:99px;font-size:12px;font-weight:500">👁 '+name+
+    '<button onclick="reportClearReviewer(\''+type+'\')" style="background:none;border:none;cursor:pointer;color:#534AB7;font-size:11px;padding:0">✕</button></span>';
+}
+
+function reportClearReviewer(type) {
+  document.getElementById(type+'-reviewer').value='';
+  document.getElementById(type+'-reviewer-tag').innerHTML='';
+}
+
+function reportOpenOrgPicker(type) {
+  orgPickerMode = 'report_'+type;
+  orgPickerOpen();
+}
+
 async function reportGenerate(type) {
   var data = reportGetTasks(type);
   if (!data.start || !data.end) { showToast('❌ 기간을 설정해주세요'); return; }
 
   var issues = document.getElementById(type+'-issues').value.trim();
+  var reviewerEmail = document.getElementById(type+'-reviewer').value;
+  var reviewerEmp = reviewerEmail ? employees.find(function(e){ return e.id===reviewerEmail||e.email===reviewerEmail; }) : null;
+  var reviewerName = reviewerEmp ? reviewerEmp.name : '';
+
   var emp = employees.find(function(e){ return e.id===(state.user?state.user.email:'') || e.email===(state.user?state.user.email:''); });
   var name = emp ? emp.name : (state.user ? state.user.email : '');
   var dept = emp ? (emp.dept||'') : '';
-  var periodLabel = type === 'weekly' ? data.start+'~'+data.end+' 주간' : document.getElementById('monthly-year').value+'년 '+document.getElementById('monthly-month').value+'월';
+
+  var periodLabel = type==='weekly'
+    ? data.start+'~'+data.end+' 주간'
+    : document.getElementById('monthly-year').value+'년 '+document.getElementById('monthly-month').value+'월';
 
   var areaEl = document.getElementById(type+'-report-area');
   areaEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--t3)">✨ AI가 보고서를 작성 중입니다...</div>';
 
-  var prompt = '다음 업무 데이터를 바탕으로 '+periodLabel+' 업무 보고서를 작성해주세요.\n\n' +
-    '작성자: '+name+(dept?' ('+dept+')':'')+'\n' +
-    '보고 기간: '+periodLabel+'\n\n' +
-    '완료 업무 ('+data.done.length+'건):\n' +
-    (data.done.length ? data.done.map(function(t){ return '- '+t.title+(t.desc?' : '+t.desc.substring(0,50):''); }).join('\n') : '없음') + '\n\n' +
-    '진행 중 업무 ('+data.doing.length+'건):\n' +
-    (data.doing.length ? data.doing.map(function(t){
-      var cl = t.checklist||[]; var d = cl.filter(function(c){ return c.done; }).length;
-      var pct = cl.length ? Math.round(d/cl.length*100) : (t.progress||0);
-      return '- '+t.title+' ('+pct+'%'+(t.due?' ~'+t.due:'')+')';
-    }).join('\n') : '없음') + '\n\n' +
-    '다음 예정 업무 ('+data.upcoming.length+'건):\n' +
-    (data.upcoming.length ? data.upcoming.map(function(t){ return '- '+t.title+(t.due?' (~'+t.due+')':''); }).join('\n') : '없음') + '\n\n' +
-    (issues ? '이슈/특이사항:\n'+issues+'\n\n' : '') +
-    '보고서 형식:\n1. 제목 (작성자, 기간 포함)\n2. 완료 업무\n3. 진행 중 업무\n4. 다음 주/달 예정\n5. 이슈/건의사항\n\n' +
-    '간결하고 업무적인 문체로 작성해주세요. 마크다운 대신 일반 텍스트로 작성해주세요.';
+  var prompt = '다음 업무 데이터로 '+periodLabel+' 업무 보고서를 아래 JSON 형식으로만 작성해주세요.\n\n'+
+    '작성자: '+name+(dept?' ('+dept+')':'')+'\n'+
+    '보고 기간: '+periodLabel+'\n\n'+
+    (type==='weekly'?
+      '완료/진행 업무 ('+data.done.length+'+'+data.doing.length+'건):\n'+
+      data.done.map(function(t){ return '- [완료] '+t.title+(t.desc?' : '+t.desc.substring(0,40):''); }).join('\n')+'\n'+
+      data.doing.map(function(t){
+        var cl=t.checklist||[]; var d=cl.filter(function(c){return c.done;}).length;
+        var pct=cl.length?Math.round(d/cl.length*100):(t.progress||0);
+        return '- [진행중] '+t.title+' ('+pct+'%)';
+      }).join('\n')+'\n\n'+
+      '다음 예정 업무 ('+data.upcoming.length+'건):\n'+
+      data.upcoming.map(function(t){ return '- '+t.title+(t.due?' (~'+t.due+')':''); }).join('\n') :
+      '완료 업무:\n'+data.done.map(function(t){ return '- '+t.title; }).join('\n')+'\n'+
+      '진행 중:\n'+data.doing.map(function(t){ return '- '+t.title; }).join('\n')+'\n'+
+      '다음달 예정:\n'+data.upcoming.map(function(t){ return '- '+t.title; }).join('\n')
+    )+'\n\n'+(issues?'이슈: '+issues+'\n\n':'')+
+    'JSON 형식: {"this_week":[{"status":"완료|진행중","title":"업무명","note":"비고(선택)","pct":숫자}],"next_week":[{"status":"예정|긴급","title":"업무명","note":"비고(선택)"}],"issues":"이슈내용또는없음"}\n'+
+    'JSON만 출력하세요.';
 
   try {
     var resp = await fetch(CF_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:1500, messages:[{role:'user',content:prompt}]})
+      body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:1000, messages:[{role:'user',content:prompt}]})
     });
     var result = await resp.json();
-    var text = result.content && result.content[0] ? result.content[0].text : '';
-    _reportData[type] = { text: text, period: periodLabel, issues: issues };
-    reportRenderContent(type, text);
+    var raw = result.content && result.content[0] ? result.content[0].text : '';
+    var parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    _reportData[type] = { parsed: parsed, period: periodLabel, author: name, dept: dept, reviewer: reviewerName, issues: issues };
+    reportRenderContent(type, parsed, periodLabel, name, dept, reviewerName);
   } catch(e) {
     areaEl.innerHTML = '<div style="padding:20px;color:#E24B4A">❌ 보고서 생성 실패: '+e.message+'</div>';
   }
 }
 
-function reportRenderContent(type, text) {
+function reportRenderContent(type, parsed, periodLabel, name, dept, reviewerName) {
   var areaEl = document.getElementById(type+'-report-area');
+  var thisWeek = parsed.this_week||[];
+  var nextWeek = parsed.next_week||[];
+  var issues = parsed.issues||'없음';
+
+  var sC = {완료:'#27500A',진행중:'#0C447C',예정:'#444441',긴급:'#791F1F'};
+  var sB = {완료:'#EAF3DE',진행중:'#E6F1FB',예정:'#F1EFE8',긴급:'#FCEBEB'};
+
+  function taskRow(t) {
+    var status = t.status||'예정';
+    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 14px;border-bottom:0.5px solid var(--border)">' +
+      '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:'+(sB[status]||'#F1EFE8')+';color:'+(sC[status]||'#444441')+';white-space:nowrap;flex-shrink:0;margin-top:1px">'+status+'</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;color:var(--t1);line-height:1.4">'+t.title+'</div>' +
+        (t.note?'<div style="font-size:11px;color:var(--t3);margin-top:2px">'+t.note+'</div>':'') +
+        (t.pct!==undefined&&t.pct>0?'<div style="font-size:11px;color:var(--t3);margin-top:2px">'+t.pct+'% 완료</div>':'') +
+      '</div>' +
+    '</div>';
+  }
+
   areaEl.innerHTML =
     '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">' +
-      '<button onclick="reportCopy(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">📋 복사</button>' +
       '<button onclick="reportEdit(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">✏️ 수정</button>' +
+      '<button onclick="reportCopy(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">📋 복사</button>' +
+      '<button onclick="reportSaveToDrive(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">☁️ 드라이브 저장</button>' +
     '</div>' +
-    '<div id="'+type+'-report-text" style="font-size:13px;line-height:1.8;color:var(--t1);white-space:pre-wrap;border:0.5px solid var(--border);border-radius:8px;padding:16px;background:var(--surface)">'+text+'</div>';
+    // 헤더
+    '<div style="border-bottom:2px solid var(--border-strong);padding-bottom:10px;margin-bottom:14px">' +
+      '<div style="font-size:16px;font-weight:600;color:var(--t1);margin-bottom:4px">주간 업무 보고</div>' +
+      '<div style="display:flex;gap:14px;font-size:12px;color:var(--t3)">' +
+        '<span>작성자: '+name+(dept?' ('+dept+')':'')+'</span>' +
+        '<span>기간: '+periodLabel+'</span>' +
+        (reviewerName?'<span>검토자: '+reviewerName+'</span>':'') +
+      '</div>' +
+    '</div>' +
+    // 좌우 컬럼
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">' +
+      '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden">' +
+        '<div style="padding:9px 14px;font-size:12px;font-weight:500;background:#E6F1FB;color:#0C447C;border-bottom:0.5px solid #B5D4F4;letter-spacing:.3px">이번 주 한 일</div>' +
+        (thisWeek.length ? thisWeek.map(taskRow).join('') : '<div style="padding:16px;text-align:center;color:var(--t3);font-size:12px">업무 없음</div>') +
+      '</div>' +
+      '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden">' +
+        '<div style="padding:9px 14px;font-size:12px;font-weight:500;background:#EAF3DE;color:#27500A;border-bottom:0.5px solid #C0DD97;letter-spacing:.3px">다음 주 할 일</div>' +
+        (nextWeek.length ? nextWeek.map(taskRow).join('') : '<div style="padding:16px;text-align:center;color:var(--t3);font-size:12px">업무 없음</div>') +
+      '</div>' +
+    '</div>' +
+    // 이슈
+    '<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:12px 14px">' +
+      '<div style="font-size:11px;font-weight:500;color:var(--t3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">이슈 및 건의사항</div>' +
+      '<div id="'+type+'-report-text" style="font-size:13px;color:var(--t1);line-height:1.6">'+issues+'</div>' +
+    '</div>';
+}
+
+function reportSaveToDrive(type) {
+  var d = _reportData[type];
+  if (!d || !d.parsed) { showToast('❌ 먼저 보고서를 생성해주세요'); return; }
+
+  driveEnsureToken().then(async function(ok) {
+    if (!ok) { showToast('❌ 드라이브 권한이 필요합니다'); return; }
+    showToast('☁️ 드라이브에 저장 중...');
+
+    // 보고서 텍스트 생성
+    var parsed = d.parsed;
+    var content = '주간 업무 보고\n';
+    content += '작성자: '+d.author+(d.dept?' ('+d.dept+')':'')+'\n';
+    content += '기간: '+d.period+'\n';
+    if (d.reviewer) content += '검토자: '+d.reviewer+'\n';
+    content += '\n■ 이번 주 한 일\n';
+    (parsed.this_week||[]).forEach(function(t){ content += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+(t.pct?' ('+t.pct+'%)':'')+'\n'; });
+    content += '\n■ 다음 주 할 일\n';
+    (parsed.next_week||[]).forEach(function(t){ content += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+'\n'; });
+    content += '\n■ 이슈 및 건의사항\n'+(parsed.issues||'없음');
+
+    // 폴더 확인/생성
+    var folderName = 'WorkGate_보고서';
+    var subFolder = type==='weekly' ? '주간보고' : '월간보고';
+    var r1 = await driveApiCall('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("name='"+folderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false")+'&fields=files(id)');
+    var d1 = await r1.json();
+    var rootId = d1.files&&d1.files.length ? d1.files[0].id : null;
+    if (!rootId) {
+      var cr = await driveApiCall('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:folderName,mimeType:'application/vnd.google-apps.folder'})});
+      rootId = (await cr.json()).id;
+    }
+    var r2 = await driveApiCall('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("name='"+subFolder+"' and '"+rootId+"' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false")+'&fields=files(id)');
+    var d2 = await r2.json();
+    var subId = d2.files&&d2.files.length ? d2.files[0].id : null;
+    if (!subId) {
+      var cs = await driveApiCall('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:subFolder,mimeType:'application/vnd.google-apps.folder',parents:[rootId]})});
+      subId = (await cs.json()).id;
+    }
+
+    // 파일명
+    var now = new Date();
+    var dateStr = now.getFullYear()+(now.getMonth()+1<10?'0':'')+(now.getMonth()+1)+(now.getDate()<10?'0':'')+now.getDate();
+    var fileName = d.author+'_'+(type==='weekly'?'주간':'월간')+'보고_'+dateStr+'.txt';
+
+    // 업로드
+    var form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify({name:fileName,parents:[subId]})],{type:'application/json'}));
+    form.append('file', new Blob([content],{type:'text/plain;charset=utf-8'}));
+    var up = await driveApiCall('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{method:'POST',body:form});
+    var upData = await up.json();
+    if (upData.id) {
+      showToast('✅ 드라이브에 저장 완료! WorkGate_보고서/'+subFolder+'/'+fileName);
+      // Firestore에도 저장
+      reportSave(type);
+    } else {
+      showToast('❌ 드라이브 저장 실패');
+    }
+  });
 }
 
 function reportEdit(type) {
