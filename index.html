@@ -18794,9 +18794,107 @@ async function reportSaveToDrive(type) {
 }
 
 
+function reportEditMonthly() {
+  var d = _reportData['monthly'];
+  if (!d || !d.parsed) return;
+  window._editParsed = JSON.parse(JSON.stringify(d.parsed));
+  var areaEl = document.getElementById('monthly-report-area');
+  var tasks = window._editParsed.tasks || [];
+
+  function editTaskRows() {
+    return tasks.map(function(task, tIdx) {
+      var tm = task.this_month||[]; var nm = task.next_month||[];
+      var maxLen = Math.max(tm.length, nm.length, 1);
+      var html = '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px">' +
+        '<div style="padding:8px 12px;background:#f8f9fa;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px">' +
+          '<input type="text" value="'+task.category+'" oninput="window._editParsed.tasks['+tIdx+'].category=this.value" style="font-size:13px;font-weight:500;flex:1;border:none;background:transparent;color:var(--t1)">' +
+          '<button onclick="reportEditMonthlyRemoveTask('+tIdx+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px">✕ 카테고리 삭제</button>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0">' +
+          '<div style="padding:8px;border-right:0.5px solid var(--border)">' +
+            '<div style="font-size:11px;font-weight:500;color:#0C447C;margin-bottom:6px">금월 업무내용</div>' +
+            tm.map(function(t,i){
+              return '<div style="display:flex;gap:6px;margin-bottom:6px;align-items:flex-start">' +
+                '<select oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].status=this.value" style="font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px;flex-shrink:0">' +
+                  ['완료','진행중','예정','대기'].map(function(s){ return '<option value="'+s+'"'+(t.status===s?' selected':'')+'>'+s+'</option>'; }).join('') +
+                '</select>' +
+                '<div style="flex:1">' +
+                  '<textarea oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].title=this.value" rows="2" style="width:100%;font-size:12px;border:0.5px solid var(--border);border-radius:5px;padding:4px;resize:vertical">'+t.title+'</textarea>' +
+                  '<input type="text" value="'+(t.note||'')+'" oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].note=this.value" placeholder="비고" style="width:100%;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:3px 6px;margin-top:3px">' +
+                  '<div style="display:flex;gap:4px;margin-top:3px">' +
+                    '<input type="number" value="'+(t.pct||0)+'" oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].pct=parseInt(this.value)||0" min="0" max="100" style="width:60px;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px" placeholder="진행률">' +
+                    '<input type="text" value="'+(t.start||'')+'" oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].start=this.value" placeholder="시작" style="width:60px;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px">' +
+                    '<input type="text" value="'+(t.end||'')+'" oninput="window._editParsed.tasks['+tIdx+'].this_month['+i+'].end=this.value" placeholder="완료" style="width:60px;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px">' +
+                    '<button onclick="window._editParsed.tasks['+tIdx+'].this_month.splice('+i+',1);reportEditMonthly()" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:12px">✕</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+            }).join('') +
+            '<button onclick="window._editParsed.tasks['+tIdx+'].this_month.push({title:\'\',note:\'\',status:\'예정\',pct:0,priority:1,start:\'\',end:\'\'});reportEditMonthly()" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:4px 0">+ 항목 추가</button>' +
+          '</div>' +
+          '<div style="padding:8px">' +
+            '<div style="font-size:11px;font-weight:500;color:#27500A;margin-bottom:6px">익월 업무내용</div>' +
+            nm.map(function(t,i){
+              return '<div style="display:flex;gap:6px;margin-bottom:6px;align-items:flex-start">' +
+                '<select oninput="window._editParsed.tasks['+tIdx+'].next_month['+i+'].status=this.value" style="font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px;flex-shrink:0">' +
+                  ['예정','진행중','완료','대기'].map(function(s){ return '<option value="'+s+'"'+(t.status===s?' selected':'')+'>'+s+'</option>'; }).join('') +
+                '</select>' +
+                '<div style="flex:1">' +
+                  '<textarea oninput="window._editParsed.tasks['+tIdx+'].next_month['+i+'].title=this.value" rows="2" style="width:100%;font-size:12px;border:0.5px solid var(--border);border-radius:5px;padding:4px;resize:vertical">'+t.title+'</textarea>' +
+                  '<input type="text" value="'+(t.note||'')+'" oninput="window._editParsed.tasks['+tIdx+'].next_month['+i+'].note=this.value" placeholder="비고" style="width:100%;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:3px 6px;margin-top:3px">' +
+                  '<div style="display:flex;gap:4px;margin-top:3px">' +
+                    '<input type="number" value="'+(t.priority||i+1)+'" oninput="window._editParsed.tasks['+tIdx+'].next_month['+i+'].priority=parseInt(this.value)||1" min="1" style="width:50px;font-size:11px;border:0.5px solid var(--border);border-radius:5px;padding:2px 4px" placeholder="순위">' +
+                    '<button onclick="window._editParsed.tasks['+tIdx+'].next_month.splice('+i+',1);reportEditMonthly()" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:12px">✕</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+            }).join('') +
+            '<button onclick="window._editParsed.tasks['+tIdx+'].next_month.push({title:\'\',note:\'\',status:\'예정\',pct:0,priority:1});reportEditMonthly()" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:4px 0">+ 항목 추가</button>' +
+          '</div>' +
+        '</div></div>';
+      return html;
+    }).join('');
+  }
+
+  areaEl.innerHTML =
+    '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">' +
+      '<button onclick="reportEditMonthlyCancel()" class="btn btn-ghost" style="font-size:12px">취소</button>' +
+      '<button onclick="reportEditMonthlyApply()" class="btn btn-primary" style="font-size:12px">적용</button>' +
+    '</div>' +
+    editTaskRows() +
+    '<button onclick="window._editParsed.tasks.push({category:\'새 업무분장\',this_month:[],next_month:[]});reportEditMonthly()" style="font-size:12px;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;cursor:pointer;padding:8px 16px;width:100%;margin-bottom:12px">+ 업무분장 추가</button>' +
+    '<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">' +
+      '<div style="font-size:11px;color:var(--t3);margin-bottom:6px">■협조사항</div>' +
+      '<textarea id="edit-monthly-issue" class="form-input" style="height:50px;resize:none;font-size:13px">'+(window._editParsed.issue||'')+'</textarea>' +
+    '</div>';
+}
+
+function reportEditMonthlyRemoveTask(idx) {
+  if (!window._editParsed) return;
+  window._editParsed.tasks.splice(idx, 1);
+  reportEditMonthly();
+}
+
+function reportEditMonthlyApply() {
+  if (!window._editParsed || !_reportData['monthly']) return;
+  var ia = document.getElementById('edit-monthly-issue');
+  if (ia) window._editParsed.issue = ia.value;
+  _reportData['monthly'].parsed = window._editParsed;
+  window._editParsed = null;
+  var d = _reportData['monthly'];
+  reportRenderMonthly(d.parsed, d.period, d.author, d.dept, d.reviewer);
+}
+
+function reportEditMonthlyCancel() {
+  window._editParsed = null;
+  var d = _reportData['monthly'];
+  if (d && d.parsed) reportRenderMonthly(d.parsed, d.period, d.author, d.dept, d.reviewer);
+}
+
 function reportEdit(type) {
   var d = _reportData[type];
   if (!d || !d.parsed) { showToast('❌ 먼저 보고서를 생성해주세요'); return; }
+  if (type === 'monthly') { reportEditMonthly(); return; }
 
   // 편집 전 현재 DOM 입력값 수집 (항목추가/삭제 시 기존 입력 보존)
   if (window._editParsed) {
