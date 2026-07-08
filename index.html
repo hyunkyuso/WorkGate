@@ -425,40 +425,76 @@ select.form-input{cursor:pointer}
       <!-- 업무보드 (칸반) -->
       <div id="page-tasks" class="page">
 
-        <!-- ① 프로젝트 목록 화면 -->
-        <div id="task-project-list-view">
-          <div class="page-header">
-            <div>
-              <div class="page-title">📋 업무보드</div>
-              <div class="page-sub">프로젝트를 선택해서 칸반 보드로 이동하세요</div>
-            </div>
-            <button class="btn btn-primary" onclick="openProjectModal()">+ 프로젝트 추가</button>
-          </div>
-          <div id="project-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding-bottom:32px"></div>
-        </div>
+        <!-- 좌우 분할 레이아웃 -->
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:0;height:calc(100vh - 56px);overflow:hidden">
 
-        <!-- ② 칸반 보드 화면 -->
-        <div id="task-kanban-view" style="display:none">
-          <div class="page-header">
-            <div style="display:flex;align-items:center;gap:10px">
-              <button onclick="taskBackToProjects()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--t2);padding:0;line-height:1">←</button>
-              <div>
-                <div class="page-title" id="kanban-project-title"></div>
-                <div class="page-sub" id="kanban-project-desc"></div>
-              </div>
+          <!-- 좌측: 프로젝트 목록 -->
+          <div style="border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--white)">
+            <!-- 헤더 -->
+            <div style="padding:14px 14px 10px;border-bottom:0.5px solid var(--border)">
+              <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">업무보드</div>
+              <input id="proj-search" type="text" class="form-input" style="font-size:12px;width:100%" placeholder="🔍 프로젝트 검색..." oninput="projRenderSidebar()">
             </div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <div style="display:flex;border:0.5px solid var(--border);border-radius:8px;overflow:hidden">
-                <button onclick="taskSetFilter('all',this)" class="task-filter-btn active" style="padding:5px 12px;font-size:12px;border:none;cursor:pointer;background:var(--acd);color:var(--ac)">전체</button>
-                <button onclick="taskSetFilter('mine',this)" class="task-filter-btn" style="padding:5px 12px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">내 업무</button>
-                <button onclick="taskSetFilter('urgent',this)" class="task-filter-btn" style="padding:5px 12px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">기한 임박</button>
-              </div>
-              <button class="btn btn-ghost btn-sm" onclick="openProjectEditModal()">⚙ 프로젝트 설정</button>
+            <!-- 프로젝트 목록 -->
+            <div id="proj-sidebar" style="overflow-y:auto;flex:1;padding:8px 0"></div>
+            <!-- 하단 추가 버튼 -->
+            <div style="padding:10px 12px;border-top:0.5px solid var(--border)">
+              <button onclick="openProjectModal()" style="width:100%;padding:7px;font-size:12px;border:0.5px dashed var(--border);border-radius:8px;cursor:pointer;background:none;color:var(--t3);display:flex;align-items:center;justify-content:center;gap:4px" onmouseover="this.style.borderColor='var(--ac)';this.style.color='var(--ac)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--t3)'">+ 프로젝트 추가</button>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;padding-bottom:32px" id="kanban-board"></div>
+
+          <!-- 우측: 선택된 프로젝트 상세 / 칸반 보드 -->
+          <div style="overflow-y:auto;background:var(--surface)">
+
+            <!-- ① 프로젝트 미선택 상태 -->
+            <div id="task-project-list-view" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t3);flex-direction:column;gap:8px">
+              <div style="font-size:36px">📋</div>
+              <div style="font-size:14px">좌측에서 프로젝트를 선택하세요</div>
+            </div>
+
+            <!-- ② 프로젝트 상세 (업무 리스트) -->
+            <div id="task-project-detail" style="display:none;padding:20px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div>
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div id="detail-proj-name" style="font-size:18px;font-weight:600;color:var(--t1)"></div>
+                    <div id="detail-proj-stats" style="font-size:12px;color:var(--t3)"></div>
+                  </div>
+                  <div id="detail-proj-desc" style="font-size:12px;color:var(--t3);margin-top:2px"></div>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button onclick="projOpenKanban()" class="btn btn-primary" style="font-size:13px">🗂 칸반 보드</button>
+                  <button onclick="openTaskModal()" class="btn btn-primary" style="font-size:13px">+ 업무 추가</button>
+                  <button id="detail-proj-edit" onclick="" class="btn btn-ghost" style="font-size:13px">⚙ 설정</button>
+                </div>
+              </div>
+              <!-- 진행률 바 -->
+              <div style="height:6px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:20px">
+                <div id="detail-proj-pct-bar" style="height:100%;border-radius:99px;background:#378ADD;transition:width .3s;width:0%"></div>
+              </div>
+              <!-- 업무 리스트 -->
+              <div id="detail-task-list" style="display:flex;flex-direction:column;gap:6px"></div>
+            </div>
+
+            <!-- ③ 칸반 보드 -->
+            <div id="task-kanban-view" style="display:none;padding:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <button onclick="projBackToDetail()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--t2);padding:0;line-height:1">←</button>
+                  <div>
+                    <div class="page-title" id="kanban-project-title"></div>
+                    <div class="page-sub" id="kanban-project-desc"></div>
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <button onclick="openTaskModal()" class="btn btn-primary">+ 업무 추가</button>
+                  <button id="kanban-edit-btn" class="btn btn-ghost" style="font-size:13px">⚙ 프로젝트 설정</button>
+                </div>
+              </div>
+              <div id="kanban-board" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start"></div>
+            </div>
+          </div>
         </div>
-      </div>
 
       <!-- KPI -->
       <div id="page-kpi" class="page">
@@ -12938,10 +12974,12 @@ function showPage(id, el) {
   if(id === 'doc-draft') docRefreshTplSelect();
   if(id === 'tasks') {
     _currentProjectId = null;
-    document.getElementById('task-project-list-view').style.display = 'block';
+    _selectedProjId = null;
+    document.getElementById('task-project-list-view').style.display = 'flex';
+    document.getElementById('task-project-detail').style.display = 'none';
     document.getElementById('task-kanban-view').style.display = 'none';
     _taskFilter = 'all';
-    projectRenderGrid();
+    projRenderSidebar();
   }
   if(id === 'task-admin') { taRenderOrgTree(); taskAdminRender(); }
 }
@@ -16237,14 +16275,15 @@ function projectStartListener() {
   db.collection('projects').onSnapshot(function(snap) {
     _projects = [];
     snap.forEach(function(d){ _projects.push(Object.assign({id:d.id}, d.data())); });
-    // createdAt 기준 정렬 (없는 것은 뒤로)
     _projects.sort(function(a,b){
       var ta = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : 0) : 0;
       var tb = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : 0) : 0;
       return tb - ta;
     });
-    projectRenderGrid();
+    projRenderSidebar();
     renderDashProjectList();
+    // 선택된 프로젝트 상세 갱신
+    if (_selectedProjId) projShowDetail(_selectedProjId);
   });
 }
 
@@ -16663,8 +16702,9 @@ function taskStartListener() {
   db.collection('tasks').orderBy('createdAt','desc').onSnapshot(function(snap) {
     _tasks = [];
     snap.forEach(function(d){ _tasks.push(Object.assign({id:d.id}, d.data())); });
-    if (_currentProjectId) taskRender();
-    projectRenderGrid();
+    if (_currentProjectId && document.getElementById('task-kanban-view').style.display !== 'none') taskRender();
+    if (_selectedProjId && document.getElementById('task-project-detail').style.display !== 'none') projShowDetail(_selectedProjId);
+    projRenderSidebar();
     taskUpdateBadge();
     updateStats();
     renderRecentTasks();
@@ -17393,6 +17433,164 @@ function taskOpenDetailFromAdmin(taskId) { taskOpenDetail(taskId); }
 var _dpPrefix = '';
 var _dpYear = 0;
 var _dpMonth = 0;
+
+// ── 프로젝트 사이드바 ──
+var _projFavorites = JSON.parse(localStorage.getItem('wg_proj_fav')||'[]');
+var _selectedProjId = null;
+
+function projRenderSidebar() {
+  var el = document.getElementById('proj-sidebar');
+  if (!el) return;
+  var myEmail = state.user ? state.user.email : '';
+  var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
+  var keyword = (document.getElementById('proj-search')||{}).value||'';
+
+  var visible = _projects.filter(function(p) {
+    if (keyword && (p.name||'').indexOf(keyword) < 0) return false;
+    if (isAdmin) return true;
+    if (p.createdBy === myEmail) return true;
+    return _tasks.some(function(t) {
+      return t.projectId === p.id && (
+        t.assignee === myEmail ||
+        (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
+        t.reviewer === myEmail
+      );
+    });
+  });
+
+  var favs = visible.filter(function(p){ return _projFavorites.indexOf(p.id) >= 0; });
+  var others = visible.filter(function(p){ return _projFavorites.indexOf(p.id) < 0; });
+
+  function renderItem(p) {
+    var isSelected = _selectedProjId === p.id;
+    var isFav = _projFavorites.indexOf(p.id) >= 0;
+    var myTasks = _tasks.filter(function(t){ return t.projectId === p.id; });
+    var pct = myTasks.length ? Math.round(myTasks.filter(function(t){ return t.status==='done'; }).length/myTasks.length*100) : 0;
+    var color = p.color || '#378ADD';
+    return '<div onclick="projSelectProject(\''+p.id+'\')" style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-radius:6px;margin:1px 6px;background:'+(isSelected?'var(--acd)':'none')+'" onmouseover="if(\''+p.id+'\'!==\''+(_selectedProjId||'')+'\')this.style.background=\'var(--surface)\'" onmouseout="if(\''+p.id+'\'!==\''+(_selectedProjId||'')+'\')this.style.background=\'none\'">' +
+      '<span style="width:8px;height:8px;border-radius:50%;background:'+color+';flex-shrink:0"></span>' +
+      '<span style="flex:1;font-size:12px;font-weight:'+(isSelected?'600':'400')+';color:'+(isSelected?'var(--ac)':'var(--t1)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(p.name||'')+'</span>' +
+      '<span style="font-size:10px;color:'+(isSelected?'var(--ac)':'var(--t3)')+'">'+pct+'%</span>' +
+      '<span onclick="event.stopPropagation();projToggleFav(\''+p.id+'\')" style="font-size:12px;color:'+(isFav?'#F59E0B':'var(--border)')+';cursor:pointer">'+( isFav?'★':'☆')+'</span>' +
+    '</div>';
+  }
+
+  var html = '';
+  if (favs.length) {
+    html += '<div style="padding:6px 14px 3px;font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">즐겨찾기</div>';
+    html += favs.map(renderItem).join('');
+  }
+  if (others.length) {
+    if (favs.length) html += '<div style="margin:4px 0;border-top:0.5px solid var(--border)"></div>';
+    html += '<div style="padding:6px 14px 3px;font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">프로젝트</div>';
+    html += others.map(renderItem).join('');
+  }
+  if (!visible.length) {
+    html = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">'+(keyword?'검색 결과 없음':'프로젝트 없음')+'</div>';
+  }
+  el.innerHTML = html;
+}
+
+function projToggleFav(projId) {
+  var idx = _projFavorites.indexOf(projId);
+  if (idx >= 0) _projFavorites.splice(idx,1); else _projFavorites.push(projId);
+  localStorage.setItem('wg_proj_fav', JSON.stringify(_projFavorites));
+  projRenderSidebar();
+}
+
+function projSelectProject(projId) {
+  _selectedProjId = projId;
+  _currentProjectId = projId;
+  projRenderSidebar();
+  projShowDetail(projId);
+}
+
+function projShowDetail(projId) {
+  var p = _projects.find(function(x){ return x.id===projId; });
+  if (!p) return;
+  document.getElementById('task-project-list-view').style.display = 'none';
+  document.getElementById('task-kanban-view').style.display = 'none';
+  document.getElementById('task-project-detail').style.display = 'block';
+
+  var myEmail = state.user ? state.user.email : '';
+  var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
+  var myTasks = _tasks.filter(function(t){
+    if (t.projectId !== projId) return false;
+    if (isAdmin) return true;
+    return t.assignee === myEmail || (t.sharedWith||[]).indexOf(myEmail)>=0 || t.reviewer===myEmail;
+  });
+  var done = myTasks.filter(function(t){ return t.status==='done'; }).length;
+  var doing = myTasks.filter(function(t){ return t.status==='doing'; }).length;
+  var pct = myTasks.length ? Math.round(done/myTasks.length*100) : 0;
+  var color = p.color||'#378ADD';
+
+  document.getElementById('detail-proj-name').textContent = p.name||'';
+  document.getElementById('detail-proj-desc').textContent = p.desc||'';
+  document.getElementById('detail-proj-stats').textContent = doing+'개 진행 · '+done+'/'+myTasks.length+' 완료';
+  document.getElementById('detail-proj-pct-bar').style.width = pct+'%';
+  document.getElementById('detail-proj-pct-bar').style.background = color;
+  document.getElementById('detail-proj-edit').onclick = function(){ openProjectEditModal(projId); };
+
+  var sC = {todo:'#888780',doing:'#378ADD',review:'#EF9F27',done:'#639922'};
+  var sL = {todo:'할 일',doing:'진행 중',review:'검토 중',done:'완료'};
+  var listEl = document.getElementById('detail-task-list');
+
+  if (!myTasks.length) {
+    listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border-radius:10px">업무가 없습니다</div>';
+    return;
+  }
+
+  listEl.innerHTML = myTasks.map(function(t) {
+    var cl = t.checklist||[];
+    var d = cl.filter(function(c){ return c.done; }).length;
+    var pct2 = cl.length ? Math.round(d/cl.length*100) : (t.progress||0);
+    var emp = employees.find(function(e){ return e.id===t.assignee||e.email===t.assignee; });
+    var isOD = t.due && t.due < new Date().toISOString().substring(0,10) && t.status!=='done';
+    return '<div onclick="taskOpenDetail(\''+t.id+'\')" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--white);border:0.5px solid var(--border);border-radius:10px;cursor:pointer" onmouseover="this.style.borderColor=\''+color+'\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+      '<span style="width:8px;height:8px;border-radius:50%;background:'+(sC[t.status]||'#888')+';flex-shrink:0"></span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(t.title||'')+'</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-top:4px">' +
+          '<span style="font-size:10px;padding:1px 7px;border-radius:99px;background:'+(sC[t.status]||'#888')+'22;color:'+(sC[t.status]||'#888')+'">'+(sL[t.status]||'')+'</span>' +
+          (t.due ? '<span style="font-size:10px;color:'+(isOD?'#DC2626':'var(--t3)')+'">📅 '+t.due+'</span>' : '') +
+          (emp ? '<span style="font-size:10px;color:var(--t3)">👤 '+emp.name+'</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">' +
+        '<div style="width:60px;height:4px;background:var(--border);border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;background:'+(pct2===100?'#22c55e':color)+';width:'+pct2+'%"></div></div>' +
+        '<span style="font-size:10px;color:var(--t3);width:28px;text-align:right">'+pct2+'%</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function projOpenKanban() {
+  if (!_currentProjectId) return;
+  var p = _projects.find(function(x){ return x.id===_currentProjectId; });
+  if (!p) return;
+  document.getElementById('task-project-detail').style.display = 'none';
+  document.getElementById('task-kanban-view').style.display = 'block';
+  document.getElementById('kanban-project-title').textContent = p.name||'';
+  document.getElementById('kanban-project-desc').textContent = p.desc||'';
+  document.getElementById('kanban-edit-btn').onclick = function(){ openProjectEditModal(_currentProjectId); };
+  taskRender();
+}
+
+function projBackToDetail() {
+  document.getElementById('task-kanban-view').style.display = 'none';
+  if (_currentProjectId) projShowDetail(_currentProjectId);
+  else { document.getElementById('task-project-list-view').style.display = 'flex'; }
+}
+
+function taskBackToProjects() {
+  _currentProjectId = null; _selectedProjId = null;
+  document.getElementById('task-kanban-view').style.display = 'none';
+  document.getElementById('task-project-detail').style.display = 'none';
+  document.getElementById('task-project-list-view').style.display = 'flex';
+  projRenderSidebar();
+}
+
+function projectRenderGrid() { projRenderSidebar(); }
 
 function openDatePicker(prefix) {
   _dpPrefix = prefix;
