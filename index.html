@@ -12959,7 +12959,15 @@ function showPage(id, el) {
   }
   if(id === 'employees') { populateEmpFilterDept(); renderEmployeeTable(); }
   if(id === 'orgview') initOrgView();
-  if(id === 'welfare') renderWelfareTable();
+  if(id === 'welfare') {
+    if (!employees || employees.length === 0 || !welfareData) {
+      // 데이터 로딩 중이면 잠깐 후 재시도
+      document.getElementById('welfare-tbody') && (document.getElementById('welfare-tbody').innerHTML = '<tr><td colspan="35" style="padding:20px;text-align:center">데이터 로딩 중...</td></tr>');
+      setTimeout(function(){ renderWelfareTable(); }, 800);
+    } else {
+      renderWelfareTable();
+    }
+  }
   if(id === 'mypage') renderMyPage();
   if(id === 'birthday') { renderBirthdayTable(); }
   if(id === 'deptfund') { renderDeptFund(); }
