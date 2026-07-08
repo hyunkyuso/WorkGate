@@ -18293,110 +18293,177 @@ function reportRenderContent(type, parsed, periodLabel, name, dept, reviewerName
     '</div>';
 }
 
-function reportSaveToDrive(type) {
+async function reportSaveToDrive(type) {
   var d = _reportData[type];
   if (!d || !d.parsed) { showToast('❌ 먼저 보고서를 생성해주세요'); return; }
 
   driveEnsureToken().then(async function(ok) {
     if (!ok) { showToast('❌ 드라이브 권한이 필요합니다'); return; }
-    showToast('☁️ 드라이브에 저장 중...');
+    showToast('☁️ Google Docs로 저장 중...');
 
-    // 보고서 텍스트 생성
     var parsed = d.parsed;
-    var content = '주간 업무 보고\n';
-    content += '작성자: '+d.author+(d.dept?' ('+d.dept+')':'')+'\n';
-    content += '기간: '+d.period+'\n';
-    if (d.reviewer) content += '검토자: '+d.reviewer+'\n';
-    content += '\n■ 이번 주 한 일\n';
-    (parsed.this_week||[]).forEach(function(t){ content += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+(t.pct?' ('+t.pct+'%)':'')+'\n'; });
-    content += '\n■ 다음 주 할 일\n';
-    (parsed.next_week||[]).forEach(function(t){ content += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+'\n'; });
-    content += '\n■ 이슈 및 건의사항\n'+(parsed.issues||'없음');
+    var leftLabel = type==='weekly' ? '이번 주 한 일' : '이번 달 한 일';
+    var rightLabel = type==='weekly' ? '다음 주 할 일' : '다음 달 할 일';
+    var reportTitle = type==='weekly' ? '주간 업무 보고' : '월간 업무 보고';
 
-    // 폴더 확인/생성
-    var folderName = 'WorkGate_보고서';
-    var subFolder = type==='weekly' ? '주간보고' : '월간보고';
-    var r1 = await driveApiCall('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("name='"+folderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false")+'&fields=files(id)');
-    var d1 = await r1.json();
-    var rootId = d1.files&&d1.files.length ? d1.files[0].id : null;
-    if (!rootId) {
-      var cr = await driveApiCall('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:folderName,mimeType:'application/vnd.google-apps.folder'})});
-      rootId = (await cr.json()).id;
-    }
-    var r2 = await driveApiCall('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("name='"+subFolder+"' and '"+rootId+"' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false")+'&fields=files(id)');
-    var d2 = await r2.json();
-    var subId = d2.files&&d2.files.length ? d2.files[0].id : null;
-    if (!subId) {
-      var cs = await driveApiCall('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:subFolder,mimeType:'application/vnd.google-apps.folder',parents:[rootId]})});
-      subId = (await cs.json()).id;
+    // 테이블 행 생성
+    var rows = '';
+    var maxLen = Math.max((parsed.this_week||[]).length, (parsed.next_week||[]).length);
+    for (var i = 0; i < maxLen; i++) {
+      var tw = (parsed.this_week||[])[i];
+      var nw = (parsed.next_week||[])[i];
+      rows += '<tr>' +
+        '<td style="border:1px solid #ccc;padding:6px 10px;vertical-align:top">' +
+          (tw ? '<b>['+tw.status+']</b> '+tw.title+(tw.note?'<br><span style="color:#888;font-size:11px">'+tw.note+'</span>':'') : '') +
+        '</td>' +
+        '<td style="border:1px solid #ccc;padding:6px 10px;vertical-align:top">' +
+          (nw ? '<b>['+nw.status+']</b> '+nw.title+(nw.note?'<br><span style="color:#888;font-size:11px">'+nw.note+'</span>':'') : '') +
+        '</td>' +
+      '</tr>';
     }
 
-    // 파일명
-    var now = new Date();
-    var dateStr = now.getFullYear()+(now.getMonth()+1<10?'0':'')+(now.getMonth()+1)+(now.getDate()<10?'0':'')+now.getDate();
-    var fileName = d.author+'_'+(type==='weekly'?'주간':'월간')+'보고_'+dateStr+'.txt';
+    var html = '<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto;padding:20px">'+
+      '<h2 style="margin-bottom:4px">'+reportTitle+'</h2>'+
+      '<p style="color:#666;font-size:13px;margin:0 0 20px">'+
+        '작성자: '+d.author+(d.dept?' ('+d.dept+')':'')+'&nbsp;&nbsp;|&nbsp;&nbsp;기간: '+d.period+
+        (d.reviewer?'&nbsp;&nbsp;|&nbsp;&nbsp;검토자: '+d.reviewer:'') +
+      '</p>'+
+      '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">'+
+        '<thead><tr>'+
+          '<th style="border:1px solid #ccc;padding:8px 10px;background:#E6F1FB;color:#0C447C;text-align:left;width:50%">'+leftLabel+'</th>'+
+          '<th style="border:1px solid #ccc;padding:8px 10px;background:#EAF3DE;color:#27500A;text-align:left;width:50%">'+rightLabel+'</th>'+
+        '</tr></thead>'+
+        '<tbody>'+rows+'</tbody>'+
+      '</table>'+
+      '<div style="background:#f5f5f5;border:1px solid #ddd;padding:10px 14px;border-radius:6px;font-size:13px">'+
+        '<b>이슈 및 건의사항</b><br>'+(parsed.issues||'없음')+
+      '</div>'+
+    '</body></html>';
 
-    // 업로드
-    var form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify({name:fileName,parents:[subId]})],{type:'application/json'}));
-    form.append('file', new Blob([content],{type:'text/plain;charset=utf-8'}));
-    var up = await driveApiCall('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{method:'POST',body:form});
-    var upData = await up.json();
-    if (upData.id) {
-      showToast('✅ 드라이브에 저장 완료! WorkGate_보고서/'+subFolder+'/'+fileName);
-      // Firestore에도 저장
-      reportSave(type);
-    } else {
-      showToast('❌ 드라이브 저장 실패');
+    try {
+      // 폴더 확인/생성
+      var folderName = 'WorkGate_보고서';
+      var subFolder = type==='weekly' ? '주간보고' : '월간보고';
+      var r1 = await driveApiCall('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("name='"+folderName+"' and mimeType='application/vnd.google-apps.folder' and trashed=false")+'&fields=files(id)');
+      var d1 = await r1.json();
+      var rootId = d1.files&&d1.files.length ? d1.files[0].id : null;
+      if (!rootId) {
+        var cr = await driveApiCall('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:folderName,mimeType:'application/vnd.google-apps.folder'})});
+        rootId = (await cr.json()).id;
+      }
+      var r2 = await driveApiCall('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("name='"+subFolder+"' and '"+rootId+"' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false")+'&fields=files(id)');
+      var d2 = await r2.json();
+      var subId = d2.files&&d2.files.length ? d2.files[0].id : null;
+      if (!subId) {
+        var cs = await driveApiCall('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:subFolder,mimeType:'application/vnd.google-apps.folder',parents:[rootId]})});
+        subId = (await cs.json()).id;
+      }
+
+      var now = new Date();
+      var dateStr = now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0');
+      var fileName = d.author+'_'+(type==='weekly'?'주간':'월간')+'보고_'+dateStr;
+
+      // HTML → Google Docs 업로드
+      var boundary = 'boundary_wg_report';
+      var meta = JSON.stringify({name:fileName, mimeType:'application/vnd.google-apps.document', parents:[subId]});
+      var body = '--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+meta+'\r\n--'+boundary+'\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n'+html+'\r\n--'+boundary+'--';
+
+      var up = await driveApiCall(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+        {method:'POST', headers:{'Content-Type':'multipart/related; boundary="'+boundary+'"'}, body: body}
+      );
+      var upData = await up.json();
+      if (upData.id) {
+        showToast('✅ Google Docs 저장 완료! WorkGate_보고서/'+subFolder+'/'+fileName);
+        reportSave(type);
+      } else {
+        showToast('❌ 드라이브 저장 실패: '+(upData.error&&upData.error.message||JSON.stringify(upData)));
+      }
+    } catch(e) {
+      showToast('❌ 오류: '+e.message);
     }
   });
 }
+
 
 function reportEdit(type) {
   var d = _reportData[type];
   if (!d || !d.parsed) { showToast('❌ 먼저 보고서를 생성해주세요'); return; }
   var parsed = d.parsed;
-  var text = '=== 이번 주/달 한 일 ===\n';
-  (parsed.this_week||[]).forEach(function(t){ text += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+(t.pct?' ('+t.pct+'%)':'')+'\n'; });
-  text += '\n=== 다음 주/달 할 일 ===\n';
-  (parsed.next_week||[]).forEach(function(t){ text += '['+t.status+'] '+t.title+(t.note?' - '+t.note:'')+'\n'; });
-  text += '\n=== 이슈 및 건의사항 ===\n'+(parsed.issues||'없음');
+  var leftLabel = type==='weekly' ? '이번 주 한 일' : '이번 달 한 일';
+  var rightLabel = type==='weekly' ? '다음 주 할 일' : '다음 달 할 일';
+
+  var sOptions = '<option value="완료">완료</option><option value="진행중">진행중</option><option value="예정">예정</option><option value="긴급">긴급</option>';
+
+  function editRow(t, idx, side) {
+    return '<div id="edit-row-'+side+'-'+idx+'" style="display:flex;align-items:flex-start;gap:8px;padding:8px;border-bottom:0.5px solid var(--border)">' +
+      '<select onchange="reportEditField(\''+type+'\',\''+side+'\','+idx+',\'status\',this.value)" style="font-size:11px;border:0.5px solid var(--border);border-radius:6px;padding:2px 4px;cursor:pointer;flex-shrink:0">' +
+        sOptions.replace('value="'+t.status+'"','value="'+t.status+'" selected') +
+      '</select>' +
+      '<div style="flex:1;min-width:0">' +
+        '<input type="text" value="'+((t.title||'').replace(/"/g,'&quot;'))+'" oninput="reportEditField(\''+type+'\',\''+side+'\','+idx+',\'title\',this.value)" style="width:100%;font-size:13px;border:none;border-bottom:0.5px solid var(--border);padding:2px 0;background:transparent;color:var(--t1)" placeholder="업무명">' +
+        '<input type="text" value="'+((t.note||'').replace(/"/g,'&quot;'))+'" oninput="reportEditField(\''+type+'\',\''+side+'\','+idx+',\'note\',this.value)" style="width:100%;font-size:11px;border:none;border-bottom:0.5px dashed var(--border);padding:2px 0;margin-top:4px;background:transparent;color:var(--t3)" placeholder="비고 (선택)">' +
+      '</div>' +
+      '<button onclick="reportEditRemove(\''+type+'\',\''+side+'\','+idx+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px;padding:0;flex-shrink:0">✕</button>' +
+    '</div>';
+  }
 
   var areaEl = document.getElementById(type+'-report-area');
   areaEl.innerHTML =
     '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">' +
       '<button onclick="reportCancelEdit(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">취소</button>' +
-      '<button onclick="reportSaveEdit(\''+type+'\')" class="btn btn-primary" style="font-size:12px">적용</button>' +
+      '<button onclick="reportApplyEdit(\''+type+'\')" class="btn btn-primary" style="font-size:12px">적용</button>' +
     '</div>' +
-    '<textarea id="'+type+'-edit-textarea" class="form-input" style="width:100%;height:480px;font-size:13px;line-height:1.8;resize:vertical;font-family:monospace"></textarea>';
-  // innerHTML로 하면 특수문자 깨지므로 textContent로 직접 설정
-  var ta = document.getElementById(type+'-edit-textarea');
-  if (ta) ta.value = text;
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">' +
+      '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden">' +
+        '<div style="padding:9px 14px;font-size:12px;font-weight:500;background:#E6F1FB;color:#0C447C;border-bottom:0.5px solid #B5D4F4">'+leftLabel+'</div>' +
+        '<div id="edit-this-list">' + (parsed.this_week||[]).map(function(t,i){ return editRow(t,i,'this'); }).join('') + '</div>' +
+        '<div style="padding:8px 14px"><button onclick="reportEditAdd(\''+type+'\',\'this\')" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer">+ 항목 추가</button></div>' +
+      '</div>' +
+      '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden">' +
+        '<div style="padding:9px 14px;font-size:12px;font-weight:500;background:#EAF3DE;color:#27500A;border-bottom:0.5px solid #C0DD97">'+rightLabel+'</div>' +
+        '<div id="edit-next-list">' + (parsed.next_week||[]).map(function(t,i){ return editRow(t,i,'next'); }).join('') + '</div>' +
+        '<div style="padding:8px 14px"><button onclick="reportEditAdd(\''+type+'\',\'next\')" style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer">+ 항목 추가</button></div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:12px">' +
+      '<div style="font-size:11px;color:var(--t3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">이슈 및 건의사항</div>' +
+      '<textarea id="edit-issues-area" class="form-input" style="height:60px;resize:none;font-size:13px">'+(parsed.issues||'없음')+'</textarea>' +
+    '</div>';
+
+  // 편집용 임시 데이터
+  window._editParsed = JSON.parse(JSON.stringify(parsed));
+  window._editType = type;
 }
 
-function reportSaveEdit(type) {
-  var ta = document.getElementById(type+'-edit-textarea');
-  if (!ta || !_reportData[type]) return;
-  // 텍스트를 파싱해서 구조화
-  var lines = ta.value.split('\n');
-  var thisWeek = [], nextWeek = [], issues = '없음';
-  var section = '';
-  lines.forEach(function(line) {
-    if (line.indexOf('=== 이번') >= 0) { section = 'this'; return; }
-    if (line.indexOf('=== 다음') >= 0) { section = 'next'; return; }
-    if (line.indexOf('=== 이슈') >= 0) { section = 'issue'; return; }
-    if (!line.trim()) return;
-    if (section === 'this' || section === 'next') {
-      var m = line.match(/^\[(.+?)\]\s*(.+?)(?:\s*-\s*(.+?))?(?:\s*\((\d+)%\))?$/);
-      var item = m ? {status:m[1], title:m[2], note:m[3]||'', pct:m[4]?parseInt(m[4]):undefined} : {status:'완료', title:line};
-      if (section === 'this') thisWeek.push(item); else nextWeek.push(item);
-    } else if (section === 'issue') {
-      issues = (issues === '없음' ? '' : issues+'\n') + line;
-    }
-  });
-  if (!issues) issues = '없음';
-  _reportData[type].parsed = {this_week:thisWeek, next_week:nextWeek, issues:issues};
-  reportRenderContent(type, _reportData[type].parsed, _reportData[type].period, _reportData[type].author, _reportData[type].dept, _reportData[type].reviewer);
+function reportEditField(type, side, idx, field, value) {
+  if (!window._editParsed) return;
+  var arr = side==='this' ? window._editParsed.this_week : window._editParsed.next_week;
+  if (arr[idx]) arr[idx][field] = value;
+}
+
+function reportEditAdd(type, side) {
+  if (!window._editParsed) return;
+  var arr = side==='this' ? window._editParsed.this_week : window._editParsed.next_week;
+  var newItem = {status: side==='this'?'완료':'예정', title:'', note:''};
+  arr.push(newItem);
+  reportEdit(type); // 다시 렌더
+}
+
+function reportEditRemove(type, side, idx) {
+  if (!window._editParsed) return;
+  var arr = side==='this' ? window._editParsed.this_week : window._editParsed.next_week;
+  arr.splice(idx, 1);
+  reportEdit(type);
+}
+
+function reportApplyEdit(type) {
+  if (!window._editParsed || !_reportData[type]) return;
+  var issueEl = document.getElementById('edit-issues-area');
+  window._editParsed.issues = issueEl ? issueEl.value : '없음';
+  _reportData[type].parsed = window._editParsed;
+  var d = _reportData[type];
+  reportRenderContent(type, d.parsed, d.period, d.author, d.dept, d.reviewer);
 }
 
 function reportCancelEdit(type) {
