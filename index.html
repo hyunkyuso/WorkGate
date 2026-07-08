@@ -289,6 +289,8 @@ select.form-input{cursor:pointer}
         <div id="main-menu-items">
           <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">🏠</span> 대시보드</div>
           <div class="nav-item" onclick="showPage('tasks',this)"><span class="nav-icon">📋</span> 업무보드 <span class="nav-badge" id="task-badge" style="display:none"></span></div>
+          <div class="nav-item" onclick="showPage('weekly-report',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 주간 보고</div>
+          <div class="nav-item" onclick="showPage('monthly-report',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 월간 보고</div>
           <div class="nav-item admin-only" onclick="showPage('task-admin',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 업무 현황</div>
           <div class="nav-item" onclick="showUnderMaintenance('KPI·OKR', '📈', this)"><span class="nav-icon">📈</span> KPI·OKR</div>
           <div class="nav-item" onclick="showUnderMaintenance('구글드라이브', '📁', this)"><span class="nav-icon">📁</span> 구글드라이브</div>
@@ -1658,6 +1660,101 @@ select.form-input{cursor:pointer}
       </div>
 
       <!-- ══════ 공문·계약서 작성 ══════ -->
+      <!-- ══════ 주간 보고 ══════ -->
+      <div id="page-weekly-report" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">📝 주간 보고</div>
+            <div class="page-sub">업무 내용을 기반으로 주간 보고서를 작성합니다</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button onclick="reportGenerate('weekly')" class="btn btn-primary">✨ AI 보고서 생성</button>
+            <button onclick="reportSave('weekly')" class="btn btn-ghost">💾 저장</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start">
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:12px">보고 기간</div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:4px">시작일</div>
+              <input id="weekly-start" type="date" class="form-input" style="font-size:13px">
+            </div>
+            <div style="margin-bottom:14px">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:4px">종료일</div>
+              <input id="weekly-end" type="date" class="form-input" style="font-size:13px">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+              <button onclick="reportSetWeek(0)" class="btn btn-ghost" style="font-size:12px;text-align:left">이번 주</button>
+              <button onclick="reportSetWeek(-1)" class="btn btn-ghost" style="font-size:12px;text-align:left">지난 주</button>
+            </div>
+            <div style="border-top:0.5px solid var(--border);padding-top:12px">
+              <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">이슈/특이사항</div>
+              <textarea id="weekly-issues" class="form-input" style="height:80px;resize:none;font-size:12px" placeholder="이슈, 특이사항, 협조 요청 등"></textarea>
+            </div>
+            <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
+              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">저장된 보고서</div>
+              <div id="weekly-saved-list" style="display:flex;flex-direction:column;gap:4px"></div>
+            </div>
+          </div>
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
+            <div id="weekly-report-area">
+              <div style="text-align:center;padding:48px;color:var(--t3)">
+                <div style="font-size:36px;margin-bottom:8px">📝</div>
+                <div style="font-size:13px">기간을 설정하고 AI 보고서 생성을 클릭하세요</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════ 월간 보고 ══════ -->
+      <div id="page-monthly-report" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">📊 월간 보고</div>
+            <div class="page-sub">업무 내용을 기반으로 월간 보고서를 작성합니다</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button onclick="reportGenerate('monthly')" class="btn btn-primary">✨ AI 보고서 생성</button>
+            <button onclick="reportSave('monthly')" class="btn btn-ghost">💾 저장</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start">
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:12px">보고 기간</div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:4px">년도</div>
+              <select id="monthly-year" class="form-input" style="font-size:13px"></select>
+            </div>
+            <div style="margin-bottom:14px">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:4px">월</div>
+              <select id="monthly-month" class="form-input" style="font-size:13px">
+                <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+                <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+                <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+                <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+              </select>
+            </div>
+            <div style="border-top:0.5px solid var(--border);padding-top:12px">
+              <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">이슈/특이사항</div>
+              <textarea id="monthly-issues" class="form-input" style="height:80px;resize:none;font-size:12px" placeholder="이슈, 특이사항, 협조 요청 등"></textarea>
+            </div>
+            <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
+              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">저장된 보고서</div>
+              <div id="monthly-saved-list" style="display:flex;flex-direction:column;gap:4px"></div>
+            </div>
+          </div>
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
+            <div id="monthly-report-area">
+              <div style="text-align:center;padding:48px;color:var(--t3)">
+                <div style="font-size:36px;margin-bottom:8px">📊</div>
+                <div style="font-size:13px">기간을 설정하고 AI 보고서 생성을 클릭하세요</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ══════ 공문·계약서 작성 ══════ -->
       <!-- ══════ 업무 현황 (관리자) ══════ -->
       <!-- ══════ 업무 현황 (관리자) ══════ -->
@@ -12910,6 +13007,7 @@ const PAGE_LABELS = {
   'workforce':'상시근로자수','workforce-join':'입퇴사 현황','workforce-gender':'인력구성 분석','workforce-edit':'상시근로자수 수정',
   'doc-draft':'공문·계약서 작성','doc-review':'계약서 검토','doc-templates':'템플릿 관리','settings':'설정',
   'videos':'시연영상','task-admin':'업무 현황',
+  'weekly-report':'주간 보고','monthly-report':'월간 보고',
   'mypage-deptfund':'마이페이지-부서장운영비','mypage-cert':'마이페이지-인증서',
 };
 
@@ -12998,7 +13096,8 @@ function showPage(id, el) {
     _taskFilter = 'all';
     projRenderSidebar();
   }
-  if(id === 'task-admin') { taRenderOrgTree(); taskAdminRender(); }
+  if(id === 'weekly-report') reportInitPage('weekly');
+  if(id === 'monthly-report') reportInitPage('monthly');
 }
 
 function openModal(id) { document.getElementById(id).style.display='flex'; }
@@ -17953,6 +18052,219 @@ function taskUnarchive(taskId) {
   });
 }
 
+
+// ══════════════════════════════════════════════════
+// 주간 / 월간 보고
+// ══════════════════════════════════════════════════
+var _reportData = { weekly: null, monthly: null };
+
+function reportInitPage(type) {
+  if (type === 'weekly') {
+    reportSetWeek(0);
+  } else {
+    var now = new Date();
+    var yEl = document.getElementById('monthly-year');
+    if (yEl && !yEl.options.length) {
+      var html = '';
+      for (var y = now.getFullYear()+1; y >= 2020; y--) html += '<option value="'+y+'"'+(y===now.getFullYear()?' selected':'')+'>'+y+'년</option>';
+      yEl.innerHTML = html;
+    }
+    var mEl = document.getElementById('monthly-month');
+    if (mEl) mEl.value = now.getMonth()+1;
+  }
+  reportLoadSavedList(type);
+}
+
+function reportSetWeek(offset) {
+  var now = new Date();
+  var day = now.getDay();
+  var mon = new Date(now); mon.setDate(now.getDate() - (day===0?6:day-1) + offset*7);
+  var fri = new Date(mon); fri.setDate(mon.getDate()+4);
+  var fmt = function(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  document.getElementById('weekly-start').value = fmt(mon);
+  document.getElementById('weekly-end').value = fmt(fri);
+}
+
+function reportGetTasks(type) {
+  var myEmail = state.user ? state.user.email : '';
+  var start, end;
+  if (type === 'weekly') {
+    start = document.getElementById('weekly-start').value;
+    end = document.getElementById('weekly-end').value;
+  } else {
+    var y = parseInt(document.getElementById('monthly-year').value);
+    var m = parseInt(document.getElementById('monthly-month').value);
+    start = y+'-'+String(m).padStart(2,'0')+'-01';
+    var lastDay = new Date(y, m, 0).getDate();
+    end = y+'-'+String(m).padStart(2,'0')+'-'+lastDay;
+  }
+
+  return {
+    start: start,
+    end: end,
+    done: _tasks.filter(function(t) {
+      return !t.archived && t.assignee === myEmail && t.status === 'done' &&
+        t.due && t.due >= start && t.due <= end;
+    }),
+    doing: _tasks.filter(function(t) {
+      return !t.archived && t.assignee === myEmail &&
+        (t.status === 'doing' || t.status === 'review') &&
+        (!t.due || t.due <= end);
+    }),
+    upcoming: _tasks.filter(function(t) {
+      return !t.archived && t.assignee === myEmail && t.status === 'todo' &&
+        t.due && t.due > end;
+    }),
+  };
+}
+
+async function reportGenerate(type) {
+  var data = reportGetTasks(type);
+  if (!data.start || !data.end) { showToast('❌ 기간을 설정해주세요'); return; }
+
+  var issues = document.getElementById(type+'-issues').value.trim();
+  var emp = employees.find(function(e){ return e.id===(state.user?state.user.email:'') || e.email===(state.user?state.user.email:''); });
+  var name = emp ? emp.name : (state.user ? state.user.email : '');
+  var dept = emp ? (emp.dept||'') : '';
+  var periodLabel = type === 'weekly' ? data.start+'~'+data.end+' 주간' : document.getElementById('monthly-year').value+'년 '+document.getElementById('monthly-month').value+'월';
+
+  var areaEl = document.getElementById(type+'-report-area');
+  areaEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--t3)">✨ AI가 보고서를 작성 중입니다...</div>';
+
+  var prompt = '다음 업무 데이터를 바탕으로 '+periodLabel+' 업무 보고서를 작성해주세요.\n\n' +
+    '작성자: '+name+(dept?' ('+dept+')':'')+'\n' +
+    '보고 기간: '+periodLabel+'\n\n' +
+    '완료 업무 ('+data.done.length+'건):\n' +
+    (data.done.length ? data.done.map(function(t){ return '- '+t.title+(t.desc?' : '+t.desc.substring(0,50):''); }).join('\n') : '없음') + '\n\n' +
+    '진행 중 업무 ('+data.doing.length+'건):\n' +
+    (data.doing.length ? data.doing.map(function(t){
+      var cl = t.checklist||[]; var d = cl.filter(function(c){ return c.done; }).length;
+      var pct = cl.length ? Math.round(d/cl.length*100) : (t.progress||0);
+      return '- '+t.title+' ('+pct+'%'+(t.due?' ~'+t.due:'')+')';
+    }).join('\n') : '없음') + '\n\n' +
+    '다음 예정 업무 ('+data.upcoming.length+'건):\n' +
+    (data.upcoming.length ? data.upcoming.map(function(t){ return '- '+t.title+(t.due?' (~'+t.due+')':''); }).join('\n') : '없음') + '\n\n' +
+    (issues ? '이슈/특이사항:\n'+issues+'\n\n' : '') +
+    '보고서 형식:\n1. 제목 (작성자, 기간 포함)\n2. 완료 업무\n3. 진행 중 업무\n4. 다음 주/달 예정\n5. 이슈/건의사항\n\n' +
+    '간결하고 업무적인 문체로 작성해주세요. 마크다운 대신 일반 텍스트로 작성해주세요.';
+
+  try {
+    var resp = await fetch(CF_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:1500, messages:[{role:'user',content:prompt}]})
+    });
+    var result = await resp.json();
+    var text = result.content && result.content[0] ? result.content[0].text : '';
+    _reportData[type] = { text: text, period: periodLabel, issues: issues };
+    reportRenderContent(type, text);
+  } catch(e) {
+    areaEl.innerHTML = '<div style="padding:20px;color:#E24B4A">❌ 보고서 생성 실패: '+e.message+'</div>';
+  }
+}
+
+function reportRenderContent(type, text) {
+  var areaEl = document.getElementById(type+'-report-area');
+  areaEl.innerHTML =
+    '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">' +
+      '<button onclick="reportCopy(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">📋 복사</button>' +
+      '<button onclick="reportEdit(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">✏️ 수정</button>' +
+    '</div>' +
+    '<div id="'+type+'-report-text" style="font-size:13px;line-height:1.8;color:var(--t1);white-space:pre-wrap;border:0.5px solid var(--border);border-radius:8px;padding:16px;background:var(--surface)">'+text+'</div>';
+}
+
+function reportEdit(type) {
+  var textEl = document.getElementById(type+'-report-text');
+  if (!textEl) return;
+  var current = textEl.textContent;
+  var areaEl = document.getElementById(type+'-report-area');
+  areaEl.innerHTML =
+    '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">' +
+      '<button onclick="reportCancelEdit(\''+type+'\',this)" class="btn btn-ghost" style="font-size:12px">취소</button>' +
+      '<button onclick="reportSaveEdit(\''+type+'\')" class="btn btn-primary" style="font-size:12px">저장</button>' +
+    '</div>' +
+    '<textarea id="'+type+'-edit-textarea" class="form-input" style="width:100%;height:500px;font-size:13px;line-height:1.8;resize:vertical">'+current+'</textarea>';
+  document.getElementById(type+'-edit-textarea').dataset.prev = current;
+}
+
+function reportSaveEdit(type) {
+  var ta = document.getElementById(type+'-edit-textarea');
+  if (!ta) return;
+  var text = ta.value;
+  if (_reportData[type]) _reportData[type].text = text;
+  reportRenderContent(type, text);
+}
+
+function reportCancelEdit(type, btn) {
+  var ta = document.getElementById(type+'-edit-textarea');
+  var text = ta ? ta.dataset.prev : '';
+  reportRenderContent(type, text);
+}
+
+function reportCopy(type) {
+  var textEl = document.getElementById(type+'-report-text');
+  if (!textEl) return;
+  navigator.clipboard.writeText(textEl.textContent).then(function(){
+    showToast('📋 보고서가 클립보드에 복사되었습니다');
+  });
+}
+
+function reportSave(type) {
+  if (!_reportData[type] || !_reportData[type].text) { showToast('❌ 먼저 보고서를 생성해주세요'); return; }
+  var myEmail = state.user ? state.user.email : '';
+  var docId = myEmail.replace('@','_').replace('.','_')+'_'+type+'_'+new Date().getTime();
+  var textEl = document.getElementById(type+'-report-text');
+  var finalText = textEl ? textEl.textContent : _reportData[type].text;
+
+  db.collection('reports').doc(docId).set({
+    type: type,
+    period: _reportData[type].period,
+    text: finalText,
+    author: myEmail,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    showToast('💾 보고서가 저장되었습니다');
+    reportLoadSavedList(type);
+  }).catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
+}
+
+function reportLoadSavedList(type) {
+  var myEmail = state.user ? state.user.email : '';
+  var listEl = document.getElementById(type+'-saved-list');
+  if (!listEl) return;
+  db.collection('reports').where('type','==',type).where('author','==',myEmail)
+    .orderBy('createdAt','desc').limit(10)
+    .get().then(function(snap) {
+      if (snap.empty) { listEl.innerHTML = '<div style="font-size:11px;color:var(--t3)">저장된 보고서 없음</div>'; return; }
+      listEl.innerHTML = snap.docs.map(function(d) {
+        var data = d.data();
+        var dateStr = data.createdAt ? (function(){ var dt=data.createdAt.toDate(); return (dt.getMonth()+1)+'/'+dt.getDate(); })() : '';
+        return '<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--border)">' +
+          '<div style="flex:1;min-width:0;cursor:pointer" onclick="reportLoadDoc(\''+d.id+'\',\''+type+'\')">' +
+            '<div style="font-size:11px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(data.period||'')+'</div>' +
+            '<div style="font-size:10px;color:var(--t3)">'+dateStr+'</div>' +
+          '</div>' +
+          '<button onclick="reportDeleteDoc(\''+d.id+'\',\''+type+'\')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:12px;padding:0;flex-shrink:0">🗑</button>' +
+        '</div>';
+      }).join('');
+    });
+}
+
+function reportLoadDoc(docId, type) {
+  db.collection('reports').doc(docId).get().then(function(d) {
+    if (!d.exists) return;
+    var data = d.data();
+    _reportData[type] = { text: data.text, period: data.period };
+    reportRenderContent(type, data.text);
+  });
+}
+
+function reportDeleteDoc(docId, type) {
+  if (!confirm('이 보고서를 삭제하시겠습니까?')) return;
+  db.collection('reports').doc(docId).delete().then(function() {
+    showToast('🗑 보고서가 삭제되었습니다');
+    reportLoadSavedList(type);
+  });
+}
 
 function taskOpenDetail(id) {
   _detailTaskId = id;
