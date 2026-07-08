@@ -2586,6 +2586,12 @@ select.form-input{cursor:pointer}
       <div style="border-top:0.5px solid var(--border);padding-top:16px">
         <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px">담당자 및 협업자</div>
 
+        <!-- 프로젝트 -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">프로젝트</div>
+          <select id="task-project-select" class="form-input" style="font-size:13px"></select>
+        </div>
+
         <!-- 담당자 -->
         <div style="margin-bottom:14px">
           <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">담당자</div>
@@ -16909,6 +16915,11 @@ function openTaskModal(defaultStatus) {
   document.getElementById('task-reviewer-tag').innerHTML = '';
   document.getElementById('task-reviewer-results').style.display = 'none';
 
+  // 프로젝트 select 채우기
+  var projOptions = '<option value="">프로젝트 선택...</option>' +
+    _projects.map(function(p){ return '<option value="'+p.id+'"'+(p.id===_currentProjectId?' selected':'')+'>'+p.name+'</option>'; }).join('');
+  document.getElementById('task-project-select').innerHTML = projOptions;
+
   // 담당자 select 채우기
   var empOptions = employees.filter(function(e){ return e.status!=='퇴직'; }).map(function(e){
     var email = e.id||e.email||'';
@@ -17731,8 +17742,12 @@ function taskSave() {
     desc: document.getElementById('task-desc').value.trim(),
     priority: document.getElementById('task-priority').value,
     status: document.getElementById('task-status').value,
-    projectId: _currentProjectId || '',
-    project: (function(){ var p = _projects.find(function(x){ return x.id===_currentProjectId; }); return p ? p.name : ''; })(),
+    projectId: document.getElementById('task-project-select').value || _currentProjectId || '',
+    project: (function(){
+      var pid = document.getElementById('task-project-select').value || _currentProjectId;
+      var p = _projects.find(function(x){ return x.id===pid; });
+      return p ? p.name : '';
+    })(),
     start: getDateVal('task-start'),
     due: getDateVal('task-due'),
     assignee: document.getElementById('task-assignee').value,
@@ -18343,6 +18358,11 @@ function taskEditFromDetail() {
   initDateSelects();
   setDateVal('task-start', t.start||'');
   setDateVal('task-due', t.due||'');
+  // 프로젝트 select 복원
+  var projOptions2 = '<option value="">프로젝트 선택...</option>' +
+    _projects.map(function(p){ return '<option value="'+p.id+'"'+(p.id===t.projectId?' selected':'')+'>'+p.name+'</option>'; }).join('');
+  document.getElementById('task-project-select').innerHTML = projOptions2;
+
   var empOptions2 = employees.filter(function(e){ return e.status!=='퇴직'; }).map(function(e){
     var email = e.id||e.email||'';
     return '<option value="'+email+'"'+(email===t.assignee?' selected':'')+'>'+e.name+'</option>';
