@@ -18231,11 +18231,14 @@ function reportLoadSavedList(type) {
   var myEmail = state.user ? state.user.email : '';
   var listEl = document.getElementById(type+'-saved-list');
   if (!listEl) return;
-  db.collection('reports').where('type','==',type).where('author','==',myEmail)
-    .orderBy('createdAt','desc').limit(10)
+  // 복합 인덱스 없이 author로만 쿼리 후 클라이언트에서 type 필터링
+  db.collection('reports').where('author','==',myEmail)
+    .orderBy('createdAt','desc').limit(20)
     .get().then(function(snap) {
-      if (snap.empty) { listEl.innerHTML = '<div style="font-size:11px;color:var(--t3)">저장된 보고서 없음</div>'; return; }
-      listEl.innerHTML = snap.docs.map(function(d) {
+      var docs = [];
+      snap.forEach(function(d){ if(d.data().type===type) docs.push(d); });
+      if (!docs.length) { listEl.innerHTML = '<div style="font-size:11px;color:var(--t3)">저장된 보고서 없음</div>'; return; }
+      listEl.innerHTML = docs.map(function(d) {
         var data = d.data();
         var dateStr = data.createdAt ? (function(){ var dt=data.createdAt.toDate(); return (dt.getMonth()+1)+'/'+dt.getDate(); })() : '';
         return '<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--border)">' +
@@ -18246,7 +18249,7 @@ function reportLoadSavedList(type) {
           '<button onclick="reportDeleteDoc(\''+d.id+'\',\''+type+'\')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:12px;padding:0;flex-shrink:0">🗑</button>' +
         '</div>';
       }).join('');
-    });
+    }).catch(function(e){ listEl.innerHTML = '<div style="font-size:11px;color:var(--t3)">목록 로드 실패</div>'; });
 }
 
 function reportLoadDoc(docId, type) {
