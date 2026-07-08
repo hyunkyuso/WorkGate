@@ -1734,7 +1734,6 @@ select.form-input{cursor:pointer}
               <button onclick="reportSwitchTab('monthly','review',this)" id="monthly-tab-review" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">👁 검토 요청 <span id="monthly-review-badge" style="display:none;background:#E24B4A;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;margin-left:4px"></span></button>
             </div>
             <button onclick="reportGenerate('monthly')" class="btn btn-primary" id="monthly-gen-btn">✨ AI 보고서 생성</button>
-            <button onclick="reportDownloadDocx()" class="btn btn-ghost" id="monthly-docx-btn" style="display:none">📄 워드 다운로드</button>
           </div>
         </div>
         <!-- 작성 탭 -->
@@ -18378,16 +18377,16 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
     '</div></div>';
 
   html += '<div style="overflow-x:auto;margin-bottom:14px"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
-    '<thead><tr style="background:#1F4E79;color:#fff">' +
-      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:14%">업무분장</th>' +
-      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:24%">금월 업무내용</th>' +
-      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%">공정</th>' +
-      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:6%">진행률</th>' +
-      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:24%">익월 업무내용</th>' +
-      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%">공정</th>' +
-      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:6%">진행률</th>' +
-      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%">순위</th>' +
-      '<th style="padding:7px 6px;border:0.5px solid #ccc;width:8%">기간</th>' +
+    '<thead><tr style="background:#1F4E79">' +
+      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:14%;color:#fff">업무분장</th>' +
+      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:24%;color:#fff">금월 업무내용</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%;color:#fff">공정</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:6%;color:#fff">진행률</th>' +
+      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:24%;color:#fff">익월 업무내용</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%;color:#fff">공정</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:6%;color:#fff">진행률</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%;color:#fff">순위</th>' +
+      '<th style="padding:7px 6px;border:0.5px solid #ccc;width:8%;color:#fff">기간</th>' +
     '</tr></thead><tbody>';
 
   tasks.forEach(function(task) {
@@ -18839,7 +18838,10 @@ async function reportSaveToDrive(type) {
 function reportEditMonthly() {
   var d = _reportData['monthly'];
   if (!d || !d.parsed) return;
-  window._editParsed = JSON.parse(JSON.stringify(d.parsed));
+  // 처음 진입시만 복사, 재렌더시는 기존 _editParsed 유지
+  if (!window._editParsed) {
+    window._editParsed = JSON.parse(JSON.stringify(d.parsed));
+  }
   var areaEl = document.getElementById('monthly-report-area');
   var tasks = window._editParsed.tasks || [];
 
