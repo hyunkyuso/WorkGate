@@ -479,16 +479,13 @@ select.form-input{cursor:pointer}
             <!-- ③ 칸반 보드 -->
             <div id="task-kanban-view" style="display:none;padding:16px">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-                <div style="display:flex;align-items:center;gap:10px">
-                  <button onclick="projBackToDetail()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--t2);padding:0;line-height:1">←</button>
-                  <div>
-                    <div class="page-title" id="kanban-project-title"></div>
-                    <div class="page-sub" id="kanban-project-desc"></div>
-                  </div>
+                <div>
+                  <div class="page-title" id="kanban-project-title"></div>
+                  <div class="page-sub" id="kanban-project-desc"></div>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center">
                   <button onclick="openTaskModal()" class="btn btn-primary">+ 업무 추가</button>
-                  <button id="kanban-edit-btn" class="btn btn-ghost" style="font-size:13px">⚙ 프로젝트 설정</button>
+                  <button id="kanban-edit-btn" class="btn btn-ghost" style="font-size:13px">⚙ 설정</button>
                 </div>
               </div>
               <div id="kanban-board" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start"></div>
@@ -16703,7 +16700,6 @@ function taskStartListener() {
     _tasks = [];
     snap.forEach(function(d){ _tasks.push(Object.assign({id:d.id}, d.data())); });
     if (_currentProjectId && document.getElementById('task-kanban-view').style.display !== 'none') taskRender();
-    if (_selectedProjId && document.getElementById('task-project-detail').style.display !== 'none') projShowDetail(_selectedProjId);
     projRenderSidebar();
     taskUpdateBadge();
     updateStats();
@@ -17502,7 +17498,16 @@ function projSelectProject(projId) {
   _selectedProjId = projId;
   _currentProjectId = projId;
   projRenderSidebar();
-  projShowDetail(projId);
+  // 바로 칸반 보드 표시
+  var p = _projects.find(function(x){ return x.id===projId; });
+  if (!p) return;
+  document.getElementById('task-project-list-view').style.display = 'none';
+  document.getElementById('task-project-detail').style.display = 'none';
+  document.getElementById('task-kanban-view').style.display = 'block';
+  document.getElementById('kanban-project-title').textContent = p.name||'';
+  document.getElementById('kanban-project-desc').textContent = p.desc||'';
+  document.getElementById('kanban-edit-btn').onclick = function(){ openProjectEditModal(projId); };
+  taskRender();
 }
 
 function projShowDetail(projId) {
