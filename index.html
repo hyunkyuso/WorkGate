@@ -18126,24 +18126,41 @@ function reportGetTasks(type) {
     start = y+'-'+String(m).padStart(2,'0')+'-01';
     var lastDay = new Date(y, m, 0).getDate();
     end = y+'-'+String(m).padStart(2,'0')+'-'+lastDay;
+    // 다음달
+    var nm = m===12?1:m+1; var ny = m===12?y+1:y;
+    var nextStart = ny+'-'+String(nm).padStart(2,'0')+'-01';
+    var nextLastDay = new Date(ny, nm, 0).getDate();
+    var nextEnd = ny+'-'+String(nm).padStart(2,'0')+'-'+nextLastDay;
+  }
+
+  var myTasks = _tasks.filter(function(t){
+    return !t.archived && (t.assignee === myEmail || (t.sharedWith||[]).indexOf(myEmail)>=0 || t.reviewer===myEmail);
+  });
+
+  if (type === 'monthly') {
+    // 프로젝트별 그룹핑
+    var projMap = {};
+    myTasks.forEach(function(t) {
+      var proj = _projects.find(function(p){ return p.id===t.projectId; });
+      var projName = proj ? proj.name : '기타';
+      if (!projMap[projName]) projMap[projName] = { this_month: [], next_month: [] };
+      // 금월: 이번달 마감이거나 진행중
+      if ((t.due && t.due >= start && t.due <= end) || (t.status==='doing'&&(!t.due||t.due<=end))) {
+        projMap[projName].this_month.push(t);
+      }
+      // 익월: 다음달 예정
+      else if (t.due && t.due >= nextStart && t.due <= nextEnd) {
+        projMap[projName].next_month.push(t);
+      }
+    });
+    return { start: start, end: end, nextStart: nextStart, nextEnd: nextEnd, projMap: projMap };
   }
 
   return {
-    start: start,
-    end: end,
-    done: _tasks.filter(function(t) {
-      return !t.archived && t.assignee === myEmail && t.status === 'done' &&
-        t.due && t.due >= start && t.due <= end;
-    }),
-    doing: _tasks.filter(function(t) {
-      return !t.archived && t.assignee === myEmail &&
-        (t.status === 'doing' || t.status === 'review') &&
-        (!t.due || t.due <= end);
-    }),
-    upcoming: _tasks.filter(function(t) {
-      return !t.archived && t.assignee === myEmail && t.status === 'todo' &&
-        t.due && t.due > end;
-    }),
+    start: start, end: end,
+    done: myTasks.filter(function(t) { return t.status==='done' && t.due && t.due>=start && t.due<=end; }),
+    doing: myTasks.filter(function(t) { return (t.status==='doing'||t.status==='review') && (!t.due||t.due<=end); }),
+    upcoming: myTasks.filter(function(t) { return t.status==='todo' && t.due && t.due>end; })
   };
 }
 
@@ -18378,25 +18395,31 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
 
   html += '<div style="overflow-x:auto;margin-bottom:14px"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
     '<thead><tr style="background:#1F4E79">' +
-      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:14%;color:#fff">업무분장</th>' +
-      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:24%;color:#fff">금월 업무내용</th>' +
+      '<th style="padding:7px 6px;border:0.5px solid #ccc;width:7%;color:#fff">구분</th>' +
+      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:12%;color:#fff">업무분장<br>(프로젝트)</th>' +
+      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:22%;color:#fff">금월 업무내용</th>' +
       '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%;color:#fff">공정</th>' +
-      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:6%;color:#fff">진행률</th>' +
-      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:24%;color:#fff">익월 업무내용</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%;color:#fff">진행률</th>' +
+      '<th style="padding:7px 8px;border:0.5px solid #ccc;width:22%;color:#fff">익월 업무내용</th>' +
       '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%;color:#fff">공정</th>' +
-      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:6%;color:#fff">진행률</th>' +
+      '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%;color:#fff">진행률</th>' +
       '<th style="padding:7px 4px;border:0.5px solid #ccc;width:5%;color:#fff">순위</th>' +
-      '<th style="padding:7px 6px;border:0.5px solid #ccc;width:8%;color:#fff">기간</th>' +
+      '<th style="padding:7px 6px;border:0.5px solid #ccc;width:7%;color:#fff">기간</th>' +
     '</tr></thead><tbody>';
 
-  tasks.forEach(function(task) {
+  var emp2 = employees.find(function(e){ return e.id===(state.user?state.user.email:'') || e.email===(state.user?state.user.email:''); });
+  var orgName = emp2 ? (emp2.dept||dept||'') : (dept||'');
+
+  tasks.forEach(function(task, tIdx) {
     var tm = task.this_month||[]; var nm = task.next_month||[];
     html += '<tr style="vertical-align:top">' +
+      // 구분 열 - 첫 번째 행에만 rowspan으로 조직명
+      (tIdx===0 ? '<td style="padding:6px 6px;border:0.5px solid #ddd;text-align:center;font-weight:600;background:#f0f4ff" rowspan="'+tasks.length+'">'+orgName+'</td>' : '') +
       '<td style="padding:6px 8px;border:0.5px solid #ddd;font-weight:500;background:#f8f9fa">'+task.category+'</td>' +
-      '<td style="padding:6px 8px;border:0.5px solid #ddd">' + tm.map(function(t){ return '<div style="margin-bottom:3px">• '+t.title+(t.note?'<div style="font-size:10px;color:var(--t3);padding-left:8px">'+t.note+'</div>':'')+'</div>'; }).join('') + '</td>' +
+      '<td style="padding:6px 8px;border:0.5px solid #ddd">' + tm.map(function(t){ return '<div style="margin-bottom:3px">• '+t.title+(t.note?'<div style="font-size:10px;color:#888;padding-left:8px">'+t.note+'</div>':'')+'</div>'; }).join('') + '</td>' +
       '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + tm.map(function(t){ return '<div>'+statusSym(t.status,t.pct)+'</div>'; }).join('') + '</td>' +
       '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + tm.map(function(t){ return '<div>'+t.pct+'%</div>'; }).join('') + '</td>' +
-      '<td style="padding:6px 8px;border:0.5px solid #ddd">' + nm.map(function(t){ return '<div style="margin-bottom:3px">• '+t.title+(t.note?'<div style="font-size:10px;color:var(--t3);padding-left:8px">'+t.note+'</div>':'')+'</div>'; }).join('') + '</td>' +
+      '<td style="padding:6px 8px;border:0.5px solid #ddd">' + nm.map(function(t){ return '<div style="margin-bottom:3px">• '+t.title+(t.note?'<div style="font-size:10px;color:#888;padding-left:8px">'+t.note+'</div>':'')+'</div>'; }).join('') + '</td>' +
       '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + nm.map(function(t){ return '<div>'+statusSym(t.status,t.pct)+'</div>'; }).join('') + '</td>' +
       '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + nm.map(function(t){ return '<div>'+(t.pct>0?t.pct+'%':'')+'</div>'; }).join('') + '</td>' +
       '<td style="padding:6px 4px;border:0.5px solid #ddd;text-align:center">' + nm.map(function(t,i){ return '<div>'+(t.priority||i+1)+'</div>'; }).join('') + '</td>' +
@@ -18404,11 +18427,11 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
     '</tr>';
   });
 
-  html += '<tr><td style="padding:6px 8px;border:0.5px solid #ddd;font-weight:500">■협조사항</td>' +
+  html += '<tr><td style="padding:6px 8px;border:0.5px solid #ddd;font-weight:500" colspan="2">■본부내 협조사항 및 이슈</td>' +
     '<td colspan="8" style="padding:6px 8px;border:0.5px solid #ddd">'+(parsed.issue||'')+'</td></tr>';
 
   html += '<tr style="vertical-align:top"><td colspan="2" style="padding:6px 8px;border:0.5px solid #ddd;font-weight:500">■금월 중점업무</td>' +
-    '<td style="padding:6px 8px;border:0.5px solid #ddd" colspan="7">' +
+    '<td style="padding:6px 8px;border:0.5px solid #ddd" colspan="8">' +
       highlight.map(function(t){ return '<div style="margin-bottom:2px">• '+t.title+' '+badge(t.status)+' '+t.pct+'%</div>'; }).join('') +
     '</td></tr>';
 
@@ -18650,19 +18673,30 @@ async function reportGenerate(type) {
       }).join('\n')+'\n\n'+
       '다음 예정 업무 ('+data.upcoming.length+'건):\n'+
       data.upcoming.map(function(t){ return '- '+t.title+(t.due?' (~'+t.due+')':''); }).join('\n') :
-      '이번 달 완료 업무 ('+data.done.length+'건):\n'+
-      data.done.map(function(t){ return '- [완료] '+t.title+(t.desc?' : '+t.desc.substring(0,40):'')+(t.due?' ('+t.due+')':''); }).join('\n')+'\n'+
-      '이번 달 진행 중 ('+data.doing.length+'건):\n'+
-      data.doing.map(function(t){
-        var cl=t.checklist||[]; var d=cl.filter(function(c){return c.done;}).length;
-        var pct=cl.length?Math.round(d/cl.length*100):(t.progress||0);
-        return '- [진행중] '+t.title+' ('+pct+'%)'+(t.start?' ('+t.start+'~'+t.due+')':'');
-      }).join('\n')+'\n\n'+
-      '다음 달 예정 ('+data.upcoming.length+'건):\n'+
-      data.upcoming.map(function(t){ return '- '+t.title+(t.due?' (~'+t.due+')':''); }).join('\n')
-    )+'\n\n'+(issues?'이슈: '+issues+'\n\n':'')+
+      // 월간: 프로젝트별 데이터
+      (function(){
+        var projMap = data.projMap || {};
+        var lines = '';
+        Object.keys(projMap).forEach(function(projName) {
+          var p = projMap[projName];
+          lines += '[프로젝트: '+projName+']\n';
+          lines += '금월 업무:\n';
+          p.this_month.forEach(function(t){
+            var cl=t.checklist||[]; var done=cl.filter(function(c){return c.done;}).length;
+            var pct=cl.length?Math.round(done/cl.length*100):(t.progress||0);
+            lines += '- '+t.title+' ('+t.status+', '+pct+'%'+(t.due?', ~'+t.due:'')+') '+(t.start?t.start+'~':'')+'\n';
+          });
+          lines += '익월 예정:\n';
+          p.next_month.forEach(function(t){
+            lines += '- '+t.title+(t.due?' (~'+t.due:'')+'\n';
+          });
+          lines += '\n';
+        });
+        return lines || '업무 데이터 없음\n';
+      })()
+    )+'\n'+(issues?'이슈: '+issues+'\n\n':'')+
     (type==='monthly' ?
-      'JSON 형식 (월간): {"tasks":[{"category":"업무분장명","this_month":[{"title":"업무명","note":"상세내용","status":"완료|진행중|예정","pct":숫자,"priority":숫자,"start":"M/D","end":"M/D"}],"next_month":[{"title":"업무명","note":"","status":"예정","pct":0,"priority":숫자,"start":"M/D","end":"M/D"}]}],"highlight":[{"title":"중점업무명","status":"완료|진행중","pct":숫자,"priority":숫자,"start":"M/D","end":"M/D"}],"issue":"협조사항","qa":""}' :
+      'JSON 형식 (월간): {"tasks":[{"category":"프로젝트명","this_month":[{"title":"업무명","note":"상세내용","status":"완료|진행중","pct":숫자,"priority":숫자,"start":"M/D","end":"M/D"}],"next_month":[{"title":"업무명","note":"","status":"예정","pct":0,"priority":숫자}]}],"highlight":[{"title":"중점업무명","status":"완료|진행중","pct":숫자,"priority":숫자,"start":"M/D","end":"M/D"}],"issue":"협조사항"}' :
       'JSON 형식: {"this_week":[{"status":"완료|진행중","title":"업무명","note":"비고(선택)","pct":숫자}],"next_week":[{"status":"예정|긴급","title":"업무명","note":"비고(선택)"}],"issues":"이슈내용또는없음"}'
     )+'\nJSON만 출력하세요.';
 
