@@ -2513,7 +2513,10 @@ select.form-input{cursor:pointer}
         <span style="font-size:16px">☑️</span>
         <div class="modal-title" id="task-modal-title" style="font-size:15px;font-weight:500">새 업무 등록</div>
       </div>
-      <button class="modal-close" onclick="closeModal('task-modal')">✕</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button type="button" onclick="taskShowLoadFromArchive()" style="font-size:12px;padding:4px 10px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--t2)">📦 불러오기</button>
+        <button class="modal-close" onclick="closeModal('task-modal')">✕</button>
+      </div>
     </div>
 
     <div style="padding:16px 20px;display:flex;flex-direction:column;gap:16px">
@@ -17786,40 +17789,78 @@ function taskCopyFromDetail() {
 }
 
 // ── 아카이브 조회 ──
-function taskShowArchive() {
+// ── 아카이브 조회 ──
+var _archiveYear = null;
+
+function taskShowArchive(mode) {
+  mode = mode || 'view';
   var myEmail = state.user ? state.user.email : '';
   var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
   var archived = _tasks.filter(function(t) {
     if (!t.archived) return false;
-    if (_currentProjectId && t.projectId !== _currentProjectId) return false;
+    if (_currentProjectId && mode==='view' && t.projectId !== _currentProjectId) return false;
     if (isAdmin) return true;
     return t.assignee === myEmail || (t.sharedWith||[]).indexOf(myEmail)>=0 || t.reviewer===myEmail;
   });
 
-  var html = '<div style="padding:16px">' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
-      '<div style="font-size:15px;font-weight:600;color:var(--t1)">📦 아카이브된 업무 ('+archived.length+'개)</div>' +
-      '<button onclick="closeModal(\'task-archive-modal\')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--t3)">✕</button>' +
-    '</div>';
+  var years = [];
+  archived.forEach(function(t) {
+    var y = t.archivedAt ? (t.archivedAt.toDate ? t.archivedAt.toDate().getFullYear() : new Date(t.archivedAt).getFullYear()) : new Date().getFullYear();
+    if (years.indexOf(y) < 0) years.push(y);
+  });
+  years.sort(function(a,b){ return b-a; });
+  if (!_archiveYear && years.length) _archiveYear = years[0];
 
-  if (!archived.length) {
-    html += '<div style="padding:32px;text-align:center;color:var(--t3)">아카이브된 업무가 없습니다</div>';
+  var filteredByYear = archived.filter(function(t) {
+    if (!_archiveYear) return true;
+    var y = t.archivedAt ? (t.archivedAt.toDate ? t.archivedAt.toDate().getFullYear() : new Date(t.archivedAt).getFullYear()) : new Date().getFullYear();
+    return y === _archiveYear;
+  });
+
+  var sC = {todo:'#888780',doing:'#378ADD',review:'#EF9F27',done:'#639922'};
+  var sL = {todo:'할 일',doing:'진행 중',review:'검토 중',done:'완료'};
+
+  var html = '<div style="padding:16px 18px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
+      '<div style="font-size:15px;font-weight:600;color:var(--t1)">📦 '+(mode==='load'?'업무 불러오기':'아카이브 목록')+'</div>' +
+      '<div style="display:flex;gap:6px;align-items:center">' +
+        (mode==='view' && isAdmin && filteredByYear.length ?
+          '<button onclick="taskArchiveDeleteYear('+_archiveYear+')" style="font-size:11px;padding:4px 10px;border:0.5px solid #E24B4A;border-radius:6px;cursor:pointer;background:#FEF2F2;color:#DC2626">'+_archiveYear+'년 전체 삭제</button>' : '') +
+        '<button onclick="closeModal(\'task-archive-modal\')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--t3)">✕</button>' +
+      '</div>' +
+    '</div>' +
+    (years.length > 0 ?
+      '<div style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap">' +
+        years.map(function(y) {
+          var isActive = y === _archiveYear;
+          return '<button onclick="taskArchiveSetYear('+y+',\''+mode+'\')" style="padding:4px 12px;font-size:12px;border-radius:99px;border:0.5px solid '+(isActive?'var(--ac)':'var(--border)')+';background:'+(isActive?'var(--acd)':'var(--white)')+';color:'+(isActive?'var(--ac)':'var(--t2)')+';cursor:pointer">'+y+'년</button>';
+        }).join('') +
+      '</div>' : '') +
+    '<div style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto">';
+
+  if (!filteredByYear.length) {
+    html += '<div style="padding:32px;text-align:center;color:var(--t3);font-size:13px">아카이브된 업무가 없습니다</div>';
   } else {
-    var sC = {todo:'#888780',doing:'#378ADD',review:'#EF9F27',done:'#639922'};
-    var sL = {todo:'할 일',doing:'진행 중',review:'검토 중',done:'완료'};
-    html += archived.map(function(t) {
+    html += filteredByYear.map(function(t) {
       var proj = _projects.find(function(p){ return p.id===t.projectId; });
-      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin-bottom:6px">' +
+      var dateStr = t.archivedAt ? (function(){ var d=t.archivedAt.toDate?t.archivedAt.toDate():new Date(t.archivedAt); return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate(); })() : '';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px">' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:13px;font-weight:500;color:var(--t1)">'+(t.title||'')+'</div>' +
-          '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+(proj?proj.name:'')+(t.archivedAt?' · 아카이브: '+(function(){ var d=t.archivedAt.toDate?t.archivedAt.toDate():new Date(t.archivedAt); return (d.getMonth()+1)+'/'+d.getDate(); })():'')+'</div>' +
+          '<div style="font-size:13px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(t.title||'')+'</div>' +
+          '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+(proj?proj.name+' · ':'')+dateStr+'</div>' +
         '</div>' +
-        '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:'+(sC[t.status]||'#888')+'22;color:'+(sC[t.status]||'#888')+'">'+(sL[t.status]||'')+'</span>' +
-        '<button onclick="taskUnarchive(\''+t.id+'\')" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--white);color:var(--t2);white-space:nowrap">↩ 복원</button>' +
+        '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:'+(sC[t.status]||'#888')+'22;color:'+(sC[t.status]||'#888')+';flex-shrink:0">'+(sL[t.status]||'')+'</span>' +
+        (mode==='load' ?
+          '<button onclick="taskLoadFromArchive(\''+t.id+'\')" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--ac);border-radius:6px;cursor:pointer;background:var(--acd);color:var(--ac);white-space:nowrap;flex-shrink:0">불러오기</button>' :
+          '<div style="display:flex;gap:4px;flex-shrink:0">' +
+            '<button onclick="taskUnarchive(\''+t.id+'\')" style="font-size:11px;padding:4px 8px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--white);color:var(--t2)">↩ 복원</button>' +
+            (isAdmin ? '<button onclick="taskArchiveDelete(\''+t.id+'\')" style="font-size:11px;padding:4px 8px;border:0.5px solid #E24B4A;border-radius:6px;cursor:pointer;background:#FEF2F2;color:#DC2626">삭제</button>' : '') +
+          '</div>'
+        ) +
       '</div>';
     }).join('');
   }
-  html += '</div>';
+  html += '</div></div>';
 
   var modal = document.getElementById('task-archive-modal');
   if (!modal) {
@@ -17830,8 +17871,55 @@ function taskShowArchive() {
     modal.onclick = function(e){ if(e.target===modal) closeModal('task-archive-modal'); };
     document.body.appendChild(modal);
   }
-  modal.innerHTML = '<div style="background:var(--white);border-radius:14px;max-width:540px;width:90%;max-height:80vh;overflow-y:auto">'+html+'</div>';
+  modal.innerHTML = '<div style="background:var(--white);border-radius:14px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto">'+html+'</div>';
   modal.style.display = 'flex';
+}
+
+function taskArchiveSetYear(y, mode) { _archiveYear = y; taskShowArchive(mode); }
+
+function taskShowLoadFromArchive() { _archiveYear = null; taskShowArchive('load'); }
+
+function taskLoadFromArchive(taskId) {
+  var t = _tasks.find(function(x){ return x.id===taskId; });
+  if (!t) return;
+  closeModal('task-archive-modal');
+  document.getElementById('task-title').value = t.title||'';
+  document.getElementById('task-desc').value = t.desc||'';
+  taskInitPriBtns(t.priority||'보통');
+  taskInitStatusBtns('todo');
+  setDateVal('task-start',''); setDateVal('task-due','');
+  _taskChecklist = (t.checklist||[]).map(function(c){ return {text:c.text,done:false}; });
+  taskRenderChecklist();
+  _taskSharedWith = []; taskRenderSharedTags();
+  taskSetReviewer('');
+  _taskFiles = []; taskRenderFileList();
+  var assigneeSel = document.getElementById('task-assignee');
+  if (assigneeSel && t.assignee) assigneeSel.value = t.assignee;
+  showToast('📦 업무 내용을 불러왔습니다. 날짜와 내용을 확인 후 등록하세요.');
+}
+
+function taskArchiveDelete(taskId) {
+  if (!confirm('이 업무를 영구 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.')) return;
+  db.collection('tasks').doc(taskId).delete().then(function() {
+    showToast('🗑 업무가 영구 삭제되었습니다');
+    taskShowArchive('view');
+  });
+}
+
+function taskArchiveDeleteYear(year) {
+  if (!confirm(year+'년 아카이브 업무를 전체 영구 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.')) return;
+  var toDelete = _tasks.filter(function(t) {
+    if (!t.archived) return false;
+    var y = t.archivedAt ? (t.archivedAt.toDate ? t.archivedAt.toDate().getFullYear() : new Date(t.archivedAt).getFullYear()) : new Date().getFullYear();
+    return y === year;
+  });
+  var batch = db.batch();
+  toDelete.forEach(function(t){ batch.delete(db.collection('tasks').doc(t.id)); });
+  batch.commit().then(function() {
+    showToast('🗑 '+toDelete.length+'개 업무가 영구 삭제되었습니다');
+    _archiveYear = null;
+    taskShowArchive('view');
+  });
 }
 
 function taskUnarchive(taskId) {
@@ -17839,9 +17927,10 @@ function taskUnarchive(taskId) {
     archived: false, archivedAt: null
   }).then(function() {
     showToast('↩ 업무가 복원되었습니다');
-    taskShowArchive(); // 목록 갱신
+    taskShowArchive('view');
   });
 }
+
 
 function taskOpenDetail(id) {
   _detailTaskId = id;
