@@ -18144,25 +18144,25 @@ function reportGetTasks(type) {
       var proj = _projects.find(function(p){ return p.id===t.projectId; });
       var projName = proj ? proj.name : '기타';
       if (!projMap[projName]) projMap[projName] = { this_month: [], next_month: [] };
-      // 금월: 이번달 마감이거나 진행중
-      if ((t.due && t.due >= start && t.due <= end) || (t.status==='doing'&&(!t.due||t.due<=end))) {
-        projMap[projName].this_month.push({
-          id: t.id, title: t.title, note: t.desc||'',
-          status: t.status==='done'?'완료':t.status==='doing'?'진행중':'예정',
-          pct: (function(){ var cl=t.checklist||[]; var d=cl.filter(function(c){return c.done;}).length; return cl.length?Math.round(d/cl.length*100):(t.progress||0); })(),
-          start: t.start||'', end: t.due||''
-        });
-      }
-      // 익월: 다음달 예정
-      else if (t.due && t.due >= nextStart && t.due <= nextEnd) {
-        projMap[projName].next_month.push({
-          id: t.id, title: t.title, note: t.desc||'',
-          status: t.status==='done'?'완료':t.status==='doing'?'진행중':'예정',
-          pct: (function(){ var cl=t.checklist||[]; var d=cl.filter(function(c){return c.done;}).length; return cl.length?Math.round(d/cl.length*100):(t.progress||0); })(),
-          start: t.start||'', end: t.due||'',
-          priority: 1
-        });
-      }
+
+      var cl=t.checklist||[]; var done=cl.filter(function(c){return c.done;}).length;
+      var pct=cl.length?Math.round(done/cl.length*100):(t.progress||0);
+      var item = {
+        id: t.id, title: t.title, note: t.desc||'',
+        status: t.status==='done'?'완료':t.status==='doing'?'진행중':'예정',
+        pct: pct, start: t.start||'', end: t.due||'', priority: 1
+      };
+
+      // 금월: 이번달 완료된 업무 OR 현재 진행중/검토중 OR 이번달 마감
+      var isThisMonth = (t.status==='done' && t.due && t.due>=start && t.due<=end)
+        || (t.status==='doing' || t.status==='review')
+        || (t.status==='todo' && t.due && t.due>=start && t.due<=end);
+
+      // 익월: 다음달 마감 예정인 업무 (진행중 포함)
+      var isNextMonth = t.due && t.due>=nextStart && t.due<=nextEnd;
+
+      if (isThisMonth) projMap[projName].this_month.push(item);
+      if (isNextMonth) projMap[projName].next_month.push(item);
     });
     return { start: start, end: end, nextStart: nextStart, nextEnd: nextEnd, projMap: projMap };
   }
