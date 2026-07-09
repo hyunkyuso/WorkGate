@@ -13094,9 +13094,24 @@ function showPage(id, el) {
   if(id === 'orgview') initOrgView();
   if(id === 'welfare') {
     if (!employees || employees.length === 0 || !welfareData) {
-      // 데이터 로딩 중이면 잠깐 후 재시도
       document.getElementById('welfare-tbody') && (document.getElementById('welfare-tbody').innerHTML = '<tr><td colspan="35" style="padding:20px;text-align:center">데이터 로딩 중...</td></tr>');
-      setTimeout(function(){ renderWelfareTable(); }, 800);
+      // 최대 5초간 500ms마다 재시도
+      var welfareRetry = 0;
+      var welfareTimer = setInterval(function() {
+        welfareRetry++;
+        if ((employees && employees.length > 0 && welfareData) || welfareRetry > 10) {
+          clearInterval(welfareTimer);
+          if (!welfareData) {
+            // welfareData가 없으면 Firestore에서 직접 로드
+            db.collection('welfare').doc('all').get().then(function(snap) {
+              if (snap.exists) { welfareData = snap.data(); }
+              renderWelfareTable();
+            }).catch(function(){ renderWelfareTable(); });
+          } else {
+            renderWelfareTable();
+          }
+        }
+      }, 500);
     } else {
       renderWelfareTable();
     }
