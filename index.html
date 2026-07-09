@@ -16940,17 +16940,14 @@ function taskRefreshProjectFilter() {
 
 function taskGetFiltered() {
   var myEmail = state.user ? state.user.email : '';
-  var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
   return _tasks.filter(function(t) {
     if (t.archived) return false;
     if (_currentProjectId) {
-      // 원본 projectId가 맞거나, 내가 이 프로젝트로 가져온 업무
       var importedHere = t.importedProjMap && t.importedProjMap[myEmail] === _currentProjectId;
       if (t.projectId !== _currentProjectId && !importedHere) return false;
     }
+    // 칸반에는 내가 담당자이거나 내가 직접 가져온 업무만 표시
     var canSee = t.assignee === myEmail ||
-      (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
-      t.reviewer === myEmail ||
       (t.importedBy||[]).indexOf(myEmail) >= 0;
     if (!canSee) return false;
     if (_taskFilter === 'mine') return t.assignee === myEmail;
