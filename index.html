@@ -5641,6 +5641,7 @@ function parseLocalDate(str) {
 // 임원건강검진 발생횟수 계산 (기산일 당일부터 1회, 이후 2년마다)
 function calcExecTimes(startDate, today) {
   const sd = parseLocalDate(startDate);
+  if (!sd) return 0;
   const t = (today instanceof Date) ? today : (today ? parseLocalDate(today) : new Date());
   if (t < sd) return 0;
   let n = 1; // 기산일 당일 1회 발생
