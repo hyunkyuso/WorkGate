@@ -3680,9 +3680,10 @@ function renderDashProjectList() {
   var el = document.getElementById('dash-project-list');
   if (!el) return;
   var myEmail = state.user ? state.user.email : '';
-  var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
+  // 내 프로젝트만 (내가 만들었거나 내가 담당자인 업무가 있는 것)
   var visible = _projects.filter(function(p) {
-    return isAdmin || p.createdBy === myEmail || (p.members||[]).indexOf(myEmail) >= 0;
+    if (p.createdBy === myEmail) return true;
+    return _tasks.some(function(t){ return t.projectId===p.id && t.assignee===myEmail; });
   }).slice(0, 5);
 
   if (!visible.length) {
@@ -3691,12 +3692,14 @@ function renderDashProjectList() {
   }
 
   el.innerHTML = visible.map(function(p) {
-    var taskCount = _tasks.filter(function(t){ return t.projectId === p.id; }).length;
-    var doneCount = _tasks.filter(function(t){ return t.projectId === p.id && t.status === 'done'; }).length;
-    var doingCount = _tasks.filter(function(t){ return t.projectId === p.id && t.status === 'doing'; }).length;
+    // 내 업무 기준 카운트
+    var myTasks = _tasks.filter(function(t){ return t.projectId===p.id && t.assignee===myEmail; });
+    var taskCount = myTasks.length;
+    var doneCount = myTasks.filter(function(t){ return t.status==='done'; }).length;
+    var doingCount = myTasks.filter(function(t){ return t.status==='doing'; }).length;
     var pct = taskCount ? Math.round(doneCount/taskCount*100) : 0;
     var color = p.color || '#378ADD';
-    return '<div onclick="showPage(\'tasks\',null);setTimeout(function(){taskOpenProject(\''+p.id+'\')},100)" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;cursor:pointer" onmouseover="this.style.borderColor=\''+color+'\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+    return '<div onclick="showPage(\'tasks\',null);setTimeout(function(){projSelectProject(\''+p.id+'\')},100)" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;cursor:pointer" onmouseover="this.style.borderColor=\''+color+'\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
       '<div style="width:8px;height:8px;border-radius:50%;background:'+color+';flex-shrink:0"></div>' +
       '<div style="flex:1;min-width:0">' +
         '<div style="font-size:13px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.name+'</div>' +
@@ -3714,14 +3717,21 @@ function renderDashProjectList() {
 function renderRecentTasks() {
   var el = document.getElementById('recent-tasks-list');
   if (!el) return;
-  var recent = _tasks.slice(0,5);
-  if (!recent.length) { el.innerHTML = '<div style="color:var(--t3);font-size:12px">업무가 없습니다</div>'; return; }
-  el.innerHTML = recent.map(function(t) {
+  var myEmail = state.user ? state.user.email : '';
+  var myTasks = _tasks.filter(function(t) {
+    return !t.archived && t.status !== 'done' && t.assignee === myEmail;
+  }).slice(0, 5);
+  if (!myTasks.length) { el.innerHTML = '<div style="color:var(--t3);font-size:12px">진행 중인 업무가 없습니다</div>'; return; }
+  el.innerHTML = myTasks.map(function(t) {
     var col = TASK_COLS.find(function(c){ return c.id===t.status; });
+    var proj = _projects.find(function(p){ return p.id===t.projectId; });
     return '<div style="display:flex;align-items:center;gap:8px;font-size:12px">' +
       '<span style="width:8px;height:8px;border-radius:50%;background:'+(col?col.color:'#888')+';display:inline-block;flex-shrink:0"></span>' +
-      '<span style="flex:1;font-weight:500">'+t.title+'</span>' +
-      '<span style="color:var(--t3)">'+(t.due||'')+'</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.title+'</div>' +
+        (proj?'<div style="font-size:10px;color:var(--t3)">📁 '+proj.name+'</div>':'') +
+      '</div>' +
+      '<span style="color:var(--t3);white-space:nowrap">'+(t.due||'')+'</span>' +
     '</div>';
   }).join('');
 }
@@ -16863,11 +16873,19 @@ function saveProject() {
 
 function deleteProject() {
   if (!_projectEditId) return;
-  if (!confirm('프로젝트를 삭제하시겠습니까?\n해당 프로젝트의 업무도 모두 삭제됩니다.')) return;
-  // 연결된 업무도 삭제
+  if (!confirm('프로젝트를 삭제하시겠습니까?\n내 업무는 삭제되고, 다른 사람과 공유된 업무는 프로젝트에서 분리됩니다.')) return;
+  var myEmail = state.user ? state.user.email : '';
   var batch = db.batch();
   _tasks.filter(function(t){ return t.projectId === _projectEditId; }).forEach(function(t) {
-    batch.delete(db.collection('tasks').doc(t.id));
+    var hasOthers = (t.sharedWith||[]).length > 0 || t.reviewer;
+    var isMine = t.assignee === myEmail || t.createdBy === myEmail;
+    if (isMine && !hasOthers) {
+      // 나만 있는 업무 → 삭제
+      batch.delete(db.collection('tasks').doc(t.id));
+    } else {
+      // 공유자/검토자가 있는 업무 → projectId만 null로 (삭제 안 함)
+      batch.update(db.collection('tasks').doc(t.id), { projectId: null });
+    }
   });
   batch.delete(db.collection('projects').doc(_projectEditId));
   batch.commit().then(function() {
