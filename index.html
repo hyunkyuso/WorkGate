@@ -17635,7 +17635,8 @@ function projRenderSidebar() {
     if (t.archived) return false;
     var isShared = (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail;
     if (!isShared) return false;
-    if (t.assignee === myEmail) return false; // 담당자면 내 프로젝트에서 관리
+    if (t.assignee === myEmail) return false;
+    if ((t.importedBy||[]).indexOf(myEmail) >= 0) return false;
     if (keyword && (t.title||'').indexOf(keyword) < 0) return false;
     return true;
   });
@@ -17703,6 +17704,7 @@ function projSelectShared() {
     var isShared = (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail;
     if (!isShared) return false;
     if (t.assignee === myEmail) return false;
+    if ((t.importedBy||[]).indexOf(myEmail) >= 0) return false;
     return true;
   });
 
@@ -17772,14 +17774,20 @@ function projImportTask(taskId) {
   if (!proj) return;
   var myEmail = state.user ? state.user.email : '';
 
-  if (!confirm('"'+proj.name+'" 프로젝트로 가져올까요?\n가져오면 내 담당 업무로 편입됩니다.')) return;
+  var t = _tasks.find(function(x){ return x.id===taskId; });
+  var importedBy = (t && t.importedBy) ? t.importedBy.slice() : [];
+  if (importedBy.indexOf(myEmail) < 0) importedBy.push(myEmail);
 
-  db.collection('tasks').doc(taskId).update({ projectId: newProjId, assignee: myEmail })
+  // 내가 가져간 프로젝트 매핑 저장 (이메일→projectId)
+  var importedProjMap = (t && t.importedProjMap) ? Object.assign({}, t.importedProjMap) : {};
+  importedProjMap[myEmail] = newProjId;
+
+  db.collection('tasks').doc(taskId).update({ importedBy: importedBy, importedProjMap: importedProjMap })
     .then(function() {
       showToast('✅ '+proj.name+' 프로젝트로 가져왔어요');
-      var t = _tasks.find(function(x){ return x.id===taskId; });
-      if (t) { t.projectId = newProjId; t.assignee = myEmail; }
+      if (t) { t.importedBy = importedBy; t.importedProjMap = importedProjMap; }
       projSelectShared();
+      projRenderSidebar();
     })
     .catch(function(e){ showToast('❌ 오류: '+e.message); });
 }
@@ -19945,5 +19953,5 @@ function taskDeleteFromDetail() {
 })();
 </script>
 </body>
-</html>
+</html> 
  
