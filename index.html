@@ -5664,6 +5664,7 @@ function fmtLocalDate(d) {
 // 발생예정일 표시용: 기산일+yr년 당일
 function issueDateDisplay(startDate, yr) {
   const sd = parseLocalDate(startDate);
+  if (!sd) return null;
   return new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
 }
 // 사용기간 만료일: 발생일+2년-1일
@@ -5722,6 +5723,7 @@ function calcOverseasAmt(wd, joindate, today) {
   }
 
   const sd = parseLocalDate(wd.startDate || joindate);
+  if (!sd) return { result, total };
   const yrs = calcYears(wd.startDate || joindate, today);
 
   // 15/20년 한시지원 금액 계산
@@ -6185,7 +6187,7 @@ function renderWelfareTable() {
               return osYears.map(([yr,base,fld])=>{
                 const v = osResult[fld];
                 // 사용기간 계산
-                const _sdOs = parseLocalDate(startDate); const osIssueD = new Date(_sdOs.getFullYear()+yr, _sdOs.getMonth(), _sdOs.getDate());
+                const _sdOs = parseLocalDate(startDate); if (!_sdOs) return ''; const osIssueD = new Date(_sdOs.getFullYear()+yr, _sdOs.getMonth(), _sdOs.getDate());
                 const osCutoff = new Date('2026-01-01');
                 const osExpiryD = osIssueD < osCutoff ? new Date('2027-12-31') : new Date(osIssueD.getFullYear()+2, osIssueD.getMonth(), osIssueD.getDate());
                 const osReached3 = years >= yr;
@@ -6243,6 +6245,7 @@ function renderWelfareTable() {
               let rfTarget = null, sbTarget = null;
               // 정규 발생 시점 도달했거나, 2025년에 발생한 경우 한시 지원 제외 (단서조항)
               const rfSdW = parseLocalDate(startDate);
+              if (!rfSdW) return;
               const rfCutoffW = parseLocalDate('2026-01-01');
               // 발생한 항목 중 2026-01-01 이전 발생+1년 미만이면 제외 (단서조항)
               const alreadyHasRegular = [6,10,15,20].some(y => {
@@ -11655,8 +11658,7 @@ function renderMyPageEmp(emp, email) {
   const ltBase = wd.spouseCheck ? 100 : 50;
   const ltUnused = wd.healthUnused || false;
   const ltSd = parseLocalDate(startDate);
-
-  // 발생예정: 아직 발생 안 된 항목 중 가장 인접한 1개 표시
+  if (!ltSd) return html;
   const nextLtYear = ltYears.find(y => years < y);
   const ltNextIssueDate = nextLtYear ? new Date(ltSd.getFullYear()+nextLtYear, ltSd.getMonth(), ltSd.getDate()) : null;
 
@@ -11708,7 +11710,7 @@ function renderMyPageEmp(emp, email) {
     const execTotalIssues = calcExecTimes(startDate, today);
     const execAvail = execTotalIssues > execHistory.length;
     const sdExec = parseLocalDate(startDate);
-
+    if (!sdExec) return html;
     if (execAvail) {
       // 현재 사용가능 — 현재 회차 발생일 + 2년이 사용기간
       const curIssueNum = execHistory.length; // 현재 미사용 회차 (0부터 시작, 첫발생=기산일)
@@ -11773,6 +11775,7 @@ function renderMyPageEmp(emp, email) {
   const osItems = osFields.map(({yr,base}) => {
     const fld = 'overseas'+yr;
     const sd = parseLocalDate(startDate);
+    if (!sd) return null;
     const issueDate = new Date(sd.getFullYear()+yr, sd.getMonth(), sd.getDate());
     const notYet = today < issueDate;
     const isOld = issueDate < parseLocalDate('2026-01-01');
@@ -11809,6 +11812,7 @@ function renderMyPageEmp(emp, email) {
     const osBase = osTargetYr===15 ? 600 : 1000;
     const osAmt = osBase + osBase*0.5*osCh;
     const sd = parseLocalDate(startDate);
+    if (!sd) return;
     const issueDate = new Date(sd.getFullYear()+osTargetYr, sd.getMonth(), sd.getDate());
     const notYetOs = today < issueDate;
     const expiry2yr = expiryDateDisplay(issueDate);
@@ -11843,6 +11847,7 @@ function renderMyPageEmp(emp, email) {
 
   // 단서조항: 발생한 항목 중 2026-01-01 이전 발생+1년 미만이면 한시 제외
   const rfSd2026 = parseLocalDate(startDate);
+  if (!rfSd2026) return html;
   const rfCutoff2026 = parseLocalDate('2026-01-01');
   const already = [6,10,15,20].some(y => {
     if (yrsAt2026 < y) return false;
@@ -11881,12 +11886,11 @@ function renderMyPageEmp(emp, email) {
 
   // 6→10→15→20 통합 풀 — 다음 인접 미발생 1개
   const rfSd = parseLocalDate(startDate);
+  if (!rfSd) return html;
   const rfLabelMap3 = {refresh6:'리프레쉬 6년만근', sabbatical10:'안식년 10년만근', refresh15:'리프레쉬 15년만근', sabbatical20:'안식년 20년만근'};
   const rfYrMap3 = {refresh6:6, sabbatical10:10, refresh15:15, sabbatical20:20};
 
-  // 한시 지원 소진 여부 — rfTargetF(한시★)만 체크
-  // 정규 항목(refresh6/sabbatical10/refresh15/sabbatical20)은 별개
-  const sdRfDone = parseLocalDate(startDate);
+  const sdRfDone = rfSd;
   const rfDone = rfTargetF && wd[rfTargetF] && wd[rfTargetF] !== '미사용' && wd[rfTargetF] !== '사용안함';
 
   if (rfEligible && !rfDone) {
