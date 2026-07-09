@@ -16456,8 +16456,14 @@ function projectStartListener() {
     });
     projRenderSidebar();
     renderDashProjectList();
-    // 선택된 프로젝트 상세 갱신
-    if (_selectedProjId) projShowDetail(_selectedProjId);
+    // 칸반 뷰가 열려있으면 칸반만 갱신, 아니면 상세 갱신
+    var kanbanView = document.getElementById('task-kanban-view');
+    if (kanbanView && kanbanView.style.display !== 'none') {
+      if (_currentProjectId) taskRender();
+      else if (_selectedProjId === '__shared__') projSelectShared();
+    } else if (_selectedProjId && _selectedProjId !== '__shared__') {
+      projShowDetail(_selectedProjId);
+    }
   });
 }
 
