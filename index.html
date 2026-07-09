@@ -16918,11 +16918,16 @@ function taskGetFiltered() {
   var myEmail = state.user ? state.user.email : '';
   var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
   return _tasks.filter(function(t) {
-    if (t.archived) return false; // 아카이브된 업무 제외
-    if (_currentProjectId && t.projectId !== _currentProjectId) return false;
+    if (t.archived) return false;
+    if (_currentProjectId) {
+      // 원본 projectId가 맞거나, 내가 이 프로젝트로 가져온 업무
+      var importedHere = t.importedProjMap && t.importedProjMap[myEmail] === _currentProjectId;
+      if (t.projectId !== _currentProjectId && !importedHere) return false;
+    }
     var canSee = t.assignee === myEmail ||
       (t.sharedWith||[]).indexOf(myEmail) >= 0 ||
-      t.reviewer === myEmail;
+      t.reviewer === myEmail ||
+      (t.importedBy||[]).indexOf(myEmail) >= 0;
     if (!canSee) return false;
     if (_taskFilter === 'mine') return t.assignee === myEmail;
     if (_taskFilter === 'shared') return (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail;
@@ -17072,9 +17077,13 @@ function openTaskModal(defaultStatus) {
   document.getElementById('task-reviewer-tag').innerHTML = '';
   document.getElementById('task-reviewer-results').style.display = 'none';
 
-  // 프로젝트 select 채우기
+  // 프로젝트 select 채우기 (내 프로젝트만)
+  var myEmail2 = state.user ? state.user.email : '';
+  var myProjs = _projects.filter(function(p) {
+    return p.createdBy === myEmail2 || _tasks.some(function(t){ return t.projectId===p.id && t.assignee===myEmail2; });
+  });
   var projOptions = '<option value="">프로젝트 선택...</option>' +
-    _projects.map(function(p){ return '<option value="'+p.id+'"'+(p.id===_currentProjectId?' selected':'')+'>'+p.name+'</option>'; }).join('');
+    myProjs.map(function(p){ return '<option value="'+p.id+'"'+(p.id===_currentProjectId?' selected':'')+'>'+p.name+'</option>'; }).join('');
   document.getElementById('task-project-select').innerHTML = projOptions;
 
   // 담당자 select 채우기
@@ -19904,9 +19913,13 @@ function taskEditFromDetail() {
   initDateSelects();
   setDateVal('task-start', t.start||'');
   setDateVal('task-due', t.due||'');
-  // 프로젝트 select 복원
+  // 프로젝트 select 복원 (내 프로젝트만)
+  var myEmail3 = state.user ? state.user.email : '';
+  var myProjs2 = _projects.filter(function(p) {
+    return p.createdBy === myEmail3 || _tasks.some(function(t){ return t.projectId===p.id && t.assignee===myEmail3; });
+  });
   var projOptions2 = '<option value="">프로젝트 선택...</option>' +
-    _projects.map(function(p){ return '<option value="'+p.id+'"'+(p.id===t.projectId?' selected':'')+'>'+p.name+'</option>'; }).join('');
+    myProjs2.map(function(p){ return '<option value="'+p.id+'"'+(p.id===t.projectId?' selected':'')+'>'+p.name+'</option>'; }).join('');
   document.getElementById('task-project-select').innerHTML = projOptions2;
 
   var empOptions2 = employees.filter(function(e){ return e.status!=='퇴직'; }).map(function(e){
