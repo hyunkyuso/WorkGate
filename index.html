@@ -5618,11 +5618,14 @@ function startWelfareListener() {
       localStorage.setItem('wg_welfare', JSON.stringify(welfareData));
       const page = document.getElementById('page-welfare');
       if (page && page.classList.contains('active')) {
-        renderWelfareTable();
+        if (employees && employees.length > 0) {
+          renderWelfareTable();
+        }
+        // employees 없으면 로드될 때까지 대기 (loadFirestoreData 완료 시점에 자동 렌더됨)
       }
       const bPage = document.getElementById('page-birthday');
       if (bPage && bPage.classList.contains('active')) {
-        renderBirthdayTable();
+        if (employees && employees.length > 0) renderBirthdayTable();
       }
     }
   }, e => console.error('welfare listener:', e));
@@ -13100,24 +13103,27 @@ function showPage(id, el) {
   if(id === 'welfare') {
     var tbodyEl = document.getElementById('welfare-tbody');
     if (tbodyEl) tbodyEl.innerHTML = '<tr><td colspan="35" style="padding:20px;text-align:center">데이터 로딩 중...</td></tr>';
-    db.collection('welfare').doc('all').get().then(function(snap) {
-      if (snap.exists) welfareData = snap.data();
-      var retry = 0;
-      function tryRender() {
-        if (employees && employees.length > 0) {
-          renderWelfareTable();
-        } else if (retry < 20) {
-          retry++;
-          setTimeout(tryRender, 500);
-        } else {
-          renderWelfareTable(); // 10초 후 강제 실행
+    // welfare + employees 둘 다 준비될 때까지 대기
+    var wRetry = 0;
+    function welfareReady() {
+      var hasEmp = employees && employees.length > 0;
+      var hasWelfare = welfareData && Object.keys(welfareData).length > 0;
+      if (hasEmp && hasWelfare) {
+        renderWelfareTable();
+      } else if (wRetry < 30) {
+        wRetry++;
+        // welfare 없으면 Firestore에서 직접 가져오기
+        if (!hasWelfare && wRetry === 1) {
+          db.collection('welfare').doc('all').get().then(function(snap) {
+            if (snap.exists) welfareData = snap.data();
+          });
         }
+        setTimeout(welfareReady, 300);
+      } else {
+        renderWelfareTable(); // 9초 후 강제 실행
       }
-      tryRender();
-    }).catch(function(e) {
-      console.error('welfare load error:', e);
-      renderWelfareTable();
-    });
+    }
+    welfareReady();
   }
   if(id === 'mypage') renderMyPage();
   if(id === 'birthday') { renderBirthdayTable(); }
