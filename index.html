@@ -3339,6 +3339,11 @@ async function loadFirestoreData() {
     state.myRole = newRole;
     console.log('권한 확인:', state.myEmail, '->', newRole, '/ 직원수:', employees.length);
     applyRoleUI();
+    // 직원 데이터 로드 완료 시 welfare 페이지가 열려있으면 즉시 렌더
+    var wPage = document.getElementById('page-welfare');
+    if (wPage && wPage.classList.contains('active')) {
+      renderWelfareTable();
+    }
   }
 }
 
