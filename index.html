@@ -18954,40 +18954,49 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
   html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500">■본부내 업무 협조 사항<br>및 업무 프로세스 등 이슈</td>' +
     '<td colspan="8" style="'+tdBase+'">'+(parsed.issue||'')+'</td></tr>';
 
-  // 중점업무 행 - highlight 순서대로 각 행 출력
-  if (highlight.length) {
-    highlight.forEach(function(ht, hi) {
-      var key = ht._key||'';
-      var side = key.split('::')[0];
-      var idxPart = key.split('::')[1]||'';
-      var tIdx = parseInt(idxPart.split(':')[0]);
-      var iIdx = parseInt(idxPart.split(':')[1]);
-      // 익월 업무 찾기 (순위/기간 기준)
-      var nwItem = null;
-      if (!isNaN(tIdx) && !isNaN(iIdx)) {
-        var task = tasks[tIdx];
-        if (task) nwItem = (task.next_month||[])[iIdx] || null;
+  // 중점업무 행 - 금월 체크 목록 / 익월 체크 목록 각각 위에서부터
+  var hlThis = highlight.filter(function(h){ return (h._key||'').split('::')[0]==='this'; });
+  var hlNext = highlight.filter(function(h){ return (h._key||'').split('::')[0]==='next'; });
+  var hlMaxLen = Math.max(hlThis.length, hlNext.length, 0);
+
+  if (hlMaxLen > 0) {
+    for (var hi = 0; hi < hlMaxLen; hi++) {
+      var htw = hlThis[hi] || null;
+      var hnw = hlNext[hi] || null;
+      // 익월 업무에서 순위/기간 찾기
+      var hnwNwItem = null;
+      if (hnw) {
+        var hnwKey = hnw._key||'';
+        var hnwIdx = hnwKey.split('::')[1]||'';
+        var hnwTIdx = parseInt(hnwIdx.split(':')[0]);
+        var hnwIIdx = parseInt(hnwIdx.split(':')[1]);
+        if (!isNaN(hnwTIdx) && !isNaN(hnwIIdx) && tasks[hnwTIdx]) {
+          hnwNwItem = (tasks[hnwTIdx].next_month||[])[hnwIIdx] || null;
+        }
       }
       html += '<tr>';
       if (hi === 0) {
-        html += '<td colspan="2" style="'+tdBase+';font-weight:500;vertical-align:top" rowspan="'+highlight.length+'">■금월 중점업무<br><span style="font-size:10px;color:#888;font-weight:normal">업무내용 우측 □ 체크</span></td>';
+        html += '<td colspan="2" style="'+tdBase+';font-weight:500;vertical-align:top" rowspan="'+hlMaxLen+'">■금월 중점업무<br><span style="font-size:10px;color:#888;font-weight:normal">업무내용 우측 □ 체크</span></td>';
       }
-      // 금월 칸: this 체크면 채우기
-      if (side === 'this') {
-        html += '<td style="'+tdBase+'">• '+ht.title+'</td><td style="'+tdC+'">'+statusSym(ht.status,ht.pct)+'</td><td style="'+tdC+'">'+ht.pct+'%</td>';
-        html += '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
-        html += '<td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
-      } else {
-        // next 체크: 금월 비우고 익월 채우기
-        html += '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
-        html += '<td style="'+tdBase+'">• '+ht.title+'</td><td style="'+tdC+'">'+nextStatusSym(ht)+'</td><td style="'+tdC+'">'+nextPct(ht)+'</td>';
-        // 순위/기간
-        var pri = ht.priority!=null ? ht.priority : '';
-        var dateStr = nwItem&&fmtDate(nwItem.start)&&fmtDate(nwItem.end) ? fmtDate(nwItem.start)+'~'+fmtDate(nwItem.end) : (fmtDate(ht.start)&&fmtDate(ht.end)?fmtDate(ht.start)+'~'+fmtDate(ht.end):'');
-        html += '<td style="'+tdC+'">'+pri+'</td><td style="'+tdC+';font-size:10px">'+dateStr+'</td>';
+      // 금월 칸
+      html += htw ?
+        '<td style="'+tdBase+'">• '+htw.title+'</td><td style="'+tdC+'">'+statusSym(htw.status,htw.pct)+'</td><td style="'+tdC+'">'+htw.pct+'%</td>' :
+        '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
+      // 익월 칸
+      html += hnw ?
+        '<td style="'+tdBase+'">• '+hnw.title+'</td><td style="'+tdC+'">'+nextStatusSym(hnw)+'</td><td style="'+tdC+'">'+nextPct(hnw)+'</td>' :
+        '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
+      // 순위/기간 - 익월 기준
+      var pri = hnw && hnw.priority!=null ? hnw.priority : '';
+      var dateStr = '';
+      if (hnwNwItem && fmtDate(hnwNwItem.start) && fmtDate(hnwNwItem.end)) {
+        dateStr = fmtDate(hnwNwItem.start)+'~'+fmtDate(hnwNwItem.end);
+      } else if (hnw && fmtDate(hnw.start) && fmtDate(hnw.end)) {
+        dateStr = fmtDate(hnw.start)+'~'+fmtDate(hnw.end);
       }
+      html += '<td style="'+tdC+'">'+pri+'</td><td style="'+tdC+';font-size:10px">'+dateStr+'</td>';
       html += '</tr>';
-    });
+    }
   } else {
     html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500">■금월 중점업무<br><span style="font-size:10px;color:#888;font-weight:normal">업무내용 우측 □ 체크</span></td>' +
       '<td colspan="8" style="'+tdBase+';color:#aaa;font-style:italic">금월/익월 업무내용 우측 체크박스를 선택하면 표시됩니다</td></tr>';
