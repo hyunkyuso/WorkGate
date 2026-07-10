@@ -18589,72 +18589,54 @@ function reportSwitchTab(type, tab, btn) {
 
 function reportLoadReviewList(type) {
   var myEmail = state.user ? state.user.email : '';
+  var myEmp = employees.find(function(e){ return e.id===myEmail||e.email===myEmail; });
+  var myName = myEmp ? myEmp.name : '';
   var listEl = document.getElementById(type+'-review-list');
   if (!listEl) return;
   listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3)">불러오는 중...</div>';
 
-  db.collection('reports').where('reviewer','==',myEmail).where('type','==',type)
-    .orderBy('createdAt','desc').limit(20)
-    .get().then(function(snap) {
-      if (snap.empty) {
-        listEl.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3)"><div style="font-size:32px;margin-bottom:8px">👁</div><div style="font-size:13px">검토 요청된 보고서가 없습니다</div></div>';
-        return;
-      }
-      listEl.innerHTML = '';
-      snap.forEach(function(d) {
-        var data = d.data();
-        var emp = employees.find(function(e){ return e.id===data.author||e.email===data.author; });
-        var authorName = emp ? emp.name : data.author;
-        var dept = emp ? (emp.dept||'') : '';
-        var dateStr = data.createdAt ? (function(){ var dt=data.createdAt.toDate(); return dt.getFullYear()+'.'+(dt.getMonth()+1)+'.'+dt.getDate(); })() : '';
-        var card = document.createElement('div');
-        card.style.cssText = 'background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden';
-        card.innerHTML =
-          '<div style="padding:14px 18px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="reportToggleReview(\''+d.id+'\')">' +
-            '<div>' +
-              '<div style="font-size:14px;font-weight:600;color:var(--t1)">'+authorName+(dept?' <span style="font-size:12px;color:var(--t3);">('+dept+')</span>':'')+'</div>' +
-              '<div style="font-size:12px;color:var(--t3);margin-top:2px">'+data.period+' · '+dateStr+'</div>' +
-            '</div>' +
-            '<span style="font-size:18px;color:var(--t3)">▾</span>' +
-          '</div>' +
-          '<div id="review-body-'+d.id+'" style="display:none;padding:16px 18px">' +
-            reportReviewBodyHtml(data, d.id) +
-          '</div>';
-        listEl.appendChild(card);
-      });
-    }).catch(function(e){
-      // 인덱스 없으면 클라이언트 필터
-      db.collection('reports').where('reviewer','==',myEmail).get().then(function(snap2) {
-        var docs = [];
-        snap2.forEach(function(d){ if(d.data().type===type) docs.push(d); });
-        if (!docs.length) {
-          listEl.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3)"><div style="font-size:32px;margin-bottom:8px">👁</div><div style="font-size:13px">검토 요청된 보고서가 없습니다</div></div>';
-          return;
-        }
-        listEl.innerHTML = '';
-        docs.forEach(function(d) {
-          var data = d.data();
-          var emp = employees.find(function(e){ return e.id===data.author||e.email===data.author; });
-          var authorName = emp ? emp.name : data.author;
-          var dept = emp ? (emp.dept||'') : '';
-          var dateStr = data.createdAt ? (function(){ var dt=data.createdAt.toDate(); return dt.getFullYear()+'.'+(dt.getMonth()+1)+'.'+dt.getDate(); })() : '';
-          var card = document.createElement('div');
-          card.style.cssText = 'background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden';
-          card.innerHTML =
-            '<div style="padding:14px 18px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="reportToggleReview(\''+d.id+'\')">' +
-              '<div>' +
-                '<div style="font-size:14px;font-weight:600;color:var(--t1)">'+authorName+(dept?' <span style="font-size:12px;color:var(--t3);">('+dept+')</span>':'')+'</div>' +
-                '<div style="font-size:12px;color:var(--t3);margin-top:2px">'+data.period+' · '+dateStr+'</div>' +
-              '</div>' +
-              '<span style="font-size:18px;color:var(--t3)">▾</span>' +
-            '</div>' +
-            '<div id="review-body-'+d.id+'" style="display:none;padding:16px 18px">' +
-              reportReviewBodyHtml(data, d.id) +
-            '</div>';
-          listEl.appendChild(card);
-        });
-      });
+  // 이메일로 조회 + 이름으로 조회 병합
+  Promise.all([
+    db.collection('reports').where('reviewer','==',myEmail).where('type','==',type).orderBy('createdAt','desc').limit(20).get().catch(function(){ return null; }),
+    myName ? db.collection('reports').where('reviewer','==',myName).where('type','==',type).orderBy('createdAt','desc').limit(20).get().catch(function(){ return null; }) : Promise.resolve(null)
+  ]).then(function(results) {
+    var docsMap = {};
+    results.forEach(function(snap) {
+      if (!snap) return;
+      snap.forEach(function(d){ docsMap[d.id] = d; });
     });
+    var docs = Object.values(docsMap).sort(function(a,b){
+      var at = a.data().createdAt ? a.data().createdAt.toMillis() : 0;
+      var bt = b.data().createdAt ? b.data().createdAt.toMillis() : 0;
+      return bt - at;
+    });
+    if (!docs.length) {
+      listEl.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3)"><div style="font-size:32px;margin-bottom:8px">👁</div><div style="font-size:13px">검토 요청된 보고서가 없습니다</div></div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    docs.forEach(function(d) {
+      var data = d.data();
+      var emp = employees.find(function(e){ return e.id===data.author||e.email===data.author; });
+      var authorName = emp ? emp.name : data.author;
+      var dept = emp ? (emp.dept||'') : '';
+      var dateStr = data.createdAt ? (function(){ var dt=data.createdAt.toDate(); return dt.getFullYear()+'.'+(dt.getMonth()+1)+'.'+dt.getDate(); })() : '';
+      var card = document.createElement('div');
+      card.style.cssText = 'background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden';
+      card.innerHTML =
+        '<div style="padding:14px 18px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="reportToggleReview(\''+d.id+'\')">' +
+          '<div>' +
+            '<div style="font-size:14px;font-weight:600;color:var(--t1)">'+authorName+(dept?' <span style="font-size:12px;color:var(--t3);">('+dept+')</span>':'')+'</div>' +
+            '<div style="font-size:12px;color:var(--t3);margin-top:2px">'+data.period+' · '+dateStr+'</div>' +
+          '</div>' +
+          '<span style="font-size:18px;color:var(--t3)">▾</span>' +
+        '</div>' +
+        '<div id="review-body-'+d.id+'" style="display:none;padding:16px 18px">' +
+          reportReviewBodyHtml(data, d.id) +
+        '</div>';
+      listEl.appendChild(card);
+    });
+  }); // Promise.all.then
 }
 
 function reportReviewBodyHtml(data, docId) {
@@ -19602,9 +19584,14 @@ function reportSave(type) {
   var myEmail = state.user ? state.user.email : '';
   var d = _reportData[type];
   var docId = myEmail.replace(/[@.]/g,'_')+'_'+type+'_'+Date.now();
+  // reviewer: 이메일(검토 탭 조회용), reviewerName: 이름(표시용)
+  var reviewerEmail = document.getElementById(type+'-reviewer') ? document.getElementById(type+'-reviewer').value : '';
+  var reviewerName = d.reviewer || '';
   db.collection('reports').doc(docId).set({
     type: type, period: d.period, parsed: d.parsed,
-    author: myEmail, reviewer: d.reviewer||'',
+    author: myEmail, authorName: d.author||'',
+    reviewer: reviewerEmail || reviewerName, // 이메일 우선, 없으면 이름
+    reviewerName: reviewerName,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function(){ showToast('💾 저장되었습니다'); })
     .catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
