@@ -3774,7 +3774,16 @@ function renderRecentTasks() {
   if (!el) return;
   var myEmail = state.user ? state.user.email : '';
   var myTasks = _tasks.filter(function(t) {
-    return !t.archived && t.status !== 'done' && t.assignee === myEmail;
+    return !t.archived && t.status !== 'done' && (
+      t.assignee === myEmail ||
+      (t.importedBy||[]).indexOf(myEmail) >= 0
+    );
+  }).sort(function(a, b) {
+    // 마감일 있는 것 먼저, 마감일 가까운 순
+    if (a.due && b.due) return a.due < b.due ? -1 : 1;
+    if (a.due) return -1;
+    if (b.due) return 1;
+    return 0;
   }).slice(0, 5);
   if (!myTasks.length) { el.innerHTML = '<div style="color:var(--t3);font-size:12px">진행 중인 업무가 없습니다</div>'; return; }
   el.innerHTML = myTasks.map(function(t) {
@@ -3786,7 +3795,7 @@ function renderRecentTasks() {
         '<div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.title+'</div>' +
         (proj?'<div style="font-size:10px;color:var(--t3)">📁 '+proj.name+'</div>':'') +
       '</div>' +
-      '<span style="color:var(--t3);white-space:nowrap">'+(t.due||'')+'</span>' +
+      '<span style="color:var(--t3);white-space:nowrap;flex-shrink:0">'+(t.due||'')+'</span>' +
     '</div>';
   }).join('');
 }
