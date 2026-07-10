@@ -18999,9 +18999,10 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
       html += nw ?
         '<td style="'+tdBase+'">• '+nw.title+'</td><td style="'+tdC+'">'+nextStatusSym(nw)+'</td><td style="'+tdC+'">'+nextPct(nw)+'</td>' :
         '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
-      // 순위/기간 → 익월 업무 기준 (없으면 빈칸)
-      var nwRef = row.nwItem;
-      html += '<td style="'+tdC+'">'+(row.priority!=null?row.priority:'')+'</td>';
+      // 순위/기간 → 익월 체크됐을 때만 표시
+      var hasNext = !!row.nextItem;
+      html += '<td style="'+tdC+'">'+(hasNext&&row.priority!=null?row.priority:'')+'</td>';
+      var nwRef = hasNext ? row.nwItem : null;
       html += '<td style="'+tdC+';font-size:10px">'+(nwRef&&fmtDate(nwRef.start)&&fmtDate(nwRef.end)?fmtDate(nwRef.start)+'~'+fmtDate(nwRef.end):'')+'</td>';
       html += '</tr>';
     });
@@ -19704,13 +19705,13 @@ function reportEditMonthly() {
           (side==='this' ?
             '<div style="display:flex;gap:4px">' +
               '<input type="number" class="me-pct form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.pct||0)+'" min="0" max="100" style="width:58px;font-size:11px;padding:2px 4px" placeholder="%">' +
-              '<input type="text" class="me-start form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.start||'')+'" placeholder="시작일" style="width:72px;font-size:11px;padding:2px 4px">' +
-              '<input type="text" class="me-end form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.end||'')+'" placeholder="완료일" style="width:72px;font-size:11px;padding:2px 4px">' +
+              '<input type="text" class="me-start form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="this" value="'+(t.start||'')+'" placeholder="시작일" style="width:72px;font-size:11px;padding:2px 4px">' +
+              '<input type="text" class="me-end form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="this" value="'+(t.end||'')+'" placeholder="완료일" style="width:72px;font-size:11px;padding:2px 4px">' +
             '</div>' :
             '<div style="display:flex;gap:4px">' +
               '<input type="number" class="me-priority form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.priority||i+1)+'" min="1" style="width:46px;font-size:11px;padding:2px 4px" placeholder="순위">' +
-              '<input type="text" class="me-next-start form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.start||'')+'" placeholder="시작일" style="width:72px;font-size:11px;padding:2px 4px">' +
-              '<input type="text" class="me-end form-input me-next-end" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.end||'')+'" placeholder="완료일" style="width:72px;font-size:11px;padding:2px 4px">' +
+              '<input type="text" class="me-next-start form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" value="'+(t.start||'')+'" placeholder="시작일" style="width:72px;font-size:11px;padding:2px 4px">' +
+              '<input type="text" class="me-end form-input me-next-end" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" value="'+(t.end||'')+'" placeholder="완료일" style="width:72px;font-size:11px;padding:2px 4px">' +
             '</div>'
           ) +
         '</div>' +
@@ -19861,22 +19862,18 @@ function reportEditMonthlySyncDOM() {
     if(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].this_month[ii]) window._editParsed.tasks[ti].this_month[ii].pct=parseInt(el.value)||0;
   });
   document.querySelectorAll('.me-start').forEach(function(el) {
-    if(el.classList.contains('me-next-end')) return;
-    var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item);
-    if(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].this_month[ii]) window._editParsed.tasks[ti].this_month[ii].start=el.value;
+    var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item); var side=el.dataset.side||'this';
+    var arr=side==='next'?(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].next_month):(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].this_month);
+    if(arr&&arr[ii]) arr[ii].start=el.value;
   });
   document.querySelectorAll('.me-end').forEach(function(el) {
     var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item); var side=el.dataset.side||'this';
-    var arr=side==='next'?window._editParsed.tasks[ti].next_month:window._editParsed.tasks[ti].this_month;
+    var arr=side==='next'?(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].next_month):(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].this_month);
     if(arr&&arr[ii]) arr[ii].end=el.value;
   });
   document.querySelectorAll('.me-priority').forEach(function(el) {
     var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item);
     if(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].next_month[ii]) window._editParsed.tasks[ti].next_month[ii].priority=parseInt(el.value)||1;
-  });
-  document.querySelectorAll('.me-next-start').forEach(function(el) {
-    var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item);
-    if(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].next_month[ii]) window._editParsed.tasks[ti].next_month[ii].start=el.value;
   });
   var ia=document.getElementById('edit-monthly-issue'); if(ia) window._editParsed.issue=ia.value;
 }
