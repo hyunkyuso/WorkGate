@@ -1724,15 +1724,15 @@ select.form-input{cursor:pointer}
           <div id="weekly-review-list" style="display:flex;flex-direction:column;gap:12px"></div>
         </div>
         <div id="weekly-myreports-area" style="display:none">
-          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
-            <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:12px">📂 내 주간 보고서</div>
-            <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
-              <input type="date" id="weekly-my-from" class="form-input" style="font-size:12px;flex:1">
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+              <span style="font-size:12px;font-weight:600;color:var(--t1);white-space:nowrap">📂 내 주간 보고서</span>
+              <input type="date" id="weekly-my-from" class="form-input" style="font-size:11px;flex:1">
               <span style="font-size:11px;color:var(--t3)">~</span>
-              <input type="date" id="weekly-my-to" class="form-input" style="font-size:12px;flex:1">
-              <button onclick="reportSearchMyReports('weekly')" class="btn btn-primary" style="font-size:12px;white-space:nowrap">🔍 검색</button>
+              <input type="date" id="weekly-my-to" class="form-input" style="font-size:11px;flex:1">
+              <button onclick="reportSearchMyReports('weekly')" class="btn btn-primary" style="font-size:11px;padding:4px 10px;white-space:nowrap">검색</button>
             </div>
-            <div id="weekly-my-list" style="display:flex;flex-direction:column;gap:10px"></div>
+            <div id="weekly-my-list" style="display:flex;flex-direction:column;gap:8px"></div>
           </div>
         </div>
       </div>
@@ -1799,15 +1799,15 @@ select.form-input{cursor:pointer}
           <div id="monthly-review-list" style="display:flex;flex-direction:column;gap:12px"></div>
         </div>
         <div id="monthly-myreports-area" style="display:none">
-          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
-            <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:12px">📂 내 월간 보고서</div>
-            <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
-              <input type="month" id="monthly-my-from" class="form-input" style="font-size:12px;flex:1">
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+              <span style="font-size:12px;font-weight:600;color:var(--t1);white-space:nowrap">📂 내 월간 보고서</span>
+              <input type="month" id="monthly-my-from" class="form-input" style="font-size:11px;flex:1">
               <span style="font-size:11px;color:var(--t3)">~</span>
-              <input type="month" id="monthly-my-to" class="form-input" style="font-size:12px;flex:1">
-              <button onclick="reportSearchMyReports('monthly')" class="btn btn-primary" style="font-size:12px;white-space:nowrap">🔍 검색</button>
+              <input type="month" id="monthly-my-to" class="form-input" style="font-size:11px;flex:1">
+              <button onclick="reportSearchMyReports('monthly')" class="btn btn-primary" style="font-size:11px;padding:4px 10px;white-space:nowrap">검색</button>
             </div>
-            <div id="monthly-my-list" style="display:flex;flex-direction:column;gap:10px"></div>
+            <div id="monthly-my-list" style="display:flex;flex-direction:column;gap:8px"></div>
           </div>
         </div>
       </div>
@@ -18472,7 +18472,7 @@ function reportSearchMyReports(type) {
             '</div>' +
           '</div>' +
           '<div id="myreport-body-'+d.id+'" style="display:none;padding:16px">' +
-            reportReviewBodyHtml(data, d.id) +
+            reportReviewBodyHtml(data, d.id, true) +
           '</div>';
         listEl.appendChild(card);
       });
@@ -18686,6 +18686,12 @@ function reportLoadReviewList(type) {
   listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3)">불러오는 중...</div>';
 
   // 이메일로 조회 + 이름으로 조회 병합
+  // 열어보면 배지 숨기기
+  var badge = document.getElementById(type+'-review-badge');
+  if (badge) badge.style.display = 'none';
+  var readKey = 'wg_review_read_'+type;
+  localStorage.setItem(readKey, Date.now());
+
   Promise.all([
     db.collection('reports').where('reviewer','==',myEmail).where('type','==',type).get().catch(function(){ return null; }),
     db.collection('reports').where('reviewer','==',myEmail).get().catch(function(){ return null; }),
@@ -18732,7 +18738,7 @@ function reportLoadReviewList(type) {
   }); // Promise.all.then
 }
 
-function reportReviewBodyHtml(data, docId) {
+function reportReviewBodyHtml(data, docId, readOnly) {
   var parsed = data.parsed || {};
   var sC = {완료:'#27500A',진행중:'#0C447C',예정:'#444441',긴급:'#791F1F'};
   var sB = {완료:'#EAF3DE',진행중:'#E6F1FB',예정:'#F1EFE8',긴급:'#FCEBEB'};
@@ -18740,10 +18746,12 @@ function reportReviewBodyHtml(data, docId) {
     '<div style="border-top:0.5px solid var(--border);padding-top:12px">' +
       '<div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">💬 검토 의견</div>' +
       '<div id="review-comments-'+docId+'" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>' +
-      '<div style="display:flex;gap:8px">' +
-        '<textarea id="review-comment-input-'+docId+'" class="form-input" style="flex:1;height:56px;resize:none;font-size:13px" placeholder="검토 의견을 입력하세요..."></textarea>' +
-        '<button onclick="reportSubmitComment(\''+docId+'\')" class="btn btn-primary" style="font-size:12px;white-space:nowrap">전송</button>' +
-      '</div>' +
+      (readOnly ? '' :
+        '<div style="display:flex;gap:8px">' +
+          '<textarea id="review-comment-input-'+docId+'" class="form-input" style="flex:1;height:56px;resize:none;font-size:13px" placeholder="검토 의견을 입력하세요..."></textarea>' +
+          '<button onclick="reportSubmitComment(\''+docId+'\')" class="btn btn-primary" style="font-size:12px;white-space:nowrap">전송</button>' +
+        '</div>'
+      ) +
     '</div>';
 
   // ── 월간 보고 테이블 양식 ──
@@ -18934,12 +18942,16 @@ function reportUpdateReviewBadge() {
   var myEmail = state.user ? state.user.email : '';
   if (!myEmail) return;
   db.collection('reports').where('reviewer','==',myEmail).get().then(function(snap) {
-    var cnt = snap.size;
     ['weekly','monthly'].forEach(function(type) {
       var badge = document.getElementById(type+'-review-badge');
       if (!badge) return;
+      var readTime = parseInt(localStorage.getItem('wg_review_read_'+type)||'0');
       var typeCnt = 0;
-      snap.forEach(function(d){ if(d.data().type===type) typeCnt++; });
+      snap.forEach(function(d){
+        if (d.data().type !== type) return;
+        var createdAt = d.data().createdAt ? d.data().createdAt.toMillis() : 0;
+        if (createdAt > readTime) typeCnt++;
+      });
       if (typeCnt > 0) { badge.textContent = typeCnt; badge.style.display = ''; }
       else badge.style.display = 'none';
     });
