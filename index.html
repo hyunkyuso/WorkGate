@@ -17776,8 +17776,8 @@ function projSelectShared() {
           var cardHtml = taskCardHtml(t, myEmail, col.color);
           // 카드 마지막 닫는 </div> 앞에 가져오기 UI 삽입
           var importUi = '<div style="border-top:0.5px solid var(--border);padding-top:8px;margin-top:6px;display:flex;gap:6px;align-items:center">' +
-            '<select id="import-proj-'+t.id+'" style="flex:1;font-size:11px;border:0.5px solid var(--border);border-radius:6px;padding:3px 6px;color:var(--t1)">'+projOptHtml+'</select>' +
-            '<button onclick="projImportTask(\''+t.id+'\')" style="font-size:11px;padding:3px 10px;border:0.5px solid var(--ac);border-radius:6px;background:var(--acd);color:var(--ac);cursor:pointer;white-space:nowrap">📥 가져오기</button>' +
+            '<select id="import-proj-'+t.id+'" onclick="event.stopPropagation()" style="flex:1;font-size:11px;border:0.5px solid var(--border);border-radius:6px;padding:3px 6px;color:var(--t1)">'+projOptHtml+'</select>' +
+            '<button onclick="event.stopPropagation();projImportTask(\''+t.id+'\')" style="font-size:11px;padding:3px 10px;border:0.5px solid var(--ac);border-radius:6px;background:var(--acd);color:var(--ac);cursor:pointer;white-space:nowrap">📥 가져오기</button>' +
           '</div>';
           return cardHtml.replace(/<\/div>\s*$/, importUi+'</div>');
         }).join('') +
@@ -18899,6 +18899,8 @@ async function reportGenerate(type) {
     var parsed = { tasks: tasks, highlight: highlight, issue: issues };
     _reportData['monthly'] = { parsed: parsed, period: periodLabel, author: name, dept: dept, reviewer: reviewerName, issues: issues };
     reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName);
+    // 검토자 지정 시 자동 저장 (검토 탭에서 보이도록)
+    if (reviewerEmail) reportSave('monthly');
     return;
   }
 
@@ -18929,6 +18931,8 @@ async function reportGenerate(type) {
     var parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
     _reportData[type] = { parsed: parsed, period: periodLabel, author: name, dept: dept, reviewer: reviewerName, issues: issues };
     reportRenderContent(type, parsed, periodLabel, name, dept, reviewerName);
+    // 검토자 지정 시 자동 저장
+    if (reviewerEmail) reportSave(type);
   } catch(e) {
     areaEl.innerHTML = '<div style="padding:20px;color:#E24B4A">❌ 보고서 생성 실패: '+e.message+'</div>';
   }
@@ -19002,19 +19006,41 @@ async function reportSaveToDrive(type) {
       var monthEl = document.getElementById('monthly-month');
       var month = monthEl ? monthEl.value : new Date().getMonth()+1;
 
-      // 현재 화면 HTML 가져오기
-      var areaId = type+'-report-area';
-      var areaEl = document.getElementById(areaId);
+      // 현재 화면 HTML 가져와서 CSS변수 → 실제값으로 치환
+      var areaEl = document.getElementById(type+'-report-area');
       var contentHtml = areaEl ? areaEl.innerHTML : '';
       // 버튼 영역 제거
-      contentHtml = contentHtml.replace(/<div[^>]*display:flex[^>]*justify-content:flex-end[^>]*>[\s\S]*?<\/div>/, '');
+      contentHtml = contentHtml.replace(/<div[^>]*justify-content:flex-end[^>]*>[\s\S]*?<\/div>/, '');
+      // CSS 변수 → 실제값 치환
+      contentHtml = contentHtml
+        .replace(/var\(--border\)/g, '#e2e8f0')
+        .replace(/var\(--border-strong\)/g, '#94a3b8')
+        .replace(/var\(--surface\)/g, '#f8fafc')
+        .replace(/var\(--white\)/g, '#ffffff')
+        .replace(/var\(--t1\)/g, '#1a1a1a')
+        .replace(/var\(--t2\)/g, '#4a4a4a')
+        .replace(/var\(--t3\)/g, '#888888')
+        .replace(/var\(--ac\)/g, '#378ADD')
+        .replace(/var\(--acd\)/g, '#E6F1FB')
+        .replace(/var\(--font-sans\)/g, 'Arial,sans-serif');
 
-      var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
-        '<style>body{font-family:"\\B9CE\\C740 \\ACE0\\B515",Arial,sans-serif;margin:20px}' +
-        'table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:5px 8px;font-size:10pt}' +
-        'th{background:#1F4E79;color:white;text-align:center}</style></head><body>' +
-        '<h3 style="margin-bottom:6px">' + (type==='monthly' ? deptName+' ('+month+')월 월간 업무계획' : '주간 업무 보고') + '</h3>' +
-        '<p style="font-size:10pt;color:#555;margin-bottom:12px">작성자: '+d.author+(d.dept?' ('+d.dept+')':'')+'&nbsp;|&nbsp;기간: '+d.period+(d.reviewer?'&nbsp;|&nbsp;검토자: '+d.reviewer:'')+'</p>' +
+      var reportTitle = type==='monthly'
+        ? deptName+' ('+month+')월 월간 업무계획'
+        : '주간 업무 보고';
+
+      var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
+        'body{font-family:"맑은 고딕",Arial,sans-serif;margin:24px;color:#1a1a1a}' +
+        'table{border-collapse:collapse;width:100%}' +
+        'th,td{border:1px solid #ccc;padding:6px 10px;font-size:10pt}' +
+        'th{background:#1F4E79;color:white;text-align:center}' +
+        '.report-header{border-bottom:2px solid #334155;padding-bottom:10px;margin-bottom:14px}' +
+        '.report-title{font-size:18pt;font-weight:bold;margin-bottom:4px}' +
+        '.report-meta{font-size:10pt;color:#555}' +
+        '</style></head><body>' +
+        '<div class="report-header">' +
+          '<div class="report-title">'+reportTitle+'</div>' +
+          '<div class="report-meta">작성자: '+d.author+(d.dept?' ('+d.dept+')':'')+'&nbsp;&nbsp;|&nbsp;&nbsp;기간: '+d.period+(d.reviewer?'&nbsp;&nbsp;|&nbsp;&nbsp;검토자: '+d.reviewer:'')+'</div>' +
+        '</div>' +
         contentHtml +
         '</body></html>';
 
