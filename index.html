@@ -18303,7 +18303,10 @@ function reportGetTasks(type) {
   }
 
   var myTasks = _tasks.filter(function(t){
-    return !t.archived && (t.assignee === myEmail || (t.sharedWith||[]).indexOf(myEmail)>=0 || t.reviewer===myEmail);
+    return !t.archived && (
+      t.assignee === myEmail ||
+      (t.importedBy||[]).indexOf(myEmail) >= 0
+    );
   });
 
   if (type === 'monthly') {
