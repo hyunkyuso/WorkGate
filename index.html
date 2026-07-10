@@ -19020,8 +19020,8 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
   }
 
   // 질의응답 행
-  html += '<tr><td style="'+tdBase+';font-weight:500">■질의/응답<br>등 회의내용</td>' +
-    '<td colspan="9" style="'+tdBase+';height:40px"></td></tr>';
+  html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500">■질의/응답<br>등 회의내용</td>' +
+    '<td colspan="8" style="'+tdBase+';height:40px"></td></tr>';
 
   html += '</table></div>';
   areaEl.innerHTML = html;
@@ -19393,6 +19393,22 @@ async function reportSaveToDrive(type) {
       // font-size 고정
       contentHtml = contentHtml.replace(/font-size:\s*[\d.]+px/g, 'font-size:8.5pt');
       contentHtml = contentHtml.replace(/font-size:\s*[\d.]+pt/g, 'font-size:8.5pt');
+      // 열 너비 고정 - table 태그 뒤에 colgroup 삽입
+      contentHtml = contentHtml.replace(
+        /<table([^>]*)>/,
+        '<table$1><colgroup>' +
+          '<col style="width:7%">' +   // 구분
+          '<col style="width:12%">' +  // 업무분장
+          '<col style="width:20%">' +  // 금월 업무내용
+          '<col style="width:4%">' +   // 공정
+          '<col style="width:6%">' +   // 진행률
+          '<col style="width:20%">' +  // 익월 업무내용
+          '<col style="width:4%">' +   // 공정
+          '<col style="width:6%">' +   // 진행률
+          '<col style="width:5%">' +   // 순위
+          '<col style="width:10%">' +  // 기간
+        '</colgroup>'
+      );
       // CSS 변수 → 실제값 치환
       contentHtml = contentHtml
         .replace(/var\(--border\)/g, '#999')
