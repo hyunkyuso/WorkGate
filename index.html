@@ -17564,7 +17564,11 @@ function taskAdminRender() {
   var search = ((document.getElementById('ta-search')||{}).value||'').trim();
   var today = new Date().toISOString().substring(0,10);
   var filtered = _tasks.filter(function(t) {
-    if (!_taSelected.has(t.assignee)) return false;
+    if (t.archived) return false;
+    // assignee 또는 importedBy에 선택된 직원이 있으면 포함
+    var matchAssignee = _taSelected.has(t.assignee);
+    var matchImported = (t.importedBy||[]).some(function(email){ return _taSelected.has(email); });
+    if (!matchAssignee && !matchImported) return false;
     if (projFilter && t.projectId !== projFilter) return false;
     if (statusFilter && t.status !== statusFilter) return false;
     if (search && (t.title||'').indexOf(search) < 0) return false;
@@ -17577,7 +17581,20 @@ function taskAdminRender() {
   var kpiEl = document.getElementById('ta-kpi-wrap');
   if (kpiEl) kpiEl.innerHTML = [{label:'전체',val:total,color:'var(--ac)',bg:'var(--acd)'},{label:'할 일',val:todo,color:'#888780',bg:'#F1EFE8'},{label:'진행 중',val:doing,color:'#378ADD',bg:'#E6F1FB'},{label:'검토 중',val:review,color:'#EF9F27',bg:'#FAEEDA'},{label:'완료',val:done,color:'#639922',bg:'#EAF3DE'},{label:'기한 초과',val:overdue,color:'#DC2626',bg:'#FEF2F2'}].map(function(k){ return '<div style="background:'+k.bg+';border:1px solid '+k.color+'33;border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:700;color:'+k.color+'">'+k.val+'</div><div style="font-size:11px;color:'+k.color+';margin-top:2px;opacity:.8">'+k.label+'</div></div>'; }).join('');
   var empMap = {};
-  filtered.forEach(function(t) { var em=t.assignee||''; if(!em)return; if(!empMap[em])empMap[em]={todo:0,doing:0,review:0,done:0,overdue:0,total:0,pctSum:0}; empMap[em].total++; empMap[em][t.status]=(empMap[em][t.status]||0)+1; if(t.due&&t.due<today&&t.status!=='done')empMap[em].overdue++; var cl=t.checklist||[]; var d=cl.filter(function(c){return c.done;}).length; empMap[em].pctSum+=cl.length?Math.round(d/cl.length*100):(t.progress||0); });
+  filtered.forEach(function(t) {
+    // assignee + importedBy 모두 카운트
+    var targets = [];
+    if (t.assignee && _taSelected.has(t.assignee)) targets.push(t.assignee);
+    (t.importedBy||[]).forEach(function(email){ if(_taSelected.has(email) && targets.indexOf(email)<0) targets.push(email); });
+    targets.forEach(function(em) {
+      if(!empMap[em]) empMap[em]={todo:0,doing:0,review:0,done:0,overdue:0,total:0,pctSum:0};
+      empMap[em].total++;
+      empMap[em][t.status]=(empMap[em][t.status]||0)+1;
+      if(t.due&&t.due<today&&t.status!=='done') empMap[em].overdue++;
+      var cl=t.checklist||[]; var d=cl.filter(function(c){return c.done;}).length;
+      empMap[em].pctSum+=cl.length?Math.round(d/cl.length*100):(t.progress||0);
+    });
+  });
   var tbody = document.getElementById('ta-emp-tbody');
   if (tbody) {
     var rows = Array.from(_taSelected).map(function(email) { var emp=employees.find(function(e){return e.id===email||e.email===email;}); var m=empMap[email]||{todo:0,doing:0,review:0,done:0,overdue:0,total:0,pctSum:0}; var avgPct=m.total?Math.round(m.pctSum/m.total):0; return {emp:emp,email:email,m:m,avgPct:avgPct}; }).sort(function(a,b){ return b.m.overdue-a.m.overdue||b.m.total-a.m.total; });
