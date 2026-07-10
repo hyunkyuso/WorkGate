@@ -16948,8 +16948,15 @@ function taskStartListener() {
     if (_currentProjectId && document.getElementById('task-kanban-view').style.display !== 'none') taskRender();
     projRenderSidebar();
     taskUpdateBadge();
-    updateStats();
-    renderRecentTasks();
+    // 대시보드가 열려있으면 실시간 갱신
+    var dashPage = document.getElementById('page-dashboard');
+    if (dashPage && dashPage.classList.contains('active')) {
+      updateStats();
+      renderRecentTasks();
+      renderDashProjectList();
+    } else {
+      updateStats(); // 배지/숫자는 항상 갱신
+    }
   });
 }
 
@@ -20458,7 +20465,7 @@ function taskDeleteFromDetail() {
     appId: "1:187107745836:web:c8f1c7395e157bbc2ff189"
   };
   firebase.initializeApp(firebaseConfig);
-  db = firebase.firestore(); 
+  db = firebase.firestore();
   auth = firebase.auth();
   setupAuthListener();
 })();
