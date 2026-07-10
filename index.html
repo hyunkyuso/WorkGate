@@ -19401,17 +19401,17 @@ async function reportSaveToDrive(type) {
       // 열 너비 고정 - table 태그 뒤에 colgroup 삽입
       contentHtml = contentHtml.replace(
         /<table([^>]*)>/,
-        '<table$1><colgroup>' +
-          '<col style="width:5%">' +   // 구분
-          '<col style="width:9%">' +   // 업무분장
-          '<col style="width:26%">' +  // 금월 업무내용
-          '<col style="width:3%">' +   // 공정
-          '<col style="width:4%">' +   // 진행률
-          '<col style="width:26%">' +  // 익월 업무내용
-          '<col style="width:3%">' +   // 공정
-          '<col style="width:4%">' +   // 진행률
-          '<col style="width:3%">' +   // 순위
-          '<col style="width:9%">' +   // 기간
+        '<table$1 width="100%" style="width:100%;table-layout:fixed"><colgroup>' +
+          '<col width="5%">' +
+          '<col width="9%">' +
+          '<col width="26%">' +
+          '<col width="3%">' +
+          '<col width="4%">' +
+          '<col width="26%">' +
+          '<col width="3%">' +
+          '<col width="4%">' +
+          '<col width="3%">' +
+          '<col width="9%">' +
         '</colgroup>'
       );
       // 헤더 내 <br> → 공백으로 (한 줄 표기), 단 진행률/순위/기간은 <br> 유지
@@ -19438,15 +19438,15 @@ async function reportSaveToDrive(type) {
         : '주간 업무 보고';
 
       var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
-        '@page{margin:8mm 6mm;size:A4 landscape}' +
-        'body{font-family:"맑은 고딕",Arial,sans-serif;margin:0;padding:6px;color:#1a1a1a;font-size:8pt}' +
-        'table{border-collapse:collapse;width:100%;table-layout:fixed}' +
-        'th{background:#1F4E79;color:white;text-align:center;border:1px solid #999;padding:3px 2px;font-size:7.5pt;vertical-align:middle;word-break:keep-all}' +
-        'td{border:1px solid #999;padding:3px 4px;font-size:8pt;vertical-align:middle;word-break:break-all}' +
+        '@page{margin:5mm 5mm;size:A4 landscape}' +
+        'body{font-family:"맑은 고딕",Arial,sans-serif;margin:0;padding:0;color:#1a1a1a;font-size:8pt;width:100%}' +
+        'table{border-collapse:collapse;width:100%;table-layout:fixed;max-width:100%}' +
+        'th{background:#1F4E79;color:white;text-align:center;border:1px solid #999;padding:2px 2px;font-size:7pt;vertical-align:middle;word-break:keep-all}' +
+        'td{border:1px solid #999;padding:2px 3px;font-size:7.5pt;vertical-align:middle;word-break:break-all;word-wrap:break-word}' +
         'td input{display:none}' +
-        '.report-header{border-bottom:1px solid #334155;padding-bottom:4px;margin-bottom:6px}' +
-        '.report-title{font-size:12pt;font-weight:bold;margin-bottom:2px}' +
-        '.report-meta{font-size:8pt;color:#555}' +
+        '.report-header{border-bottom:1px solid #334155;padding-bottom:4px;margin-bottom:4px}' +
+        '.report-title{font-size:11pt;font-weight:bold;margin-bottom:1px}' +
+        '.report-meta{font-size:7.5pt;color:#555}' +
         '</style></head><body>' +
         '<div class="report-header">' +
           '<div class="report-title">'+reportTitle+'</div>' +
