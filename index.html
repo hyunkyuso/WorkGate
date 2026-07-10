@@ -18651,12 +18651,66 @@ function reportLoadReviewList(type) {
 
 function reportReviewBodyHtml(data, docId) {
   var parsed = data.parsed || {};
-  var thisWeek = parsed.this_week || [];
-  var nextWeek = parsed.next_week || [];
-  var leftLabel = data.type==='weekly' ? '이번 주 한 일' : '이번 달 한 일';
-  var rightLabel = data.type==='weekly' ? '다음 주 할 일' : '다음 달 할 일';
   var sC = {완료:'#27500A',진행중:'#0C447C',예정:'#444441',긴급:'#791F1F'};
   var sB = {완료:'#EAF3DE',진행중:'#E6F1FB',예정:'#F1EFE8',긴급:'#FCEBEB'};
+  var commentHtml =
+    '<div style="border-top:0.5px solid var(--border);padding-top:12px">' +
+      '<div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">💬 검토 의견</div>' +
+      '<div id="review-comments-'+docId+'" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>' +
+      '<div style="display:flex;gap:8px">' +
+        '<textarea id="review-comment-input-'+docId+'" class="form-input" style="flex:1;height:56px;resize:none;font-size:13px" placeholder="검토 의견을 입력하세요..."></textarea>' +
+        '<button onclick="reportSubmitComment(\''+docId+'\')" class="btn btn-primary" style="font-size:12px;white-space:nowrap">전송</button>' +
+      '</div>' +
+    '</div>';
+
+  // ── 월간 보고 테이블 양식 ──
+  if (data.type === 'monthly') {
+    var tasks = parsed.tasks || [];
+    var B = '1px solid #ccc';
+    var tdS = 'border:'+B+';padding:4px 6px;font-size:11px;vertical-align:middle';
+    var tdC = tdS+';text-align:center';
+    var thS = 'border:'+B+';padding:5px 4px;font-size:10px;text-align:center;background:#1F4E79;color:#fff;vertical-align:middle';
+
+    function statusSym(s,p){ return (s==='완료'||p===100)?'√':s==='진행중'?'●':'■'; }
+
+    var tableHtml = '<div style="overflow-x:auto;margin-bottom:12px">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:11px">' +
+        '<tr><th style="'+thS+'">구분</th><th style="'+thS+'">업무분장</th>' +
+        '<th style="'+thS+'">금월 업무내용</th><th style="'+thS+'">공정</th><th style="'+thS+'">진행률</th>' +
+        '<th style="'+thS+'">익월 업무내용</th><th style="'+thS+'">공정</th><th style="'+thS+'">진행률</th>' +
+        '<th style="'+thS+'">순위</th><th style="'+thS+'">기간</th></tr>';
+
+    var orgName = data.authorDept || '';
+    var totalRows = tasks.reduce(function(s,t){ return s+Math.max((t.this_month||[]).length,(t.next_month||[]).length,1); },0);
+    var orgRendered = false;
+
+    tasks.forEach(function(task, tIdx) {
+      var tm = task.this_month||[]; var nm = task.next_month||[];
+      var maxLen = Math.max(tm.length, nm.length, 1);
+      var taskRendered = false;
+      for (var i=0; i<maxLen; i++) {
+        var tw=tm[i]||null; var nw=nm[i]||null;
+        tableHtml += '<tr>';
+        if (!orgRendered) { tableHtml += '<td style="'+tdC+';font-weight:bold;background:#f5f5f5" rowspan="'+totalRows+'">'+orgName+'</td>'; orgRendered=true; }
+        if (!taskRendered) { tableHtml += '<td style="'+tdS+';font-weight:500" rowspan="'+maxLen+'">'+task.category+'</td>'; taskRendered=true; }
+        tableHtml += tw ? '<td style="'+tdS+'">• '+tw.title+'</td><td style="'+tdC+'">'+statusSym(tw.status,tw.pct)+'</td><td style="'+tdC+'">'+tw.pct+'%</td>'
+                        : '<td style="'+tdS+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
+        tableHtml += nw ? '<td style="'+tdS+'">• '+nw.title+'</td><td style="'+tdC+'"></td><td style="'+tdC+'">'+nw.pct+'%</td><td style="'+tdC+'">'+(nw.priority||'')+'</td><td style="'+tdC+';font-size:10px">'+(nw.end||'')+'</td>'
+                        : '<td style="'+tdS+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
+        tableHtml += '</tr>';
+      }
+    });
+
+    // 협조사항
+    tableHtml += '<tr><td colspan="2" style="'+tdS+';font-weight:500">■협조사항</td><td colspan="8" style="'+tdS+'">'+(parsed.issue||'')+'</td></tr>';
+    tableHtml += '</table></div>';
+
+    return tableHtml + commentHtml;
+  }
+
+  // ── 주간 보고 양식 ──
+  var thisWeek = parsed.this_week || [];
+  var nextWeek = parsed.next_week || [];
 
   function taskRow(t) {
     var status = t.status||'예정';
@@ -18677,11 +18731,11 @@ function reportReviewBodyHtml(data, docId) {
 
   return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">' +
     '<div style="border:0.5px solid var(--border);border-radius:8px;overflow:hidden">' +
-      '<div style="padding:8px 12px;font-size:11px;font-weight:500;background:#E6F1FB;color:#0C447C;border-bottom:0.5px solid #B5D4F4">'+leftLabel+'</div>' +
+      '<div style="padding:8px 12px;font-size:11px;font-weight:500;background:#E6F1FB;color:#0C447C;border-bottom:0.5px solid #B5D4F4">이번 주 한 일</div>' +
       (thisWeek.length ? thisWeek.map(taskRow).join('') : '<div style="padding:12px;text-align:center;color:var(--t3);font-size:12px">없음</div>') +
     '</div>' +
     '<div style="border:0.5px solid var(--border);border-radius:8px;overflow:hidden">' +
-      '<div style="padding:8px 12px;font-size:11px;font-weight:500;background:#EAF3DE;color:#27500A;border-bottom:0.5px solid #C0DD97">'+rightLabel+'</div>' +
+      '<div style="padding:8px 12px;font-size:11px;font-weight:500;background:#EAF3DE;color:#27500A;border-bottom:0.5px solid #C0DD97">다음 주 할 일</div>' +
       (nextWeek.length ? nextWeek.map(taskRow).join('') : '<div style="padding:12px;text-align:center;color:var(--t3);font-size:12px">없음</div>') +
     '</div>' +
   '</div>' +
@@ -18689,15 +18743,7 @@ function reportReviewBodyHtml(data, docId) {
     '<div style="font-size:11px;color:var(--t3);margin-bottom:4px">이슈 및 건의사항</div>' +
     (parsed.issues||'없음') +
   '</div>' +
-  // 댓글 영역
-  '<div style="border-top:0.5px solid var(--border);padding-top:12px">' +
-    '<div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">💬 검토 의견</div>' +
-    '<div id="review-comments-'+docId+'" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>' +
-    '<div style="display:flex;gap:8px">' +
-      '<textarea id="review-comment-input-'+docId+'" class="form-input" style="flex:1;height:56px;resize:none;font-size:13px" placeholder="검토 의견을 입력하세요..."></textarea>' +
-      '<button onclick="reportSubmitComment(\''+docId+'\')" class="btn btn-primary" style="font-size:12px;white-space:nowrap">전송</button>' +
-    '</div>' +
-  '</div>';
+  commentHtml;
 }
 
 function reportToggleHighlight(key, tIdx, iIdx, side) {
@@ -19600,7 +19646,8 @@ function reportSave(type) {
   db.collection('reports').doc(docId).set({
     type: type, period: d.period, parsed: d.parsed,
     author: myEmail, authorName: d.author||'',
-    reviewer: reviewerEmail || reviewerName, // 이메일 우선, 없으면 이름
+    authorDept: d.dept||'',
+    reviewer: reviewerEmail || reviewerName,
     reviewerName: reviewerName,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function(){ showToast('💾 저장되었습니다'); })
