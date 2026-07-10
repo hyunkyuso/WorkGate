@@ -18954,31 +18954,32 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
   html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500">■본부내 업무 협조 사항<br>및 업무 프로세스 등 이슈</td>' +
     '<td colspan="8" style="'+tdBase+'">'+(parsed.issue||'')+'</td></tr>';
 
-  // 중점업무 행 - _key의 side에 따라 금월/익월 각자
-  // highlight를 행 단위로 묶기 (같은 title의 this/next를 한 행으로)
+  // 중점업무 행 - highlight 순서대로, 같은 tIdx:iIdx끼리 합치기
   var hlRows = [];
+  var hlRowMap = {};
   highlight.forEach(function(ht) {
     var key = ht._key||'';
     var side = key.split('::')[0];
     var idxPart = key.split('::')[1]||'';
     var tIdx = parseInt(idxPart.split(':')[0]);
     var iIdx = parseInt(idxPart.split(':')[1]);
-    // 대응하는 익월 업무 찾기
     var nwItem = null;
     if (!isNaN(tIdx) && !isNaN(iIdx)) {
       var task = tasks[tIdx];
       if (task) nwItem = (task.next_month||[])[iIdx] || null;
     }
-    // 같은 title+tIdx 행 합치기
     var rowKey = tIdx+':'+iIdx;
-    var existing = hlRows.find(function(r){ return r.rowKey===rowKey; });
-    if (existing) {
-      if (side==='this') existing.thisItem = ht;
-      else existing.nextItem = ht;
+    if (hlRowMap[rowKey]) {
+      // 이미 있는 행에 반대쪽 추가
+      if (side==='this') hlRowMap[rowKey].thisItem = ht;
+      else hlRowMap[rowKey].nextItem = ht;
+      // priority는 익월 우선
+      if (side==='next' && ht.priority!=null) hlRowMap[rowKey].priority = ht.priority;
     } else {
       var row = {rowKey: rowKey, priority: ht.priority, nwItem: nwItem};
       if (side==='this') row.thisItem = ht;
       else row.nextItem = ht;
+      hlRowMap[rowKey] = row;
       hlRows.push(row);
     }
   });
@@ -19861,7 +19862,7 @@ function reportEditMonthlySyncDOM() {
     var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item);
     if(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].this_month[ii]) window._editParsed.tasks[ti].this_month[ii].pct=parseInt(el.value)||0;
   });
-  document.querySelectorAll('.me-start').forEach(function(el) {
+  document.querySelectorAll('.me-start, .me-next-start').forEach(function(el) {
     var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item); var side=el.dataset.side||'this';
     var arr=side==='next'?(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].next_month):(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].this_month);
     if(arr&&arr[ii]) arr[ii].start=el.value;
@@ -20401,7 +20402,7 @@ function taskDeleteFromDetail() {
     storageBucket: "workgate-e6c56.firebasestorage.app",
     messagingSenderId: "187107745836",
     appId: "1:187107745836:web:c8f1c7395e157bbc2ff189"
-  }; 
+  };
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
   auth = firebase.auth();
