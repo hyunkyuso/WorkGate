@@ -18661,19 +18661,19 @@ function reportReviewBodyHtml(data, docId) {
 function reportToggleHighlight(title, side) {
   var d = _reportData['monthly'];
   if (!d || !d.parsed) return;
-  var hl = d.parsed.highlight || [];
-  // side(this/next)와 title 조합으로 구분
+  // 수정 중이면 _editParsed 동기화 후 사용
+  if (window._editParsed) reportEditMonthlySyncDOM();
+  var target = window._editParsed || d.parsed;
+  var hl = target.highlight || [];
   var key = side+'::'+title;
   var idx = hl.findIndex(function(h){ return h._key===key; });
   if (idx >= 0) {
     hl.splice(idx, 1);
   } else {
     var found = null;
-    (d.parsed.tasks||[]).forEach(function(task) {
+    (target.tasks||[]).forEach(function(task) {
       var arr = side==='this' ? task.this_month : task.next_month;
-      (arr||[]).forEach(function(t) {
-        if (t.title===title) found = t;
-      });
+      (arr||[]).forEach(function(t) { if (t.title===title) found = t; });
     });
     if (found) hl.push({
       _key: key,
@@ -18681,8 +18681,13 @@ function reportToggleHighlight(title, side) {
       priority: hl.length+1, start: found.start||'', end: found.end||''
     });
   }
-  d.parsed.highlight = hl;
-  reportRenderMonthly(d.parsed, d.period, d.author, d.dept, d.reviewer);
+  target.highlight = hl;
+  if (window._editParsed) {
+    reportEditMonthly();
+  } else {
+    d.parsed.highlight = hl;
+    reportRenderMonthly(d.parsed, d.period, d.author, d.dept, d.reviewer);
+  }
 }
 
 function reportUpdatePriority(tIdx, iIdx, value) {
@@ -18691,6 +18696,11 @@ function reportUpdatePriority(tIdx, iIdx, value) {
   var tasks = d.parsed.tasks||[];
   if (tasks[tIdx] && tasks[tIdx].next_month[iIdx]) {
     tasks[tIdx].next_month[iIdx].priority = parseInt(value)||1;
+    // highlight에도 반영
+    var title = tasks[tIdx].next_month[iIdx].title;
+    (d.parsed.highlight||[]).forEach(function(h) {
+      if (h.title===title) h.priority = parseInt(value)||1;
+    });
   }
 }
 function reportToggleReview(docId) {
@@ -19188,13 +19198,8 @@ async function reportGenerate(type) {
       return ai - bi;
     });
 
-    // 중점업무: 금월 업무 중 진행중이거나 완료
+    // 중점업무: 초기에는 비워두고 사용자가 체크박스로 선택
     var highlight = [];
-    tasks.forEach(function(task) {
-      (task.this_month||[]).forEach(function(t, i) {
-        if (highlight.length < 5) highlight.push({title:t.title, status:t.status, pct:t.pct, priority:i+1, start:t.start, end:t.end});
-      });
-    });
 
     var parsed = { tasks: tasks, highlight: highlight, issue: issues };
     _reportData['monthly'] = { parsed: parsed, period: periodLabel, author: name, dept: dept, reviewer: reviewerName, issues: issues };
@@ -19847,9 +19852,30 @@ function reportEditMonthlyRemoveItem(tIdx, side, iIdx) {
 function reportEditMonthlyApply() {
   if (!window._editParsed||!_reportData['monthly']) return;
   reportEditMonthlySyncDOM();
-  _reportData['monthly'].parsed=window._editParsed; window._editParsed=null;
-  var d=_reportData['monthly'];
-  reportRenderMonthly(d.parsed,d.period,d.author,d.dept,d.reviewer);
+  // 기존 highlight의 _key 목록 유지하면서 내용은 수정된 task에서 갱신
+  var oldHL = (_reportData['monthly'].parsed.highlight||[]);
+  var newTasks = window._editParsed.tasks||[];
+  var newHL = [];
+  oldHL.forEach(function(h) {
+    var key = h._key||''; // 'this::제목' or 'next::제목'
+    var side = key.split('::')[0];
+    var title = key.split('::').slice(1).join('::');
+    // 수정된 task에서 같은 side+title 업무 찾기
+    var found = null;
+    newTasks.forEach(function(task) {
+      var arr = side==='this' ? task.this_month : task.next_month;
+      (arr||[]).forEach(function(t){ if(t.title===title) found=t; });
+    });
+    if (found) {
+      newHL.push({_key:key, title:found.title, status:found.status, pct:found.pct, priority:h.priority, start:found.start||'', end:found.end||''});
+    }
+    // 수정 후 제목이 바뀐 경우 체크 해제됨 (정상 동작)
+  });
+  window._editParsed.highlight = newHL;
+  _reportData['monthly'].parsed = window._editParsed;
+  window._editParsed = null;
+  var d = _reportData['monthly'];
+  reportRenderMonthly(d.parsed, d.period, d.author, d.dept, d.reviewer);
 }
 
 function reportEditMonthlyCancel() {
