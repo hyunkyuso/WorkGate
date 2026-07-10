@@ -394,10 +394,11 @@ select.form-input{cursor:pointer}
 
         <!-- KPI 통계 -->
         <div class="stats-grid" style="margin-bottom:20px">
-          <div class="stat-card"><div class="stat-val" style="color:var(--ac)" id="st-total">0</div><div class="stat-label">전체 업무</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:var(--ac)" id="st-total">0</div><div class="stat-label">내 업무</div></div>
           <div class="stat-card"><div class="stat-val" style="color:var(--am)" id="st-inprogress">0</div><div class="stat-label">진행 중</div></div>
           <div class="stat-card"><div class="stat-val" style="color:var(--gr)" id="st-done">0</div><div class="stat-label">완료</div></div>
           <div class="stat-card"><div class="stat-val" style="color:#E24B4A" id="st-urgent">0</div><div class="stat-label">기한 임박</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:#8B5CF6" id="st-shared">0</div><div class="stat-label">공유받은 업무</div></div>
         </div>
 
         <!-- 프로젝트 현황 -->
@@ -3688,13 +3689,35 @@ function renderDashboard() {
 }
 
 function updateStats() {
+  var myEmail = state.user ? state.user.email : '';
   var today = new Date().toISOString().substring(0,10);
   var soon = new Date(Date.now()+3*86400000).toISOString().substring(0,10);
-  document.getElementById('st-total').textContent = _tasks.length;
-  document.getElementById('st-inprogress').textContent = _tasks.filter(function(t){ return t.status==='doing'; }).length;
-  document.getElementById('st-done').textContent = _tasks.filter(function(t){ return t.status==='done'; }).length;
+
+  // 내 담당 업무 + 가져온 업무
+  var myTasks = _tasks.filter(function(t) {
+    return !t.archived && (
+      t.assignee === myEmail ||
+      (t.importedBy||[]).indexOf(myEmail) >= 0
+    );
+  });
+
+  // 공유받은 업무 (아직 가져오기 안 한 것)
+  var sharedTasks = _tasks.filter(function(t) {
+    if (t.archived) return false;
+    var isShared = (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail;
+    if (!isShared) return false;
+    if (t.assignee === myEmail) return false;
+    if ((t.importedBy||[]).indexOf(myEmail) >= 0) return false;
+    return true;
+  });
+
+  document.getElementById('st-total').textContent = myTasks.length;
+  document.getElementById('st-inprogress').textContent = myTasks.filter(function(t){ return t.status==='doing'; }).length;
+  document.getElementById('st-done').textContent = myTasks.filter(function(t){ return t.status==='done'; }).length;
   var urgentEl = document.getElementById('st-urgent');
-  if (urgentEl) urgentEl.textContent = _tasks.filter(function(t){ return t.due && t.due <= soon && t.status !== 'done'; }).length;
+  if (urgentEl) urgentEl.textContent = myTasks.filter(function(t){ return t.due && t.due <= soon && t.status !== 'done'; }).length;
+  var sharedEl = document.getElementById('st-shared');
+  if (sharedEl) sharedEl.textContent = sharedTasks.length;
   renderDashProjectList();
 }
 
@@ -19397,18 +19420,20 @@ async function reportSaveToDrive(type) {
       contentHtml = contentHtml.replace(
         /<table([^>]*)>/,
         '<table$1><colgroup>' +
-          '<col style="width:7%">' +   // 구분
-          '<col style="width:12%">' +  // 업무분장
-          '<col style="width:20%">' +  // 금월 업무내용
-          '<col style="width:4%">' +   // 공정
-          '<col style="width:6%">' +   // 진행률
-          '<col style="width:20%">' +  // 익월 업무내용
-          '<col style="width:4%">' +   // 공정
-          '<col style="width:6%">' +   // 진행률
-          '<col style="width:5%">' +   // 순위
-          '<col style="width:10%">' +  // 기간
+          '<col style="width:6%">' +   // 구분
+          '<col style="width:10%">' +  // 업무분장
+          '<col style="width:22%">' +  // 금월 업무내용
+          '<col style="width:3.5%">' + // 공정
+          '<col style="width:5.5%">' + // 진행률
+          '<col style="width:22%">' +  // 익월 업무내용
+          '<col style="width:3.5%">' + // 공정
+          '<col style="width:5.5%">' + // 진행률
+          '<col style="width:4%">' +   // 순위
+          '<col style="width:8%">' +   // 기간
         '</colgroup>'
       );
+      // 헤더 줄바꿈 강제 (br 태그 유지)
+      contentHtml = contentHtml.replace(/<br>/g, '<br>');
       // CSS 변수 → 실제값 치환
       contentHtml = contentHtml
         .replace(/var\(--border\)/g, '#999')
@@ -19427,20 +19452,19 @@ async function reportSaveToDrive(type) {
         : '주간 업무 보고';
 
       var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
-        '@page{margin:10mm 8mm}' +
-        'body{font-family:"맑은 고딕",Arial,sans-serif;margin:0;padding:8px;color:#1a1a1a;font-size:9pt}' +
+        '@page{margin:8mm 6mm;size:A4 landscape}' +
+        'body{font-family:"맑은 고딕",Arial,sans-serif;margin:0;padding:6px;color:#1a1a1a;font-size:8pt}' +
         'table{border-collapse:collapse;width:100%;table-layout:fixed}' +
-        'th,td{border:1px solid #999;padding:3px 5px;font-size:8.5pt;word-break:keep-all;word-wrap:break-word;vertical-align:middle}' +
-        'th{background:#1F4E79;color:white;text-align:center;white-space:nowrap;font-size:8pt}' +
-        'td input{display:none}' + /* 체크박스 숨기기 */
-        'div{white-space:normal}' +
-        '.report-header{border-bottom:1px solid #334155;padding-bottom:6px;margin-bottom:8px}' +
-        '.report-title{font-size:14pt;font-weight:bold;margin-bottom:2px}' +
-        '.report-meta{font-size:9pt;color:#555}' +
+        'th{background:#1F4E79;color:white;text-align:center;border:1px solid #999;padding:3px 2px;font-size:7.5pt;vertical-align:middle;word-break:keep-all}' +
+        'td{border:1px solid #999;padding:3px 4px;font-size:8pt;vertical-align:middle;word-break:break-all}' +
+        'td input{display:none}' +
+        '.report-header{border-bottom:1px solid #334155;padding-bottom:4px;margin-bottom:6px}' +
+        '.report-title{font-size:12pt;font-weight:bold;margin-bottom:2px}' +
+        '.report-meta{font-size:8pt;color:#555}' +
         '</style></head><body>' +
         '<div class="report-header">' +
           '<div class="report-title">'+reportTitle+'</div>' +
-          '<div class="report-meta">작성자: '+d.author+(d.dept?' ('+d.dept+')':'')+'&nbsp;&nbsp;|&nbsp;&nbsp;기간: '+d.period+(d.reviewer?'&nbsp;&nbsp;|&nbsp;&nbsp;검토자: '+d.reviewer:'')+'</div>' +
+          '<div class="report-meta">작성자: '+d.author+(d.dept?' ('+d.dept+')':'')+'&nbsp;|&nbsp;기간: '+d.period+(d.reviewer?'&nbsp;|&nbsp;검토자: '+d.reviewer:'')+'</div>' +
         '</div>' +
         contentHtml +
         '</body></html>';
