@@ -18353,7 +18353,9 @@ function reportSearchHistory(type) {
         var dtStr = dt ? (dt.getMonth()+1)+'/'+dt.getDate()+' '+(dt.getHours()<10?'0':'')+dt.getHours()+':'+(dt.getMinutes()<10?'0':'')+dt.getMinutes() : '';
         var btn = document.createElement('div');
         btn.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;background:var(--surface)';
-        btn.innerHTML = '<span style="color:var(--t1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+data.period+'</span><span style="color:var(--t3);flex-shrink:0;margin-left:6px">'+dtStr+'</span>';
+        btn.innerHTML = '<span style="color:var(--t1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+data.period+'</span>' +
+          '<span style="color:var(--t3);flex-shrink:0;margin-left:6px;margin-right:6px">'+dtStr+'</span>' +
+          '<span onclick="event.stopPropagation();reportDeleteHistory(\''+d.id+'\',\''+type+'\')" style="color:#E24B4A;font-size:14px;cursor:pointer;flex-shrink:0;line-height:1" title="삭제">×</span>';
         btn.onclick = function() { reportLoadFromHistory(d.id, type); };
         btn.onmouseover = function(){ this.style.borderColor='var(--ac)'; this.style.background='var(--acd)'; };
         btn.onmouseout = function(){ this.style.borderColor='var(--border)'; this.style.background='var(--surface)'; };
@@ -18362,6 +18364,14 @@ function reportSearchHistory(type) {
     }).catch(function() {
       listEl.innerHTML = '<div style="font-size:11px;color:var(--t3)">불러오기 실패</div>';
     });
+}
+
+function reportDeleteHistory(docId, type) {
+  if (!confirm('이 보고서를 삭제하시겠습니까?')) return;
+  db.collection('reports').doc(docId).delete().then(function() {
+    showToast('🗑 보고서가 삭제되었습니다');
+    reportSearchHistory(type);
+  }).catch(function(e){ showToast('❌ 삭제 실패: '+e.message); });
 }
 
 function reportLoadFromHistory(docId, type) {
@@ -18695,12 +18705,15 @@ function reportUpdatePriority(tIdx, iIdx, value) {
   if (!d || !d.parsed) return;
   var tasks = d.parsed.tasks||[];
   if (tasks[tIdx] && tasks[tIdx].next_month[iIdx]) {
-    tasks[tIdx].next_month[iIdx].priority = parseInt(value)||1;
-    // highlight에도 반영
+    var pri = parseInt(value)||1;
+    tasks[tIdx].next_month[iIdx].priority = pri;
     var title = tasks[tIdx].next_month[iIdx].title;
+    // highlight에도 반영
     (d.parsed.highlight||[]).forEach(function(h) {
-      if (h.title===title) h.priority = parseInt(value)||1;
+      if (h.title===title) h.priority = pri;
     });
+    // 즉시 재렌더
+    reportRenderMonthly(d.parsed, d.period, d.author, d.dept, d.reviewer);
   }
 }
 function reportToggleReview(docId) {
@@ -18930,23 +18943,49 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
   html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500">■본부내 업무 협조 사항<br>및 업무 프로세스 등 이슈</td>' +
     '<td colspan="8" style="'+tdBase+'">'+(parsed.issue||'')+'</td></tr>';
 
-  // 중점업무 행
-  if (highlight.length) {
-    highlight.forEach(function(ht, hi) {
-      if (hi === 0) {
-        html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500;vertical-align:middle" rowspan="'+highlight.length+'">■금월 중점업무<br><span style="font-size:10px;color:#888;font-weight:normal">업무내용 우측 □ 체크</span></td>';
+  // 중점업무 행 - _key의 side에 따라 금월/익월 각자
+  // highlight를 행 단위로 묶기 (같은 title의 this/next를 한 행으로)
+  var hlRows = [];
+  highlight.forEach(function(ht) {
+    var key = ht._key||'';
+    var side = key.split('::')[0]; // 'this' or 'next'
+    var title = key.split('::').slice(1).join('::');
+    // 같은 title 행이 있으면 합치기
+    var existing = hlRows.find(function(r){ return r.title===title; });
+    if (existing) {
+      if (side==='this') existing.thisItem = ht;
+      else existing.nextItem = ht;
+      // 순위는 낮은 값 우선
+      if (ht.priority && (!existing.priority || ht.priority < existing.priority)) existing.priority = ht.priority;
+    } else {
+      var row = {title:title, priority:ht.priority||hlRows.length+1};
+      if (side==='this') row.thisItem = ht;
+      else row.nextItem = ht;
+      hlRows.push(row);
+    }
+  });
+
+  if (hlRows.length) {
+    hlRows.forEach(function(row, ri) {
+      var tw = row.thisItem; var nw = row.nextItem;
+      if (ri === 0) {
+        html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500;vertical-align:middle" rowspan="'+hlRows.length+'">■금월 중점업무<br><span style="font-size:10px;color:#888;font-weight:normal">업무내용 우측 □ 체크</span></td>';
       } else {
         html += '<tr>';
       }
-      html += '<td style="'+tdBase+'">• '+ht.title+'</td>' +
-        '<td style="'+tdC+'">'+statusSym(ht.status,ht.pct)+'</td>' +
-        '<td style="'+tdC+'">'+ht.pct+'%</td>' +
-        '<td style="'+tdBase+'">• '+ht.title+'</td>' +
-        '<td style="'+tdC+'">'+nextStatusSym(ht)+'</td>' +
-        '<td style="'+tdC+'">'+nextPct(ht)+'</td>' +
-        '<td style="'+tdC+'">'+(ht.priority||hi+1)+'</td>' +
-        '<td style="'+tdC+';font-size:10px">'+(fmtDate(ht.start)&&fmtDate(ht.end)?fmtDate(ht.start)+'~'+fmtDate(ht.end):'')+'</td>' +
-      '</tr>';
+      // 금월
+      html += tw ?
+        '<td style="'+tdBase+'">• '+tw.title+'</td><td style="'+tdC+'">'+statusSym(tw.status,tw.pct)+'</td><td style="'+tdC+'">'+tw.pct+'%</td>' :
+        '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
+      // 익월
+      html += nw ?
+        '<td style="'+tdBase+'">• '+nw.title+'</td><td style="'+tdC+'">'+nextStatusSym(nw)+'</td><td style="'+tdC+'">'+nextPct(nw)+'</td>' :
+        '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
+      // 순위/기간 (this 우선, 없으면 next)
+      var ref = tw||nw;
+      html += '<td style="'+tdC+'">'+(row.priority||ri+1)+'</td>';
+      html += '<td style="'+tdC+';font-size:10px">'+(ref&&fmtDate(ref.start)&&fmtDate(ref.end)?fmtDate(ref.start)+'~'+fmtDate(ref.end):'')+'</td>';
+      html += '</tr>';
     });
   } else {
     html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500">■금월 중점업무<br><span style="font-size:10px;color:#888;font-weight:normal">업무내용 우측 □ 체크</span></td>' +
