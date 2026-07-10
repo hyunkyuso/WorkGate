@@ -3801,14 +3801,47 @@ function renderRecentTasks() {
 }
 
 function renderRecentFiles() {
-  const el = document.getElementById('recent-files-list');
-  const recent = state.driveFiles.slice(0,5);
-  if (!recent.length) { el.innerHTML = '<div style="color:var(--t3);font-size:12px">파일이 없습니다</div>'; return; }
-  el.innerHTML = recent.map(f => `
-    <div style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer" onclick="openFile('${f.webViewLink||'#'}')">
-      <span>${getIcon(f.mimeType)}</span>
-      <span style="flex:1;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
-    </div>`).join('');
+  var el = document.getElementById('recent-files-list');
+  if (!el) return;
+  var myEmail = state.user ? state.user.email : '';
+
+  // 내 업무(담당자 + 가져오기)에서 첨부파일 수집
+  var recentFiles = [];
+  _tasks.forEach(function(t) {
+    if (t.archived) return;
+    var isMine = t.assignee === myEmail || (t.importedBy||[]).indexOf(myEmail) >= 0;
+    var isShared = (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail;
+    if (!isMine && !isShared) return;
+    (t.files||[]).forEach(function(f) {
+      recentFiles.push({
+        name: f.name, size: f.size,
+        driveLink: f.driveLink||'',
+        taskTitle: t.title,
+        uploadedAt: f.uploadedAt||''
+      });
+    });
+  });
+
+  // 최근 업로드 순 정렬
+  recentFiles.sort(function(a,b){ return a.uploadedAt < b.uploadedAt ? 1 : -1; });
+  recentFiles = recentFiles.slice(0, 5);
+
+  if (!recentFiles.length) {
+    el.innerHTML = '<div style="color:var(--t3);font-size:12px">첨부된 파일이 없습니다</div>';
+    return;
+  }
+  el.innerHTML = recentFiles.map(function(f) {
+    var ext = (f.name||'').split('.').pop().toLowerCase();
+    var icon = {pdf:'📄',doc:'📝',docx:'📝',xls:'📊',xlsx:'📊',ppt:'📋',pptx:'📋',jpg:'🖼',jpeg:'🖼',png:'🖼',gif:'🖼',zip:'📦'}[ext] || '📎';
+    var sizeStr = f.size ? (f.size>1024*1024?(f.size/1024/1024).toFixed(1)+'MB':(f.size/1024).toFixed(0)+'KB') : '';
+    return '<div style="display:flex;align-items:center;gap:8px;font-size:12px'+(f.driveLink?';cursor:pointer':'')+'" '+(f.driveLink?'onclick="window.open(\''+f.driveLink+'\',\'_blank\')"':'')+' >' +
+      '<span style="font-size:16px;flex-shrink:0">'+icon+'</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.name+'</div>' +
+        '<div style="font-size:10px;color:var(--t3)">'+f.taskTitle+(sizeStr?' · '+sizeStr:'')+'</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
 }
 
 // ══════════════════════════════════════════════════
