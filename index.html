@@ -19420,20 +19420,24 @@ async function reportSaveToDrive(type) {
       contentHtml = contentHtml.replace(
         /<table([^>]*)>/,
         '<table$1><colgroup>' +
-          '<col style="width:6%">' +   // 구분
-          '<col style="width:10%">' +  // 업무분장
-          '<col style="width:22%">' +  // 금월 업무내용
-          '<col style="width:3.5%">' + // 공정
-          '<col style="width:5.5%">' + // 진행률
-          '<col style="width:22%">' +  // 익월 업무내용
-          '<col style="width:3.5%">' + // 공정
-          '<col style="width:5.5%">' + // 진행률
-          '<col style="width:4%">' +   // 순위
-          '<col style="width:8%">' +   // 기간
+          '<col style="width:5%">' +   // 구분
+          '<col style="width:9%">' +   // 업무분장
+          '<col style="width:26%">' +  // 금월 업무내용
+          '<col style="width:3%">' +   // 공정
+          '<col style="width:4%">' +   // 진행률
+          '<col style="width:26%">' +  // 익월 업무내용
+          '<col style="width:3%">' +   // 공정
+          '<col style="width:4%">' +   // 진행률
+          '<col style="width:3%">' +   // 순위
+          '<col style="width:9%">' +   // 기간
         '</colgroup>'
       );
-      // 헤더 줄바꿈 강제 (br 태그 유지)
-      contentHtml = contentHtml.replace(/<br>/g, '<br>');
+      // 헤더 내 <br> → 공백으로 (한 줄 표기), 단 진행률/순위/기간은 <br> 유지
+      contentHtml = contentHtml
+        .replace(/진행률<br>\(100%\)/g, '진행률(%)')
+        .replace(/업무<br>순위/g, '순위')
+        .replace(/시작일~<br>완료\(예정\)일/g, '시작~완료일')
+        .replace(/구 분/g, '구분');
       // CSS 변수 → 실제값 치환
       contentHtml = contentHtml
         .replace(/var\(--border\)/g, '#999')
