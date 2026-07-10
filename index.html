@@ -19385,9 +19385,17 @@ async function reportSaveToDrive(type) {
       if (!document.getElementById('monthly-report-table')) {
         contentHtml = contentHtml.replace(/<div[^>]*justify-content:flex-end[^>]*>[\s\S]*?<\/div>/, '');
       }
+      // 체크박스/input 제거
+      contentHtml = contentHtml.replace(/<input[^>]*>/g, '');
+      // padding 압축
+      contentHtml = contentHtml.replace(/padding:\s*\d+px\s+\d+px/g, 'padding:3px 5px');
+      contentHtml = contentHtml.replace(/padding:\s*[\d.]+px/g, 'padding:3px');
+      // font-size 고정
+      contentHtml = contentHtml.replace(/font-size:\s*[\d.]+px/g, 'font-size:8.5pt');
+      contentHtml = contentHtml.replace(/font-size:\s*[\d.]+pt/g, 'font-size:8.5pt');
       // CSS 변수 → 실제값 치환
       contentHtml = contentHtml
-        .replace(/var\(--border\)/g, '#e2e8f0')
+        .replace(/var\(--border\)/g, '#999')
         .replace(/var\(--border-strong\)/g, '#94a3b8')
         .replace(/var\(--surface\)/g, '#f8fafc')
         .replace(/var\(--white\)/g, '#ffffff')
@@ -19403,13 +19411,16 @@ async function reportSaveToDrive(type) {
         : '주간 업무 보고';
 
       var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
-        'body{font-family:"맑은 고딕",Arial,sans-serif;margin:24px;color:#1a1a1a}' +
-        'table{border-collapse:collapse;width:100%}' +
-        'th,td{border:1px solid #ccc;padding:6px 10px;font-size:10pt}' +
-        'th{background:#1F4E79;color:white;text-align:center}' +
-        '.report-header{border-bottom:2px solid #334155;padding-bottom:10px;margin-bottom:14px}' +
-        '.report-title{font-size:18pt;font-weight:bold;margin-bottom:4px}' +
-        '.report-meta{font-size:10pt;color:#555}' +
+        '@page{margin:10mm 8mm}' +
+        'body{font-family:"맑은 고딕",Arial,sans-serif;margin:0;padding:8px;color:#1a1a1a;font-size:9pt}' +
+        'table{border-collapse:collapse;width:100%;table-layout:fixed}' +
+        'th,td{border:1px solid #999;padding:3px 5px;font-size:8.5pt;word-break:keep-all;word-wrap:break-word;vertical-align:middle}' +
+        'th{background:#1F4E79;color:white;text-align:center;white-space:nowrap;font-size:8pt}' +
+        'td input{display:none}' + /* 체크박스 숨기기 */
+        'div{white-space:normal}' +
+        '.report-header{border-bottom:1px solid #334155;padding-bottom:6px;margin-bottom:8px}' +
+        '.report-title{font-size:14pt;font-weight:bold;margin-bottom:2px}' +
+        '.report-meta{font-size:9pt;color:#555}' +
         '</style></head><body>' +
         '<div class="report-header">' +
           '<div class="report-title">'+reportTitle+'</div>' +
