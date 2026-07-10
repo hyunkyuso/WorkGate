@@ -1672,6 +1672,7 @@ select.form-input{cursor:pointer}
             <div style="display:flex;border:0.5px solid var(--border);border-radius:8px;overflow:hidden">
               <button onclick="reportSwitchTab('weekly','write',this)" id="weekly-tab-write" style="padding:6px 14px;font-size:12px;border:none;cursor:pointer;background:var(--acd);color:var(--ac)">✏️ 작성</button>
               <button onclick="reportSwitchTab('weekly','review',this)" id="weekly-tab-review" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">👁 검토 요청 <span id="weekly-review-badge" style="display:none;background:#E24B4A;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;margin-left:4px"></span></button>
+              <button onclick="reportSwitchTab('weekly','myreports',this)" id="weekly-tab-myreports" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">📂 내 보고서</button>
             </div>
             <button onclick="reportGenerate('weekly')" class="btn btn-primary" id="weekly-gen-btn">✨ AI 보고서 생성</button>
           </div>
@@ -1708,16 +1709,6 @@ select.form-input{cursor:pointer}
               <div id="weekly-reviewer-tag" style="min-height:24px"></div>
               <input type="hidden" id="weekly-reviewer" value="">
             </div>
-            <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
-              <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">이전 보고서</div>
-              <div style="display:flex;gap:4px;margin-bottom:6px;align-items:center">
-                <input type="date" id="weekly-history-from" class="form-input" style="font-size:11px;flex:1">
-                <span style="font-size:11px;color:var(--t3)">~</span>
-                <input type="date" id="weekly-history-to" class="form-input" style="font-size:11px;flex:1">
-              </div>
-              <button onclick="reportSearchHistory('weekly')" class="btn btn-ghost" style="width:100%;font-size:12px;margin-bottom:6px">🔍 검색</button>
-              <div id="weekly-history-list" style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto"></div>
-            </div>
           </div>
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
             <div id="weekly-report-area">
@@ -1732,6 +1723,18 @@ select.form-input{cursor:pointer}
         <div id="weekly-review-area" style="display:none">
           <div id="weekly-review-list" style="display:flex;flex-direction:column;gap:12px"></div>
         </div>
+        <div id="weekly-myreports-area" style="display:none">
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:12px">📂 내 주간 보고서</div>
+            <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+              <input type="date" id="weekly-my-from" class="form-input" style="font-size:12px;flex:1">
+              <span style="font-size:11px;color:var(--t3)">~</span>
+              <input type="date" id="weekly-my-to" class="form-input" style="font-size:12px;flex:1">
+              <button onclick="reportSearchMyReports('weekly')" class="btn btn-primary" style="font-size:12px;white-space:nowrap">🔍 검색</button>
+            </div>
+            <div id="weekly-my-list" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+        </div>
       </div>
 
       <!-- ══════ 월간 보고 ══════ -->
@@ -1745,6 +1748,7 @@ select.form-input{cursor:pointer}
             <div style="display:flex;border:0.5px solid var(--border);border-radius:8px;overflow:hidden">
               <button onclick="reportSwitchTab('monthly','write',this)" id="monthly-tab-write" style="padding:6px 14px;font-size:12px;border:none;cursor:pointer;background:var(--acd);color:var(--ac)">✏️ 작성</button>
               <button onclick="reportSwitchTab('monthly','review',this)" id="monthly-tab-review" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">👁 검토 요청 <span id="monthly-review-badge" style="display:none;background:#E24B4A;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;margin-left:4px"></span></button>
+              <button onclick="reportSwitchTab('monthly','myreports',this)" id="monthly-tab-myreports" style="padding:6px 14px;font-size:12px;border:none;border-left:0.5px solid var(--border);cursor:pointer;background:var(--white);color:var(--t2)">📂 내 보고서</button>
             </div>
             <button onclick="reportGenerate('monthly')" class="btn btn-primary" id="monthly-gen-btn">✨ AI 보고서 생성</button>
           </div>
@@ -1780,16 +1784,6 @@ select.form-input{cursor:pointer}
               <div id="monthly-reviewer-tag" style="min-height:24px"></div>
               <input type="hidden" id="monthly-reviewer" value="">
             </div>
-            <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
-              <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">이전 보고서</div>
-              <div style="display:flex;gap:4px;margin-bottom:6px;align-items:center">
-                <input type="month" id="monthly-history-from" class="form-input" style="font-size:11px;flex:1">
-                <span style="font-size:11px;color:var(--t3)">~</span>
-                <input type="month" id="monthly-history-to" class="form-input" style="font-size:11px;flex:1">
-              </div>
-              <button onclick="reportSearchHistory('monthly')" class="btn btn-ghost" style="width:100%;font-size:12px;margin-bottom:6px">🔍 검색</button>
-              <div id="monthly-history-list" style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto"></div>
-            </div>
           </div>
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
             <div id="monthly-report-area">
@@ -1803,6 +1797,18 @@ select.form-input{cursor:pointer}
         <!-- 검토 탭 -->
         <div id="monthly-review-area" style="display:none">
           <div id="monthly-review-list" style="display:flex;flex-direction:column;gap:12px"></div>
+        </div>
+        <div id="monthly-myreports-area" style="display:none">
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:12px">📂 내 월간 보고서</div>
+            <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+              <input type="month" id="monthly-my-from" class="form-input" style="font-size:12px;flex:1">
+              <span style="font-size:11px;color:var(--t3)">~</span>
+              <input type="month" id="monthly-my-to" class="form-input" style="font-size:12px;flex:1">
+              <button onclick="reportSearchMyReports('monthly')" class="btn btn-primary" style="font-size:12px;white-space:nowrap">🔍 검색</button>
+            </div>
+            <div id="monthly-my-list" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
         </div>
       </div>
 
@@ -18413,11 +18419,79 @@ function reportSearchHistory(type) {
     });
 }
 
+// ── 내 보고서 검색 ──
+function reportSearchMyReports(type) {
+  var myEmail = state.user ? state.user.email : '';
+  var listEl = document.getElementById(type+'-my-list');
+  if (!listEl) return;
+  var fromVal = document.getElementById(type+'-my-from').value;
+  var toVal = document.getElementById(type+'-my-to').value;
+  if (!fromVal && !toVal) { listEl.innerHTML = '<div style="font-size:12px;color:var(--t3);padding:8px">기간을 선택해주세요</div>'; return; }
+
+  listEl.innerHTML = '<div style="font-size:12px;color:var(--t3);padding:8px">검색 중...</div>';
+
+  db.collection('reports').where('author','==',myEmail).where('type','==',type).get()
+    .then(function(snap) {
+      var docs = [];
+      snap.forEach(function(d) {
+        var dt = d.data().createdAt ? d.data().createdAt.toDate() : null;
+        if (!dt) return;
+        var dtStr = dt.toISOString().substring(0,10);
+        var dtMonth = dt.toISOString().substring(0,7);
+        var match = true;
+        if (type==='weekly') {
+          if (fromVal && dtStr < fromVal) match = false;
+          if (toVal && dtStr > toVal) match = false;
+        } else {
+          if (fromVal && dtMonth < fromVal) match = false;
+          if (toVal && dtMonth > toVal) match = false;
+        }
+        if (match) docs.push(d);
+      });
+      docs.sort(function(a,b){ return b.data().createdAt.toMillis()-a.data().createdAt.toMillis(); });
+
+      if (!docs.length) { listEl.innerHTML = '<div style="font-size:12px;color:var(--t3);padding:8px">해당 기간 보고서 없음</div>'; return; }
+
+      listEl.innerHTML = '';
+      docs.forEach(function(d) {
+        var data = d.data();
+        var dt = data.createdAt ? data.createdAt.toDate() : null;
+        var dtStr = dt ? dt.getFullYear()+'.'+(dt.getMonth()+1)+'.'+dt.getDate() : '';
+        var reviewerName = data.reviewerName || data.reviewer || '';
+        var card = document.createElement('div');
+        card.style.cssText = 'background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden';
+        card.innerHTML =
+          '<div style="padding:12px 16px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="reportToggleMyReport(\''+d.id+'\',\''+type+'\')">' +
+            '<div>' +
+              '<div style="font-size:13px;font-weight:600;color:var(--t1)">'+data.period+'</div>' +
+              '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+dtStr+(reviewerName?' · 검토자: '+reviewerName:'')+'</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
+              '<button onclick="event.stopPropagation();reportDeleteHistory(\''+d.id+'\',\''+type+'\')" style="font-size:12px;color:#E24B4A;background:none;border:none;cursor:pointer">🗑</button>' +
+              '<span style="font-size:16px;color:var(--t3)">▾</span>' +
+            '</div>' +
+          '</div>' +
+          '<div id="myreport-body-'+d.id+'" style="display:none;padding:16px">' +
+            reportReviewBodyHtml(data, d.id) +
+          '</div>';
+        listEl.appendChild(card);
+      });
+    }).catch(function(e){ listEl.innerHTML = '<div style="font-size:12px;color:#E24B4A;padding:8px">오류: '+e.message+'</div>'; });
+}
+
+function reportToggleMyReport(docId, type) {
+  var body = document.getElementById('myreport-body-'+docId);
+  if (!body) return;
+  var isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) reportLoadComments(docId);
+}
+
 function reportDeleteHistory(docId, type) {
   if (!confirm('이 보고서를 삭제하시겠습니까?')) return;
   db.collection('reports').doc(docId).delete().then(function() {
     showToast('🗑 보고서가 삭제되었습니다');
-    reportSearchHistory(type);
+    reportSearchMyReports(type);
   }).catch(function(e){ showToast('❌ 삭제 실패: '+e.message); });
 }
 
@@ -18571,26 +18645,35 @@ function reportGetTasks(type) {
 function reportSwitchTab(type, tab, btn) {
   var writeArea = document.getElementById(type+'-write-area');
   var reviewArea = document.getElementById(type+'-review-area');
+  var myreportsArea = document.getElementById(type+'-myreports-area');
   var writeTab = document.getElementById(type+'-tab-write');
   var reviewTab = document.getElementById(type+'-tab-review');
+  var myreportsTab = document.getElementById(type+'-tab-myreports');
   var genBtn = document.getElementById(type+'-gen-btn');
   var saveBtn = document.getElementById(type+'-save-btn');
 
+  // 전체 숨기기
+  if (writeArea) writeArea.style.display = 'none';
+  if (reviewArea) reviewArea.style.display = 'none';
+  if (myreportsArea) myreportsArea.style.display = 'none';
+  [writeTab, reviewTab, myreportsTab].forEach(function(t) {
+    if (t) { t.style.background = 'var(--white)'; t.style.color = 'var(--t2)'; }
+  });
+  if (genBtn) genBtn.style.display = 'none';
+  if (saveBtn) saveBtn.style.display = 'none';
+
   if (tab === 'write') {
     if (writeArea) writeArea.style.display = 'grid';
-    if (reviewArea) reviewArea.style.display = 'none';
-    writeTab.style.background = 'var(--acd)'; writeTab.style.color = 'var(--ac)';
-    reviewTab.style.background = 'var(--white)'; reviewTab.style.color = 'var(--t2)';
+    if (writeTab) { writeTab.style.background = 'var(--acd)'; writeTab.style.color = 'var(--ac)'; }
     if (genBtn) genBtn.style.display = '';
     if (saveBtn && _reportData[type] && _reportData[type].parsed) saveBtn.style.display = '';
-  } else {
-    if (writeArea) writeArea.style.display = 'none';
+  } else if (tab === 'review') {
     if (reviewArea) reviewArea.style.display = 'block';
-    writeTab.style.background = 'var(--white)'; writeTab.style.color = 'var(--t2)';
-    reviewTab.style.background = 'var(--acd)'; reviewTab.style.color = 'var(--ac)';
-    if (genBtn) genBtn.style.display = 'none';
-    if (saveBtn) saveBtn.style.display = 'none';
+    if (reviewTab) { reviewTab.style.background = 'var(--acd)'; reviewTab.style.color = 'var(--ac)'; }
     reportLoadReviewList(type);
+  } else if (tab === 'myreports') {
+    if (myreportsArea) myreportsArea.style.display = 'block';
+    if (myreportsTab) { myreportsTab.style.background = 'var(--acd)'; myreportsTab.style.color = 'var(--ac)'; }
   }
 }
 
