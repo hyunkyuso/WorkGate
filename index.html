@@ -18604,13 +18604,16 @@ function reportLoadReviewList(type) {
 
   // 이메일로 조회 + 이름으로 조회 병합
   Promise.all([
-    db.collection('reports').where('reviewer','==',myEmail).where('type','==',type).orderBy('createdAt','desc').limit(20).get().catch(function(){ return null; }),
-    myName ? db.collection('reports').where('reviewer','==',myName).where('type','==',type).orderBy('createdAt','desc').limit(20).get().catch(function(){ return null; }) : Promise.resolve(null)
+    db.collection('reports').where('reviewer','==',myEmail).where('type','==',type).get().catch(function(){ return null; }),
+    db.collection('reports').where('reviewer','==',myEmail).get().catch(function(){ return null; }),
+    myName ? db.collection('reports').where('reviewer','==',myName).get().catch(function(){ return null; }) : Promise.resolve(null)
   ]).then(function(results) {
     var docsMap = {};
     results.forEach(function(snap) {
       if (!snap) return;
-      snap.forEach(function(d){ docsMap[d.id] = d; });
+      snap.forEach(function(d){
+        if (d.data().type === type) docsMap[d.id] = d;
+      });
     });
     var docs = Object.values(docsMap).sort(function(a,b){
       var at = a.data().createdAt ? a.data().createdAt.toMillis() : 0;
