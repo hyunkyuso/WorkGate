@@ -1683,17 +1683,19 @@ select.form-input{cursor:pointer}
               <div style="font-size:11px;color:var(--t3);margin-bottom:4px">시작일</div>
               <input id="weekly-start" type="date" class="form-input" style="font-size:13px">
             </div>
-            <div style="margin-bottom:14px">
+            <div style="margin-bottom:10px">
               <div style="font-size:11px;color:var(--t3);margin-bottom:4px">종료일</div>
               <input id="weekly-end" type="date" class="form-input" style="font-size:13px">
             </div>
-            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
-              <button onclick="reportSetWeek(0)" class="btn btn-ghost" style="font-size:12px;text-align:left">이번 주</button>
-              <button onclick="reportSetWeek(-1)" class="btn btn-ghost" style="font-size:12px;text-align:left">지난 주</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:14px">
+              <button onclick="reportSetWeek(0)" class="btn btn-ghost" style="font-size:11px">이번 주</button>
+              <button onclick="reportSetWeek(-1)" class="btn btn-ghost" style="font-size:11px">지난 주</button>
+              <button onclick="reportSetWeek(-2)" class="btn btn-ghost" style="font-size:11px">2주 전</button>
+              <button onclick="reportSetWeek(-3)" class="btn btn-ghost" style="font-size:11px">3주 전</button>
             </div>
             <div style="border-top:0.5px solid var(--border);padding-top:12px">
               <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">이슈/특이사항</div>
-              <textarea id="weekly-issues" class="form-input" style="height:80px;resize:none;font-size:12px" placeholder="이슈, 특이사항, 협조 요청 등"></textarea>
+              <textarea id="weekly-issues" class="form-input" style="height:70px;resize:none;font-size:12px" placeholder="이슈, 특이사항, 협조 요청 등"></textarea>
             </div>
             <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
               <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">검토자</div>
@@ -1704,6 +1706,13 @@ select.form-input{cursor:pointer}
               <div id="weekly-reviewer-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:100px;overflow-y:auto;margin-bottom:6px"></div>
               <div id="weekly-reviewer-tag" style="min-height:24px"></div>
               <input type="hidden" id="weekly-reviewer" value="">
+            </div>
+            <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-size:13px;font-weight:600;color:var(--t1)">이전 보고서</div>
+                <button onclick="reportLoadHistory('weekly')" style="font-size:11px;color:var(--ac);background:none;border:none;cursor:pointer">새로고침</button>
+              </div>
+              <div id="weekly-history-list" style="display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto"></div>
             </div>
           </div>
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
@@ -1766,6 +1775,13 @@ select.form-input{cursor:pointer}
               <div id="monthly-reviewer-results" style="display:none;border:0.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:100px;overflow-y:auto;margin-bottom:6px"></div>
               <div id="monthly-reviewer-tag" style="min-height:24px"></div>
               <input type="hidden" id="monthly-reviewer" value="">
+            </div>
+            <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-size:13px;font-weight:600;color:var(--t1)">이전 보고서</div>
+                <button onclick="reportLoadHistory('monthly')" style="font-size:11px;color:var(--ac);background:none;border:none;cursor:pointer">새로고침</button>
+              </div>
+              <div id="monthly-history-list" style="display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto"></div>
             </div>
           </div>
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
@@ -13164,8 +13180,8 @@ function showPage(id, el) {
     _taskFilter = 'all';
     projRenderSidebar();
   }
-  if(id === 'weekly-report') { reportInitPage('weekly'); reportUpdateReviewBadge(); }
-  if(id === 'monthly-report') { reportInitPage('monthly'); reportUpdateReviewBadge(); }
+  if(id === 'weekly-report') { reportInitPage('weekly'); reportUpdateReviewBadge(); reportLoadHistory('weekly'); }
+  if(id === 'monthly-report') { reportInitPage('monthly'); reportUpdateReviewBadge(); reportLoadHistory('monthly'); }
 }
 
 function openModal(id) { document.getElementById(id).style.display='flex'; }
@@ -18283,6 +18299,77 @@ function reportSetWeek(offset) {
   document.getElementById('weekly-end').value = fmt(fri);
 }
 
+// ── 이전 보고서 히스토리 ──
+function reportLoadHistory(type) {
+  var myEmail = state.user ? state.user.email : '';
+  var listEl = document.getElementById(type+'-history-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="font-size:11px;color:var(--t3)">불러오는 중...</div>';
+  db.collection('reports').where('author','==',myEmail).where('type','==',type)
+    .orderBy('createdAt','desc').limit(10)
+    .get().then(function(snap) {
+      if (snap.empty) { listEl.innerHTML = '<div style="font-size:11px;color:var(--t3)">저장된 보고서 없음</div>'; return; }
+      listEl.innerHTML = '';
+      snap.forEach(function(d) {
+        var data = d.data();
+        var dt = data.createdAt ? data.createdAt.toDate() : null;
+        var dtStr = dt ? (dt.getMonth()+1)+'/'+dt.getDate() : '';
+        var btn = document.createElement('div');
+        btn.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border:0.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;background:var(--surface)';
+        btn.innerHTML = '<span style="color:var(--t1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+data.period+'</span><span style="color:var(--t3);flex-shrink:0;margin-left:6px">'+dtStr+'</span>';
+        btn.onclick = function() { reportLoadFromHistory(d.id, type); };
+        btn.onmouseover = function(){ this.style.borderColor='var(--ac)'; };
+        btn.onmouseout = function(){ this.style.borderColor='var(--border)'; };
+        listEl.appendChild(btn);
+      });
+    }).catch(function() {
+      listEl.innerHTML = '<div style="font-size:11px;color:var(--t3)">불러오기 실패</div>';
+    });
+}
+
+function reportLoadFromHistory(docId, type) {
+  db.collection('reports').doc(docId).get().then(function(d) {
+    if (!d.exists) return;
+    var data = d.data();
+    var emp = employees.find(function(e){ return e.id===data.author||e.email===data.author; });
+    var name = emp ? emp.name : data.author;
+    var dept = emp ? (emp.dept||'') : '';
+    _reportData[type] = { parsed: data.parsed, period: data.period, author: name, dept: dept, reviewer: data.reviewer||'' };
+    if (type==='monthly') {
+      reportRenderMonthly(data.parsed, data.period, name, dept, data.reviewer||'');
+    } else {
+      reportRenderContent(type, data.parsed, data.period, name, dept, data.reviewer||'');
+    }
+    showToast('📂 보고서를 불러왔습니다: '+data.period);
+  });
+}
+
+// ── 인쇄 ──
+function reportPrint(type) {
+  var tableEl = document.getElementById('monthly-report-table') || document.getElementById(type+'-report-area');
+  if (!tableEl) return;
+  var printWin = window.open('', '_blank');
+  printWin.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>보고서</title>' +
+    '<style>body{font-family:"맑은 고딕",Arial,sans-serif;margin:10px}table{border-collapse:collapse;width:100%}' +
+    'th,td{border:1px solid #999;padding:5px 7px;font-size:10pt}' +
+    'th{background:#1F4E79;color:white;text-align:center}' +
+    '@media print{@page{size:A4 landscape;margin:10mm}button{display:none!important}}' +
+    '</style></head><body>');
+  var html = tableEl.innerHTML;
+  // 버튼 제거
+  html = html.replace(/<div[^>]*justify-content:flex-end[^>]*>[\s\S]*?<\/div>/, '');
+  // CSS 변수 치환
+  html = html.replace(/var\(--border\)/g,'#e2e8f0').replace(/var\(--t1\)/g,'#1a1a1a')
+    .replace(/var\(--t3\)/g,'#888').replace(/var\(--surface\)/g,'#f8fafc')
+    .replace(/var\(--white\)/g,'#fff').replace(/var\(--ac\)/g,'#378ADD')
+    .replace(/var\(--acd\)/g,'#E6F1FB').replace(/var\(--border-strong\)/g,'#94a3b8');
+  printWin.document.write(html);
+  printWin.document.write('</body></html>');
+  printWin.document.close();
+  printWin.focus();
+  setTimeout(function(){ printWin.print(); }, 500);
+}
+
 function reportGetTasks(type) {
   var myEmail = state.user ? state.user.email : '';
   var start, end;
@@ -18334,6 +18421,10 @@ function reportGetTasks(type) {
 
       // 익월: 마감일이 익월 이후이거나, 기간(start~end)이 익월과 겹치는 업무
       var isNextMonth = t.due && t.due >= nextStart; // 마감이 익월 이후면 포함
+      // 금월 진행중이고 마감일이 없거나 익월 이후인 업무도 익월에 자동 포함
+      if (!isNextMonth && item.status === '진행중' && (!t.due || t.due >= nextStart)) {
+        isNextMonth = true;
+      }
 
       if (isThisMonth) projMap[projName].this_month.push(item);
       if (isNextMonth) projMap[projName].next_month.push(item);
@@ -18490,10 +18581,18 @@ function reportReviewBodyHtml(data, docId) {
 
   function taskRow(t) {
     var status = t.status||'예정';
+    var pctBar = (t.pct && t.pct > 0 && t.pct < 100) ?
+      '<div style="margin-top:4px;display:flex;align-items:center;gap:6px">' +
+        '<div style="flex:1;height:3px;background:#e2e8f0;border-radius:99px;overflow:hidden">' +
+          '<div style="height:100%;background:'+(sC[status]||'#378ADD')+';width:'+t.pct+'%;border-radius:99px"></div>' +
+        '</div>' +
+        '<span style="font-size:10px;color:var(--t3)">'+t.pct+'%</span>' +
+      '</div>' : (t.pct===100 ? '<div style="font-size:10px;color:#27500A;margin-top:2px">완료</div>' : '');
     return '<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 12px;border-bottom:0.5px solid var(--border)">' +
       '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:'+(sB[status]||'#F1EFE8')+';color:'+(sC[status]||'#444441')+';white-space:nowrap;flex-shrink:0;margin-top:1px">'+status+'</span>' +
       '<div style="flex:1;min-width:0"><div style="font-size:13px;color:var(--t1);white-space:pre-wrap">'+t.title+'</div>' +
-      (t.note?'<div style="font-size:11px;color:var(--t3);margin-top:2px;white-space:pre-wrap">'+t.note+'</div>':'') + '</div>' +
+      (t.note?'<div style="font-size:11px;color:var(--t3);margin-top:2px;white-space:pre-wrap">'+t.note+'</div>':'') +
+      pctBar + '</div>' +
     '</div>';
   }
 
@@ -18620,7 +18719,14 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
 
   var emp2 = employees.find(function(e){ return e.id===(state.user?state.user.email:'') || e.email===(state.user?state.user.email:''); });
   var orgName = emp2 ? (emp2.dept||dept||'') : (dept||'');
-  var bonbu = emp2 ? (emp2.bonbu||emp2.dept||'경영관리본부') : '경영관리본부';
+  // 본부명: departments에서 해당 부서의 본부 찾기
+  var bonbu = '';
+  if (emp2 && departments && departments.length) {
+    var deptObj = departments.find(function(d){ return d.name===orgName || d.id===orgName; });
+    bonbu = deptObj ? (deptObj.bonbu||deptObj.parent||'') : '';
+  }
+  if (!bonbu && emp2) bonbu = emp2.bonbu||emp2.dept||orgName;
+  if (!bonbu) bonbu = '경영관리본부';
 
   var B = '1px solid #999';
   var BH = '1px solid #aaa';
@@ -18672,6 +18778,7 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
   var html = '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">' +
     '<button onclick="reportEdit(\'monthly\')" class="btn btn-ghost" style="font-size:12px">✏️ 수정</button>' +
     '<button onclick="reportCopy(\'monthly\')" class="btn btn-ghost" style="font-size:12px">📋 복사</button>' +
+    '<button onclick="reportPrint(\'monthly\')" class="btn btn-ghost" style="font-size:12px">🖨️ 인쇄</button>' +
     '<button onclick="reportSaveToDrive(\'monthly\')" class="btn btn-ghost" style="font-size:12px">☁️ 드라이브 저장</button>' +
   '</div>';
 
@@ -19061,6 +19168,7 @@ function reportRenderContent(type, parsed, periodLabel, name, dept, reviewerName
     '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">' +
       '<button onclick="reportEdit(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">✏️ 수정</button>' +
       '<button onclick="reportCopy(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">📋 복사</button>' +
+      '<button onclick="reportPrint(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">🖨️ 인쇄</button>' +
       '<button onclick="reportSaveToDrive(\''+type+'\')" class="btn btn-ghost" style="font-size:12px">☁️ 드라이브 저장</button>' +
     '</div>' +
     '<div style="border-bottom:2px solid var(--border-strong);padding-bottom:10px;margin-bottom:14px">' +
@@ -19174,8 +19282,16 @@ async function reportSaveToDrive(type) {
       );
       var upData = await up.json();
       if (upData.id) {
-        showToast('✅ Google Docs 저장 완료! WorkGate_보고서/'+subFolder+'/'+fileName);
+        var fileUrl = 'https://docs.google.com/document/d/'+upData.id+'/edit';
+        showToast('✅ Google Docs 저장 완료! <a href="'+fileUrl+'" target="_blank" style="color:#fff;text-decoration:underline">열기 →</a>');
         reportSave(type);
+        // 저장 링크 버튼 표시
+        var areaEl2 = document.getElementById(type+'-report-area');
+        var linkDiv = document.createElement('div');
+        linkDiv.style.cssText = 'margin-bottom:8px;padding:8px 12px;background:#EAF3DE;border-radius:8px;font-size:12px;display:flex;align-items:center;justify-content:space-between';
+        linkDiv.innerHTML = '<span style="color:#27500A">☁️ Google Docs에 저장되었습니다</span>' +
+          '<a href="'+fileUrl+'" target="_blank" style="color:#27500A;font-weight:600;text-decoration:none">문서 열기 →</a>';
+        if (areaEl2 && areaEl2.firstChild) areaEl2.insertBefore(linkDiv, areaEl2.firstChild);
       } else {
         showToast('❌ 저장 실패: '+(upData.error&&upData.error.message||JSON.stringify(upData)));
       }
