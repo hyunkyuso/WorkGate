@@ -19701,8 +19701,9 @@ function reportEditMonthly() {
             '</div>' :
             '<div style="display:flex;gap:4px">' +
               '<input type="number" class="me-priority form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.priority||i+1)+'" min="1" style="width:46px;font-size:11px;padding:2px 4px" placeholder="순위">' +
-              '<input type="text" class="me-next-start form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" value="'+(t.start||'')+'" placeholder="시작일" style="width:72px;font-size:11px;padding:2px 4px">' +
-              '<input type="text" class="me-end form-input me-next-end" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" value="'+(t.end||'')+'" placeholder="완료일" style="width:72px;font-size:11px;padding:2px 4px">' +
+              '<input type="number" class="me-next-pct form-input" data-task="'+tIdx+'" data-item="'+i+'" value="'+(t.pct||0)+'" min="0" max="100" style="width:52px;font-size:11px;padding:2px 4px" placeholder="%">' +
+              '<input type="text" class="me-next-start form-input" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" value="'+(t.start||'')+'" placeholder="시작일" style="width:68px;font-size:11px;padding:2px 4px">' +
+              '<input type="text" class="me-end form-input me-next-end" data-task="'+tIdx+'" data-item="'+i+'" data-side="next" value="'+(t.end||'')+'" placeholder="완료일" style="width:68px;font-size:11px;padding:2px 4px">' +
             '</div>'
           ) +
         '</div>' +
@@ -19865,6 +19866,10 @@ function reportEditMonthlySyncDOM() {
   document.querySelectorAll('.me-priority').forEach(function(el) {
     var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item);
     if(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].next_month[ii]) window._editParsed.tasks[ti].next_month[ii].priority=parseInt(el.value)||1;
+  });
+  document.querySelectorAll('.me-next-pct').forEach(function(el) {
+    var ti=parseInt(el.dataset.task); var ii=parseInt(el.dataset.item);
+    if(window._editParsed.tasks[ti]&&window._editParsed.tasks[ti].next_month[ii]) window._editParsed.tasks[ti].next_month[ii].pct=parseInt(el.value)||0;
   });
   var ia=document.getElementById('edit-monthly-issue'); if(ia) window._editParsed.issue=ia.value;
 }
