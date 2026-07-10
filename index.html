@@ -18341,12 +18341,45 @@ function reportGetTasks(type) {
     return { start: start, end: end, nextStart: nextStart, nextEnd: nextEnd, projMap: projMap };
   }
 
-  return {
-    start: start, end: end,
-    done: myTasks.filter(function(t) { return t.status==='done' && t.due && t.due>=start && t.due<=end; }),
-    doing: myTasks.filter(function(t) { return (t.status==='doing'||t.status==='review') && (!t.due||t.due<=end); }),
-    upcoming: myTasks.filter(function(t) { return t.status==='todo' && t.due && t.due>end; })
-  };
+  // 이번 주 한 일:
+  // 1. 이번 주 기간 내에 완료된 업무 (status=done, due 이번 주)
+  // 2. 체크리스트 중 이번 주에 체크한 항목이 있는 업무
+  // 3. 마감일이 이번 주인 업무 (진행 중 포함)
+  var done = myTasks.filter(function(t) {
+    if (t.status === 'done' && t.due && t.due >= start && t.due <= end) return true;
+    // 체크리스트에서 이번 주에 체크한 항목 있는지
+    var hasCheckedThisWeek = (t.checklist||[]).some(function(c) {
+      return c.done && c.doneAt && c.doneAt.substring(0,10) >= start && c.doneAt.substring(0,10) <= end;
+    });
+    if (hasCheckedThisWeek) return true;
+    // 마감일이 이번 주인 업무
+    if (t.due && t.due >= start && t.due <= end) return true;
+    return false;
+  });
+
+  // 다음 주 할 일:
+  // 1. 완료 안 됐고 마감일이 다음 주인 업무
+  // 2. 완료 안 됐고 현재 진행 중인 업무 (마감이 다음 주 이후이거나 없는 것)
+  var nextStart2 = new Date(new Date(end).getTime() + 86400000).toISOString().substring(0,10);
+  var nextEnd2 = new Date(new Date(end).getTime() + 7*86400000).toISOString().substring(0,10);
+  var upcoming = myTasks.filter(function(t) {
+    if (t.status === 'done') return false;
+    // 마감일이 다음 주인 업무
+    if (t.due && t.due >= nextStart2 && t.due <= nextEnd2) return true;
+    // 진행 중이고 마감이 다음 주 이후이거나 없는 것
+    if ((t.status === 'doing' || t.status === 'review') && (!t.due || t.due > end)) return true;
+    // 할일이고 마감이 다음 주 이후인 것
+    if (t.status === 'todo' && t.due && t.due > end) return true;
+    return false;
+  });
+
+  // 진행 중 (이번 주 한 일에 포함되지 않은 진행 중)
+  var doing = myTasks.filter(function(t) {
+    return (t.status === 'doing' || t.status === 'review') &&
+      !done.some(function(d){ return d.id === t.id; });
+  });
+
+  return { start: start, end: end, done: done, doing: doing, upcoming: upcoming };
 }
 
 // ── 보고서 탭 전환 ──
