@@ -18954,57 +18954,38 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
   html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500">■본부내 업무 협조 사항<br>및 업무 프로세스 등 이슈</td>' +
     '<td colspan="8" style="'+tdBase+'">'+(parsed.issue||'')+'</td></tr>';
 
-  // 중점업무 행 - highlight 순서대로, 같은 tIdx:iIdx끼리 합치기
-  var hlRows = [];
-  var hlRowMap = {};
-  highlight.forEach(function(ht) {
-    var key = ht._key||'';
-    var side = key.split('::')[0];
-    var idxPart = key.split('::')[1]||'';
-    var tIdx = parseInt(idxPart.split(':')[0]);
-    var iIdx = parseInt(idxPart.split(':')[1]);
-    var nwItem = null;
-    if (!isNaN(tIdx) && !isNaN(iIdx)) {
-      var task = tasks[tIdx];
-      if (task) nwItem = (task.next_month||[])[iIdx] || null;
-    }
-    var rowKey = tIdx+':'+iIdx;
-    if (hlRowMap[rowKey]) {
-      // 이미 있는 행에 반대쪽 추가
-      if (side==='this') hlRowMap[rowKey].thisItem = ht;
-      else hlRowMap[rowKey].nextItem = ht;
-      // priority는 익월 우선
-      if (side==='next' && ht.priority!=null) hlRowMap[rowKey].priority = ht.priority;
-    } else {
-      var row = {rowKey: rowKey, priority: ht.priority, nwItem: nwItem};
-      if (side==='this') row.thisItem = ht;
-      else row.nextItem = ht;
-      hlRowMap[rowKey] = row;
-      hlRows.push(row);
-    }
-  });
-
-  if (hlRows.length) {
-    hlRows.forEach(function(row, ri) {
-      var tw = row.thisItem; var nw = row.nextItem;
-      html += '<tr>';
-      // 첫 행에만 라벨 (rowspan), 나머지는 빈 셀
-      if (ri === 0) {
-        html += '<td colspan="2" style="'+tdBase+';font-weight:500;vertical-align:top" rowspan="'+hlRows.length+'">■금월 중점업무<br><span style="font-size:10px;color:#888;font-weight:normal">업무내용 우측 □ 체크</span></td>';
+  // 중점업무 행 - highlight 순서대로 각 행 출력
+  if (highlight.length) {
+    highlight.forEach(function(ht, hi) {
+      var key = ht._key||'';
+      var side = key.split('::')[0];
+      var idxPart = key.split('::')[1]||'';
+      var tIdx = parseInt(idxPart.split(':')[0]);
+      var iIdx = parseInt(idxPart.split(':')[1]);
+      // 익월 업무 찾기 (순위/기간 기준)
+      var nwItem = null;
+      if (!isNaN(tIdx) && !isNaN(iIdx)) {
+        var task = tasks[tIdx];
+        if (task) nwItem = (task.next_month||[])[iIdx] || null;
       }
-      // 금월
-      html += tw ?
-        '<td style="'+tdBase+'">• '+tw.title+'</td><td style="'+tdC+'">'+statusSym(tw.status,tw.pct)+'</td><td style="'+tdC+'">'+tw.pct+'%</td>' :
-        '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
-      // 익월
-      html += nw ?
-        '<td style="'+tdBase+'">• '+nw.title+'</td><td style="'+tdC+'">'+nextStatusSym(nw)+'</td><td style="'+tdC+'">'+nextPct(nw)+'</td>' :
-        '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
-      // 순위/기간 → 익월 체크됐을 때만 표시
-      var hasNext = !!row.nextItem;
-      html += '<td style="'+tdC+'">'+(hasNext&&row.priority!=null?row.priority:'')+'</td>';
-      var nwRef = hasNext ? row.nwItem : null;
-      html += '<td style="'+tdC+';font-size:10px">'+(nwRef&&fmtDate(nwRef.start)&&fmtDate(nwRef.end)?fmtDate(nwRef.start)+'~'+fmtDate(nwRef.end):'')+'</td>';
+      html += '<tr>';
+      if (hi === 0) {
+        html += '<td colspan="2" style="'+tdBase+';font-weight:500;vertical-align:top" rowspan="'+highlight.length+'">■금월 중점업무<br><span style="font-size:10px;color:#888;font-weight:normal">업무내용 우측 □ 체크</span></td>';
+      }
+      // 금월 칸: this 체크면 채우기
+      if (side === 'this') {
+        html += '<td style="'+tdBase+'">• '+ht.title+'</td><td style="'+tdC+'">'+statusSym(ht.status,ht.pct)+'</td><td style="'+tdC+'">'+ht.pct+'%</td>';
+        html += '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
+        html += '<td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
+      } else {
+        // next 체크: 금월 비우고 익월 채우기
+        html += '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
+        html += '<td style="'+tdBase+'">• '+ht.title+'</td><td style="'+tdC+'">'+nextStatusSym(ht)+'</td><td style="'+tdC+'">'+nextPct(ht)+'</td>';
+        // 순위/기간
+        var pri = ht.priority!=null ? ht.priority : '';
+        var dateStr = nwItem&&fmtDate(nwItem.start)&&fmtDate(nwItem.end) ? fmtDate(nwItem.start)+'~'+fmtDate(nwItem.end) : (fmtDate(ht.start)&&fmtDate(ht.end)?fmtDate(ht.start)+'~'+fmtDate(ht.end):'');
+        html += '<td style="'+tdC+'">'+pri+'</td><td style="'+tdC+';font-size:10px">'+dateStr+'</td>';
+      }
       html += '</tr>';
     });
   } else {
