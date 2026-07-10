@@ -18668,27 +18668,37 @@ function reportReviewBodyHtml(data, docId) {
   '</div>';
 }
 
-function reportToggleHighlight(title, side) {
+function reportToggleHighlight(key, tIdx, iIdx, side) {
   var d = _reportData['monthly'];
   if (!d || !d.parsed) return;
-  // 수정 중이면 _editParsed 동기화 후 사용
   if (window._editParsed) reportEditMonthlySyncDOM();
   var target = window._editParsed || d.parsed;
   var hl = target.highlight || [];
-  var key = side+'::'+title;
-  var idx = hl.findIndex(function(h){ return h._key===key; });
-  if (idx >= 0) {
-    hl.splice(idx, 1);
+  var existing = hl.findIndex(function(h){ return h._key===key; });
+  if (existing >= 0) {
+    hl.splice(existing, 1);
   } else {
-    var found = null;
-    (target.tasks||[]).forEach(function(task) {
-      var arr = side==='this' ? task.this_month : task.next_month;
-      (arr||[]).forEach(function(t) { if (t.title===title) found = t; });
-    });
-    if (found) hl.push({
+    var tasks = target.tasks||[];
+    var task = tasks[tIdx];
+    if (!task) return;
+    var arr = side==='this' ? task.this_month : task.next_month;
+    var t = arr && arr[iIdx];
+    if (!t) return;
+
+    // 익월 업무 찾기 (순위/기간은 항상 익월 기준)
+    var nwArr = task.next_month||[];
+    var nwItem = nwArr[iIdx] || nwArr[0] || null;
+
+    hl.push({
       _key: key,
-      title: found.title, status: found.status, pct: found.pct,
-      priority: hl.length+1, start: found.start||'', end: found.end||''
+      title: t.title,
+      status: t.status, pct: t.pct,
+      // 순위/시작일/완료일은 익월 업무 기준
+      priority: nwItem ? (nwItem.priority||hl.length+1) : hl.length+1,
+      start: nwItem ? (nwItem.start||'') : (t.start||''),
+      end: nwItem ? (nwItem.end||'') : (t.end||''),
+      // side 보존
+      _side: side
     });
   }
   target.highlight = hl;
@@ -18864,11 +18874,12 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
         // 금월 업무내용
         if (tw) {
           var twNote = tw.note ? '<div style="padding-left:10px;color:#555;font-size:10px">- '+tw.note+'</div>' : '';
-          var twIsHL = highlight.some(function(h){ return h._key==='this::'+tw.title; });
+          var twKey = 'this::'+tIdx+':'+i;
+          var twIsHL = highlight.some(function(h){ return h._key===twKey; });
           rows += '<td style="'+tdBase+'">' +
             '<div style="display:flex;align-items:flex-start;gap:6px">' +
               '<div style="flex:1">• '+tw.title+twNote+'</div>' +
-              '<input type="checkbox" title="중점업무 선택" '+(twIsHL?'checked':'')+' onchange="reportToggleHighlight(\''+tw.title.replace(/'/g,"\\'")+'\',' + '\'this\')" style="flex-shrink:0;margin-top:2px;cursor:pointer">' +
+              '<input type="checkbox" title="중점업무 선택" '+(twIsHL?'checked':'')+' onchange="reportToggleHighlight(\''+twKey+'\','+tIdx+','+i+',\'this\')" style="flex-shrink:0;margin-top:2px;cursor:pointer">' +
             '</div>' +
           '</td>';
           rows += '<td style="'+tdC+'">'+statusSym(tw.status,tw.pct)+'</td>';
@@ -18880,11 +18891,12 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
         // 익월 업무내용
         if (nw) {
           var nwNote = nw.note ? '<div style="padding-left:10px;color:#555;font-size:10px">- '+nw.note+'</div>' : '';
-          var nwIsHL = highlight.some(function(h){ return h._key==='next::'+nw.title; });
+          var nwKey = 'next::'+tIdx+':'+i;
+          var nwIsHL = highlight.some(function(h){ return h._key===nwKey; });
           rows += '<td style="'+tdBase+'">' +
             '<div style="display:flex;align-items:flex-start;gap:6px">' +
               '<div style="flex:1">• '+nw.title+nwNote+'</div>' +
-              '<input type="checkbox" title="중점업무 선택" '+(nwIsHL?'checked':'')+' onchange="reportToggleHighlight(\''+nw.title.replace(/'/g,"\\'")+'\',' + '\'next\')" style="flex-shrink:0;margin-top:2px;cursor:pointer">' +
+              '<input type="checkbox" title="중점업무 선택" '+(nwIsHL?'checked':'')+' onchange="reportToggleHighlight(\''+nwKey+'\','+tIdx+','+i+',\'next\')" style="flex-shrink:0;margin-top:2px;cursor:pointer">' +
             '</div>' +
           '</td>';
           rows += '<td style="'+tdC+'">'+nextStatusSym(nw)+'</td>';
@@ -18948,17 +18960,24 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
   var hlRows = [];
   highlight.forEach(function(ht) {
     var key = ht._key||'';
-    var side = key.split('::')[0]; // 'this' or 'next'
-    var title = key.split('::').slice(1).join('::');
-    // 같은 title 행이 있으면 합치기
-    var existing = hlRows.find(function(r){ return r.title===title; });
+    var side = key.split('::')[0];
+    var idxPart = key.split('::')[1]||'';
+    var tIdx = parseInt(idxPart.split(':')[0]);
+    var iIdx = parseInt(idxPart.split(':')[1]);
+    // 대응하는 익월 업무 찾기
+    var nwItem = null;
+    if (!isNaN(tIdx) && !isNaN(iIdx)) {
+      var task = tasks[tIdx];
+      if (task) nwItem = (task.next_month||[])[iIdx] || null;
+    }
+    // 같은 title+tIdx 행 합치기
+    var rowKey = tIdx+':'+iIdx;
+    var existing = hlRows.find(function(r){ return r.rowKey===rowKey; });
     if (existing) {
       if (side==='this') existing.thisItem = ht;
       else existing.nextItem = ht;
-      // 순위는 낮은 값 우선
-      if (ht.priority && (!existing.priority || ht.priority < existing.priority)) existing.priority = ht.priority;
     } else {
-      var row = {title:title, priority:ht.priority||hlRows.length+1};
+      var row = {rowKey: rowKey, priority: ht.priority||hlRows.length+1, nwItem: nwItem};
       if (side==='this') row.thisItem = ht;
       else row.nextItem = ht;
       hlRows.push(row);
@@ -18981,10 +19000,10 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
       html += nw ?
         '<td style="'+tdBase+'">• '+nw.title+'</td><td style="'+tdC+'">'+nextStatusSym(nw)+'</td><td style="'+tdC+'">'+nextPct(nw)+'</td>' :
         '<td style="'+tdBase+'"></td><td style="'+tdC+'"></td><td style="'+tdC+'"></td>';
-      // 순위/기간 (this 우선, 없으면 next)
-      var ref = tw||nw;
+      // 순위/기간 → 익월 업무 기준
+      var nwRef = row.nwItem || nw || tw;
       html += '<td style="'+tdC+'">'+(row.priority||ri+1)+'</td>';
-      html += '<td style="'+tdC+';font-size:10px">'+(ref&&fmtDate(ref.start)&&fmtDate(ref.end)?fmtDate(ref.start)+'~'+fmtDate(ref.end):'')+'</td>';
+      html += '<td style="'+tdC+';font-size:10px">'+(nwRef&&fmtDate(nwRef.start)&&fmtDate(nwRef.end)?fmtDate(nwRef.start)+'~'+fmtDate(nwRef.end):'')+'</td>';
       html += '</tr>';
     });
   } else {
@@ -19896,19 +19915,26 @@ function reportEditMonthlyApply() {
   var newTasks = window._editParsed.tasks||[];
   var newHL = [];
   oldHL.forEach(function(h) {
-    var key = h._key||''; // 'this::제목' or 'next::제목'
+    var key = h._key||'';
     var side = key.split('::')[0];
-    var title = key.split('::').slice(1).join('::');
-    // 수정된 task에서 같은 side+title 업무 찾기
-    var found = null;
-    newTasks.forEach(function(task) {
-      var arr = side==='this' ? task.this_month : task.next_month;
-      (arr||[]).forEach(function(t){ if(t.title===title) found=t; });
-    });
-    if (found) {
-      newHL.push({_key:key, title:found.title, status:found.status, pct:found.pct, priority:h.priority, start:found.start||'', end:found.end||''});
+    var idxPart = key.split('::')[1]||'';
+    var tIdx = parseInt(idxPart.split(':')[0]);
+    var iIdx = parseInt(idxPart.split(':')[1]);
+    if (isNaN(tIdx)||isNaN(iIdx)) return;
+    var task = newTasks[tIdx];
+    if (!task) return;
+    var arr = side==='this' ? task.this_month : task.next_month;
+    var t = arr && arr[iIdx];
+    var nwItem = (task.next_month||[])[iIdx]||null;
+    if (t) {
+      newHL.push({
+        _key: key, title: t.title, status: t.status, pct: t.pct,
+        priority: nwItem?(nwItem.priority||h.priority):h.priority,
+        start: nwItem?(nwItem.start||''):(t.start||''),
+        end: nwItem?(nwItem.end||''):(t.end||''),
+        _side: side
+      });
     }
-    // 수정 후 제목이 바뀐 경우 체크 해제됨 (정상 동작)
   });
   window._editParsed.highlight = newHL;
   _reportData['monthly'].parsed = window._editParsed;
