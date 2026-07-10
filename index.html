@@ -1709,7 +1709,12 @@ select.form-input{cursor:pointer}
             </div>
             <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
               <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">이전 보고서</div>
-              <input type="date" id="weekly-history-date" class="form-input" style="font-size:12px;margin-bottom:6px" onchange="reportSearchHistory('weekly')">
+              <div style="display:flex;gap:4px;margin-bottom:6px;align-items:center">
+                <input type="date" id="weekly-history-from" class="form-input" style="font-size:11px;flex:1">
+                <span style="font-size:11px;color:var(--t3)">~</span>
+                <input type="date" id="weekly-history-to" class="form-input" style="font-size:11px;flex:1">
+              </div>
+              <button onclick="reportSearchHistory('weekly')" class="btn btn-ghost" style="width:100%;font-size:12px;margin-bottom:6px">🔍 검색</button>
               <div id="weekly-history-list" style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto"></div>
             </div>
           </div>
@@ -1776,7 +1781,12 @@ select.form-input{cursor:pointer}
             </div>
             <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">
               <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px">이전 보고서</div>
-              <input type="month" id="monthly-history-date" class="form-input" style="font-size:12px;margin-bottom:6px" onchange="reportSearchHistory('monthly')">
+              <div style="display:flex;gap:4px;margin-bottom:6px;align-items:center">
+                <input type="month" id="monthly-history-from" class="form-input" style="font-size:11px;flex:1">
+                <span style="font-size:11px;color:var(--t3)">~</span>
+                <input type="month" id="monthly-history-to" class="form-input" style="font-size:11px;flex:1">
+              </div>
+              <button onclick="reportSearchHistory('monthly')" class="btn btn-ghost" style="width:100%;font-size:12px;margin-bottom:6px">🔍 검색</button>
               <div id="monthly-history-list" style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto"></div>
             </div>
           </div>
@@ -18304,32 +18314,30 @@ function reportSearchHistory(type) {
   var myEmail = state.user ? state.user.email : '';
   var listEl = document.getElementById(type+'-history-list');
   if (!listEl) return;
-  var dateVal = document.getElementById(type+'-history-date').value;
-  if (!dateVal) return;
+
+  var fromVal = document.getElementById(type+'-history-from').value;
+  var toVal = document.getElementById(type+'-history-to').value;
+  if (!fromVal && !toVal) { listEl.innerHTML = '<div style="font-size:11px;color:var(--t3);padding:4px">기간을 선택해주세요</div>'; return; }
 
   listEl.innerHTML = '<div style="font-size:11px;color:var(--t3);padding:4px">검색 중...</div>';
 
-  // 주간: 선택 날짜가 포함된 주 보고서 / 월간: 선택 월 보고서
   db.collection('reports').where('author','==',myEmail).where('type','==',type)
-    .orderBy('createdAt','desc').limit(30)
+    .orderBy('createdAt','desc').limit(50)
     .get().then(function(snap) {
       var docs = [];
       snap.forEach(function(d) {
         var data = d.data();
-        var match = false;
+        var dt = data.createdAt ? data.createdAt.toDate() : null;
+        if (!dt) return;
+        var dtStr = dt.toISOString().substring(0,10); // YYYY-MM-DD
+        var dtMonth = dt.toISOString().substring(0,7); // YYYY-MM
+        var match = true;
         if (type === 'weekly') {
-          // 기간에 선택 날짜 포함 여부
-          match = data.period && data.period.indexOf(dateVal.substring(0,7)) >= 0;
-          if (!match && data.period) {
-            // 날짜가 start~end 안에 있는지
-            var parts = data.period.split('~');
-            if (parts[0] && parts[1]) match = dateVal >= parts[0] && dateVal <= parts[1].substring(0,10);
-          }
+          if (fromVal && dtStr < fromVal) match = false;
+          if (toVal && dtStr > toVal) match = false;
         } else {
-          // 월간: YYYY년 MM월 형식과 비교
-          var ym = dateVal; // YYYY-MM
-          var y = ym.split('-')[0]; var m = parseInt(ym.split('-')[1]);
-          match = data.period && data.period.indexOf(y+'년 '+m+'월') >= 0;
+          if (fromVal && dtMonth < fromVal) match = false;
+          if (toVal && dtMonth > toVal) match = false;
         }
         if (match) docs.push(d);
       });
@@ -18650,22 +18658,28 @@ function reportReviewBodyHtml(data, docId) {
   '</div>';
 }
 
-function reportToggleHighlight(title) {
+function reportToggleHighlight(title, side) {
   var d = _reportData['monthly'];
   if (!d || !d.parsed) return;
   var hl = d.parsed.highlight || [];
-  var idx = hl.findIndex(function(h){ return h.title===title; });
+  // side(this/next)와 title 조합으로 구분
+  var key = side+'::'+title;
+  var idx = hl.findIndex(function(h){ return h._key===key; });
   if (idx >= 0) {
     hl.splice(idx, 1);
   } else {
-    // 금월 업무에서 해당 업무 찾아서 추가
     var found = null;
     (d.parsed.tasks||[]).forEach(function(task) {
-      (task.this_month||[]).forEach(function(t) {
+      var arr = side==='this' ? task.this_month : task.next_month;
+      (arr||[]).forEach(function(t) {
         if (t.title===title) found = t;
       });
     });
-    if (found) hl.push({title:found.title, status:found.status, pct:found.pct, priority:hl.length+1, start:found.start||'', end:found.end||''});
+    if (found) hl.push({
+      _key: key,
+      title: found.title, status: found.status, pct: found.pct,
+      priority: hl.length+1, start: found.start||'', end: found.end||''
+    });
   }
   d.parsed.highlight = hl;
   reportRenderMonthly(d.parsed, d.period, d.author, d.dept, d.reviewer);
@@ -18827,11 +18841,11 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
         // 금월 업무내용
         if (tw) {
           var twNote = tw.note ? '<div style="padding-left:10px;color:#555;font-size:10px">- '+tw.note+'</div>' : '';
-          var twIsHL = highlight.some(function(h){ return h.title===tw.title; });
+          var twIsHL = highlight.some(function(h){ return h._key==='this::'+tw.title; });
           rows += '<td style="'+tdBase+'">' +
             '<div style="display:flex;align-items:flex-start;gap:6px">' +
               '<div style="flex:1">• '+tw.title+twNote+'</div>' +
-              '<input type="checkbox" title="중점업무 선택" '+(twIsHL?'checked':'')+' onchange="reportToggleHighlight(\''+tw.title.replace(/'/g,"\\'")+'\')" style="flex-shrink:0;margin-top:2px;cursor:pointer">' +
+              '<input type="checkbox" title="중점업무 선택" '+(twIsHL?'checked':'')+' onchange="reportToggleHighlight(\''+tw.title.replace(/'/g,"\\'")+'\',' + '\'this\')" style="flex-shrink:0;margin-top:2px;cursor:pointer">' +
             '</div>' +
           '</td>';
           rows += '<td style="'+tdC+'">'+statusSym(tw.status,tw.pct)+'</td>';
@@ -18843,11 +18857,11 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
         // 익월 업무내용
         if (nw) {
           var nwNote = nw.note ? '<div style="padding-left:10px;color:#555;font-size:10px">- '+nw.note+'</div>' : '';
-          var nwIsHL = highlight.some(function(h){ return h.title===nw.title; });
+          var nwIsHL = highlight.some(function(h){ return h._key==='next::'+nw.title; });
           rows += '<td style="'+tdBase+'">' +
             '<div style="display:flex;align-items:flex-start;gap:6px">' +
               '<div style="flex:1">• '+nw.title+nwNote+'</div>' +
-              '<input type="checkbox" title="중점업무 선택" '+(nwIsHL?'checked':'')+' onchange="reportToggleHighlight(\''+nw.title.replace(/'/g,"\\'")+'\')" style="flex-shrink:0;margin-top:2px;cursor:pointer">' +
+              '<input type="checkbox" title="중점업무 선택" '+(nwIsHL?'checked':'')+' onchange="reportToggleHighlight(\''+nw.title.replace(/'/g,"\\'")+'\',' + '\'next\')" style="flex-shrink:0;margin-top:2px;cursor:pointer">' +
             '</div>' +
           '</td>';
           rows += '<td style="'+tdC+'">'+nextStatusSym(nw)+'</td>';
@@ -18906,36 +18920,15 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
   html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500">■본부내 업무 협조 사항<br>및 업무 프로세스 등 이슈</td>' +
     '<td colspan="8" style="'+tdBase+'">'+(parsed.issue||'')+'</td></tr>';
 
-  // 중점업무 행 - 체크박스 선택 결과 표시
-  html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500;vertical-align:top">■금월 중점업무<br><span style="font-size:10px;color:#888;font-weight:normal">업무내용 우측 □ 체크</span></td>';
+  // 중점업무 행
   if (highlight.length) {
-    var hlRows = '';
-    highlight.forEach(function(t, i) {
-      if (i > 0) hlRows += '<tr>';
-      hlRows += (i===0?'':'') +
-        '<td style="'+tdBase+'">• '+t.title+'</td>' +
-        '<td style="'+tdC+'">'+statusSym(t.status,t.pct)+'</td>' +
-        '<td style="'+tdC+'">'+t.pct+'%</td>' +
-        '<td style="'+tdBase+'">• '+t.title+'</td>' +
-        '<td style="'+tdC+'">'+nextStatusSym(t)+'</td>' +
-        '<td style="'+tdC+'">'+nextPct(t)+'</td>' +
-        '<td style="'+tdC+'">'+(t.priority||i+1)+'</td>' +
-        '<td style="'+tdC+';font-size:10px">'+(fmtDate(t.start)&&fmtDate(t.end)?fmtDate(t.start)+'~'+fmtDate(t.end):'')+'</td>' +
-      '</tr>';
-    });
-    html += '<td style="'+tdBase+'">• '+highlight[0].title+'</td>' +
-      '<td style="'+tdC+'">'+statusSym(highlight[0].status,highlight[0].pct)+'</td>' +
-      '<td style="'+tdC+'">'+highlight[0].pct+'%</td>' +
-      '<td style="'+tdBase+'">• '+highlight[0].title+'</td>' +
-      '<td style="'+tdC+'">'+nextStatusSym(highlight[0])+'</td>' +
-      '<td style="'+tdC+'">'+nextPct(highlight[0])+'</td>' +
-      '<td style="'+tdC+'">'+(highlight[0].priority||1)+'</td>' +
-      '<td style="'+tdC+';font-size:10px">'+(fmtDate(highlight[0].start)&&fmtDate(highlight[0].end)?fmtDate(highlight[0].start)+'~'+fmtDate(highlight[0].end):'')+'</td></tr>';
-    // 2번째 이후
-    for (var hi = 1; hi < highlight.length; hi++) {
-      var ht = highlight[hi];
-      html += '<tr>' +
-        '<td style="'+tdBase+'">• '+ht.title+'</td>' +
+    highlight.forEach(function(ht, hi) {
+      if (hi === 0) {
+        html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500;vertical-align:middle" rowspan="'+highlight.length+'">■금월 중점업무<br><span style="font-size:10px;color:#888;font-weight:normal">업무내용 우측 □ 체크</span></td>';
+      } else {
+        html += '<tr>';
+      }
+      html += '<td style="'+tdBase+'">• '+ht.title+'</td>' +
         '<td style="'+tdC+'">'+statusSym(ht.status,ht.pct)+'</td>' +
         '<td style="'+tdC+'">'+ht.pct+'%</td>' +
         '<td style="'+tdBase+'">• '+ht.title+'</td>' +
@@ -18944,9 +18937,10 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
         '<td style="'+tdC+'">'+(ht.priority||hi+1)+'</td>' +
         '<td style="'+tdC+';font-size:10px">'+(fmtDate(ht.start)&&fmtDate(ht.end)?fmtDate(ht.start)+'~'+fmtDate(ht.end):'')+'</td>' +
       '</tr>';
-    }
+    });
   } else {
-    html += '<td colspan="8" style="'+tdBase+';color:#aaa;font-style:italic">금월/익월 업무내용 우측 체크박스를 선택하면 여기에 표시됩니다</td></tr>';
+    html += '<tr><td colspan="2" style="'+tdBase+';font-weight:500">■금월 중점업무<br><span style="font-size:10px;color:#888;font-weight:normal">업무내용 우측 □ 체크</span></td>' +
+      '<td colspan="8" style="'+tdBase+';color:#aaa;font-style:italic">금월/익월 업무내용 우측 체크박스를 선택하면 표시됩니다</td></tr>';
   }
 
   // 질의응답 행
