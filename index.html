@@ -3025,6 +3025,9 @@ select.form-input{cursor:pointer}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- jsPDF (캔버스 → PDF 저장) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Frappe Gantt (현황보기 간트차트) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/1.2.1/frappe-gantt.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/1.2.1/frappe-gantt.umd.min.js"></script>
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -18589,10 +18592,62 @@ function svRenderCalendar() {
   wrap.innerHTML = cells;
 }
 
+var _svGanttInstance = null;
 function svRenderGantt() {
   var wrap = document.getElementById('sv-gantt-body');
   if (!wrap) return;
-  wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">간트차트는 다음 단계에서 구현됩니다</div>';
+  if (typeof Gantt === 'undefined') {
+    wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">간트차트 라이브러리를 불러오는 중입니다...</div>';
+    setTimeout(function(){ if (_svTab==='gantt') svRenderGantt(); }, 300);
+    return;
+  }
+  var tasks = svGetScopedTasks().filter(function(t){ return t.due; });
+  if (!tasks.length) {
+    wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">표시할 업무가 없습니다 (마감일이 등록된 업무만 표시됩니다)</div>';
+    return;
+  }
+  var ganttTasks = tasks.map(function(t) {
+    var start = t.start || t.due;
+    var end = t.due;
+    if (start === end) {
+      var e = new Date(end); e.setDate(e.getDate()+1);
+      end = e.toISOString().substring(0,10);
+    }
+    var checklist = t.checklist || [];
+    var done = checklist.filter(function(c){ return c.done; }).length;
+    var pct = checklist.length ? Math.round(done/checklist.length*100) : (t.progress||0);
+    return {
+      id: t.id,
+      name: (t.title||'(제목 없음)'),
+      start: start,
+      end: end,
+      progress: pct,
+      custom_class: 'sv-gantt-' + (t.status||'todo')
+    };
+  });
+
+  wrap.innerHTML = '<div id="sv-gantt-svg"></div>';
+  if (!document.getElementById('sv-gantt-style')) {
+    var style = document.createElement('style');
+    style.id = 'sv-gantt-style';
+    style.textContent =
+      '.sv-gantt-todo .bar { fill: #D3D1C7 !important; } ' +
+      '.sv-gantt-doing .bar { fill: #85B7EB !important; } ' +
+      '.sv-gantt-review .bar { fill: #FAC775 !important; } ' +
+      '.sv-gantt-done .bar { fill: #97C459 !important; }';
+    document.head.appendChild(style);
+  }
+  try {
+    _svGanttInstance = new Gantt('#sv-gantt-svg', ganttTasks, {
+      view_mode: 'Week',
+      date_format: 'YYYY-MM-DD',
+      readonly: true,
+      on_click: function(task) { taskOpenDetail(task.id); }
+    });
+  } catch (err) {
+    wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">간트차트 렌더링 중 오류가 발생했습니다</div>';
+    console.error('Gantt render error:', err);
+  }
 }
 function svRenderHeatmap() {
   var wrap = document.getElementById('sv-heat-body');
