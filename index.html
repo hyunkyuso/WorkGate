@@ -292,6 +292,7 @@ select.form-input{cursor:pointer}
           <div class="nav-item" onclick="showPage('weekly-report',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 주간 보고</div>
           <div class="nav-item" onclick="showPage('monthly-report',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 월간 보고</div>
           <div class="nav-item admin-only" onclick="showPage('task-admin',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 업무 현황</div>
+          <div class="nav-item" onclick="showPage('status-view',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📅</span> 현황보기</div>
           <div class="nav-item" onclick="showUnderMaintenance('KPI·OKR', '📈', this)"><span class="nav-icon">📈</span> KPI·OKR</div>
           <div class="nav-item" onclick="showUnderMaintenance('구글드라이브', '📁', this)"><span class="nav-icon">📁</span> 구글드라이브</div>
           <div class="nav-item" onclick="showUnderMaintenance('Docs·Sheets', '📝', this)"><span class="nav-icon">📝</span> Docs·Sheets</div>
@@ -1920,6 +1921,48 @@ select.form-input{cursor:pointer}
               </div>
             </div>
 
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════ 현황보기 ══════ -->
+      <div id="page-status-view" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">📅 현황보기</div>
+            <div class="page-sub">담당 조직의 업무 현황을 캘린더·간트차트·히트맵으로 확인합니다</div>
+          </div>
+          <select id="sv-scope-select" onchange="svScopeChange()" class="form-input" style="font-size:13px;width:200px"></select>
+        </div>
+
+        <div id="sv-noaccess" style="display:none;padding:40px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+          현황보기 권한이 없습니다. 팀장/부서장/본부장 직책이 있거나, 관리자에게 접근 권한을 요청하세요.
+        </div>
+
+        <div id="sv-content" style="display:none">
+          <div style="display:flex;gap:6px;margin-bottom:14px">
+            <button class="sv-tab-btn active" onclick="svSwitchTab('calendar',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);cursor:pointer;font-size:13px">📅 캘린더</button>
+            <button class="sv-tab-btn" onclick="svSwitchTab('gantt',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);cursor:pointer;font-size:13px">📊 간트차트</button>
+            <button class="sv-tab-btn" onclick="svSwitchTab('heatmap',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);cursor:pointer;font-size:13px">🔥 히트맵</button>
+          </div>
+
+          <div id="sv-view-calendar" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <button onclick="svCalPrevMonth()" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--t2)">◀</button>
+              <span id="sv-cal-label" style="font-size:14px;font-weight:600"></span>
+              <button onclick="svCalNextMonth()" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--t2)">▶</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:11px;color:var(--t3);text-align:center;margin-bottom:4px">
+              <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+            </div>
+            <div id="sv-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
+          </div>
+
+          <div id="sv-view-gantt" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div id="sv-gantt-body"></div>
+          </div>
+          <div id="sv-view-heatmap" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div id="sv-heat-body"></div>
           </div>
         </div>
       </div>
@@ -13263,6 +13306,7 @@ function showPage(id, el) {
   }
   if(id === 'weekly-report') { reportInitPage('weekly'); reportUpdateReviewBadge(); }
   if(id === 'monthly-report') { reportInitPage('monthly'); reportUpdateReviewBadge(); }
+  if(id === 'status-view') { svInit(); }
 }
 
 function openModal(id) { document.getElementById(id).style.display='flex'; }
@@ -18371,6 +18415,190 @@ function taskUnarchive(taskId) {
   });
 }
 
+// ══════════════════════════════════════════════════
+// 현황보기 (캘린더 / 간트차트 / 히트맵)
+// ══════════════════════════════════════════════════
+var _svTab = 'calendar';
+var _svCalYear, _svCalMonth;
+var _svScopeDeptId = null;
+var _svAdminGrantedDeptIds = [];
+
+// 특정 부서 id 하위(자기 자신 포함)의 모든 부서명 집합
+function svGetSubDeptNames(deptId) {
+  var names = new Set();
+  function walk(id) {
+    var d = departments.find(function(x){ return x.id === id; });
+    if (!d) return;
+    names.add(d.name);
+    departments.filter(function(x){ return x.parent === id; }).forEach(function(c){ walk(c.id); });
+  }
+  walk(deptId);
+  return names;
+}
+
+// 로그인한 사람이 리더(팀장/부서장/본부장)인 조직 목록 (주소속 + 겸직 포함)
+function svGetMyLeaderScopes() {
+  var myEmail = state.user ? state.user.email : '';
+  var me = employees.find(function(e){ return (e.id||e.email)===myEmail; });
+  if (!me) return [];
+  var LEADER_TITLES = ['팀장','부서장','본부장'];
+  var scopes = [];
+  var seen = {};
+  function addScope(deptName, title) {
+    var dept = departments.find(function(d){ return d.name===deptName; });
+    if (!dept || seen[dept.id]) return;
+    seen[dept.id] = true;
+    scopes.push({deptId: dept.id, deptName: dept.name, title: title});
+  }
+  if (LEADER_TITLES.indexOf(me.title) >= 0) addScope(me.dept, me.title);
+  (me.concurrent||[]).forEach(function(c) {
+    if (LEADER_TITLES.indexOf(c.title) >= 0) addScope(c.dept, c.title);
+  });
+  return scopes;
+}
+
+// 관리자가 체크박스로 부여한 추가 조회 권한 (settings/statusViewAccess 문서: {이메일: [deptId,...]})
+function svLoadAdminGrants(cb) {
+  var myEmail = state.user ? state.user.email : '';
+  db.collection('settings').doc('statusViewAccess').get().then(function(snap) {
+    var data = snap.exists ? (snap.data()||{}) : {};
+    _svAdminGrantedDeptIds = data[myEmail] || [];
+    cb();
+  }).catch(function(){ _svAdminGrantedDeptIds = []; cb(); });
+}
+
+function svPopulateScopeSelect() {
+  var sel = document.getElementById('sv-scope-select');
+  if (!sel) return;
+  var scopes = svGetMyLeaderScopes();
+  var extra = _svAdminGrantedDeptIds.map(function(id) {
+    var d = departments.find(function(x){ return x.id===id; });
+    return d ? {deptId:d.id, deptName:d.name, title:'관리자 지정'} : null;
+  }).filter(Boolean).filter(function(s){ return !scopes.some(function(sc){ return sc.deptId===s.deptId; }); });
+  var all = scopes.concat(extra);
+  if (isAdmin()) all = [{deptId:'__all__', deptName:'전체 조직', title:'관리자'}].concat(all);
+
+  if (!all.length) {
+    document.getElementById('sv-noaccess').style.display = 'block';
+    document.getElementById('sv-content').style.display = 'none';
+    sel.style.display = 'none';
+    return;
+  }
+  document.getElementById('sv-noaccess').style.display = 'none';
+  document.getElementById('sv-content').style.display = 'block';
+  sel.style.display = all.length > 1 ? 'inline-block' : 'none';
+  sel.innerHTML = all.map(function(s) {
+    return '<option value="'+s.deptId+'">'+s.deptName+' ('+s.title+')</option>';
+  }).join('');
+  _svScopeDeptId = all[0].deptId;
+  svRenderCurrentTab();
+}
+
+function svScopeChange() {
+  var sel = document.getElementById('sv-scope-select');
+  _svScopeDeptId = sel.value;
+  svRenderCurrentTab();
+}
+
+function svGetScopedTaskDeptNames() {
+  if (_svScopeDeptId === '__all__') return null; // null = 전체(필터 없음)
+  if (!_svScopeDeptId) return new Set();
+  return svGetSubDeptNames(_svScopeDeptId);
+}
+
+function svGetScopedTasks() {
+  var deptNames = svGetScopedTaskDeptNames();
+  return _tasks.filter(function(t) {
+    if (t.archived) return false;
+    if (deptNames === null) return true;
+    var ae = employees.find(function(e){ return (e.id||e.email)===t.assignee; });
+    return ae && deptNames.has(ae.dept);
+  });
+}
+
+function svInit() {
+  var now = new Date();
+  _svCalYear = now.getFullYear();
+  _svCalMonth = now.getMonth();
+  svLoadAdminGrants(svPopulateScopeSelect);
+}
+
+function svSwitchTab(tab, el) {
+  _svTab = tab;
+  document.querySelectorAll('.sv-tab-btn').forEach(function(b){ b.classList.remove('active'); b.style.background='var(--white)'; b.style.color='var(--t1)'; });
+  if (el) { el.classList.add('active'); el.style.background='var(--acd)'; el.style.color='var(--ac)'; }
+  ['calendar','gantt','heatmap'].forEach(function(t) {
+    var view = document.getElementById('sv-view-'+t);
+    if (view) view.style.display = (t===tab ? 'block' : 'none');
+  });
+  svRenderCurrentTab();
+}
+
+function svRenderCurrentTab() {
+  if (_svTab === 'calendar') svRenderCalendar();
+  else if (_svTab === 'gantt') svRenderGantt();
+  else if (_svTab === 'heatmap') svRenderHeatmap();
+}
+
+function svCalPrevMonth() {
+  _svCalMonth--;
+  if (_svCalMonth < 0) { _svCalMonth = 11; _svCalYear--; }
+  svRenderCalendar();
+}
+function svCalNextMonth() {
+  _svCalMonth++;
+  if (_svCalMonth > 11) { _svCalMonth = 0; _svCalYear++; }
+  svRenderCalendar();
+}
+
+function svRenderCalendar() {
+  var wrap = document.getElementById('sv-cal-grid');
+  var label = document.getElementById('sv-cal-label');
+  if (!wrap) return;
+  if (label) label.textContent = _svCalYear + '년 ' + (_svCalMonth+1) + '월';
+
+  var tasks = svGetScopedTasks();
+  var byDate = {};
+  tasks.forEach(function(t) {
+    if (!t.due) return;
+    (byDate[t.due] = byDate[t.due] || []).push(t);
+  });
+
+  var first = new Date(_svCalYear, _svCalMonth, 1);
+  var startDow = first.getDay();
+  var daysInMonth = new Date(_svCalYear, _svCalMonth+1, 0).getDate();
+  var todayStr = new Date().toISOString().substring(0,10);
+
+  var cells = '';
+  for (var i=0; i<startDow; i++) cells += '<div></div>';
+  for (var d=1; d<=daysInMonth; d++) {
+    var dateStr = _svCalYear+'-'+String(_svCalMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    var dayTasks = byDate[dateStr] || [];
+    var isToday = dateStr === todayStr;
+    var tagsHtml = dayTasks.slice(0,3).map(function(t) {
+      var pri = t.priority || '보통';
+      var col = PRI_COLOR[pri] || '#378ADD';
+      return '<div onclick="taskOpenDetail(\''+t.id+'\')" title="'+(t.title||'').replace(/"/g,'&quot;')+'" style="font-size:10px;padding:1px 5px;border-radius:4px;background:'+col+'22;color:'+col+';margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">'+(t.title||'')+'</div>';
+    }).join('');
+    var moreHtml = dayTasks.length > 3 ? '<div style="font-size:9px;color:var(--t3);margin-top:2px">+'+(dayTasks.length-3)+'개</div>' : '';
+    cells += '<div style="border:0.5px solid var(--border);border-radius:8px;min-height:76px;padding:6px;'+(isToday?'border-color:var(--ac);border-width:1.5px;':'')+'">' +
+      '<div style="font-size:11px;font-weight:'+(isToday?'700':'400')+';color:'+(isToday?'var(--ac)':'var(--t2)')+'">'+d+'</div>' +
+      tagsHtml + moreHtml +
+    '</div>';
+  }
+  wrap.innerHTML = cells;
+}
+
+function svRenderGantt() {
+  var wrap = document.getElementById('sv-gantt-body');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">간트차트는 다음 단계에서 구현됩니다</div>';
+}
+function svRenderHeatmap() {
+  var wrap = document.getElementById('sv-heat-body');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">워크로드 히트맵은 다음 단계에서 구현됩니다</div>';
+}
 
 // ══════════════════════════════════════════════════
 // 주간 / 월간 보고
