@@ -20181,13 +20181,14 @@ async function reportGenerate(type) {
     var projOrder = _projects.map(function(p){ return p.name; });
     var tasks = Object.keys(projMap).map(function(projName) {
       return {
-        category: projName,
+        category: '',
+        _proj: projName,
         this_month: projMap[projName].this_month || [],
         next_month: projMap[projName].next_month || []
       };
     }).sort(function(a, b) {
-      var ai = projOrder.indexOf(a.category);
-      var bi = projOrder.indexOf(b.category);
+      var ai = projOrder.indexOf(a._proj);
+      var bi = projOrder.indexOf(b._proj);
       if (ai===-1) ai=999; if (bi===-1) bi=999;
       return ai - bi;
     });
@@ -20696,7 +20697,7 @@ function reportEditMonthly() {
 
     return '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px">' +
       '<div style="padding:8px 12px;background:#f8f9fa;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px">' +
-        '<input type="text" class="me-category form-input" data-idx="'+tIdx+'" style="font-size:13px;font-weight:500;flex:1;padding:3px 6px">' +
+        '<input type="text" class="me-category form-input" data-idx="'+tIdx+'" placeholder="업무분장을 입력하세요 (동일 텍스트는 적용 시 자동 병합)" style="font-size:13px;font-weight:500;flex:1;padding:3px 6px">' +
         '<button onclick="reportEditMonthlyRemoveTask('+tIdx+')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:13px;white-space:nowrap">✕ 삭제</button>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:0.5px solid var(--border)">' +
@@ -20790,22 +20791,16 @@ function reportDoImport() {
   checked.forEach(function(cb) {
     var t = _tasks.find(function(x){ return x.id===cb.value; });
     if (!t) return;
-    var proj = _projects.find(function(p){ return p.id===t.projectId; });
-    var projName = proj ? proj.name : '기타';
     var cl = t.checklist||[]; var done = cl.filter(function(c){ return c.done; }).length;
     var pct = cl.length ? Math.round(done/cl.length*100) : (t.progress||0);
     var item = {
-      title: t.title, note: t.desc||'',
+      id: t.id, title: t.title, note: t.desc||'',
       status: t.status==='done'?'완료':t.status==='doing'?'진행중':'예정',
       pct: pct, priority: 1, start: t.start||'', end: t.due||''
     };
-    // 해당 프로젝트 카테고리 찾기 or 생성
-    var taskGroup = window._editParsed.tasks.find(function(g){ return g.category===projName; });
-    if (!taskGroup) {
-      taskGroup = {category: projName, this_month: [], next_month: []};
-      window._editParsed.tasks.push(taskGroup);
-    }
-    taskGroup.this_month.push(item);
+    // 업무분장은 수기 입력이라 항목마다 빈 그룹으로 추가 (같은 텍스트 입력 시 적용 단계에서 자동 병합)
+    var taskGroup = {category: '', this_month: [item], next_month: []};
+    window._editParsed.tasks.push(taskGroup);
   });
   document.getElementById('monthly-import-panel').style.display = 'none';
   reportEditMonthly();
@@ -20868,7 +20863,7 @@ function reportMonthlyAddItem(tIdx, side) {
 function reportMonthlyAddTask() {
   if (!window._editParsed) return;
   reportEditMonthlySyncDOM();
-  window._editParsed.tasks.push({category:'새 업무분장',this_month:[],next_month:[]});
+  window._editParsed.tasks.push({category:'',this_month:[],next_month:[]});
   reportEditMonthly();
 }
 
@@ -20885,6 +20880,37 @@ function reportEditMonthlyRemoveItem(tIdx, side, iIdx) {
   var arr=side==='this'?window._editParsed.tasks[tIdx].this_month:window._editParsed.tasks[tIdx].next_month;
   arr.splice(iIdx,1);
   reportEditMonthly();
+}
+
+// 같은 업무분장 텍스트를 가진 그룹들을 하나로 자동 합치기 (빈 텍스트 그룹은 병합하지 않음)
+function reportMergeCategoryDuplicates(tasksArr) {
+  var order = [];
+  var map = {};
+  (tasksArr||[]).forEach(function(g) {
+    var key = (g.category||'').trim();
+    if (!key) {
+      order.push({ category: g.category||'', this_month: g.this_month||[], next_month: g.next_month||[] });
+      return;
+    }
+    if (!map[key]) {
+      map[key] = { category: g.category, this_month: [], next_month: [] };
+      order.push(map[key]);
+    }
+    var seenThis = {}; var seenNext = {};
+    map[key].this_month.forEach(function(it){ if (it.id) seenThis[it.id] = true; });
+    map[key].next_month.forEach(function(it){ if (it.id) seenNext[it.id] = true; });
+    (g.this_month||[]).forEach(function(it) {
+      if (it.id && seenThis[it.id]) return;
+      if (it.id) seenThis[it.id] = true;
+      map[key].this_month.push(it);
+    });
+    (g.next_month||[]).forEach(function(it) {
+      if (it.id && seenNext[it.id]) return;
+      if (it.id) seenNext[it.id] = true;
+      map[key].next_month.push(it);
+    });
+  });
+  return order;
 }
 
 function reportEditMonthlyApply() {
@@ -20917,6 +20943,7 @@ function reportEditMonthlyApply() {
     }
   });
   window._editParsed.highlight = newHL;
+  window._editParsed.tasks = reportMergeCategoryDuplicates(window._editParsed.tasks);
   _reportData['monthly'].parsed = window._editParsed;
   window._editParsed = null;
   var d = _reportData['monthly'];
