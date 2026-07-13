@@ -18605,6 +18605,44 @@ function svRenderCalendar() {
 }
 
 var _svGanttInstance = null;
+var GANTT_MONTH_NUM = {
+  'January':1,'February':2,'March':3,'April':4,'May':5,'June':6,
+  'July':7,'August':8,'September':9,'October':10,'November':11,'December':12,
+  'Jan':1,'Feb':2,'Mar':3,'Apr':4,'Jun':6,'Jul':7,'Aug':8,'Sep':9,'Oct':10,'Nov':11,'Dec':12
+};
+var GANTT_DOW_KO = {'Mon':'월','Tue':'화','Wed':'수','Thu':'목','Fri':'금','Sat':'토','Sun':'일'};
+var GANTT_VIEWMODE_KO = {'Quarter Day':'분기별 하루','Half Day':'반나절','Day':'일','Week':'주','Month':'월','Year':'년','Today':'오늘'};
+
+function svTranslateGanttText(str) {
+  if (!str) return str;
+  var s = str.trim();
+  var m = s.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (m && GANTT_MONTH_NUM[m[1]]) return m[2]+'년 '+GANTT_MONTH_NUM[m[1]]+'월';
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]+)$/);
+  if (m && GANTT_MONTH_NUM[m[2]]) return GANTT_MONTH_NUM[m[2]]+'/'+m[1];
+  if (GANTT_DOW_KO[s]) return GANTT_DOW_KO[s];
+  return str;
+}
+
+function svTranslateGanttDom() {
+  var svg = document.querySelector('#sv-gantt-svg svg');
+  if (svg) {
+    svg.querySelectorAll('text').forEach(function(t) {
+      var translated = svTranslateGanttText(t.textContent);
+      if (translated !== t.textContent) t.textContent = translated;
+    });
+  }
+  document.querySelectorAll('#sv-gantt-body select').forEach(function(sel) {
+    Array.from(sel.options).forEach(function(opt) {
+      if (GANTT_VIEWMODE_KO[opt.textContent]) opt.textContent = GANTT_VIEWMODE_KO[opt.textContent];
+    });
+  });
+  document.querySelectorAll('#sv-gantt-body button, #sv-gantt-body [title]').forEach(function(el) {
+    if (el.title && GANTT_VIEWMODE_KO[el.title]) el.title = GANTT_VIEWMODE_KO[el.title];
+    if (el.textContent && GANTT_VIEWMODE_KO[el.textContent.trim()]) el.textContent = GANTT_VIEWMODE_KO[el.textContent.trim()];
+  });
+}
+
 function svRenderGantt() {
   var wrap = document.getElementById('sv-gantt-body');
   if (!wrap) return;
@@ -18656,6 +18694,7 @@ function svRenderGantt() {
       readonly: true,
       on_click: function(task) { taskOpenDetail(task.id); }
     });
+    setTimeout(svTranslateGanttDom, 0);
   } catch (err) {
     wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">간트차트 렌더링 중 오류가 발생했습니다</div>';
     console.error('Gantt render error:', err);
@@ -21115,7 +21154,7 @@ function taskDeleteFromDetail() {
     appId: "1:187107745836:web:c8f1c7395e157bbc2ff189"
   };
   firebase.initializeApp(firebaseConfig);
-  db = firebase.firestore(); 
+  db = firebase.firestore();
   auth = firebase.auth();
   setupAuthListener();
 })();
