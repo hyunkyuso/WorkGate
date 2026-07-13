@@ -19784,14 +19784,12 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
     return '■';
   }
   function nextStatusSym(t) {
-    if (!t.end) return '■';
-    if (t.end <= nextMonthEndStr) return '√';
-    return '●';
+    if (t.status==='완료' || t.pct===100) return '√';
+    if (t.status==='진행중') return '●';
+    return '■';
   }
   function nextPct(t) {
-    if (!t.end) return '0%';
-    if (t.end <= nextMonthEndStr) return '100%';
-    return (t.pct||0)+'%';
+    return (typeof t.pct === 'number' ? t.pct : (t.pct||0)) + '%';
   }
 
   var emp2 = employees.find(function(e){ return e.id===(state.user?state.user.email:'') || e.email===(state.user?state.user.email:''); });
