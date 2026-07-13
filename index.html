@@ -1294,7 +1294,10 @@ select.form-input{cursor:pointer}
       <div id="page-workforce" class="page">
         <div class="page-header">
           <div><div class="page-title">👥 상시근로자수</div><div class="page-sub">직원관리 데이터 기반 자동집계</div></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;align-items:center;gap:14px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);cursor:pointer">
+              <input type="checkbox" id="wf-exclude-ceo" onchange="wfToggleExcludeCEO()" style="accent-color:var(--ac)"> 대표이사 제외
+            </label>
             <button class="btn btn-ghost btn-sm" onclick="workforceExcelAll()">📊 전체 엑셀</button>
           </div>
         </div>
@@ -14780,10 +14783,21 @@ function certAiConfirm() {
 var _wfYear = new Date().getFullYear();
 var _wfEditType = null;
 var _wfEditIdx = -1;
+var _wfExcludeCEO = false;
+
+// 대표이사 제외 체크 시 적용할 직원 목록 (상시근로자수 계산 전용)
+function wfEmp() {
+  return _wfExcludeCEO ? employees.filter(function(e){ return e.position !== '대표이사'; }) : employees;
+}
+
+function wfToggleExcludeCEO() {
+  _wfExcludeCEO = document.getElementById('wf-exclude-ceo').checked;
+  renderWorkforce(_wfYear);
+}
 
 // 현재 재직인원 = 직원관리 재직자 + 수정 추가 미등록 입사 - 수정 추가 미등록 퇴사
 function wfGetCurActive() {
-  var base = employees.filter(function(e){ return e.status!=='퇴직'; }).length;
+  var base = wfEmp().filter(function(e){ return e.status!=='퇴직'; }).length;
   var edits = wfLoadEdits();
   var unregLeaveNames = edits.filter(function(e){ return e.source==='unregistered' && e.type==='퇴사'; }).map(function(e){ return e.name; });
   var addIn = edits.filter(function(e){
@@ -14867,7 +14881,7 @@ function wfGetMonthly(year) {
   // unregistered 입사/퇴사 목록
   // - 직원관리에 이미 있는 인원은 퇴사 시 직원관리 leavedate로 처리되므로 스킵
   // - 미등록 입사 후 미등록 퇴사도 있는 인원(서다영 등)은 입사·퇴사 둘 다 반영하되 현재재직에서는 제외
-  var empNames = employees.map(function(e){ return e.name; });
+  var empNames = wfEmp().map(function(e){ return e.name; });
   var unregLeaveNames = allEdits.filter(function(e){ return e.source==='unregistered' && e.type==='퇴사'; }).map(function(e){ return e.name; });
   var unregJoin = allEdits.filter(function(e){ return e.source==='unregistered' && e.type==='입사'; });
   var unregLeave = allEdits.filter(function(e){ return e.source==='unregistered' && e.type==='퇴사' && empNames.indexOf(e.name) < 0; });
@@ -14878,8 +14892,8 @@ function wfGetMonthly(year) {
     var lastDay = new Date(year, m, 0);
     var lastDayStr = lastDay.toISOString().substring(0,10);
 
-    var joinAuto  = employees.filter(function(e){ return e.joindate  && e.joindate.startsWith(ym); }).length;
-    var leaveAuto = employees.filter(function(e){ return e.leavedate && e.leavedate.startsWith(ym); }).length;
+    var joinAuto  = wfEmp().filter(function(e){ return e.joindate  && e.joindate.startsWith(ym); }).length;
+    var leaveAuto = wfEmp().filter(function(e){ return e.leavedate && e.leavedate.startsWith(ym); }).length;
 
     // past(누락) 입퇴사 — 직원관리 원본에 있는 인원의 날짜 보정이므로 건수만 반영
     var pastEdits = allEdits.filter(function(e){ return e.source==='past' && e.date && e.date.startsWith(ym); });
@@ -14900,8 +14914,8 @@ function wfGetMonthly(year) {
       var cumJoin = 0, cumLeave = 0;
       for (var cm=1; cm<=m; cm++) {
         var cym = year + '-' + String(cm).padStart(2,'0');
-        cumJoin  += employees.filter(function(e){ return e.joindate  && e.joindate.startsWith(cym); }).length;
-        cumLeave += employees.filter(function(e){ return e.leavedate && e.leavedate.startsWith(cym); }).length;
+        cumJoin  += wfEmp().filter(function(e){ return e.joindate  && e.joindate.startsWith(cym); }).length;
+        cumLeave += wfEmp().filter(function(e){ return e.leavedate && e.leavedate.startsWith(cym); }).length;
         var cPast = allEdits.filter(function(e){ return e.source==='past' && e.date && e.date.startsWith(cym); });
         cumJoin  += cPast.filter(function(e){ return e.type==='입사'; }).length;
         cumLeave += cPast.filter(function(e){ return e.type==='퇴사'; }).length;
@@ -14911,7 +14925,7 @@ function wfGetMonthly(year) {
       totalCount = yearbaseCount + cumJoin - cumLeave;
     } else {
       // yearbase 없을 때: employees 말일재직 + unregistered 입사(말일 기준 재직)
-      var active = employees.filter(function(e) {
+      var active = wfEmp().filter(function(e) {
         if (!e.joindate) return false;
         if (e.joindate > lastDayStr) return false;
         if (e.leavedate && e.leavedate <= lastDayStr) return false;
@@ -14927,7 +14941,7 @@ function wfGetMonthly(year) {
     }
 
     // 남녀 수: employees 말일재직 기준 (성별 추적은 직원관리 데이터로)
-    var activeEmp = employees.filter(function(e) {
+    var activeEmp = wfEmp().filter(function(e) {
       if (!e.joindate) return false;
       if (e.joindate > lastDayStr) return false;
       if (e.leavedate && e.leavedate <= lastDayStr) return false;
@@ -15037,6 +15051,31 @@ function renderWorkforce(year) {
       '<td style="' + cellS + 'color:#be185d">' + m.female + '</td>' +
       '<td style="' + cellS + 'font-weight:700;color:var(--ac)">' + m.total + '</td></tr>';
   }).join('');
+
+  // 평균 행 (사용된 월 기준 각 항목 평균)
+  var avgFoot = document.getElementById('tfoot-workforce-summary');
+  if (!avgFoot) {
+    avgFoot = document.createElement('tfoot');
+    avgFoot.id = 'tfoot-workforce-summary';
+    document.getElementById('tbl-workforce-summary').appendChild(avgFoot);
+  }
+  if (usedMonths.length) {
+    var avg = function(key) {
+      var sum = usedMonths.reduce(function(a,m){ return a + m[key]; }, 0);
+      return Math.round(sum / usedMonths.length * 10) / 10;
+    };
+    var avgCellS = 'padding:9px 14px;font-size:13px;text-align:center;border-top:1.5px solid var(--border);background:var(--surface)';
+    avgFoot.innerHTML = '<tr>' +
+      '<td style="' + avgCellS + 'text-align:left;font-weight:700">평균</td>' +
+      '<td style="' + avgCellS + 'font-weight:600">' + avg('lastDay') + '</td>' +
+      '<td style="' + avgCellS + 'color:var(--gr);font-weight:600">' + avg('join') + '</td>' +
+      '<td style="' + avgCellS + 'color:var(--rd);font-weight:600">' + avg('leave') + '</td>' +
+      '<td style="' + avgCellS + 'color:var(--ac);font-weight:600">' + avg('male') + '</td>' +
+      '<td style="' + avgCellS + 'color:#be185d;font-weight:600">' + avg('female') + '</td>' +
+      '<td style="' + avgCellS + 'font-weight:800;color:var(--ac)">' + avg('total') + '</td></tr>';
+  } else {
+    avgFoot.innerHTML = '';
+  }
 }
 
 // ── 입퇴사 현황 렌더 ──
