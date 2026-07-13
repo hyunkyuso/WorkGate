@@ -18615,13 +18615,18 @@ var GANTT_VIEWMODE_KO = {'Quarter Day':'분기별 하루','Half Day':'반나절'
 
 function svTranslateGanttText(str) {
   if (!str) return str;
-  var s = str.trim();
-  var m = s.match(/^([A-Za-z]+)\s+(\d{4})$/);
-  if (m && GANTT_MONTH_NUM[m[1]]) return m[2]+'년 '+GANTT_MONTH_NUM[m[1]]+'월';
-  m = s.match(/^(\d{1,2})\s+([A-Za-z]+)$/);
-  if (m && GANTT_MONTH_NUM[m[2]]) return GANTT_MONTH_NUM[m[2]]+'/'+m[1];
-  if (GANTT_DOW_KO[s]) return GANTT_DOW_KO[s];
-  return str;
+  var s = str;
+  // "July 2026" 처럼 월+연도 붙은 패턴은 자연스러운 한국어 어순으로 우선 변환
+  var full = s.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (full && GANTT_MONTH_NUM[full[1]]) return full[2]+'년 '+GANTT_MONTH_NUM[full[1]]+'월';
+  // 그 외에는 월 이름/요일 이름이 문자열 어디에 있든 토큰 단위로 치환
+  Object.keys(GANTT_MONTH_NUM).forEach(function(k) {
+    s = s.replace(new RegExp('\\b'+k+'\\b','g'), GANTT_MONTH_NUM[k]+'월');
+  });
+  Object.keys(GANTT_DOW_KO).forEach(function(k) {
+    s = s.replace(new RegExp('\\b'+k+'\\b','g'), GANTT_DOW_KO[k]);
+  });
+  return s;
 }
 
 function svTranslateGanttDom() {
@@ -18695,6 +18700,15 @@ function svRenderGantt() {
       on_click: function(task) { taskOpenDetail(task.id); }
     });
     setTimeout(svTranslateGanttDom, 0);
+    setTimeout(svTranslateGanttDom, 200);
+    var ganttScrollEl = document.querySelector('#sv-gantt-svg .gantt-container');
+    if (ganttScrollEl && !ganttScrollEl._svTranslateBound) {
+      ganttScrollEl._svTranslateBound = true;
+      ganttScrollEl.addEventListener('scroll', function() {
+        clearTimeout(ganttScrollEl._svScrollTimer);
+        ganttScrollEl._svScrollTimer = setTimeout(svTranslateGanttDom, 100);
+      });
+    }
   } catch (err) {
     wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">간트차트 렌더링 중 오류가 발생했습니다</div>';
     console.error('Gantt render error:', err);
