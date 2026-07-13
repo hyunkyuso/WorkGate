@@ -14922,7 +14922,18 @@ function wfGetMonthly(year) {
         cumJoin  += unregJoin.filter(function(e){ return e.date && e.date.startsWith(cym); }).length;
         cumLeave += unregLeave.filter(function(e){ return e.date && e.date.startsWith(cym); }).length;
       }
-      totalCount = yearbaseCount + cumJoin - cumLeave;
+      var baseCount = yearbaseCount;
+      if (_wfExcludeCEO) {
+        // 기준일(전년 12/31) 시점에 대표이사가 재직 중이었으면 고정 기준인원에서 1명 차감
+        var baseDateStr = (year-1) + '-12-31';
+        var ceoAtBase = employees.some(function(e) {
+          return e.position === '대표이사' &&
+            e.joindate && e.joindate <= baseDateStr &&
+            (!e.leavedate || e.leavedate > baseDateStr);
+        });
+        if (ceoAtBase) baseCount = baseCount - 1;
+      }
+      totalCount = baseCount + cumJoin - cumLeave;
     } else {
       // yearbase 없을 때: employees 말일재직 + unregistered 입사(말일 기준 재직)
       var active = wfEmp().filter(function(e) {
