@@ -19404,7 +19404,22 @@ function reportPopulateAggToolbar(docs) {
 function reportAggregateMonthly() {
   var sel = document.getElementById('monthly-agg-period');
   var period = sel ? sel.value : '';
-  var docs = (_reportReviewDocsCache['monthly']||[]).filter(function(d){ return d.data().period === period; });
+  var reviewDocs = (_reportReviewDocsCache['monthly']||[]).filter(function(d){ return d.data().period === period; });
+  var myEmail = state.user ? state.user.email : '';
+
+  db.collection('reports').where('author','==',myEmail).where('type','==','monthly').get()
+    .then(function(snap) {
+      var myDocs = [];
+      snap.forEach(function(d) { if (d.data().period === period) myDocs.push(d); });
+      reportAggregateMonthlyBuild(period, reviewDocs.concat(myDocs));
+    })
+    .catch(function() {
+      // 내 보고서 조회 실패해도 검토 요청 목록만으로 취합 진행
+      reportAggregateMonthlyBuild(period, reviewDocs);
+    });
+}
+
+function reportAggregateMonthlyBuild(period, docs) {
   if (!docs.length) { showToast('❌ 해당 기간의 보고서가 없습니다'); return; }
 
   var seenThis = {};
@@ -19446,7 +19461,7 @@ function reportAggregateMonthly() {
 
   reportSwitchTab('monthly', 'write', document.getElementById('monthly-tab-write'));
   reportRenderMonthly(parsed, period, aggName, deptName, '');
-  showToast('📑 ' + docs.length + '건 취합 완료 (동일 업무 제외)');
+  showToast('📑 ' + docs.length + '건 취합 완료 (본인 보고서 포함, 동일 업무 제외)');
 }
 
 function reportDeleteReviewItem(docId, type) {
