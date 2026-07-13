@@ -1808,6 +1808,12 @@ select.form-input{cursor:pointer}
         </div>
         <!-- 검토 탭 -->
         <div id="monthly-review-area" style="display:none">
+          <div id="monthly-agg-toolbar" style="display:none;align-items:center;gap:8px;margin-bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px">
+            <span style="font-size:12px;color:var(--t2);font-weight:600">📑 부서 취합</span>
+            <select id="monthly-agg-period" class="form-input" style="font-size:12px;max-width:160px"></select>
+            <button onclick="reportAggregateMonthly()" class="btn btn-primary btn-sm" style="font-size:12px">취합본 만들기</button>
+            <span style="font-size:11px;color:var(--t3)">동일 업무(공유 업무)는 한 번만 표시됩니다</span>
+          </div>
           <div id="monthly-review-list" style="display:flex;flex-direction:column;gap:12px"></div>
         </div>
         <div id="monthly-myreports-area" style="display:none">
@@ -19376,6 +19382,71 @@ function reportSwitchTab(type, tab, btn) {
   }
 }
 
+var _reportReviewDocsCache = { weekly: [], monthly: [] };
+
+// 검토 요청 목록에서 발견된 기간들로 취합 툴바 드롭다운 채우기
+function reportPopulateAggToolbar(docs) {
+  var toolbar = document.getElementById('monthly-agg-toolbar');
+  var sel = document.getElementById('monthly-agg-period');
+  if (!toolbar || !sel) return;
+  var periods = [];
+  docs.forEach(function(d) {
+    var p = d.data().period;
+    if (p && periods.indexOf(p) < 0) periods.push(p);
+  });
+  if (!periods.length) { toolbar.style.display = 'none'; return; }
+  toolbar.style.display = 'flex';
+  sel.innerHTML = periods.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+}
+
+// 같은 기간의 검토요청 보고서들을 부서 단위로 취합 (동일 원본 업무는 1회만 표시)
+function reportAggregateMonthly() {
+  var sel = document.getElementById('monthly-agg-period');
+  var period = sel ? sel.value : '';
+  var docs = (_reportReviewDocsCache['monthly']||[]).filter(function(d){ return d.data().period === period; });
+  if (!docs.length) { showToast('❌ 해당 기간의 보고서가 없습니다'); return; }
+
+  var seenThis = {};
+  var seenNext = {};
+  var catMap = {};
+  var deptName = '';
+  docs.forEach(function(docSnap) {
+    var data = docSnap.data();
+    if (!deptName) deptName = data.authorDept || '';
+    var tasksArr = (data.parsed && data.parsed.tasks) || [];
+    tasksArr.forEach(function(cat) {
+      if (!catMap[cat.category]) catMap[cat.category] = { this_month: [], next_month: [] };
+      (cat.this_month||[]).forEach(function(item) {
+        if (seenThis[item.id]) return;
+        seenThis[item.id] = true;
+        catMap[cat.category].this_month.push(item);
+      });
+      (cat.next_month||[]).forEach(function(item) {
+        if (seenNext[item.id]) return;
+        seenNext[item.id] = true;
+        catMap[cat.category].next_month.push(item);
+      });
+    });
+  });
+
+  var projOrder = _projects.map(function(p){ return p.name; });
+  var tasks = Object.keys(catMap).map(function(cat) {
+    return { category: cat, this_month: catMap[cat].this_month, next_month: catMap[cat].next_month };
+  }).sort(function(a,b) {
+    var ai = projOrder.indexOf(a.category); var bi = projOrder.indexOf(b.category);
+    if (ai===-1) ai=999; if (bi===-1) bi=999;
+    return ai - bi;
+  });
+
+  var parsed = { tasks: tasks, highlight: [], issue: '' };
+  var aggName = (deptName||'부서') + ' 전체';
+  _reportData['monthly'] = { parsed: parsed, period: period, author: aggName, dept: deptName, reviewer: '', issues: '' };
+
+  reportSwitchTab('monthly', 'write', document.getElementById('monthly-tab-write'));
+  reportRenderMonthly(parsed, period, aggName, deptName, '');
+  showToast('📑 ' + docs.length + '건 취합 완료 (동일 업무 제외)');
+}
+
 function reportLoadReviewList(type) {
   var myEmail = state.user ? state.user.email : '';
   var myEmp = employees.find(function(e){ return e.id===myEmail||e.email===myEmail; });
@@ -19408,6 +19479,8 @@ function reportLoadReviewList(type) {
       var bt = b.data().createdAt ? b.data().createdAt.toMillis() : 0;
       return bt - at;
     });
+    _reportReviewDocsCache[type] = docs;
+    if (type === 'monthly') reportPopulateAggToolbar(docs);
     if (!docs.length) {
       listEl.innerHTML = '<div style="padding:48px;text-align:center;color:var(--t3)"><div style="font-size:32px;margin-bottom:8px">👁</div><div style="font-size:13px">검토 요청된 보고서가 없습니다</div></div>';
       return;
