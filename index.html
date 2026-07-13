@@ -18493,13 +18493,9 @@ function svPopulateScopeSelect() {
   }).filter(Boolean).filter(function(s){ return !scopes.some(function(sc){ return sc.deptId===s.deptId; }); });
   var all = scopes.concat(extra);
   if (isAdmin()) all = [{deptId:'__all__', deptName:'전체 조직', title:'관리자'}].concat(all);
+  // 리더 직책이 없거나 관리자 지정이 없는 일반 직원도 최소한 본인 업무는 볼 수 있게
+  all.push({deptId:'__self__', deptName:'내 업무', title:'본인'});
 
-  if (!all.length) {
-    document.getElementById('sv-noaccess').style.display = 'block';
-    document.getElementById('sv-content').style.display = 'none';
-    sel.style.display = 'none';
-    return;
-  }
   document.getElementById('sv-noaccess').style.display = 'none';
   document.getElementById('sv-content').style.display = 'block';
   sel.style.display = all.length > 1 ? 'inline-block' : 'none';
@@ -18518,15 +18514,18 @@ function svScopeChange() {
 
 function svGetScopedTaskDeptNames() {
   if (_svScopeDeptId === '__all__') return null; // null = 전체(필터 없음)
+  if (_svScopeDeptId === '__self__') return '__self__'; // 본인 업무만
   if (!_svScopeDeptId) return new Set();
   return svGetSubDeptNames(_svScopeDeptId);
 }
 
 function svGetScopedTasks() {
   var deptNames = svGetScopedTaskDeptNames();
+  var myEmail = state.user ? state.user.email : '';
   return _tasks.filter(function(t) {
     if (t.archived) return false;
     if (deptNames === null) return true;
+    if (deptNames === '__self__') return t.assignee === myEmail;
     var ae = employees.find(function(e){ return (e.id||e.email)===t.assignee; });
     return ae && deptNames.has(ae.dept);
   });
@@ -18683,6 +18682,10 @@ function svHeatNextWeek() {
 
 function svGetScopedEmployees() {
   var deptNames = svGetScopedTaskDeptNames();
+  var myEmail = state.user ? state.user.email : '';
+  if (deptNames === '__self__') {
+    return employees.filter(function(e){ return (e.id||e.email)===myEmail; });
+  }
   return employees.filter(function(e) {
     if (e.status === '퇴직') return false;
     if (deptNames === null) return true;
