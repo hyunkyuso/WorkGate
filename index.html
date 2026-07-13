@@ -2209,6 +2209,18 @@ select.form-input{cursor:pointer}
             <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveSheetUrl()">저장</button>
           </div>
         </div>
+
+        <div class="admin-only" style="max-width:640px;margin-top:12px">
+          <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:16px">
+            <div style="font-weight:600;margin-bottom:4px">현황보기 접근 권한</div>
+            <div style="font-size:12px;color:var(--t2);margin-bottom:12px">직책(팀장/부서장/본부장) 외에 추가로 현황보기(캘린더·간트·히트맵)를 열람할 수 있는 조직을 직원별로 지정합니다</div>
+            <select id="sv-admin-emp-select" class="form-input" style="margin-bottom:10px" onchange="svAdminOnEmpSelect()">
+              <option value="">-- 직원 선택 --</option>
+            </select>
+            <div id="sv-admin-dept-tree" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;display:none"></div>
+            <button class="btn btn-primary btn-sm" style="margin-top:10px;display:none" id="sv-admin-save-btn" onclick="svAdminSaveGrants()">저장</button>
+          </div>
+        </div>
       </div>
 
     </div><!-- /main -->
@@ -13310,6 +13322,7 @@ function showPage(id, el) {
   if(id === 'weekly-report') { reportInitPage('weekly'); reportUpdateReviewBadge(); }
   if(id === 'monthly-report') { reportInitPage('monthly'); reportUpdateReviewBadge(); }
   if(id === 'status-view') { svInit(); }
+  if(id === 'settings') { svAdminPopulateEmpSelect(); }
 }
 
 function openModal(id) { document.getElementById(id).style.display='flex'; }
@@ -18746,6 +18759,73 @@ function svRenderHeatmap() {
 
   html += '<div style="margin-top:10px;font-size:11px;color:var(--t3)">진하기 = 그날 진행 중인 업무 건수 (완료 제외)</div>';
   wrap.innerHTML = html;
+}
+
+// ── 설정 페이지: 관리자가 현황보기 접근 권한을 직원별로 부여 ──
+var _svAdminSelectedEmp = null;
+var _svAdminWorkingSet = new Set();
+
+function svAdminPopulateEmpSelect() {
+  var sel = document.getElementById('sv-admin-emp-select');
+  if (!sel) return;
+  var active = employees.filter(function(e){ return e.status !== '퇴직'; })
+    .sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+  sel.innerHTML = '<option value="">-- 직원 선택 --</option>' +
+    active.map(function(e){ var email=e.id||e.email; return '<option value="'+email+'">'+e.name+' ('+(e.dept||'')+')</option>'; }).join('');
+}
+
+function svAdminOnEmpSelect() {
+  var sel = document.getElementById('sv-admin-emp-select');
+  _svAdminSelectedEmp = sel.value;
+  var treeEl = document.getElementById('sv-admin-dept-tree');
+  var btn = document.getElementById('sv-admin-save-btn');
+  if (!_svAdminSelectedEmp) {
+    treeEl.style.display = 'none'; btn.style.display = 'none';
+    return;
+  }
+  treeEl.style.display = 'block'; btn.style.display = 'inline-flex';
+  treeEl.innerHTML = '<div style="padding:12px;color:var(--t3);font-size:12px">불러오는 중...</div>';
+  db.collection('settings').doc('statusViewAccess').get().then(function(snap) {
+    var data = snap.exists ? (snap.data()||{}) : {};
+    _svAdminWorkingSet = new Set(data[_svAdminSelectedEmp] || []);
+    svAdminRenderDeptTree();
+  }).catch(function() {
+    _svAdminWorkingSet = new Set();
+    svAdminRenderDeptTree();
+  });
+}
+
+function svAdminRenderDeptTree() {
+  var treeEl = document.getElementById('sv-admin-dept-tree');
+  if (!treeEl) return;
+  var roots = departments.filter(function(d){ return !d.parent; }).sort(function(a,b){ return (a.sortOrder||99)-(b.sortOrder||99); });
+  function renderNode(dept, depth) {
+    var children = departments.filter(function(d){ return d.parent===dept.id; }).sort(function(a,b){ return (a.sortOrder||99)-(b.sortOrder||99); });
+    var checked = _svAdminWorkingSet.has(dept.id);
+    var html = '<div style="padding:4px 4px 4px '+(depth*16)+'px;display:flex;align-items:center;gap:6px">' +
+      '<input type="checkbox" '+(checked?'checked':'')+' onchange="svAdminToggleDept(\''+dept.id+'\')" style="accent-color:var(--ac)">' +
+      '<span style="font-size:12px;'+(depth===0?'font-weight:600':'')+'">'+dept.name+'</span>' +
+    '</div>';
+    children.forEach(function(c){ html += renderNode(c, depth+1); });
+    return html;
+  }
+  treeEl.innerHTML = roots.map(function(d){ return renderNode(d,0); }).join('') || '<div style="padding:12px;color:var(--t3);font-size:12px">조직이 없습니다</div>';
+}
+
+function svAdminToggleDept(deptId) {
+  if (_svAdminWorkingSet.has(deptId)) _svAdminWorkingSet.delete(deptId);
+  else _svAdminWorkingSet.add(deptId);
+}
+
+function svAdminSaveGrants() {
+  if (!_svAdminSelectedEmp) return;
+  var update = {};
+  update[_svAdminSelectedEmp] = Array.from(_svAdminWorkingSet);
+  db.collection('settings').doc('statusViewAccess').set(update, {merge:true}).then(function() {
+    showToast('✅ 현황보기 접근 권한이 저장되었습니다');
+  }).catch(function(err) {
+    showToast('❌ 저장 실패: ' + err.message);
+  });
 }
 
 // ══════════════════════════════════════════════════
