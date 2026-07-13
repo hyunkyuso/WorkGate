@@ -18540,6 +18540,8 @@ function svInit() {
 
 function svSwitchTab(tab, el) {
   _svTab = tab;
+  var tooltip = document.getElementById('sv-gantt-tooltip');
+  if (tooltip) tooltip.style.display = 'none';
   document.querySelectorAll('.sv-tab-btn').forEach(function(b){ b.classList.remove('active'); b.style.background='var(--white)'; b.style.color='var(--t1)'; });
   if (el) { el.classList.add('active'); el.style.background='var(--acd)'; el.style.color='var(--ac)'; }
   ['calendar','gantt','heatmap'].forEach(function(t) {
@@ -18648,6 +18650,41 @@ function svTranslateGanttDom() {
   });
 }
 
+function svAttachGanttHoverTooltip(ganttTasks) {
+  var svg = document.querySelector('#sv-gantt-svg svg');
+  if (!svg) return;
+  var byId = {};
+  ganttTasks.forEach(function(t){ byId[t.id] = t; });
+
+  var tooltip = document.getElementById('sv-gantt-tooltip');
+  if (!tooltip) {
+    tooltip = document.createElement('div');
+    tooltip.id = 'sv-gantt-tooltip';
+    tooltip.style.cssText = 'position:fixed;z-index:9999;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;box-shadow:var(--shadow);pointer-events:none;display:none;max-width:240px;line-height:1.6';
+    document.body.appendChild(tooltip);
+  }
+
+  svg.querySelectorAll('.bar-wrapper').forEach(function(el) {
+    var taskId = el.getAttribute('data-id');
+    var t = byId[taskId];
+    if (!t) return;
+    el.addEventListener('mouseenter', function() {
+      tooltip.innerHTML =
+        '<div style="font-weight:600;margin-bottom:4px;color:var(--t1)">'+t.name+'</div>' +
+        '<div style="color:var(--t2)">'+t.start+' ~ '+t.end+'</div>' +
+        '<div style="color:var(--t2)">진행률 '+t.progress+'%</div>';
+      tooltip.style.display = 'block';
+    });
+    el.addEventListener('mousemove', function(e) {
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY + 14) + 'px';
+    });
+    el.addEventListener('mouseleave', function() {
+      tooltip.style.display = 'none';
+    });
+  });
+}
+
 function svRenderGantt() {
   var wrap = document.getElementById('sv-gantt-body');
   if (!wrap) return;
@@ -18697,11 +18734,12 @@ function svRenderGantt() {
       view_mode: 'Week',
       date_format: 'YYYY-MM-DD',
       readonly: true,
-      popup_trigger: 'hover',
+      popup: false,
       on_click: function(task) { taskOpenDetail(task.id); }
     });
     setTimeout(svTranslateGanttDom, 0);
     setTimeout(svTranslateGanttDom, 200);
+    setTimeout(function(){ svAttachGanttHoverTooltip(ganttTasks); }, 0);
     var ganttScrollEl = document.querySelector('#sv-gantt-svg .gantt-container');
     if (ganttScrollEl && !ganttScrollEl._svTranslateBound) {
       ganttScrollEl._svTranslateBound = true;
