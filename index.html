@@ -19035,6 +19035,7 @@ function svAdminSaveGrants() {
 // 주간 / 월간 보고
 // ══════════════════════════════════════════════════
 var _reportData = { weekly: null, monthly: null };
+var _reportMonthlyUndoSnapshot = null;
 
 function reportInitPage(type) {
   if (type === 'weekly') {
@@ -19441,10 +19442,19 @@ function reportAggregateMonthly() {
   var parsed = { tasks: tasks, highlight: [], issue: '' };
   var aggName = (deptName||'부서') + ' 전체';
   _reportData['monthly'] = { parsed: parsed, period: period, author: aggName, dept: deptName, reviewer: '', issues: '' };
+  _reportMonthlyUndoSnapshot = null;
 
   reportSwitchTab('monthly', 'write', document.getElementById('monthly-tab-write'));
   reportRenderMonthly(parsed, period, aggName, deptName, '');
   showToast('📑 ' + docs.length + '건 취합 완료 (동일 업무 제외)');
+}
+
+function reportDeleteReviewItem(docId, type) {
+  if (!confirm('이 보고서를 삭제하시겠습니까?')) return;
+  db.collection('reports').doc(docId).delete().then(function() {
+    showToast('🗑 보고서가 삭제되었습니다');
+    reportLoadReviewList(type);
+  }).catch(function(e){ showToast('❌ 삭제 실패: '+e.message); });
 }
 
 function reportLoadReviewList(type) {
@@ -19500,7 +19510,10 @@ function reportLoadReviewList(type) {
             '<div style="font-size:14px;font-weight:600;color:var(--t1)">'+authorName+(dept?' <span style="font-size:12px;color:var(--t3);">('+dept+')</span>':'')+'</div>' +
             '<div style="font-size:12px;color:var(--t3);margin-top:2px">'+data.period+' · '+dateStr+'</div>' +
           '</div>' +
-          '<span style="font-size:18px;color:var(--t3)">▾</span>' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            '<button onclick="event.stopPropagation();reportDeleteReviewItem(\''+d.id+'\',\''+type+'\')" style="font-size:14px;color:#E24B4A;background:none;border:none;cursor:pointer" title="삭제">🗑</button>' +
+            '<span style="font-size:18px;color:var(--t3)">▾</span>' +
+          '</div>' +
         '</div>' +
         '<div id="review-body-'+d.id+'" style="display:none;padding:16px 18px">' +
           reportReviewBodyHtml(data, d.id) +
@@ -19861,6 +19874,7 @@ function reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName) {
 
   var html = '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:12px">' +
     '<button onclick="reportEdit(\'monthly\')" class="btn btn-ghost" style="font-size:12px">✏️ 수정</button>' +
+    (_reportMonthlyUndoSnapshot ? '<button onclick="reportUndoMerge()" class="btn btn-ghost" style="font-size:12px;color:#E24B4A">↩ 병합 되돌리기</button>' : '') +
     '<button onclick="reportCopy(\'monthly\')" class="btn btn-ghost" style="font-size:12px">📋 복사</button>' +
     '<button onclick="reportPrint(\'monthly\')" class="btn btn-ghost" style="font-size:12px">🖨️ 인쇄</button>' +
     '<button onclick="reportSaveToDrive(\'monthly\')" class="btn btn-ghost" style="font-size:12px">☁️ 드라이브 저장</button>' +
@@ -20198,6 +20212,7 @@ async function reportGenerate(type) {
 
     var parsed = { tasks: tasks, highlight: highlight, issue: issues };
     _reportData['monthly'] = { parsed: parsed, period: periodLabel, author: name, dept: dept, reviewer: reviewerName, issues: issues };
+    _reportMonthlyUndoSnapshot = null;
     reportRenderMonthly(parsed, periodLabel, name, dept, reviewerName);
     // 검토자 지정 시 자동 저장 (검토 탭에서 보이도록)
     if (reviewerEmail) reportSave('monthly');
@@ -20913,6 +20928,15 @@ function reportMergeCategoryDuplicates(tasksArr) {
   return order;
 }
 
+function reportUndoMerge() {
+  if (!_reportMonthlyUndoSnapshot || !_reportData['monthly']) return;
+  _reportData['monthly'].parsed.tasks = _reportMonthlyUndoSnapshot;
+  _reportMonthlyUndoSnapshot = null;
+  var d = _reportData['monthly'];
+  reportRenderMonthly(d.parsed, d.period, d.author, d.dept, d.reviewer);
+  showToast('↩ 병합 이전 상태로 되돌렸습니다');
+}
+
 function reportEditMonthlyApply() {
   if (!window._editParsed||!_reportData['monthly']) return;
   reportEditMonthlySyncDOM();
@@ -20943,6 +20967,7 @@ function reportEditMonthlyApply() {
     }
   });
   window._editParsed.highlight = newHL;
+  _reportMonthlyUndoSnapshot = JSON.parse(JSON.stringify(window._editParsed.tasks));
   window._editParsed.tasks = reportMergeCategoryDuplicates(window._editParsed.tasks);
   _reportData['monthly'].parsed = window._editParsed;
   window._editParsed = null;
