@@ -18664,20 +18664,33 @@ function svAttachGanttHoverTooltip(ganttTasks) {
     document.body.appendChild(tooltip);
   }
 
+  function positionTooltip(e) {
+    var pad = 14;
+    var rect = tooltip.getBoundingClientRect();
+    var x = e.clientX + pad;
+    var y = e.clientY + pad;
+    if (x + rect.width > window.innerWidth) x = e.clientX - rect.width - pad;
+    if (y + rect.height > window.innerHeight) y = e.clientY - rect.height - pad;
+    if (x < 0) x = pad;
+    if (y < 0) y = pad;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+  }
+
   svg.querySelectorAll('.bar-wrapper').forEach(function(el) {
     var taskId = el.getAttribute('data-id');
     var t = byId[taskId];
     if (!t) return;
-    el.addEventListener('mouseenter', function() {
+    el.addEventListener('mouseenter', function(e) {
       tooltip.innerHTML =
         '<div style="font-weight:600;margin-bottom:4px;color:var(--t1)">'+t.name+'</div>' +
         '<div style="color:var(--t2)">'+t.start+' ~ '+t.end+'</div>' +
         '<div style="color:var(--t2)">진행률 '+t.progress+'%</div>';
       tooltip.style.display = 'block';
+      positionTooltip(e);
     });
     el.addEventListener('mousemove', function(e) {
-      tooltip.style.left = (e.clientX + 14) + 'px';
-      tooltip.style.top = (e.clientY + 14) + 'px';
+      positionTooltip(e);
     });
     el.addEventListener('mouseleave', function() {
       tooltip.style.display = 'none';
