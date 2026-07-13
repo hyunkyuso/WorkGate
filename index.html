@@ -1315,6 +1315,12 @@ select.form-input{cursor:pointer}
                   <span style="font-size:13px;opacity:0.8">명</span>
                 </div>
                 <div style="font-size:11px;opacity:0.7;margin-top:4px">월별 합산 ÷ 사용월수</div>
+                <div style="display:flex;align-items:center;gap:5px;margin-top:8px">
+                  <select id="wf-avg-from" onchange="wfAvgRangeChange()" style="font-size:11px;padding:2px 4px;border-radius:5px;border:none;background:rgba(255,255,255,0.2);color:#fff"></select>
+                  <span style="font-size:11px;opacity:0.8">~</span>
+                  <select id="wf-avg-to" onchange="wfAvgRangeChange()" style="font-size:11px;padding:2px 4px;border-radius:5px;border:none;background:rgba(255,255,255,0.2);color:#fff"></select>
+                  <span style="font-size:11px;opacity:0.8">평균</span>
+                </div>
               </div>
               <!-- KPI 2x2 -->
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -14784,6 +14790,8 @@ var _wfYear = new Date().getFullYear();
 var _wfEditType = null;
 var _wfEditIdx = -1;
 var _wfExcludeCEO = false;
+var _wfAvgFrom = null;
+var _wfAvgTo = null;
 
 // 대표이사 제외 체크 시 적용할 직원 목록 (상시근로자수 계산 전용)
 function wfEmp() {
@@ -14793,6 +14801,26 @@ function wfEmp() {
 function wfToggleExcludeCEO() {
   _wfExcludeCEO = document.getElementById('wf-exclude-ceo').checked;
   renderWorkforce(_wfYear);
+}
+
+function wfAvgRangeChange() {
+  var fromEl = document.getElementById('wf-avg-from');
+  var toEl = document.getElementById('wf-avg-to');
+  _wfAvgFrom = fromEl ? parseInt(fromEl.value) : null;
+  _wfAvgTo = toEl ? parseInt(toEl.value) : null;
+  if (_wfAvgFrom > _wfAvgTo) _wfAvgTo = _wfAvgFrom;
+  renderWorkforce(_wfYear);
+}
+
+// 고정 기준인원(전년도 등록값)에서 CEO 제외 반영: 기준일 시점에 대표이사가 재직 중이었다면 1명 차감
+function wfAdjustCeoBase(count, asOfDateStr) {
+  if (!_wfExcludeCEO) return count;
+  var ceoActive = employees.some(function(e) {
+    return e.position === '대표이사' &&
+      e.joindate && e.joindate <= asOfDateStr &&
+      (!e.leavedate || e.leavedate > asOfDateStr);
+  });
+  return ceoActive ? count - 1 : count;
 }
 
 // 현재 재직인원 = 직원관리 재직자 + 수정 추가 미등록 입사 - 수정 추가 미등록 퇴사
@@ -14922,17 +14950,7 @@ function wfGetMonthly(year) {
         cumJoin  += unregJoin.filter(function(e){ return e.date && e.date.startsWith(cym); }).length;
         cumLeave += unregLeave.filter(function(e){ return e.date && e.date.startsWith(cym); }).length;
       }
-      var baseCount = yearbaseCount;
-      if (_wfExcludeCEO) {
-        // 기준일(전년 12/31) 시점에 대표이사가 재직 중이었으면 고정 기준인원에서 1명 차감
-        var baseDateStr = (year-1) + '-12-31';
-        var ceoAtBase = employees.some(function(e) {
-          return e.position === '대표이사' &&
-            e.joindate && e.joindate <= baseDateStr &&
-            (!e.leavedate || e.leavedate > baseDateStr);
-        });
-        if (ceoAtBase) baseCount = baseCount - 1;
-      }
+      var baseCount = wfAdjustCeoBase(yearbaseCount, (year-1) + '-12-31');
       totalCount = baseCount + cumJoin - cumLeave;
     } else {
       // yearbase 없을 때: employees 말일재직 + unregistered 입사(말일 기준 재직)
@@ -14979,12 +14997,17 @@ function wfGetMonthly(year) {
   return months;
 }
 
-// 연간 상시근로자수 계산 (현재월까지만)
-function wfAnnual(monthly) {
+// 연간 상시근로자수 계산 (지정 구간 평균, 기본은 1월~현재월)
+function wfAnnual(monthly, fromM, toM) {
   var curM = new Date().getMonth() + 1;
   var curY = new Date().getFullYear();
   var year = _wfYear;
-  var used = monthly.filter(function(m){ return year < curY || m.month <= curM; });
+  var maxM = year < curY ? 12 : curM;
+  var f = fromM || 1;
+  var t = toM || maxM;
+  if (t > maxM) t = maxM;
+  if (f > t) f = t;
+  var used = monthly.filter(function(m){ return m.month >= f && m.month <= t; });
   if (!used.length) return 0;
   var sum = used.reduce(function(acc,m){ return acc + m.total; }, 0);
   return Math.round(sum / used.length * 10) / 10;
@@ -15000,7 +15023,6 @@ function renderWorkforce(year) {
   var leaveTotal = jl.filter(function(e){ return e.type==='퇴사'; }).length;
   var curActive = wfGetCurActive();
 
-  document.getElementById('wf-annual').textContent = wfAnnual(monthly);
   document.getElementById('wf-current').textContent = curActive;
   document.getElementById('wf-join').textContent = joinTotal;
   document.getElementById('wf-leave').textContent = leaveTotal;
@@ -15012,7 +15034,7 @@ function renderWorkforce(year) {
   var netEl = document.getElementById('wf-net');
   var netSubEl = document.getElementById('wf-net-sub');
   if (prevBase.length && prevBase[0].count) {
-    var prevCount = parseInt(prevBase[0].count);
+    var prevCount = wfAdjustCeoBase(parseInt(prevBase[0].count), prevYear + '-12-31');
     var diff = curActive - prevCount;
     netEl.textContent = (diff > 0 ? '+' : '') + diff;
     netEl.style.color = diff > 0 ? 'var(--gr)' : diff < 0 ? 'var(--rd)' : 'var(--t1)';
@@ -15025,6 +15047,22 @@ function renderWorkforce(year) {
 
   var curM = _wfYear === new Date().getFullYear() ? new Date().getMonth() + 1 : 12;
   var usedMonths = monthly.slice(0, curM);
+
+  // 평균 구간(몇월~몇월) 선택 상태 정리 및 셀렉트 채우기
+  if (_wfAvgFrom === null || _wfAvgFrom > curM) _wfAvgFrom = 1;
+  if (_wfAvgTo === null || _wfAvgTo > curM) _wfAvgTo = curM;
+  if (_wfAvgFrom > _wfAvgTo) _wfAvgFrom = _wfAvgTo;
+  var fromSel = document.getElementById('wf-avg-from');
+  var toSel = document.getElementById('wf-avg-to');
+  if (fromSel && toSel) {
+    var opts = '';
+    for (var mo=1; mo<=curM; mo++) opts += '<option value="'+mo+'">'+mo+'월</option>';
+    fromSel.innerHTML = opts;
+    toSel.innerHTML = opts;
+    fromSel.value = _wfAvgFrom;
+    toSel.value = _wfAvgTo;
+  }
+  document.getElementById('wf-annual').textContent = wfAnnual(monthly, _wfAvgFrom, _wfAvgTo);
 
   // 바차트
   var maxVal = usedMonths.reduce(function(a,m){ return Math.max(a, m.total); }, 1);
@@ -15063,21 +15101,22 @@ function renderWorkforce(year) {
       '<td style="' + cellS + 'font-weight:700;color:var(--ac)">' + m.total + '</td></tr>';
   }).join('');
 
-  // 평균 행 (사용된 월 기준 각 항목 평균)
+  // 평균 행 (선택한 구간 기준 각 항목 평균)
   var avgFoot = document.getElementById('tfoot-workforce-summary');
   if (!avgFoot) {
     avgFoot = document.createElement('tfoot');
     avgFoot.id = 'tfoot-workforce-summary';
     document.getElementById('tbl-workforce-summary').appendChild(avgFoot);
   }
-  if (usedMonths.length) {
+  var rangeMonths = monthly.filter(function(m){ return m.month >= _wfAvgFrom && m.month <= _wfAvgTo; });
+  if (rangeMonths.length) {
     var avg = function(key) {
-      var sum = usedMonths.reduce(function(a,m){ return a + m[key]; }, 0);
-      return Math.round(sum / usedMonths.length * 10) / 10;
+      var sum = rangeMonths.reduce(function(a,m){ return a + m[key]; }, 0);
+      return Math.round(sum / rangeMonths.length * 10) / 10;
     };
     var avgCellS = 'padding:9px 14px;font-size:13px;text-align:center;border-top:1.5px solid var(--border);background:var(--surface)';
     avgFoot.innerHTML = '<tr>' +
-      '<td style="' + avgCellS + 'text-align:left;font-weight:700">평균</td>' +
+      '<td style="' + avgCellS + 'text-align:left;font-weight:700">평균 (' + _wfAvgFrom + '~' + _wfAvgTo + '월)</td>' +
       '<td style="' + avgCellS + 'font-weight:600">' + avg('lastDay') + '</td>' +
       '<td style="' + avgCellS + 'color:var(--gr);font-weight:600">' + avg('join') + '</td>' +
       '<td style="' + avgCellS + 'color:var(--rd);font-weight:600">' + avg('leave') + '</td>' +
