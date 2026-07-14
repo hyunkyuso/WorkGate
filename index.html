@@ -175,8 +175,8 @@ select.form-input{cursor:pointer}
 .cert-section-toggle:hover{color:var(--t2)}
 #cert-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
 #cert-menu-items.collapsed{max-height:0;opacity:0}
-#main-menu-items,#monitoring-menu-items,#manage-menu-items,#doc-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
-#main-menu-items.collapsed,#monitoring-menu-items.collapsed,#manage-menu-items.collapsed,#doc-menu-items.collapsed{max-height:0;opacity:0}
+#work-menu-items,#hr-menu-items,#doc-menu-items,#system-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
+#work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed{max-height:0;opacity:0}
 
 /* ── DRIVE STATUS ── */
 .drive-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;border-radius:8px;margin-bottom:14px}
@@ -282,12 +282,17 @@ select.form-input{cursor:pointer}
     <!-- 사이드바 -->
     <div class="sidebar">
       <div class="sidebar-section">
-        <div class="sidebar-section-label" onclick="toggleSideSection('main-menu-items','main-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
-          <span>메인</span>
-          <span id="main-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
-        </div>
         <div id="main-menu-items">
           <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">🏠</span> 대시보드</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-label" onclick="toggleSideSection('work-menu-items','work-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>업무</span>
+          <span id="work-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
+        </div>
+        <div id="work-menu-items">
           <div class="nav-item" onclick="showPage('tasks',this)"><span class="nav-icon">📋</span> 업무보드 <span class="nav-badge" id="task-badge" style="display:none"></span></div>
           <div class="nav-item" onclick="showPage('weekly-report',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 주간 보고</div>
           <div class="nav-item" onclick="showPage('monthly-report',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 월간 보고</div>
@@ -297,18 +302,32 @@ select.form-input{cursor:pointer}
           <div class="nav-item" onclick="showUnderMaintenance('Docs·Sheets', '📝', this)"><span class="nav-icon">📝</span> Docs·Sheets</div>
         </div>
       </div>
+
       <div class="sidebar-section">
-        <div class="sidebar-section-label" onclick="toggleSideSection('monitoring-menu-items','monitoring-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
-          <span>모니터링</span>
-          <span id="monitoring-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
+        <div class="sidebar-section-label" onclick="toggleSideSection('hr-menu-items','hr-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>인사</span>
+          <span id="hr-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
         </div>
-        <div id="monitoring-menu-items">
+        <div id="hr-menu-items">
           <div class="nav-item" onclick="showPage('orgview',this)"><span class="nav-icon">👁️</span> 직원 조회</div>
+          <div class="nav-item admin-only" onclick="showPage('employees',this)"><span class="nav-icon">👤</span> 직원 관리</div>
+          <div class="nav-item admin-only" onclick="showPage('myinfo-history',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 정보수정 이력</div>
+          <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
+          <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
+          <div class="nav-item admin-only" onclick="showPage('birthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎂</span> 생일자 현황</div>
+          <div class="nav-item admin-only" onclick="showPage('parentbirthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎁</span> 부모님 생신현황</div>
+          <div class="nav-item admin-only" onclick="showPage('deptfund',this)"><span class="nav-icon">💰</span> 부서장 운영비</div>
+          <div class="nav-item admin-only" onclick="showPage('workforce',this)"><span class="nav-icon">👥</span> 상시근로자수</div>
+          <div class="nav-item admin-only" onclick="showPage('workforce-join',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📥</span> 입퇴사 현황</div>
+          <div class="nav-item admin-only" onclick="showPage('workforce-gender',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 인력구성 분석</div>
+          <div class="nav-item admin-only" onclick="showPage('workforce-edit',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">✏️</span> 수정</div>
         </div>
       </div>
+
+      <!-- 총무 (기업인증현황) -->
       <div class="sidebar-section">
-        <div class="sidebar-section-label cert-section-toggle" onclick="toggleCertMenu()" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
-          <span>기업인증현황</span>
+        <div class="sidebar-section-label" onclick="toggleSideSection('cert-menu-items','cert-toggle-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>총무</span>
           <span id="cert-toggle-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
         </div>
         <div id="cert-menu-items">
@@ -339,43 +358,25 @@ select.form-input{cursor:pointer}
         </div>
       </div>
 
-      <!-- 시연영상 -->
+      <!-- 시스템 -->
       <div class="sidebar-section">
-        <div class="sidebar-section-label" onclick="toggleSideSection('video-menu-items','video-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
-          <span>시연영상</span>
-          <span id="video-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
+        <div class="sidebar-section-label" onclick="toggleSideSection('system-menu-items','system-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>시스템</span>
+          <span id="system-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
         </div>
-        <div id="video-menu-items">
-          <div class="nav-item" onclick="showPage('videos',this)"><span class="nav-icon">🎬</span> 영상 목록</div>
-        </div>
-      </div>
-
-      <div class="sidebar-section">
-        <div class="sidebar-section-label" onclick="toggleSideSection('manage-menu-items','manage-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
-          <span>관리</span>
-          <span id="manage-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
-        </div>
-        <div id="manage-menu-items">
-          <div class="nav-item admin-only" onclick="showPage('employees',this)"><span class="nav-icon">👤</span> 직원 관리</div>
-          <div class="nav-item admin-only" onclick="showPage('myinfo-history',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 정보수정 이력</div>
+        <div id="system-menu-items">
+          <div class="nav-item admin-only" onclick="showPage('codemanage',this)"><span class="nav-icon">🗂️</span> 코드 관리</div>
+          <div class="nav-item admin-only" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> 설정</div>
+          <div class="sidebar-section-label" style="margin-top:8px;padding:0 8px;font-size:11px">시스템 통계</div>
           <div class="nav-item admin-only" onclick="showPage('loginlogs',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🔑</span> 접속 이력</div>
           <div class="nav-item admin-only" onclick="showPage('menuUsage',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📈</span> 메뉴 사용 현황</div>
-          <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
-          <div class="nav-item admin-only" onclick="showPage('codemanage',this)"><span class="nav-icon">🗂️</span> 코드 관리</div>
-          <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
-          <div class="nav-item admin-only" onclick="showPage('birthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎂</span> 생일자 현황</div>
-          <div class="nav-item admin-only" onclick="showPage('parentbirthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎁</span> 부모님 생신현황</div>
-          <div class="nav-item admin-only" onclick="showPage('deptfund',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">💰</span> 부서장 운영비</div>
-          <div class="nav-item admin-only" onclick="showPage('workforce',this)"><span class="nav-icon">👥</span> 상시근로자수</div>
-          <div class="nav-item admin-only" onclick="showPage('workforce-join',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📥</span> 입퇴사 현황</div>
-          <div class="nav-item admin-only" onclick="showPage('workforce-gender',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 인력구성 분석</div>
-          <div class="nav-item admin-only" onclick="showPage('workforce-edit',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">✏️</span> 수정</div>
         </div>
       </div>
 
+      <!-- 기타 -->
       <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:12px">
+        <div class="nav-item" onclick="showPage('videos',this)"><span class="nav-icon">🎬</span> 시연영상</div>
         <div class="nav-item" onclick="showPage('mypage',this)"><span class="nav-icon">👤</span> 마이페이지</div>
-        <div class="nav-item admin-only" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> 설정</div>
       </div>
     </div>
 
