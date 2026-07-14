@@ -395,11 +395,11 @@ select.form-input{cursor:pointer}
 
         <!-- KPI 통계 -->
         <div class="stats-grid" style="margin-bottom:20px">
-          <div class="stat-card"><div class="stat-val" style="color:var(--ac)" id="st-total">0</div><div class="stat-label">내 업무</div></div>
-          <div class="stat-card"><div class="stat-val" style="color:var(--am)" id="st-inprogress">0</div><div class="stat-label">진행 중</div></div>
-          <div class="stat-card"><div class="stat-val" style="color:var(--gr)" id="st-done">0</div><div class="stat-label">완료</div></div>
-          <div class="stat-card"><div class="stat-val" style="color:#E24B4A" id="st-urgent">0</div><div class="stat-label">기한 임박</div></div>
-          <div class="stat-card"><div class="stat-val" style="color:#8B5CF6" id="st-shared">0</div><div class="stat-label">공유받은 업무</div></div>
+          <div class="stat-card" onclick="dashOpenStatFilter('all')" style="cursor:pointer"><div class="stat-val" style="color:var(--ac)" id="st-total">0</div><div class="stat-label">내 업무</div></div>
+          <div class="stat-card" onclick="dashOpenStatFilter('doing')" style="cursor:pointer"><div class="stat-val" style="color:var(--am)" id="st-inprogress">0</div><div class="stat-label">진행 중</div></div>
+          <div class="stat-card" onclick="dashOpenStatFilter('done')" style="cursor:pointer"><div class="stat-val" style="color:var(--gr)" id="st-done">0</div><div class="stat-label">완료</div></div>
+          <div class="stat-card" onclick="dashOpenStatFilter('urgent')" style="cursor:pointer"><div class="stat-val" style="color:#E24B4A" id="st-urgent">0</div><div class="stat-label">기한 임박</div></div>
+          <div class="stat-card" onclick="dashOpenStatFilter('shared')" style="cursor:pointer"><div class="stat-val" style="color:#8B5CF6" id="st-shared">0</div><div class="stat-label">공유받은 업무</div></div>
         </div>
 
         <!-- 프로젝트 현황 -->
@@ -2244,6 +2244,14 @@ select.form-input{cursor:pointer}
 
 <!-- 모달: 새 업무 -->
 
+<!-- 모달: 대시보드 업무 필터 목록 -->
+<div id="dash-task-filter-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('dash-task-filter-modal')">
+  <div class="modal" style="max-width:480px;max-height:80vh;overflow-y:auto">
+    <div class="modal-header"><div class="modal-title" id="dash-task-filter-title">업무 목록</div><button class="modal-close" onclick="closeModal('dash-task-filter-modal')">✕</button></div>
+    <div id="dash-task-filter-body" style="display:flex;flex-direction:column;gap:2px"></div>
+  </div>
+</div>
+
 <!-- 모달: KPI -->
 <div id="kpi-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('kpi-modal')">
   <div class="modal">
@@ -3842,27 +3850,98 @@ function renderDashProjectList() {
   }).join('');
 }
 
+// 대시보드에서 특정 업무로 바로 이동 (해당 프로젝트로 전환 후 상세 모달 오픈)
+function dashGoToTask(taskId) {
+  var t = _tasks.find(function(x){ return x.id===taskId; });
+  if (!t) return;
+  showPage('tasks', document.querySelector('.nav-item[onclick*=tasks]'));
+  setTimeout(function() {
+    if (t.projectId) projSelectProject(t.projectId);
+    setTimeout(function(){ taskOpenDetail(taskId); }, 150);
+  }, 100);
+}
+
+// 상단 통계 카드 클릭 시 조건에 맞는 업무 목록을 모달로 표시
+function dashOpenStatFilter(kind) {
+  var myEmail = state.user ? state.user.email : '';
+  var soon = new Date(Date.now()+3*86400000).toISOString().substring(0,10);
+  var titleMap = { all:'📋 내 업무', doing:'🔵 진행 중인 업무', done:'✅ 완료된 업무', urgent:'⏰ 기한 임박 업무', shared:'🔗 공유받은 업무' };
+
+  var myTasks = _tasks.filter(function(t) {
+    return !t.archived && (t.assignee === myEmail || (t.importedBy||[]).indexOf(myEmail) >= 0);
+  });
+  var sharedTasks = _tasks.filter(function(t) {
+    if (t.archived) return false;
+    var isShared = (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail;
+    if (!isShared) return false;
+    if (t.assignee === myEmail) return false;
+    if ((t.importedBy||[]).indexOf(myEmail) >= 0) return false;
+    return true;
+  });
+
+  var list = [];
+  if (kind === 'all') list = myTasks;
+  else if (kind === 'doing') list = myTasks.filter(function(t){ return t.status==='doing'; });
+  else if (kind === 'done') list = myTasks.filter(function(t){ return t.status==='done'; });
+  else if (kind === 'urgent') list = myTasks.filter(function(t){ return t.due && t.due <= soon && t.status !== 'done'; });
+  else if (kind === 'shared') list = sharedTasks;
+
+  document.getElementById('dash-task-filter-title').textContent = titleMap[kind] || '업무 목록';
+  var body = document.getElementById('dash-task-filter-body');
+  if (!list.length) {
+    body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">해당하는 업무가 없습니다</div>';
+  } else {
+    body.innerHTML = list.map(function(t) {
+      var col = TASK_COLS.find(function(c){ return c.id===t.status; });
+      var proj = _projects.find(function(p){ return p.id===t.projectId; });
+      return '<div onclick="closeModal(\'dash-task-filter-modal\');dashGoToTask(\''+t.id+'\')" style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;cursor:pointer" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
+        '<span style="width:8px;height:8px;border-radius:50%;background:'+(col?col.color:'#888')+';flex-shrink:0"></span>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.title+'</div>' +
+          (proj?'<div style="font-size:11px;color:var(--t3)">📁 '+proj.name+'</div>':'') +
+        '</div>' +
+        '<span style="font-size:11px;color:var(--t3);flex-shrink:0">'+(t.due||'')+'</span>' +
+      '</div>';
+    }).join('');
+  }
+  openModal('dash-task-filter-modal');
+}
+
 function renderRecentTasks() {
   var el = document.getElementById('recent-tasks-list');
   if (!el) return;
   var myEmail = state.user ? state.user.email : '';
+
   var myTasks = _tasks.filter(function(t) {
     return !t.archived && t.status !== 'done' && (
       t.assignee === myEmail ||
       (t.importedBy||[]).indexOf(myEmail) >= 0
     );
   }).sort(function(a, b) {
-    // 마감일 있는 것 먼저, 마감일 가까운 순
     if (a.due && b.due) return a.due < b.due ? -1 : 1;
     if (a.due) return -1;
     if (b.due) return 1;
     return 0;
   }).slice(0, 5);
-  if (!myTasks.length) { el.innerHTML = '<div style="color:var(--t3);font-size:12px">진행 중인 업무가 없습니다</div>'; return; }
-  el.innerHTML = myTasks.map(function(t) {
+
+  var sharedTasks = _tasks.filter(function(t) {
+    if (t.archived || t.status === 'done') return false;
+    var isShared = (t.sharedWith||[]).indexOf(myEmail) >= 0 || t.reviewer === myEmail;
+    if (!isShared) return false;
+    if (t.assignee === myEmail) return false;
+    if ((t.importedBy||[]).indexOf(myEmail) >= 0) return false;
+    return true;
+  }).sort(function(a, b) {
+    if (a.due && b.due) return a.due < b.due ? -1 : 1;
+    if (a.due) return -1;
+    if (b.due) return 1;
+    return 0;
+  }).slice(0, 5);
+
+  function taskRow(t) {
     var col = TASK_COLS.find(function(c){ return c.id===t.status; });
     var proj = _projects.find(function(p){ return p.id===t.projectId; });
-    return '<div style="display:flex;align-items:center;gap:8px;font-size:12px">' +
+    return '<div onclick="dashGoToTask(\''+t.id+'\')" style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:2px 4px;border-radius:6px" onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'none\'">' +
       '<span style="width:8px;height:8px;border-radius:50%;background:'+(col?col.color:'#888')+';display:inline-block;flex-shrink:0"></span>' +
       '<div style="flex:1;min-width:0">' +
         '<div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.title+'</div>' +
@@ -3870,7 +3949,19 @@ function renderRecentTasks() {
       '</div>' +
       '<span style="color:var(--t3);white-space:nowrap;flex-shrink:0">'+(t.due||'')+'</span>' +
     '</div>';
-  }).join('');
+  }
+
+  if (!myTasks.length && !sharedTasks.length) {
+    el.innerHTML = '<div style="color:var(--t3);font-size:12px">진행 중인 업무가 없습니다</div>';
+    return;
+  }
+
+  var html = '';
+  html += '<div style="font-size:11px;font-weight:600;color:var(--t3);margin-bottom:2px">내 업무</div>';
+  html += myTasks.length ? myTasks.map(taskRow).join('') : '<div style="font-size:11px;color:var(--t3);padding:2px 4px">없음</div>';
+  html += '<div style="font-size:11px;font-weight:600;color:var(--t3);margin:10px 0 2px">공유받은 업무</div>';
+  html += sharedTasks.length ? sharedTasks.map(taskRow).join('') : '<div style="font-size:11px;color:var(--t3);padding:2px 4px">없음</div>';
+  el.innerHTML = html;
 }
 
 function renderRecentFiles() {
