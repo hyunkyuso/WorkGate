@@ -291,8 +291,7 @@ select.form-input{cursor:pointer}
           <div class="nav-item" onclick="showPage('tasks',this)"><span class="nav-icon">📋</span> 업무보드 <span class="nav-badge" id="task-badge" style="display:none"></span></div>
           <div class="nav-item" onclick="showPage('weekly-report',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 주간 보고</div>
           <div class="nav-item" onclick="showPage('monthly-report',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 월간 보고</div>
-          <div class="nav-item admin-only" onclick="showPage('task-admin',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 업무 현황</div>
-          <div class="nav-item" onclick="showPage('status-view',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📅</span> 현황보기</div>
+          <div class="nav-item" onclick="showPage('task-admin',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📊</span> 업무 현황</div>
           <div class="nav-item" onclick="showUnderMaintenance('KPI·OKR', '📈', this)"><span class="nav-icon">📈</span> KPI·OKR</div>
           <div class="nav-item" onclick="showUnderMaintenance('구글드라이브', '📁', this)"><span class="nav-icon">📁</span> 구글드라이브</div>
           <div class="nav-item" onclick="showUnderMaintenance('Docs·Sheets', '📝', this)"><span class="nav-icon">📝</span> Docs·Sheets</div>
@@ -1841,7 +1840,7 @@ select.form-input{cursor:pointer}
             <div class="page-title">📊 업무 현황</div>
             <div class="page-sub">직원을 선택하여 업무 현황을 확인합니다</div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
+          <div id="ta-list-filters" style="display:flex;gap:8px;align-items:center">
             <select id="ta-project-filter" class="form-input" style="font-size:13px;width:180px" onchange="taskAdminRender()">
               <option value="">전체 프로젝트</option>
             </select>
@@ -1853,8 +1852,15 @@ select.form-input{cursor:pointer}
               <option value="done">완료</option>
             </select>
           </div>
+          <select id="sv-scope-select" onchange="svScopeChange()" class="form-input" style="display:none;font-size:13px;width:200px"></select>
         </div>
 
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button class="ta-tab-btn active" onclick="taSwitchMainTab('list',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--acd);color:var(--ac);cursor:pointer;font-size:13px">📋 업무 목록</button>
+          <button class="ta-tab-btn" onclick="taSwitchMainTab('status',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer;font-size:13px">📅 현황보기</button>
+        </div>
+
+        <div id="ta-tab-list">
         <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start">
 
           <!-- 좌측: 조직도 트리 -->
@@ -1938,46 +1944,38 @@ select.form-input{cursor:pointer}
 
           </div>
         </div>
-      </div>
-
-      <!-- ══════ 현황보기 ══════ -->
-      <div id="page-status-view" class="page">
-        <div class="page-header">
-          <div>
-            <div class="page-title">📅 현황보기</div>
-            <div class="page-sub">담당 조직의 업무 현황을 캘린더·간트차트·히트맵으로 확인합니다</div>
-          </div>
-          <select id="sv-scope-select" onchange="svScopeChange()" class="form-input" style="font-size:13px;width:200px"></select>
         </div>
 
-        <div id="sv-noaccess" style="display:none;padding:40px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
-          현황보기 권한이 없습니다. 팀장/부서장/본부장 직책이 있거나, 관리자에게 접근 권한을 요청하세요.
-        </div>
-
-        <div id="sv-content" style="display:none">
-          <div style="display:flex;gap:6px;margin-bottom:14px">
-            <button class="sv-tab-btn active" onclick="svSwitchTab('calendar',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);cursor:pointer;font-size:13px">📅 캘린더</button>
-            <button class="sv-tab-btn" onclick="svSwitchTab('gantt',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);cursor:pointer;font-size:13px">📊 간트차트</button>
-            <button class="sv-tab-btn" onclick="svSwitchTab('heatmap',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);cursor:pointer;font-size:13px">🔥 히트맵</button>
+        <div id="ta-tab-status" style="display:none">
+          <div id="sv-noaccess" style="display:none;padding:40px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+            현황보기 권한이 없습니다. 관리자에게 접근 권한을 요청하세요.
           </div>
 
-          <div id="sv-view-calendar" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-              <button onclick="svCalPrevMonth()" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--t2)">◀</button>
-              <span id="sv-cal-label" style="font-size:14px;font-weight:600"></span>
-              <button onclick="svCalNextMonth()" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--t2)">▶</button>
+          <div id="sv-content" style="display:none">
+            <div style="display:flex;gap:6px;margin-bottom:14px">
+              <button class="sv-tab-btn active" onclick="svSwitchTab('calendar',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);cursor:pointer;font-size:13px">📅 캘린더</button>
+              <button class="sv-tab-btn" onclick="svSwitchTab('gantt',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);cursor:pointer;font-size:13px">📊 간트차트</button>
+              <button class="sv-tab-btn" onclick="svSwitchTab('heatmap',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);cursor:pointer;font-size:13px">🔥 히트맵</button>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:11px;color:var(--t3);text-align:center;margin-bottom:4px">
-              <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
-            </div>
-            <div id="sv-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
-          </div>
 
-          <div id="sv-view-gantt" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
-            <div id="sv-gantt-body"></div>
-          </div>
-          <div id="sv-view-heatmap" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
-            <div id="sv-heat-body"></div>
+            <div id="sv-view-calendar" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <button onclick="svCalPrevMonth()" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--t2)">◀</button>
+                <span id="sv-cal-label" style="font-size:14px;font-weight:600"></span>
+                <button onclick="svCalNextMonth()" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--t2)">▶</button>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:11px;color:var(--t3);text-align:center;margin-bottom:4px">
+                <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+              </div>
+              <div id="sv-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
+            </div>
+
+            <div id="sv-view-gantt" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+              <div id="sv-gantt-body"></div>
+            </div>
+            <div id="sv-view-heatmap" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+              <div id="sv-heat-body"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -13427,8 +13425,8 @@ function showPage(id, el) {
   }
   if(id === 'weekly-report') { reportInitPage('weekly'); reportUpdateReviewBadge(); }
   if(id === 'monthly-report') { reportInitPage('monthly'); reportUpdateReviewBadge(); }
-  if(id === 'status-view') { svInit(); }
   if(id === 'settings') { svAdminPopulateEmpSelect(); }
+  if(id === 'task-admin') { taInitPage(); }
 }
 
 function openModal(id) { document.getElementById(id).style.display='flex'; }
@@ -17780,15 +17778,68 @@ var _taSelected = new Set();
 var _taPage = 1;
 var _taPageSize = 20;
 
+// 업무 현황 페이지: 업무목록 / 현황보기 탭 전환
+function taSwitchMainTab(tab, el) {
+  document.querySelectorAll('.ta-tab-btn').forEach(function(b){ b.classList.remove('active'); b.style.background='var(--white)'; b.style.color='var(--t1)'; });
+  if (el) { el.classList.add('active'); el.style.background='var(--acd)'; el.style.color='var(--ac)'; }
+  document.getElementById('ta-tab-list').style.display = tab==='list' ? 'block' : 'none';
+  document.getElementById('ta-tab-status').style.display = tab==='status' ? 'block' : 'none';
+  document.getElementById('ta-list-filters').style.display = tab==='list' ? 'flex' : 'none';
+  document.getElementById('sv-scope-select').style.display = tab==='status' ? 'inline-block' : 'none';
+  if (tab === 'status') svInit();
+}
+
+// 비관리자는 본인 + 하위조직(리더 스코프)만, 관리자는 전체(null)
+function taIsAdmin() {
+  return state.myRole === '관리자' || state.myRole === 'HR담당' || (typeof isAdmin === 'function' && isAdmin());
+}
+function taGetScopeDeptNames() {
+  if (taIsAdmin()) return null;
+  var scopes = (typeof svGetMyLeaderScopes === 'function') ? svGetMyLeaderScopes() : [];
+  var set = new Set();
+  if (scopes.length) {
+    scopes.forEach(function(s){ svGetSubDeptNames(s.deptId).forEach(function(n){ set.add(n); }); });
+    return set;
+  }
+  var myEmail = state.user ? state.user.email : '';
+  var me = employees.find(function(e){ return (e.id||e.email)===myEmail; });
+  if (me && me.dept) set.add(me.dept);
+  return set;
+}
+function taGetScopeRootDeptIds() {
+  if (taIsAdmin()) return null;
+  var scopes = (typeof svGetMyLeaderScopes === 'function') ? svGetMyLeaderScopes() : [];
+  if (scopes.length) return scopes.map(function(s){ return s.deptId; });
+  var myEmail = state.user ? state.user.email : '';
+  var me = employees.find(function(e){ return (e.id||e.email)===myEmail; });
+  if (me && me.dept) {
+    var d = departments.find(function(x){ return x.name===me.dept; });
+    if (d) return [d.id];
+  }
+  return [];
+}
+
+function taInitPage() {
+  taSwitchMainTab('list', document.querySelector('.ta-tab-btn'));
+  // 비관리자는 본인+하위조직을 기본으로 자동 선택
+  if (!taIsAdmin() && !_taSelected.size) {
+    var scopeNames = taGetScopeDeptNames();
+    employees.filter(function(e){ return e.status!=='퇴직' && scopeNames.has(e.dept); }).forEach(function(e){ _taSelected.add(e.id||e.email||''); });
+  }
+  taRenderOrgTree();
+  taskAdminRender();
+}
+
 function taRenderOrgTree() {
   var tree = document.getElementById('ta-org-tree');
   if (!tree) return;
   var keyword = (document.getElementById('ta-emp-search')||{}).value||'';
   var html = '';
+  var scopeNames = taGetScopeDeptNames();
 
   if (keyword) {
-    // 검색 시 전체 직원 평탄화
-    var filteredEmps = employees.filter(function(e){ return e.status!=='퇴직' && (e.name||'').indexOf(keyword)>=0; });
+    // 검색 시 전체 직원 평탄화 (비관리자는 본인 스코프 내에서만 검색)
+    var filteredEmps = employees.filter(function(e){ return e.status!=='퇴직' && (e.name||'').indexOf(keyword)>=0 && (scopeNames===null || scopeNames.has(e.dept)); });
     html = filteredEmps.map(function(e) {
       var email = e.id||e.email||'';
       var isChecked = _taSelected.has(email);
@@ -17799,8 +17850,11 @@ function taRenderOrgTree() {
       '</div>';
     }).join('');
   } else if (departments && departments.length) {
-    // departments 데이터 있으면 계층 구조
-    var roots = departments.filter(function(d){ return !d.parent; });
+    // departments 데이터 있으면 계층 구조 (비관리자는 본인+하위조직 루트만)
+    var scopeRootIds = taGetScopeRootDeptIds();
+    var roots = scopeRootIds === null
+      ? departments.filter(function(d){ return !d.parent; })
+      : departments.filter(function(d){ return scopeRootIds.indexOf(d.id) >= 0; });
 
     function renderNode(dept, depth) {
       var indent = depth * 12;
@@ -17827,9 +17881,9 @@ function taRenderOrgTree() {
     }
     roots.forEach(function(d){ html += renderNode(d, 0); });
   } else {
-    // departments 없으면 부서별 그룹핑
+    // departments 없으면 부서별 그룹핑 (비관리자는 본인 스코프 부서만)
     var deptMap = {};
-    employees.filter(function(e){ return e.status!=='퇴직'; }).forEach(function(e){
+    employees.filter(function(e){ return e.status!=='퇴직' && (scopeNames===null || scopeNames.has(e.dept)); }).forEach(function(e){
       var dept = e.dept || e.orgName || '기타';
       if (!deptMap[dept]) deptMap[dept] = [];
       deptMap[dept].push(e);
@@ -17871,7 +17925,8 @@ function taDeptToggle(deptName) {
   _taPage = 1; taRenderOrgTree(); taskAdminRender();
 }
 function taSelectAll() {
-  employees.filter(function(e){ return e.status!=='퇴직'; }).forEach(function(e){ _taSelected.add(e.id||e.email||''); });
+  var scopeNames = taGetScopeDeptNames();
+  employees.filter(function(e){ return e.status!=='퇴직' && (scopeNames===null || scopeNames.has(e.dept)); }).forEach(function(e){ _taSelected.add(e.id||e.email||''); });
   _taPage = 1; taRenderOrgTree(); taskAdminRender();
 }
 function taDeselectAll() {
