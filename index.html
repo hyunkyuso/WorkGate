@@ -18393,7 +18393,6 @@ function taskShowArchive(mode) {
   var isAdmin = state.myRole === '관리자' || state.myRole === 'HR담당';
   var archived = _tasks.filter(function(t) {
     if (!t.archived) return false;
-    if (_currentProjectId && mode==='view' && t.projectId !== _currentProjectId) return false;
     if (isAdmin) return true;
     return t.assignee === myEmail || (t.sharedWith||[]).indexOf(myEmail)>=0 || t.reviewer===myEmail;
   });
@@ -18439,10 +18438,11 @@ function taskShowArchive(mode) {
     html += filteredByYear.map(function(t) {
       var proj = _projects.find(function(p){ return p.id===t.projectId; });
       var dateStr = t.archivedAt ? (function(){ var d=t.archivedAt.toDate?t.archivedAt.toDate():new Date(t.archivedAt); return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate(); })() : '';
+      var assigneeName = (employees.find(function(e){ return (e.id||e.email)===t.assignee; })||{}).name || t.assignee || '';
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px">' +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:13px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(t.title||'')+'</div>' +
-          '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+(proj?proj.name+' · ':'')+dateStr+'</div>' +
+          '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+(proj?proj.name+' · ':'')+(mode==='load'?(assigneeName+' · '):'')+dateStr+'</div>' +
         '</div>' +
         '<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:'+(sC[t.status]||'#888')+'22;color:'+(sC[t.status]||'#888')+';flex-shrink:0">'+(sL[t.status]||'')+'</span>' +
         (mode==='load' ?
