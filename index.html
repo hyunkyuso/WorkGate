@@ -3134,7 +3134,8 @@ function setupAuthListener() {
   auth.onAuthStateChanged(async (user) => {
     if (user) {
       // 도메인 체크
-      if (!user.email.endsWith('@jungdouit.com')) {
+      var ALLOWED_DOMAINS = ['@jungdouit.com', '@uitgis.vn'];
+      if (!ALLOWED_DOMAINS.some(function(d){ return user.email.endsWith(d); })) {
         showToast('❌ 정도유아이티 임직원만 로그인할 수 있습니다.');
         await auth.signOut();
         return;
@@ -3240,23 +3241,29 @@ async function autoRegisterEmployee(email, name, picture) {
   try {
     const ref = db.collection('employees').doc(email);
     const doc = await ref.get();
-    if (!doc.exists) {
-      // 신규 로그인 → 직원 목록에 자동 추가
-      const now = new Date().toLocaleString('ko-KR');
-      await ref.set({
-        uid: 'emp_' + Date.now(),
-        id: email,
-        name: name || email,
-        photo: picture || '',
-        dept: '', position: '', title: '', duty: '',
-        role: '일반', status: '재직',
-        joindate: new Date().toISOString().slice(0,10),
-        leavedate: '',
-        history: [{ date: now, changes: ['최초 로그인 자동 등록'] }],
-        createdAt: now,
-      });
-      showToast('👋 ' + name + '님이 직원 목록에 자동 등록되었습니다!');
-    }
+    if (doc.exists) return;
+
+    // 문서 ID가 이메일과 다르게 등록된 기존 직원인지 확인 (인사팀이 사번 등 다른 ID로 미리 등록해둔 경우 대비)
+    const byId = await db.collection('employees').where('id','==',email).limit(1).get();
+    if (!byId.empty) return;
+    const byEmail = await db.collection('employees').where('email','==',email).limit(1).get();
+    if (!byEmail.empty) return;
+
+    // 신규 로그인 → 직원 목록에 자동 추가
+    const now = new Date().toLocaleString('ko-KR');
+    await ref.set({
+      uid: 'emp_' + Date.now(),
+      id: email,
+      name: name || email,
+      photo: picture || '',
+      dept: '', position: '', title: '', duty: '',
+      role: '일반', status: '재직',
+      joindate: new Date().toISOString().slice(0,10),
+      leavedate: '',
+      history: [{ date: now, changes: ['최초 로그인 자동 등록'] }],
+      createdAt: now,
+    });
+    showToast('👋 ' + name + '님이 직원 목록에 자동 등록되었습니다!');
   } catch(e) { console.error('직원 자동 등록 오류:', e); }
 }
 
