@@ -17161,6 +17161,7 @@ function taskStartListener() {
       updateStats();
       renderRecentTasks();
       renderDashProjectList();
+      renderRecentFiles();
     } else {
       updateStats(); // 배지/숫자는 항상 갱신
     }
@@ -17611,7 +17612,7 @@ async function driveUploadTaskFile(file) {
     method:'POST', body: form
   });
   var d = await r.json();
-  return { name: d.name, driveId: d.id, driveLink: d.webViewLink, size: file.size };
+  return { name: d.name, driveId: d.id, driveLink: d.webViewLink, size: file.size, uploadedAt: new Date().toISOString() };
 }
 
 var _driveTaskFolderId = null;
