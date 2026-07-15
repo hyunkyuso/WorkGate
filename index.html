@@ -2249,6 +2249,33 @@ select.form-input{cursor:pointer}
             <div class="page-sub">관리자 전용 메뉴를 직원(여러 명 가능)별로 선택해서 열어줄 수 있습니다. 저장하면 선택된 메뉴로 완전히 덮어씁니다.</div>
           </div>
         </div>
+
+        <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">
+          <div style="font-weight:600;margin-bottom:4px">역할별 기본 메뉴</div>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:12px">해당 역할(직원관리의 "권한" 필드)을 가진 모든 직원이 기본으로 보는 메뉴입니다. 아래 개별 부여가 이 기본값보다 우선 적용됩니다. (관리자는 항상 전체 접근이라 설정 대상 아님)</div>
+          <div style="display:flex;gap:6px;margin-bottom:14px">
+            <button class="pm-role-tab-btn active" onclick="pmRoleSelect('일반',this)" style="flex:1;font-size:12px;padding:7px;border-radius:8px;border:0.5px solid var(--border);background:var(--acd);color:var(--ac);cursor:pointer">일반</button>
+            <button class="pm-role-tab-btn" onclick="pmRoleSelect('HR담당',this)" style="flex:1;font-size:12px;padding:7px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer">HR담당</button>
+            <button class="pm-role-tab-btn" onclick="pmRoleSelect('읽기전용',this)" style="flex:1;font-size:12px;padding:7px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer">읽기전용</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">인사</div>
+              <div class="pm-role-menu-group" data-group="hr"></div>
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">총무</div>
+              <div class="pm-role-menu-group" data-group="affairs"></div>
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">시스템</div>
+              <div class="pm-role-menu-group" data-group="system"></div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="pmRoleSaveDefaults()">이 역할 기본값 저장</button>
+        </div>
+
+        <div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:8px">직원별 개별 부여 (역할 기본값보다 우선 적용)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
 
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
@@ -3197,18 +3224,26 @@ function setupAuthListener() {
   });
 }
 
-var _myMenuGrants = {}; // { menuId: 'full' | 'readonly' }
+var _myMenuGrants = {}; // { menuId: 'full' | 'readonly' } (역할 기본값 + 개별 부여 병합 결과)
 function loadMyMenuGrants(email) {
-  return db.collection('settings').doc('menuAccess').get().then(function(snap) {
-    var data = snap.exists ? (snap.data()||{}) : {};
-    var g = data[email] || {};
-    // 구버전 배열 형식 호환 (배열이면 전부 '전체 권한'으로 간주)
+  var myEmp = employees.find(function(e){ return (e.id||e.email)===email; });
+  var myRole = (myEmp && myEmp.role) || '일반';
+  return Promise.all([
+    db.collection('settings').doc('roleMenuDefaults').get().catch(function(){ return null; }),
+    db.collection('settings').doc('menuAccess').get().catch(function(){ return null; })
+  ]).then(function(results) {
+    var roleSnap = results[0], empSnap = results[1];
+    var roleData = (roleSnap && roleSnap.exists) ? (roleSnap.data()||{}) : {};
+    var empData = (empSnap && empSnap.exists) ? (empSnap.data()||{}) : {};
+    var roleDefaults = roleData[myRole] || {};
+    var g = empData[email] || {};
     if (Array.isArray(g)) {
       var obj = {};
       g.forEach(function(id){ obj[id] = 'full'; });
       g = obj;
     }
-    _myMenuGrants = g;
+    // 역할 기본값 위에 개별 부여를 덮어써서 최종 권한 계산 (개별 부여가 우선)
+    _myMenuGrants = Object.assign({}, roleDefaults, g);
   }).catch(function(){ _myMenuGrants = {}; });
 }
 
@@ -19216,6 +19251,63 @@ function svRenderHeatmap() {
 var _svAdminSelectedEmp = null;
 var _svAdminWorkingSet = new Set();
 
+// ── 역할별 기본 메뉴 관리 ──
+var _pmRoleSelected = '일반';
+var _pmRoleMenuLevels = {};
+
+function pmRoleSelect(role, el) {
+  _pmRoleSelected = role;
+  document.querySelectorAll('.pm-role-tab-btn').forEach(function(b){
+    b.classList.remove('active'); b.style.background='var(--white)'; b.style.color='var(--t1)';
+  });
+  if (el) { el.classList.add('active'); el.style.background='var(--acd)'; el.style.color='var(--ac)'; }
+  pmRoleLoadDefaults();
+}
+
+function pmRoleLoadDefaults() {
+  db.collection('settings').doc('roleMenuDefaults').get().then(function(snap) {
+    var data = snap.exists ? (snap.data()||{}) : {};
+    _pmRoleMenuLevels = Object.assign({}, data[_pmRoleSelected] || {});
+    pmRoleRenderMenuTree();
+  }).catch(function() {
+    _pmRoleMenuLevels = {};
+    pmRoleRenderMenuTree();
+  });
+}
+
+function pmRoleRenderMenuTree() {
+  ['hr','affairs','system'].forEach(function(group) {
+    var el = document.querySelector('.pm-role-menu-group[data-group="'+group+'"]');
+    if (!el) return;
+    el.innerHTML = PM_MENU_LIST[group].map(function(m) {
+      var level = _pmRoleMenuLevels[m.id] || 'none';
+      return '<div style="padding:5px 4px;display:flex;align-items:center;justify-content:space-between;gap:8px">' +
+        '<span style="font-size:13px">'+m.label+'</span>' +
+        '<select onchange="pmRoleSetMenuLevel(\''+m.id+'\',this.value)" style="font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--border)">' +
+          '<option value="none"'+(level==='none'?' selected':'')+'>없음</option>' +
+          '<option value="readonly"'+(level==='readonly'?' selected':'')+'>읽기 전용</option>' +
+          '<option value="full"'+(level==='full'?' selected':'')+'>전체 권한</option>' +
+        '</select>' +
+      '</div>';
+    }).join('');
+  });
+}
+
+function pmRoleSetMenuLevel(menuId, level) {
+  if (level === 'none') delete _pmRoleMenuLevels[menuId];
+  else _pmRoleMenuLevels[menuId] = level;
+}
+
+function pmRoleSaveDefaults() {
+  var update = {};
+  update[_pmRoleSelected] = Object.assign({}, _pmRoleMenuLevels);
+  db.collection('settings').doc('roleMenuDefaults').set(update, {merge:true}).then(function() {
+    showToast('✅ "' + _pmRoleSelected + '" 역할 기본 메뉴가 저장되었습니다');
+  }).catch(function(err) {
+    showToast('❌ 저장 실패: ' + err.message);
+  });
+}
+
 // ── 권한 관리: 관리자 전용 메뉴를 직원(여러 명)별로 부여, 완전 덮어쓰기 ──
 var _pmSelectedEmps = new Set();
 var _pmMenuLevels = {}; // { menuId: 'full' | 'readonly' } (미포함 = 없음)
@@ -19257,6 +19349,8 @@ var PM_MENU_LIST = {
 function pmPopulateEmpSelect() {
   _pmSelectedEmps = new Set();
   _pmMenuLevels = {};
+  _pmRoleSelected = '일반';
+  pmRoleLoadDefaults();
   var deptSel = document.getElementById('pm-dept-filter');
   if (deptSel) {
     var depts = Array.from(new Set(employees.filter(function(e){return e.status!=='퇴직';}).map(function(e){ return e.dept; }).filter(Boolean))).sort();
