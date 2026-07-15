@@ -12275,10 +12275,11 @@ function pcSummarizeFile(file) {
       })
       .then(function(res){ return res.json(); })
       .then(function(data) {
+        console.log('[인사기록카드 AI 분석 응답]', data);
         var text = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text.trim() : '';
         resolve(text);
       })
-      .catch(function(){ resolve(''); });
+      .catch(function(err){ console.error('[인사기록카드 AI 분석 오류]', err); resolve(''); });
     };
     reader.onerror = function(){ resolve(''); };
     reader.readAsDataURL(file);
@@ -12318,7 +12319,15 @@ async function pcSummarizeFromDrive(driveId, mimeType) {
     body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:300, messages:[{role:'user', content: contentArr}] })
   });
   var data = await res.json();
-  return (data.content && data.content[0] && data.content[0].text) ? data.content[0].text.trim() : '';
+  console.log('[인사기록카드 AI 분석 응답]', res.status, data);
+  if (!res.ok || data.error) {
+    throw new Error('AI 서버 오류: ' + (data.error && (data.error.message || JSON.stringify(data.error)) || ('HTTP ' + res.status)));
+  }
+  var text = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text.trim() : '';
+  if (!text) {
+    throw new Error('AI가 빈 응답을 반환했습니다. (콘솔에 전체 응답 로그를 남겨뒀습니다)');
+  }
+  return text;
 }
 
 function pcDetachRowFile(type, idx) {
