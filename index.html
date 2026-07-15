@@ -1128,7 +1128,7 @@ select.form-input{cursor:pointer}
         <!-- 전체 직원 대상 AI 질의응답 (떠있는 버튼 → 채팅 모달) -->
         <button onclick="pcOpenAiChat()" title="AI에게 물어보기" style="position:fixed;right:28px;bottom:100px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;box-shadow:0 6px 18px rgba(99,102,241,.4);font-size:24px;cursor:pointer;z-index:1000">🤖</button>
 
-        <div style="display:grid;grid-template-columns:240px 200px 1fr;gap:16px;align-items:start">
+        <div style="display:grid;grid-template-columns:240px 260px 1fr;gap:16px;align-items:start">
 
           <!-- 직원 목록 (검색 가능) -->
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:16px">
@@ -1146,11 +1146,12 @@ select.form-input{cursor:pointer}
             <div id="pc-photo" style="width:72px;height:72px;border-radius:50%;background:var(--acd);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:22px;color:var(--ac);overflow:hidden">-</div>
             <div id="pc-name" style="font-size:15px;font-weight:600;color:var(--t1)">-</div>
             <div id="pc-deptpos" style="font-size:12px;color:var(--t3);margin-top:2px">-</div>
+            <div id="pc-title-concurrent" style="font-size:11px;color:var(--ac);margin-top:2px"></div>
             <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;text-align:left;font-size:12px">
               <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--t3)">입사일</span><span id="pc-joindate">-</span></div>
               <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--t3)">근속</span><span id="pc-tenure">-</span></div>
               <div style="display:flex;justify-content:space-between;padding:3px 0;font-weight:600;color:var(--ac)"><span>총 경력</span><span id="pc-total-career">-</span></div>
-              <div id="pc-career-breakdown" style="font-size:10px;color:var(--t3);text-align:right;margin-top:2px"></div>
+              <div id="pc-career-breakdown" style="font-size:10px;color:var(--t3);text-align:right;margin-top:2px;white-space:nowrap"></div>
             </div>
           </div>
 
@@ -12013,6 +12014,16 @@ function pcLoadEmployee() {
   }
   document.getElementById('pc-name').textContent = emp.name || '-';
   document.getElementById('pc-deptpos').textContent = (emp.dept||'') + (emp.position?(' · '+emp.position):'');
+
+  var titleParts = [];
+  var pcLeaderTitles = ['대표이사','본부장','부서장','팀장'];
+  if (emp.title && pcLeaderTitles.indexOf(emp.title) >= 0) titleParts.push('직책: ' + emp.title);
+  var concurrentList = (emp.concurrent||[]).filter(function(c){ return c && (c.dept || c.title); });
+  if (concurrentList.length) {
+    titleParts.push('겸직: ' + concurrentList.map(function(c){ return (c.dept||'') + (c.title?(' '+c.title):''); }).join(', '));
+  }
+  document.getElementById('pc-title-concurrent').textContent = titleParts.join(' · ');
+
   document.getElementById('pc-joindate').textContent = emp.joindate || '-';
 
   var calc = pcCalcTotalCareer(emp);
