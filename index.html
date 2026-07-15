@@ -312,7 +312,7 @@ select.form-input{cursor:pointer}
           <span id="hr-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
         </div>
         <div id="hr-menu-items">
-          <div class="nav-item" onclick="showPage('orgview',this)"><span class="nav-icon">👁️</span> 직원 조회</div>
+          <div class="nav-item admin-only" onclick="showPage('orgview',this)"><span class="nav-icon">👁️</span> 직원 조회</div>
           <div class="nav-item admin-only" onclick="showPage('employees',this)"><span class="nav-icon">👤</span> 직원 관리</div>
           <div class="nav-item admin-only" onclick="showPage('myinfo-history',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 정보수정 이력</div>
           <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
@@ -355,9 +355,9 @@ select.form-input{cursor:pointer}
           <span id="doc-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
         </div>
         <div id="doc-menu-items">
-          <div class="nav-item" onclick="showPage('doc-draft',this)"><span class="nav-icon">✍️</span> 공문·계약서 작성</div>
-          <div class="nav-item" onclick="showPage('doc-review',this)"><span class="nav-icon">🔍</span> 계약서 검토</div>
-          <div class="nav-item" onclick="showPage('doc-templates',this)"><span class="nav-icon">📋</span> 템플릿 관리</div>
+          <div class="nav-item admin-only" onclick="showPage('doc-draft',this)"><span class="nav-icon">✍️</span> 공문·계약서 작성</div>
+          <div class="nav-item admin-only" onclick="showPage('doc-review',this)"><span class="nav-icon">🔍</span> 계약서 검토</div>
+          <div class="nav-item admin-only" onclick="showPage('doc-templates',this)"><span class="nav-icon">📋</span> 템플릿 관리</div>
         </div>
       </div>
 
@@ -2253,10 +2253,14 @@ select.form-input{cursor:pointer}
         <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">
           <div style="font-weight:600;margin-bottom:4px">"일반" 역할 기본 메뉴</div>
           <div style="font-size:11px;color:var(--t3);margin-bottom:12px">직원관리에서 권한이 "일반"인 모든 직원이 기본으로 보는 메뉴입니다. 아래 개별 부여가 이 기본값 위에 얹혀서 적용됩니다. (관리자는 항상 전체 접근이라 설정 대상 아님)</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px">
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">인사</div>
               <div class="pm-role-menu-group" data-group="hr"></div>
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">문서관리</div>
+              <div class="pm-role-menu-group" data-group="docs"></div>
             </div>
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">총무</div>
@@ -2294,6 +2298,8 @@ select.form-input{cursor:pointer}
             <div style="font-size:11px;color:var(--t3);margin-bottom:12px">메뉴마다 없음/읽기전용/전체 권한을 따로 지정할 수 있습니다</div>
             <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">인사</div>
             <div class="pm-menu-group" data-group="hr" style="margin-bottom:10px"></div>
+            <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">문서관리</div>
+            <div class="pm-menu-group" data-group="docs" style="margin-bottom:10px"></div>
             <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">총무</div>
             <div class="pm-menu-group" data-group="affairs" style="margin-bottom:10px"></div>
             <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">시스템</div>
@@ -19269,7 +19275,7 @@ function pmRoleLoadDefaults() {
 }
 
 function pmRoleRenderMenuTree() {
-  ['hr','affairs','system'].forEach(function(group) {
+  ['hr','docs','affairs','system'].forEach(function(group) {
     var el = document.querySelector('.pm-role-menu-group[data-group="'+group+'"]');
     if (!el) return;
     el.innerHTML = PM_MENU_LIST[group].map(function(m) {
@@ -19306,6 +19312,7 @@ var _pmSelectedEmps = new Set();
 var _pmMenuLevels = {}; // { menuId: 'full' | 'readonly' } (미포함 = 없음)
 var PM_MENU_LIST = {
   hr: [
+    {id:'orgview', label:'직원 조회'},
     {id:'employees', label:'직원 관리'},
     {id:'myinfo-history', label:'정보수정 이력'},
     {id:'organization', label:'조직 관리'},
@@ -19317,6 +19324,11 @@ var PM_MENU_LIST = {
     {id:'workforce-join', label:'입퇴사 현황'},
     {id:'workforce-gender', label:'인력구성 분석'},
     {id:'workforce-edit', label:'상시근로자수 수정'}
+  ],
+  docs: [
+    {id:'doc-draft', label:'공문·계약서 작성'},
+    {id:'doc-review', label:'계약서 검토'},
+    {id:'doc-templates', label:'템플릿 관리'}
   ],
   affairs: [
     {id:'cert-dashboard', label:'기업인증 대시보드'},
@@ -19408,7 +19420,7 @@ function pmUpdateSelectedCount() {
 }
 
 function pmRenderMenuTree() {
-  ['hr','affairs','system'].forEach(function(group) {
+  ['hr','docs','affairs','system'].forEach(function(group) {
     var el = document.querySelector('.pm-menu-group[data-group="'+group+'"]');
     if (!el) return;
     el.innerHTML = PM_MENU_LIST[group].map(function(m) {
