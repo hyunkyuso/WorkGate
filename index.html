@@ -12281,7 +12281,7 @@ function pcSummarizeFile(file) {
         : [{ type:'image', source:{type:'base64',media_type:mediaType,data:base64} }, {type:'text', text: prompt}];
       fetch('https://twilight-dew-b966.hyunkyu-so.workers.dev', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, messages:[{role:'user', content: contentArr}] })
+        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:4000, messages:[{role:'user', content: contentArr}] })
       })
       .then(function(res){ return res.json(); })
       .then(function(data) {
@@ -12297,9 +12297,11 @@ function pcSummarizeFile(file) {
 
 // 문서 분석 공용 프롬프트: 사실관계는 요약, 자기소개서 등 서술형 답변은 원문 그대로 보존
 function pcDocAnalysisPrompt() {
-  return '이 문서(이력서/자기소개서/평가표/증명서 등 인사 관련 서류일 수 있음)를 분석해서 아래 JSON 객체 하나로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.\n' +
-    '{"summary":"문서에 담긴 사실관계(날짜, 이름, 회사명, 학력, 경력, 평가 내용, 특이사항 등)를 최대한 자세히 요약. 문서가 여러 페이지면 각 페이지 내용을 다 반영",' +
-    '"selfIntro":"문서 안에 자기소개서 항목(지원동기, 성장과정, 성격의 장단점, 입사 후 포부 등 자유서술형 질문과 그에 대한 답변)이 있다면, 절대 요약하지 말고 실제 작성된 문장을 그대로 옮겨 적으세요. 항목이 여러 개면 \'질문: 답변\' 형식으로 항목마다 줄바꿈해서 다 나열하세요. 자기소개서 항목이 없으면 빈 문자열로 응답하세요."}';
+  return '이 문서는 여러 서류(졸업증명서, 성적증명서, 자격증, 등본, 가족관계증명서, 통장사본, 입사지원서, 경력기술서, 자기소개서 등)가 하나의 파일로 합쳐져 있을 수 있습니다. ' +
+    '**문서의 처음부터 끝까지 페이지를 전부 하나하나 확인하세요.** 특히 뒷부분 페이지에 "자기소개서"라는 제목이나, 지원동기·성장과정·성격의 장단점·직무수행 경험·입사 후 포부 같은 자유서술형 질문과 답변이 있는 페이지를 놓치지 말고 반드시 찾아내세요.\n' +
+    '아래 JSON 객체 하나로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.\n' +
+    '{"summary":"문서에 담긴 사실관계(날짜, 이름, 회사명, 학력, 경력, 평가 내용, 특이사항 등)를 최대한 자세히 요약",' +
+    '"selfIntro":"문서 안에서 찾은 자기소개서 관련 질문과 답변을 절대 요약하거나 축약하지 말고, 작성된 문장을 한 글자도 빠짐없이 그대로 옮겨 적으세요. 항목이 여러 개면 각 질문 제목과 답변 전문을 순서대로 다 나열하세요. 페이지를 다 확인했는데도 정말 자기소개서 항목이 없으면 빈 문자열로 응답하세요."}';
 }
 
 // AI 응답(JSON 문자열)을 {summary, selfIntro} 객체로 파싱
@@ -12345,7 +12347,7 @@ async function pcSummarizeFromDrive(driveId, mimeType) {
     : [{ type:'image', source:{type:'base64',media_type: mimeType, data:base64} }, {type:'text', text: prompt}];
   var res = await fetch('https://twilight-dew-b966.hyunkyu-so.workers.dev', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, messages:[{role:'user', content: contentArr}] })
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:4000, messages:[{role:'user', content: contentArr}] })
   });
   var data = await res.json();
   console.log('[인사기록카드 AI 분석 응답]', res.status, data);
