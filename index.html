@@ -1161,9 +1161,6 @@ select.form-input{cursor:pointer}
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                 <div style="font-weight:600">학력·경력·자격</div>
                 <div style="display:flex;gap:6px">
-                  <label class="btn btn-ghost btn-sm" style="font-size:12px;cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">
-                    🤖 AI로 채우기<input type="file" accept="image/*,.pdf" style="display:none" onchange="pcAiScan(this)">
-                  </label>
                   <button id="pc-edu-edit-btn" class="btn btn-ghost btn-sm" style="font-size:12px" onclick="pcEditEduCareerLicense()">✏️ 수정</button>
                 </div>
               </div>
@@ -12010,7 +12007,7 @@ function pcRenderEduCareerLicense(emp) {
     return '<div style="display:flex;gap:10px;padding:6px 0;font-size:13px;align-items:baseline">' +
       '<span style="color:var(--t3);width:64px;flex-shrink:0">'+(e.date||'')+'</span>' +
       '<span style="color:var(--ac);font-size:11px;flex-shrink:0;width:48px">'+(e.degree||'')+'</span>' +
-      '<span>'+(e.school||'')+'</span>' +
+      '<span>'+(e.school||'')+(e.major?(' · '+e.major):'')+'</span>' +
     '</div>';
   }).join('') : '<div style="font-size:12px;color:var(--t3);padding:4px 0">등록된 학력이 없습니다</div>';
 
@@ -12018,7 +12015,7 @@ function pcRenderEduCareerLicense(emp) {
   html += career.length ? career.map(function(c) {
     return '<div style="display:flex;gap:10px;padding:6px 0;font-size:13px;align-items:baseline">' +
       '<span style="color:var(--t3);width:150px;flex-shrink:0">'+(c.start||'')+' ~ '+(c.end||'현재')+'</span>' +
-      '<span>'+(c.company||'')+'</span>' +
+      '<span>'+(c.company||'')+(c.position?(' · '+c.position):'')+(c.duty?(' ('+c.duty+')'):'')+'</span>' +
     '</div>';
   }).join('') : '<div style="font-size:12px;color:var(--t3);padding:4px 0">등록된 경력이 없습니다</div>';
 
@@ -12026,7 +12023,7 @@ function pcRenderEduCareerLicense(emp) {
   html += license.length ? license.map(function(l) {
     return '<div style="display:flex;gap:10px;padding:6px 0;font-size:13px;align-items:baseline">' +
       '<span style="color:var(--t3);width:64px;flex-shrink:0">'+(l.date||'')+'</span>' +
-      '<span style="flex:1">'+(l.name||'')+'</span>' +
+      '<span style="flex:1">'+(l.name||'')+(l.number?(' ('+l.number+')'):'')+'</span>' +
       '<span style="font-size:11px;color:var(--t3)">'+(l.org||'')+'</span>' +
     '</div>';
   }).join('') : '<div style="font-size:12px;color:var(--t3);padding:4px 0">등록된 자격이 없습니다</div>';
@@ -12050,41 +12047,67 @@ function pcEditEduCareerLicense() {
   pcRenderEduForm();
 }
 
+function pcAiButton(type) {
+  return '<label class="btn btn-ghost btn-sm" style="font-size:11px;cursor:pointer;background:linear-gradient(135deg,#eef1fe,#ede9fe);border-color:var(--ac);color:var(--ac)">' +
+    '🤖 AI로 채우기<input type="file" accept="image/*,.pdf" style="display:none" onchange="pcAiScanSection(\''+type+'\',this)">' +
+  '</label>';
+}
+
 function pcRenderEduForm() {
   var el = document.getElementById('pc-edu-form');
+  var rowBox = 'border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px';
   var html = '';
 
-  html += '<div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:8px">학력</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:var(--t3)">학력</div>'+pcAiButton('education')+'</div>';
   _pcEditData.education.forEach(function(e, i) {
-    html += '<div style="display:flex;gap:6px;margin-bottom:6px">' +
-      '<input type="text" class="form-input" style="width:90px;font-size:12px" placeholder="2018.02" value="'+(e.date||'')+'" onchange="pcUpdateRow(\'education\','+i+',\'date\',this.value)">' +
-      '<select class="form-input" style="width:90px;font-size:12px" onchange="pcUpdateRow(\'education\','+i+',\'degree\',this.value)">' +
-        PC_DEGREE_OPTS.map(function(d){ return '<option'+(e.degree===d?' selected':'')+'>'+d+'</option>'; }).join('') +
-      '</select>' +
-      '<input type="text" class="form-input" style="flex:1;font-size:12px" placeholder="학교/전공" value="'+(e.school||'')+'" onchange="pcUpdateRow(\'education\','+i+',\'school\',this.value)">' +
-      '<button onclick="pcRemoveRow(\'education\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
+    html += '<div style="'+rowBox+'">' +
+      '<div style="display:flex;gap:6px;margin-bottom:6px">' +
+        '<input type="text" class="form-input" style="width:90px;font-size:12px" placeholder="2018.02" value="'+(e.date||'')+'" onchange="pcUpdateRow(\'education\','+i+',\'date\',this.value)">' +
+        '<select class="form-input" style="width:90px;font-size:12px" onchange="pcUpdateRow(\'education\','+i+',\'degree\',this.value)">' +
+          PC_DEGREE_OPTS.map(function(d){ return '<option'+(e.degree===d?' selected':'')+'>'+d+'</option>'; }).join('') +
+        '</select>' +
+        '<span style="flex:1"></span>' +
+        '<button onclick="pcRemoveRow(\'education\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px">' +
+        '<input type="text" class="form-input" style="flex:1.4;font-size:12px" placeholder="학교명" value="'+(e.school||'')+'" onchange="pcUpdateRow(\'education\','+i+',\'school\',this.value)">' +
+        '<input type="text" class="form-input" style="flex:1;font-size:12px" placeholder="전공" value="'+(e.major||'')+'" onchange="pcUpdateRow(\'education\','+i+',\'major\',this.value)">' +
+      '</div>' +
     '</div>';
   });
   html += '<button onclick="pcAddRow(\'education\')" style="font-size:12px;width:100%;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;padding:6px;cursor:pointer;margin-bottom:14px">+ 학력 추가</button>';
 
-  html += '<div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:8px">경력</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:var(--t3)">경력</div>'+pcAiButton('career')+'</div>';
   _pcEditData.career.forEach(function(c, i) {
-    html += '<div style="display:flex;gap:6px;margin-bottom:6px">' +
-      '<input type="text" class="form-input" style="width:80px;font-size:12px" placeholder="시작" value="'+(c.start||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'start\',this.value)">' +
-      '<input type="text" class="form-input" style="width:80px;font-size:12px" placeholder="종료(재직시 공란)" value="'+(c.end||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'end\',this.value)">' +
-      '<input type="text" class="form-input" style="flex:1;font-size:12px" placeholder="회사/부서" value="'+(c.company||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'company\',this.value)">' +
-      '<button onclick="pcRemoveRow(\'career\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
+    html += '<div style="'+rowBox+'">' +
+      '<div style="display:flex;gap:6px;margin-bottom:6px">' +
+        '<input type="text" class="form-input" style="width:80px;font-size:12px" placeholder="시작" value="'+(c.start||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'start\',this.value)">' +
+        '<input type="text" class="form-input" style="width:80px;font-size:12px" placeholder="종료(재직시 공란)" value="'+(c.end||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'end\',this.value)">' +
+        '<span style="flex:1"></span>' +
+        '<button onclick="pcRemoveRow(\'career\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px">' +
+        '<input type="text" class="form-input" style="flex:1.4;font-size:12px" placeholder="회사/부서" value="'+(c.company||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'company\',this.value)">' +
+        '<input type="text" class="form-input" style="flex:1;font-size:12px" placeholder="직위" value="'+(c.position||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'position\',this.value)">' +
+        '<input type="text" class="form-input" style="flex:1.4;font-size:12px" placeholder="담당업무" value="'+(c.duty||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'duty\',this.value)">' +
+      '</div>' +
     '</div>';
   });
   html += '<button onclick="pcAddRow(\'career\')" style="font-size:12px;width:100%;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;padding:6px;cursor:pointer;margin-bottom:14px">+ 경력 추가</button>';
 
-  html += '<div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:8px">면허·자격</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:var(--t3)">면허·자격</div>'+pcAiButton('license')+'</div>';
   _pcEditData.license.forEach(function(l, i) {
-    html += '<div style="display:flex;gap:6px;margin-bottom:6px">' +
-      '<input type="text" class="form-input" style="width:90px;font-size:12px" placeholder="취득일" value="'+(l.date||'')+'" onchange="pcUpdateRow(\'license\','+i+',\'date\',this.value)">' +
-      '<input type="text" class="form-input" style="flex:1.3;font-size:12px" placeholder="자격명" value="'+(l.name||'')+'" onchange="pcUpdateRow(\'license\','+i+',\'name\',this.value)">' +
-      '<input type="text" class="form-input" style="flex:1;font-size:12px" placeholder="발급기관" value="'+(l.org||'')+'" onchange="pcUpdateRow(\'license\','+i+',\'org\',this.value)">' +
-      '<button onclick="pcRemoveRow(\'license\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
+    html += '<div style="'+rowBox+'">' +
+      '<div style="display:flex;gap:6px;margin-bottom:6px">' +
+        '<input type="text" class="form-input" style="width:90px;font-size:12px" placeholder="취득일" value="'+(l.date||'')+'" onchange="pcUpdateRow(\'license\','+i+',\'date\',this.value)">' +
+        '<span style="flex:1"></span>' +
+        '<button onclick="pcRemoveRow(\'license\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px">' +
+        '<input type="text" class="form-input" style="flex:1.3;font-size:12px" placeholder="자격명" value="'+(l.name||'')+'" onchange="pcUpdateRow(\'license\','+i+',\'name\',this.value)">' +
+        '<input type="text" class="form-input" style="flex:1;font-size:12px" placeholder="발급기관" value="'+(l.org||'')+'" onchange="pcUpdateRow(\'license\','+i+',\'org\',this.value)">' +
+        '<input type="text" class="form-input" style="flex:1;font-size:12px" placeholder="자격번호" value="'+(l.number||'')+'" onchange="pcUpdateRow(\'license\','+i+',\'number\',this.value)">' +
+      '</div>' +
     '</div>';
   });
   html += '<button onclick="pcAddRow(\'license\')" style="font-size:12px;width:100%;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;padding:6px;cursor:pointer;margin-bottom:14px">+ 자격 추가</button>';
@@ -12101,7 +12124,7 @@ function pcUpdateRow(type, idx, field, value) {
   _pcEditData[type][idx][field] = value;
 }
 function pcAddRow(type) {
-  var blank = type==='education' ? {date:'',degree:'학사',school:''} : type==='career' ? {start:'',end:'',company:''} : {date:'',name:'',org:''};
+  var blank = type==='education' ? {date:'',degree:'학사',school:'',major:''} : type==='career' ? {start:'',end:'',company:'',position:'',duty:''} : {date:'',name:'',org:'',number:''};
   _pcEditData[type].push(blank);
   pcRenderEduForm();
 }
@@ -12132,33 +12155,33 @@ function pcSaveEduCareerLicense() {
   });
 }
 
-// ── AI로 학력·경력·자격 채우기 (이력서/졸업증명서/경력증명서/자격증 이미지·PDF 업로드) ──
-function pcAiScan(input) {
+// ── AI로 학력·경력·자격 채우기 (수정 화면 각 섹션에서 문서 업로드) ──
+var PC_AI_PROMPTS = {
+  education: '이 문서는 졸업증명서 또는 성적증명서입니다. 학력 정보를 추출하여 아래 JSON 배열로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.\n[{"date":"YYYY.MM","degree":"고졸|전문학사|학사|석사|박사","school":"학교명","major":"전공"}]\n해당 정보가 없으면 빈 배열([])로 응답하세요.',
+  career: '이 문서는 경력증명서 또는 재직증명서입니다. 경력 정보를 추출하여 아래 JSON 배열로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.\n[{"start":"YYYY.MM","end":"YYYY.MM 또는 재직중이면 빈 문자열","company":"회사명","position":"직위","duty":"담당업무"}]\n해당 정보가 없으면 빈 배열([])로 응답하세요.',
+  license: '이 문서는 자격증 또는 면허증입니다. 자격 정보를 추출하여 아래 JSON 배열로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.\n[{"date":"YYYY.MM","name":"자격/면허명","org":"발급기관","number":"자격/등록번호"}]\n해당 정보가 없으면 빈 배열([])로 응답하세요.'
+};
+var PC_AI_LOADING_MSG = {
+  education: '졸업증명서 내용을 읽고 있습니다...',
+  career: '경력증명서 내용을 읽고 있습니다...',
+  license: '자격증 내용을 읽고 있습니다...'
+};
+
+function pcAiScanSection(type, input) {
   var file = input.files[0];
   if (!file) return;
   input.value = '';
-  if (!_pcSelectedEmp) { showToast('❌ 직원을 먼저 선택하세요'); return; }
-
-  // 아직 수정 모드가 아니면 먼저 진입
-  if (!_pcEditData || _pcEditEmp !== _pcSelectedEmp) {
-    pcEditEduCareerLicense();
-  }
+  if (!_pcEditData) return; // 수정 모드에서만 쓰는 버튼이라 항상 존재해야 정상
 
   var isPdf = file.type === 'application/pdf';
-  document.getElementById('cert-ai-loading-msg').textContent = '이력서/증명서 내용을 읽고 있습니다...';
+  document.getElementById('cert-ai-loading-msg').textContent = PC_AI_LOADING_MSG[type] || '문서 내용을 읽고 있습니다...';
   document.getElementById('cert-ai-loading-modal').style.display = 'flex';
 
   var reader = new FileReader();
   reader.onload = function(e) {
     var base64 = e.target.result.split(',')[1];
     var mediaType = file.type || (isPdf ? 'application/pdf' : 'image/jpeg');
-
-    var prompt = '이 문서는 이력서, 졸업증명서, 경력증명서, 재직증명서, 또는 자격증/면허증 중 하나입니다.\n' +
-      '문서에서 학력, 경력, 면허·자격 정보를 찾아 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.\n' +
-      '{"education":[{"date":"YYYY.MM","degree":"고졸|전문학사|학사|석사|박사","school":"학교명 및 전공"}],' +
-      '"career":[{"start":"YYYY.MM","end":"YYYY.MM 또는 재직중이면 빈 문자열","company":"회사명 및 부서/직책"}],' +
-      '"license":[{"date":"YYYY.MM","name":"자격/면허명","org":"발급기관"}]}\n' +
-      '해당 문서에 없는 항목은 빈 배열([])로 응답하세요.';
+    var prompt = PC_AI_PROMPTS[type];
 
     var contentArr = isPdf
       ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: prompt }]
@@ -12169,7 +12192,7 @@ function pcAiScan(input) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 800,
         messages: [{ role: 'user', content: contentArr }]
       })
     })
@@ -12178,17 +12201,15 @@ function pcAiScan(input) {
       document.getElementById('cert-ai-loading-modal').style.display = 'none';
       var text = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
       var clean = text.replace(/```json|```/g,'').trim();
-      var parsed;
-      try { parsed = JSON.parse(clean); } catch(err) {
+      var arr;
+      try { arr = JSON.parse(clean); } catch(err) {
         showToast('⚠️ AI 인식 실패. 직접 입력해주세요.');
         return;
       }
-      var addedCount = 0;
-      (parsed.education||[]).forEach(function(e){ _pcEditData.education.push(e); addedCount++; });
-      (parsed.career||[]).forEach(function(c){ _pcEditData.career.push(c); addedCount++; });
-      (parsed.license||[]).forEach(function(l){ _pcEditData.license.push(l); addedCount++; });
+      if (!Array.isArray(arr)) arr = [];
+      arr.forEach(function(item){ _pcEditData[type].push(item); });
       pcRenderEduForm();
-      showToast(addedCount ? ('✨ AI가 ' + addedCount + '건을 채웠습니다. 확인 후 저장하세요') : '⚠️ 인식된 항목이 없습니다');
+      showToast(arr.length ? ('✨ ' + arr.length + '건 채워졌습니다. 확인 후 저장하세요') : '⚠️ 인식된 항목이 없습니다');
     })
     .catch(function() {
       document.getElementById('cert-ai-loading-modal').style.display = 'none';
@@ -12205,9 +12226,9 @@ function pcBuildContext(emp) {
   lines.push('이름: ' + (emp.name||''));
   lines.push('부서: ' + (emp.dept||'') + (emp.position?(' / 직위: '+emp.position):'') + (emp.title?(' / 직책: '+emp.title):''));
   lines.push('입사일: ' + (emp.joindate||'') + ' / 근속: ' + pcFmtYM(calc.tenure) + ' / 총 경력: ' + pcFmtYM(calc.total));
-  lines.push('학력: ' + ((emp.education||[]).map(function(e){ return (e.date||'')+' '+(e.degree||'')+' '+(e.school||''); }).join(' | ') || '없음'));
-  lines.push('경력: ' + ((emp.career||[]).map(function(c){ return (c.start||'')+'~'+(c.end||'현재')+' '+(c.company||''); }).join(' | ') || '없음'));
-  lines.push('면허·자격: ' + ((emp.license||[]).map(function(l){ return (l.date||'')+' '+(l.name||'')+'('+(l.org||'')+')'; }).join(' | ') || '없음'));
+  lines.push('학력: ' + ((emp.education||[]).map(function(e){ return (e.date||'')+' '+(e.degree||'')+' '+(e.school||'')+(e.major?(' '+e.major):''); }).join(' | ') || '없음'));
+  lines.push('경력: ' + ((emp.career||[]).map(function(c){ return (c.start||'')+'~'+(c.end||'현재')+' '+(c.company||'')+(c.position?(' '+c.position):'')+(c.duty?(' - '+c.duty):''); }).join(' | ') || '없음'));
+  lines.push('면허·자격: ' + ((emp.license||[]).map(function(l){ return (l.date||'')+' '+(l.name||'')+(l.number?(' '+l.number):'')+'('+(l.org||'')+')'; }).join(' | ') || '없음'));
   // TODO: 입사지원서/인턴평가표 등 업로드 문서 기능이 추가되면 그 내용도 여기에 이어붙이면 됨
   return lines.join('\n');
 }
