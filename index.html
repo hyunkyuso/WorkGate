@@ -3577,9 +3577,17 @@ function applyRoleUI() {
   document.querySelectorAll('.admin-only').forEach(el => {
     var isNavItem = el.classList.contains('nav-item');
     var granted = false;
-    if (!admin && isNavItem) {
-      var m = (el.getAttribute('onclick')||'').match(/showPage\('([^']+)'/);
-      if (m && _myMenuGrants[m[1]]) granted = true;
+    if (!admin) {
+      if (isNavItem) {
+        var m = (el.getAttribute('onclick')||'').match(/showPage\('([^']+)'/);
+        if (m && _myMenuGrants[m[1]]) granted = true;
+      } else {
+        var pageEl = el.closest('[id^="page-"]');
+        if (pageEl) {
+          var pageId = pageEl.id.replace('page-','');
+          if (_myMenuGrants[pageId] === 'full') granted = true;
+        }
+      }
     }
     if (!admin && !granted) {
       el.style.setProperty('display', 'none', 'important');
