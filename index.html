@@ -12049,14 +12049,15 @@ async function pcUploadDoc(input) {
     pcRenderDocsList(emp);
     showToast('✅ 서류가 업로드되었습니다. AI가 내용을 읽는 중...');
 
-    var summary = await pcSummarizeFile(file);
-    if (summary) {
+    var result = await pcSummarizeFile(file);
+    if (result.summary || result.selfIntro) {
       var idx = docs.length - 1;
-      docs[idx].docSummary = summary;
+      docs[idx].docSummary = result.summary;
+      if (result.selfIntro) docs[idx].selfIntro = result.selfIntro;
       await db.collection('employees').doc(email).update({ personnelDocs: docs });
       emp.personnelDocs = docs;
       pcRenderDocsList(emp);
-      showToast('✨ 서류 내용도 AI가 읽어뒀어요');
+      showToast(result.selfIntro ? '✨ 자기소개서 내용까지 원문 그대로 읽어뒀어요' : '✨ 서류 내용도 AI가 읽어뒀어요');
     }
   } catch (err) {
     showToast('❌ 업로드 실패: ' + err.message);
@@ -12072,9 +12073,9 @@ function pcRenderDocsList(emp) {
   }
   el.innerHTML = docs.map(function(d, i) {
     return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px">' +
-      '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(d.name||'파일')+(d.docSummary?' <span style="color:var(--ac);font-size:11px">✨AI 읽음</span>':'')+'</span>' +
+      '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(d.name||'파일')+(d.selfIntro?' <span style="color:var(--ac);font-size:11px">✨자기소개서 원문 읽음</span>':(d.docSummary?' <span style="color:var(--ac);font-size:11px">✨AI 읽음</span>':''))+'</span>' +
       '<span style="font-size:11px;color:var(--t3)">'+(d.uploadedAt?d.uploadedAt.slice(0,10):'')+'</span>' +
-      (!d.docSummary ? '<span onclick="pcReanalyzeDoc('+i+')" style="font-size:11px;color:var(--ac);cursor:pointer;white-space:nowrap">🤖 다시 분석</span>' : '') +
+      '<span onclick="pcReanalyzeDoc('+i+')" style="font-size:11px;color:var(--ac);cursor:pointer;white-space:nowrap">🤖 다시 분석</span>' +
       '<a href="'+d.driveLink+'" target="_blank" title="보기" style="font-size:14px;text-decoration:none">👁</a>' +
       '<span onclick="pcDeleteDoc('+i+')" style="font-size:12px;color:var(--t3);cursor:pointer">✕</span>' +
     '</div>';
@@ -12089,13 +12090,15 @@ async function pcReanalyzeDoc(idx) {
   if (!d) return;
   showToast('🤖 AI가 다시 읽는 중...');
   try {
-    var summary = await pcSummarizeFromDrive(d.driveId, d.mimeType);
-    if (!summary) { showToast('⚠️ 분석 실패 (내용을 인식하지 못했습니다)'); return; }
-    docs[idx].docSummary = summary;
+    var result = await pcSummarizeFromDrive(d.driveId, d.mimeType);
+    if (!result.summary && !result.selfIntro) { showToast('⚠️ 분석 실패 (내용을 인식하지 못했습니다)'); return; }
+    docs[idx].docSummary = result.summary;
+    if (result.selfIntro) docs[idx].selfIntro = result.selfIntro;
+    else delete docs[idx].selfIntro;
     await db.collection('employees').doc(email).update({ personnelDocs: docs });
     emp.personnelDocs = docs;
     pcRenderDocsList(emp);
-    showToast('✨ AI가 내용을 읽었습니다');
+    showToast(result.selfIntro ? '✨ 자기소개서 내용까지 원문 그대로 읽었습니다' : '✨ AI가 내용을 읽었습니다');
   } catch (err) {
     showToast('❌ 분석 실패: ' + err.message);
   }
@@ -12200,7 +12203,7 @@ function pcRenderEduForm() {
         '<span style="flex:1"></span>' +
         '<label style="cursor:pointer;font-size:14px;color:'+(e.driveLink?'var(--ac)':'var(--t3)')+'" title="파일 첨부">📎<input type="file" style="display:none" onchange="pcAttachRowFile(\'education\','+i+',this)"></label>' +
         (e.driveLink ? '<span onclick="pcDetachRowFile(\'education\','+i+')" title="첨부 파일 제거" style="cursor:pointer;font-size:12px;color:var(--t3)">🗑</span>' : '') +
-        (e.driveLink && !e.docSummary ? '<span onclick="pcReanalyzeRowFile(\'education\','+i+')" title="AI로 다시 분석" style="cursor:pointer;font-size:11px;color:var(--ac)">🤖</span>' : '') +
+        (e.driveLink ? '<span onclick="pcReanalyzeRowFile(\'education\','+i+')" title="AI로 다시 분석" style="cursor:pointer;font-size:11px;color:var(--ac)">🤖</span>' : '') +
         '<button onclick="pcRemoveRow(\'education\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
       '</div>' +
       '<div style="display:flex;gap:6px">' +
@@ -12220,7 +12223,7 @@ function pcRenderEduForm() {
         '<span style="flex:1"></span>' +
         '<label style="cursor:pointer;font-size:14px;color:'+(c.driveLink?'var(--ac)':'var(--t3)')+'" title="파일 첨부">📎<input type="file" style="display:none" onchange="pcAttachRowFile(\'career\','+i+',this)"></label>' +
         (c.driveLink ? '<span onclick="pcDetachRowFile(\'career\','+i+')" title="첨부 파일 제거" style="cursor:pointer;font-size:12px;color:var(--t3)">🗑</span>' : '') +
-        (c.driveLink && !c.docSummary ? '<span onclick="pcReanalyzeRowFile(\'career\','+i+')" title="AI로 다시 분석" style="cursor:pointer;font-size:11px;color:var(--ac)">🤖</span>' : '') +
+        (c.driveLink ? '<span onclick="pcReanalyzeRowFile(\'career\','+i+')" title="AI로 다시 분석" style="cursor:pointer;font-size:11px;color:var(--ac)">🤖</span>' : '') +
         '<button onclick="pcRemoveRow(\'career\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
       '</div>' +
       '<div style="display:flex;gap:6px">' +
@@ -12240,7 +12243,7 @@ function pcRenderEduForm() {
         '<span style="flex:1"></span>' +
         '<label style="cursor:pointer;font-size:14px;color:'+(l.driveLink?'var(--ac)':'var(--t3)')+'" title="파일 첨부">📎<input type="file" style="display:none" onchange="pcAttachRowFile(\'license\','+i+',this)"></label>' +
         (l.driveLink ? '<span onclick="pcDetachRowFile(\'license\','+i+')" title="첨부 파일 제거" style="cursor:pointer;font-size:12px;color:var(--t3)">🗑</span>' : '') +
-        (l.driveLink && !l.docSummary ? '<span onclick="pcReanalyzeRowFile(\'license\','+i+')" title="AI로 다시 분석" style="cursor:pointer;font-size:11px;color:var(--ac)">🤖</span>' : '') +
+        (l.driveLink ? '<span onclick="pcReanalyzeRowFile(\'license\','+i+')" title="AI로 다시 분석" style="cursor:pointer;font-size:11px;color:var(--ac)">🤖</span>' : '') +
         '<button onclick="pcRemoveRow(\'license\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
       '</div>' +
       '<div style="display:flex;gap:6px">' +
@@ -12272,25 +12275,44 @@ function pcSummarizeFile(file) {
     reader.onload = function(e) {
       var base64 = e.target.result.split(',')[1];
       var mediaType = file.type || (isPdf ? 'application/pdf' : 'image/jpeg');
-      var prompt = '이 문서(이력서/평가표/증명서 등 인사 관련 서류일 수 있음)에 담긴 내용을 최대한 자세히 한국어로 요약하세요. 날짜, 이름, 회사명, 평가 내용, 특이사항 등 구체적인 사실은 절대 빠뜨리지 말고 다 포함하세요. 문서가 여러 페이지면 각 페이지의 핵심 내용을 다 반영하세요. 요약 외 다른 설명은 붙이지 마세요.';
+      var prompt = pcDocAnalysisPrompt();
       var contentArr = isPdf
         ? [{ type:'document', source:{type:'base64',media_type:'application/pdf',data:base64} }, {type:'text', text: prompt}]
         : [{ type:'image', source:{type:'base64',media_type:mediaType,data:base64} }, {type:'text', text: prompt}];
       fetch('https://twilight-dew-b966.hyunkyu-so.workers.dev', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1500, messages:[{role:'user', content: contentArr}] })
+        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, messages:[{role:'user', content: contentArr}] })
       })
       .then(function(res){ return res.json(); })
       .then(function(data) {
         console.log('[인사기록카드 AI 분석 응답]', data);
-        var text = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text.trim() : '';
-        resolve(text);
+        resolve(pcParseDocAnalysis(data));
       })
-      .catch(function(err){ console.error('[인사기록카드 AI 분석 오류]', err); resolve(''); });
+      .catch(function(err){ console.error('[인사기록카드 AI 분석 오류]', err); resolve({summary:'', selfIntro:''}); });
     };
-    reader.onerror = function(){ resolve(''); };
+    reader.onerror = function(){ resolve({summary:'', selfIntro:''}); };
     reader.readAsDataURL(file);
   });
+}
+
+// 문서 분석 공용 프롬프트: 사실관계는 요약, 자기소개서 등 서술형 답변은 원문 그대로 보존
+function pcDocAnalysisPrompt() {
+  return '이 문서(이력서/자기소개서/평가표/증명서 등 인사 관련 서류일 수 있음)를 분석해서 아래 JSON 객체 하나로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.\n' +
+    '{"summary":"문서에 담긴 사실관계(날짜, 이름, 회사명, 학력, 경력, 평가 내용, 특이사항 등)를 최대한 자세히 요약. 문서가 여러 페이지면 각 페이지 내용을 다 반영",' +
+    '"selfIntro":"문서 안에 자기소개서 항목(지원동기, 성장과정, 성격의 장단점, 입사 후 포부 등 자유서술형 질문과 그에 대한 답변)이 있다면, 절대 요약하지 말고 실제 작성된 문장을 그대로 옮겨 적으세요. 항목이 여러 개면 \'질문: 답변\' 형식으로 항목마다 줄바꿈해서 다 나열하세요. 자기소개서 항목이 없으면 빈 문자열로 응답하세요."}';
+}
+
+// AI 응답(JSON 문자열)을 {summary, selfIntro} 객체로 파싱
+function pcParseDocAnalysis(data) {
+  var text = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text.trim() : '';
+  var clean = text.replace(/```json|```/g,'').trim();
+  try {
+    var parsed = JSON.parse(clean);
+    return { summary: parsed.summary || '', selfIntro: parsed.selfIntro || '' };
+  } catch (err) {
+    // JSON 파싱 실패 시 전체 텍스트를 요약으로만 사용 (예전 방식과 호환)
+    return { summary: text, selfIntro: '' };
+  }
 }
 
 // 이미 드라이브에 올라간 파일(파일 객체 없이 driveId만 있는 경우)을 다시 받아와서 요약
@@ -12317,24 +12339,24 @@ async function pcSummarizeFromDrive(driveId, mimeType) {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
-  var prompt = '이 문서(이력서/평가표/증명서 등 인사 관련 서류일 수 있음)에 담긴 내용을 최대한 자세히 한국어로 요약하세요. 날짜, 이름, 회사명, 평가 내용, 특이사항 등 구체적인 사실은 절대 빠뜨리지 말고 다 포함하세요. 문서가 여러 페이지면 각 페이지의 핵심 내용을 다 반영하세요. 요약 외 다른 설명은 붙이지 마세요.';
+  var prompt = pcDocAnalysisPrompt();
   var contentArr = isPdf
     ? [{ type:'document', source:{type:'base64',media_type:'application/pdf',data:base64} }, {type:'text', text: prompt}]
     : [{ type:'image', source:{type:'base64',media_type: mimeType, data:base64} }, {type:'text', text: prompt}];
   var res = await fetch('https://twilight-dew-b966.hyunkyu-so.workers.dev', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1500, messages:[{role:'user', content: contentArr}] })
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, messages:[{role:'user', content: contentArr}] })
   });
   var data = await res.json();
   console.log('[인사기록카드 AI 분석 응답]', res.status, data);
   if (!res.ok || data.error) {
     throw new Error('AI 서버 오류: ' + (data.error && (data.error.message || JSON.stringify(data.error)) || ('HTTP ' + res.status)));
   }
-  var text = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text.trim() : '';
-  if (!text) {
+  var result = pcParseDocAnalysis(data);
+  if (!result.summary && !result.selfIntro) {
     throw new Error('AI가 빈 응답을 반환했습니다. (콘솔에 전체 응답 로그를 남겨뒀습니다)');
   }
-  return text;
+  return result;
 }
 
 function pcDetachRowFile(type, idx) {
@@ -12352,11 +12374,12 @@ async function pcReanalyzeRowFile(type, idx) {
   if (!item || !item.driveLink) return;
   showToast('🤖 AI가 다시 읽는 중...');
   try {
-    var summary = await pcSummarizeFromDrive(item.driveId, item.mimeType);
-    if (!summary) { showToast('⚠️ 분석 실패 (내용을 인식하지 못했습니다)'); return; }
-    _pcEditData[type][idx].docSummary = summary;
+    var result = await pcSummarizeFromDrive(item.driveId, item.mimeType);
+    if (!result.summary && !result.selfIntro) { showToast('⚠️ 분석 실패 (내용을 인식하지 못했습니다)'); return; }
+    _pcEditData[type][idx].docSummary = result.summary;
+    if (result.selfIntro) _pcEditData[type][idx].selfIntro = result.selfIntro;
     pcRenderEduForm();
-    showToast('✨ AI가 내용을 읽었습니다 (저장을 눌러야 최종 반영됩니다)');
+    showToast(result.selfIntro ? '✨ 자기소개서 내용까지 원문 그대로 읽었습니다 (저장을 눌러야 최종 반영됩니다)' : '✨ AI가 내용을 읽었습니다 (저장을 눌러야 최종 반영됩니다)');
   } catch (err) {
     showToast('❌ 분석 실패: ' + err.message);
   }
@@ -12376,10 +12399,11 @@ async function pcAttachRowFile(type, idx, input) {
     _pcEditData[type][idx].mimeType = uploaded.mimeType;
     pcRenderEduForm();
     showToast('✅ 파일이 첨부되었습니다. AI가 내용을 읽는 중...');
-    var summary = await pcSummarizeFile(file);
-    if (summary) {
-      _pcEditData[type][idx].docSummary = summary;
-      showToast('✨ 첨부 파일 내용도 AI가 읽어뒀어요 (저장을 눌러야 최종 반영됩니다)');
+    var result = await pcSummarizeFile(file);
+    if (result.summary || result.selfIntro) {
+      _pcEditData[type][idx].docSummary = result.summary;
+      if (result.selfIntro) _pcEditData[type][idx].selfIntro = result.selfIntro;
+      showToast(result.selfIntro ? '✨ 자기소개서 내용까지 원문 그대로 읽어뒀어요 (저장을 눌러야 최종 반영됩니다)' : '✨ 첨부 파일 내용도 AI가 읽어뒀어요 (저장을 눌러야 최종 반영됩니다)');
     } else {
       showToast('✅ 파일이 첨부되었습니다 (저장을 눌러야 최종 반영됩니다)');
     }
@@ -12514,12 +12538,17 @@ function pcBuildOneLineContext(emp) {
   var license = (emp.license||[]).map(function(l){ return (l.name||'')+(l.number?(' '+l.number):''); }).join(', ');
   var allItems = [].concat(emp.education||[], emp.career||[], emp.license||[], emp.personnelDocs||[]);
   var docSummaries = allItems.filter(function(x){ return x.docSummary; }).map(function(x){ return x.docSummary; }).join(' / ');
-  return '- ' + (emp.name||'') + ' | 부서:' + (emp.dept||'') + ' | 직위:' + (emp.position||'') +
+  var selfIntros = allItems.filter(function(x){ return x.selfIntro; }).map(function(x){ return x.selfIntro; }).join('\n');
+  var line = '- ' + (emp.name||'') + ' | 부서:' + (emp.dept||'') + ' | 직위:' + (emp.position||'') +
     ' | 입사:' + (emp.joindate||'') + ' | 근속:' + pcFmtYM(calc.tenure) + ' | 총경력:' + pcFmtYM(calc.total) +
     ' | 학력:[' + (edu||'없음') + ']' +
     ' | 경력:[' + (career||'없음') + ']' +
     ' | 자격:[' + (license||'없음') + ']' +
     (docSummaries ? (' | 첨부문서내용:[' + docSummaries + ']') : '');
+  if (selfIntros) {
+    line += '\n  [' + (emp.name||'') + '가 직접 작성한 자기소개서 원문]\n' + selfIntros;
+  }
+  return line;
 }
 
 function pcBuildAllContext() {
