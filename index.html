@@ -1170,6 +1170,16 @@ select.form-input{cursor:pointer}
               <div id="pc-edu-view"></div>
               <div id="pc-edu-form" style="display:none"></div>
             </div>
+
+            <div id="pc-ai-ask" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px">
+              <div style="font-weight:600;margin-bottom:4px">🤖 AI에게 물어보기</div>
+              <div style="font-size:11px;color:var(--t3);margin-bottom:10px">이 직원의 현재 등록된 정보를 바탕으로 질문에 답해줍니다 (예: "이 사람 관련 경력이 있어?", "자격증 몇 개 있어?")</div>
+              <div style="display:flex;gap:6px">
+                <input id="pc-ai-question" type="text" class="form-input" style="flex:1;font-size:13px" placeholder="궁금한 걸 물어보세요..." onkeydown="if(event.key==='Enter')pcAskAI()">
+                <button class="btn btn-primary btn-sm" style="font-size:12px;white-space:nowrap" onclick="pcAskAI()">질문하기</button>
+              </div>
+              <div id="pc-ai-answer" style="display:none;margin-top:12px;padding:12px 14px;background:var(--surface);border-radius:8px;font-size:13px;color:var(--t1);white-space:pre-wrap"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -11982,6 +11992,10 @@ function pcLoadEmployee() {
   document.getElementById('pc-edu-form').style.display = 'none';
   document.getElementById('pc-edu-view').style.display = 'block';
   document.getElementById('pc-edu-edit-btn').style.display = 'inline-flex';
+
+  document.getElementById('pc-ai-ask').style.display = 'block';
+  document.getElementById('pc-ai-question').value = '';
+  document.getElementById('pc-ai-answer').style.display = 'none';
 }
 
 function pcRenderEduCareerLicense(emp) {
@@ -12182,6 +12196,55 @@ function pcAiScan(input) {
     });
   };
   reader.readAsDataURL(file);
+}
+
+// ── AI에게 물어보기: 현재 등록된 정보(+향후 업로드 문서)를 바탕으로 질의응답 ──
+function pcBuildContext(emp) {
+  var calc = pcCalcTotalCareer(emp);
+  var lines = [];
+  lines.push('이름: ' + (emp.name||''));
+  lines.push('부서: ' + (emp.dept||'') + (emp.position?(' / 직위: '+emp.position):'') + (emp.title?(' / 직책: '+emp.title):''));
+  lines.push('입사일: ' + (emp.joindate||'') + ' / 근속: ' + pcFmtYM(calc.tenure) + ' / 총 경력: ' + pcFmtYM(calc.total));
+  lines.push('학력: ' + ((emp.education||[]).map(function(e){ return (e.date||'')+' '+(e.degree||'')+' '+(e.school||''); }).join(' | ') || '없음'));
+  lines.push('경력: ' + ((emp.career||[]).map(function(c){ return (c.start||'')+'~'+(c.end||'현재')+' '+(c.company||''); }).join(' | ') || '없음'));
+  lines.push('면허·자격: ' + ((emp.license||[]).map(function(l){ return (l.date||'')+' '+(l.name||'')+'('+(l.org||'')+')'; }).join(' | ') || '없음'));
+  // TODO: 입사지원서/인턴평가표 등 업로드 문서 기능이 추가되면 그 내용도 여기에 이어붙이면 됨
+  return lines.join('\n');
+}
+
+function pcAskAI() {
+  var email = _pcSelectedEmp;
+  if (!email) return;
+  var emp = employees.find(function(e){ return (e.id||e.email)===email; });
+  if (!emp) return;
+  var question = (document.getElementById('pc-ai-question').value||'').trim();
+  if (!question) { showToast('❌ 질문을 입력하세요'); return; }
+
+  var answerEl = document.getElementById('pc-ai-answer');
+  answerEl.style.display = 'block';
+  answerEl.textContent = '🤖 답변을 생각하는 중...';
+
+  var context = pcBuildContext(emp);
+  var prompt = '다음은 한 직원의 인사기록카드 정보입니다.\n\n' + context +
+    '\n\n위 정보만을 근거로 다음 질문에 한국어로 답하세요. 정보에 없는 내용은 추측하지 말고 "등록된 정보에서 확인할 수 없습니다"라고 답하세요.\n\n질문: ' + question;
+
+  fetch('https://twilight-dew-b966.hyunkyu-so.workers.dev', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 500,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  })
+  .then(function(res){ return res.json(); })
+  .then(function(data) {
+    var text = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
+    answerEl.textContent = text || '답변을 생성하지 못했습니다.';
+  })
+  .catch(function() {
+    answerEl.textContent = '❌ AI 응답 중 오류가 발생했습니다.';
+  });
 }
 
 async function renderMyInfoHistory() {
