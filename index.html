@@ -19708,7 +19708,10 @@ function pmRenderCurrentGrants() {
       var level = _pmAllGrants[email][menuId];
       var color = level === 'full' ? 'var(--ac)' : '#B98900';
       var bg = level === 'full' ? 'var(--acd)' : '#FFF3D6';
-      return '<span style="display:inline-block;padding:2px 8px;border-radius:6px;background:'+bg+';color:'+color+';font-size:11px;margin:2px 4px 2px 0">'+pmMenuLabel(menuId)+' · '+(level==='full'?'전체':'읽기전용')+'</span>';
+      return '<span style="display:inline-flex;align-items:center;gap:5px;padding:2px 6px 2px 8px;border-radius:6px;background:'+bg+';color:'+color+';font-size:11px;margin:2px 4px 2px 0">' +
+        pmMenuLabel(menuId)+' · '+(level==='full'?'전체':'읽기전용') +
+        '<span onclick="pmRemoveGrant(\''+email+'\',\''+menuId+'\')" style="cursor:pointer;font-weight:700;padding:0 2px" title="이 권한 삭제">✕</span>' +
+      '</span>';
     }).join('');
     return '<div style="padding:8px 0;border-bottom:1px solid var(--border)">' +
       '<div style="font-weight:600;color:var(--t1);margin-bottom:4px">'+name+'</div>' +
@@ -19808,6 +19811,22 @@ function pmRenderMenuTree() {
 function pmSetMenuLevel(menuId, level) {
   if (level === 'none') delete _pmMenuLevels[menuId];
   else _pmMenuLevels[menuId] = level;
+}
+
+function pmRemoveGrant(email, menuId) {
+  if (!confirm('"'+pmMenuLabel(menuId)+'" 권한을 삭제하시겠습니까?')) return;
+  var fp = new firebase.firestore.FieldPath(email, menuId);
+  db.collection('settings').doc('menuAccess').update(fp, firebase.firestore.FieldValue.delete()).then(function() {
+    if (_pmAllGrants[email]) delete _pmAllGrants[email][menuId];
+    showToast('🗑 권한이 삭제되었습니다');
+    pmRenderCurrentGrants();
+    // 방금 삭제한 사람이 현재 단일 선택된 상태라면 우측 드롭다운도 동기화
+    if (_pmSelectedEmps.size === 1 && Array.from(_pmSelectedEmps)[0] === email) {
+      pmSyncLevelsWithSelection();
+    }
+  }).catch(function(err) {
+    showToast('❌ 삭제 실패: ' + err.message);
+  });
 }
 
 function pmSaveGrants() {
