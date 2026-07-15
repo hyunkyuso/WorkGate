@@ -12272,13 +12272,13 @@ function pcSummarizeFile(file) {
     reader.onload = function(e) {
       var base64 = e.target.result.split(',')[1];
       var mediaType = file.type || (isPdf ? 'application/pdf' : 'image/jpeg');
-      var prompt = '이 문서(이력서/평가표/증명서 등 인사 관련 서류일 수 있음)에 담긴 핵심 내용을 2~3문장으로 한국어 요약만 응답하세요. 다른 설명은 붙이지 마세요.';
+      var prompt = '이 문서(이력서/평가표/증명서 등 인사 관련 서류일 수 있음)에 담긴 내용을 최대한 자세히 한국어로 요약하세요. 날짜, 이름, 회사명, 평가 내용, 특이사항 등 구체적인 사실은 절대 빠뜨리지 말고 다 포함하세요. 문서가 여러 페이지면 각 페이지의 핵심 내용을 다 반영하세요. 요약 외 다른 설명은 붙이지 마세요.';
       var contentArr = isPdf
         ? [{ type:'document', source:{type:'base64',media_type:'application/pdf',data:base64} }, {type:'text', text: prompt}]
         : [{ type:'image', source:{type:'base64',media_type:mediaType,data:base64} }, {type:'text', text: prompt}];
       fetch('https://twilight-dew-b966.hyunkyu-so.workers.dev', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:300, messages:[{role:'user', content: contentArr}] })
+        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1500, messages:[{role:'user', content: contentArr}] })
       })
       .then(function(res){ return res.json(); })
       .then(function(data) {
@@ -12317,13 +12317,13 @@ async function pcSummarizeFromDrive(driveId, mimeType) {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
-  var prompt = '이 문서(이력서/평가표/증명서 등 인사 관련 서류일 수 있음)에 담긴 핵심 내용을 2~3문장으로 한국어 요약만 응답하세요. 다른 설명은 붙이지 마세요.';
+  var prompt = '이 문서(이력서/평가표/증명서 등 인사 관련 서류일 수 있음)에 담긴 내용을 최대한 자세히 한국어로 요약하세요. 날짜, 이름, 회사명, 평가 내용, 특이사항 등 구체적인 사실은 절대 빠뜨리지 말고 다 포함하세요. 문서가 여러 페이지면 각 페이지의 핵심 내용을 다 반영하세요. 요약 외 다른 설명은 붙이지 마세요.';
   var contentArr = isPdf
     ? [{ type:'document', source:{type:'base64',media_type:'application/pdf',data:base64} }, {type:'text', text: prompt}]
     : [{ type:'image', source:{type:'base64',media_type: mimeType, data:base64} }, {type:'text', text: prompt}];
   var res = await fetch('https://twilight-dew-b966.hyunkyu-so.workers.dev', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:300, messages:[{role:'user', content: contentArr}] })
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1500, messages:[{role:'user', content: contentArr}] })
   });
   var data = await res.json();
   console.log('[인사기록카드 AI 분석 응답]', res.status, data);
@@ -12569,7 +12569,7 @@ function pcAskAI() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 800,
+      max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }]
     })
   })
