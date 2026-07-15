@@ -2268,15 +2268,8 @@ select.form-input{cursor:pointer}
           </div>
 
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
-            <div style="font-weight:600;margin-bottom:10px">2. 부여할 메뉴 + 접근 레벨</div>
-            <div style="display:flex;gap:6px;margin-bottom:14px">
-              <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;border:1px solid var(--border);border-radius:8px;padding:8px;cursor:pointer" id="pm-level-full-wrap">
-                <input type="radio" name="pm-level" value="full" checked onchange="pmLevelChange()"> 전체 권한
-              </label>
-              <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;border:1px solid var(--border);border-radius:8px;padding:8px;cursor:pointer" id="pm-level-readonly-wrap">
-                <input type="radio" name="pm-level" value="readonly" onchange="pmLevelChange()"> 읽기 전용
-              </label>
-            </div>
+            <div style="font-weight:600;margin-bottom:4px">2. 메뉴별 접근 레벨 선택</div>
+            <div style="font-size:11px;color:var(--t3);margin-bottom:12px">메뉴마다 없음/읽기전용/전체 권한을 따로 지정할 수 있습니다</div>
             <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">인사</div>
             <div class="pm-menu-group" data-group="hr" style="margin-bottom:10px"></div>
             <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">총무</div>
@@ -19225,8 +19218,7 @@ var _svAdminWorkingSet = new Set();
 
 // ── 권한 관리: 관리자 전용 메뉴를 직원(여러 명)별로 부여, 완전 덮어쓰기 ──
 var _pmSelectedEmps = new Set();
-var _pmCheckedMenus = new Set();
-var _pmLevel = 'full'; // 'full' | 'readonly'
+var _pmMenuLevels = {}; // { menuId: 'full' | 'readonly' } (미포함 = 없음)
 var PM_MENU_LIST = {
   hr: [
     {id:'employees', label:'직원 관리'},
@@ -19264,8 +19256,7 @@ var PM_MENU_LIST = {
 
 function pmPopulateEmpSelect() {
   _pmSelectedEmps = new Set();
-  _pmCheckedMenus = new Set();
-  _pmLevel = 'full';
+  _pmMenuLevels = {};
   var deptSel = document.getElementById('pm-dept-filter');
   if (deptSel) {
     var depts = Array.from(new Set(employees.filter(function(e){return e.status!=='퇴직';}).map(function(e){ return e.dept; }).filter(Boolean))).sort();
@@ -19334,29 +19325,28 @@ function pmRenderMenuTree() {
     var el = document.querySelector('.pm-menu-group[data-group="'+group+'"]');
     if (!el) return;
     el.innerHTML = PM_MENU_LIST[group].map(function(m) {
-      var checked = _pmCheckedMenus.has(m.id);
-      return '<div style="padding:5px 4px;display:flex;align-items:center;gap:8px">' +
-        '<input type="checkbox" '+(checked?'checked':'')+' onchange="pmToggleMenu(\''+m.id+'\')" style="accent-color:var(--ac)">' +
+      var level = _pmMenuLevels[m.id] || 'none';
+      return '<div style="padding:5px 4px;display:flex;align-items:center;justify-content:space-between;gap:8px">' +
         '<span style="font-size:13px">'+m.label+'</span>' +
+        '<select onchange="pmSetMenuLevel(\''+m.id+'\',this.value)" style="font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--border)">' +
+          '<option value="none"'+(level==='none'?' selected':'')+'>없음</option>' +
+          '<option value="readonly"'+(level==='readonly'?' selected':'')+'>읽기 전용</option>' +
+          '<option value="full"'+(level==='full'?' selected':'')+'>전체 권한</option>' +
+        '</select>' +
       '</div>';
     }).join('');
   });
 }
 
-function pmToggleMenu(menuId) {
-  if (_pmCheckedMenus.has(menuId)) _pmCheckedMenus.delete(menuId);
-  else _pmCheckedMenus.add(menuId);
-}
-
-function pmLevelChange() {
-  var sel = document.querySelector('input[name="pm-level"]:checked');
-  _pmLevel = sel ? sel.value : 'full';
+function pmSetMenuLevel(menuId, level) {
+  if (level === 'none') delete _pmMenuLevels[menuId];
+  else _pmMenuLevels[menuId] = level;
 }
 
 function pmSaveGrants() {
   if (!_pmSelectedEmps.size) { showToast('❌ 직원을 먼저 선택하세요'); return; }
-  var grant = {};
-  _pmCheckedMenus.forEach(function(menuId){ grant[menuId] = _pmLevel; });
+  if (!Object.keys(_pmMenuLevels).length) { showToast('❌ 메뉴별 접근 레벨을 하나 이상 선택하세요'); return; }
+  var grant = Object.assign({}, _pmMenuLevels);
   var update = {};
   _pmSelectedEmps.forEach(function(email){ update[email] = grant; });
   db.collection('settings').doc('menuAccess').set(update, {merge:true}).then(function() {
