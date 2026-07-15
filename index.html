@@ -314,6 +314,7 @@ select.form-input{cursor:pointer}
         <div id="hr-menu-items">
           <div class="nav-item admin-only" onclick="showPage('orgview',this)"><span class="nav-icon">👁️</span> 직원 조회</div>
           <div class="nav-item admin-only" onclick="showPage('employees',this)"><span class="nav-icon">👤</span> 직원 관리</div>
+          <div class="nav-item admin-only" onclick="showPage('personnel-card',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🪪</span> 인사기록카드</div>
           <div class="nav-item admin-only" onclick="showPage('myinfo-history',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 정보수정 이력</div>
           <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
           <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
@@ -1112,6 +1113,57 @@ select.form-input{cursor:pointer}
               <tr><td colspan="9" style="text-align:center;padding:32px;color:#94a3b8">로딩 중...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- ══════ 인사기록카드 ══════ -->
+      <div id="page-personnel-card" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">🪪 인사기록카드</div>
+            <div class="page-sub">직원 개인의 학력·경력·자격·인사발령 이력을 관리합니다</div>
+          </div>
+          <select id="pc-emp-select" class="form-input" style="font-size:13px;width:220px" onchange="pcLoadEmployee()">
+            <option value="">-- 직원 선택 --</option>
+          </select>
+        </div>
+
+        <div id="pc-empty" style="padding:60px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+          직원을 선택하면 인사기록카드가 표시됩니다
+        </div>
+
+        <div id="pc-content" style="display:none;grid-template-columns:220px 1fr;gap:16px;align-items:start">
+
+          <!-- 프로필 사이드바 -->
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center">
+            <div id="pc-photo" style="width:72px;height:72px;border-radius:50%;background:var(--acd);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:22px;color:var(--ac)">-</div>
+            <div id="pc-name" style="font-size:15px;font-weight:600;color:var(--t1)">-</div>
+            <div id="pc-deptpos" style="font-size:12px;color:var(--t3);margin-top:2px">-</div>
+            <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;text-align:left;font-size:12px">
+              <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--t3)">입사일</span><span id="pc-joindate">-</span></div>
+              <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--t3)">근속</span><span id="pc-tenure">-</span></div>
+              <div style="display:flex;justify-content:space-between;padding:3px 0;font-weight:600;color:var(--ac)"><span>총 경력</span><span id="pc-total-career">-</span></div>
+              <div id="pc-career-breakdown" style="font-size:10px;color:var(--t3);text-align:right;margin-top:2px"></div>
+            </div>
+          </div>
+
+          <!-- 탭 콘텐츠 -->
+          <div>
+            <div style="display:flex;gap:6px;margin-bottom:12px">
+              <button class="pc-tab-btn active" onclick="pcSwitchTab('appoint',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--acd);color:var(--ac);cursor:pointer;font-size:13px">인사발령</button>
+              <button class="pc-tab-btn" onclick="pcSwitchTab('edu',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer;font-size:13px">학력·경력·자격</button>
+            </div>
+
+            <div id="pc-tab-appoint" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px"></div>
+
+            <div id="pc-tab-edu" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+              <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+                <button id="pc-edu-edit-btn" class="btn btn-ghost btn-sm" style="font-size:12px" onclick="pcEditEduCareerLicense()">✏️ 수정</button>
+              </div>
+              <div id="pc-edu-view"></div>
+              <div id="pc-edu-form" style="display:none"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -11806,6 +11858,242 @@ async function deleteMyInfoHistory(uid, dateKey) {
   }
 }
 
+// ══════════════════════════════════════════════════
+// 인사기록카드
+// ══════════════════════════════════════════════════
+var PC_DEGREE_OPTS = ['고졸','전문학사','학사','석사','박사'];
+var _pcEditEmp = null;
+var _pcEditData = null;
+
+function pcPopulateEmpSelect() {
+  var sel = document.getElementById('pc-emp-select');
+  if (!sel) return;
+  var active = employees.filter(function(e){ return e.status !== '퇴직'; })
+    .sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+  sel.innerHTML = '<option value="">-- 직원 선택 --</option>' +
+    active.map(function(e){ var email=e.id||e.email; return '<option value="'+email+'">'+e.name+' ('+(e.dept||'')+')</option>'; }).join('');
+  document.getElementById('pc-empty').style.display = 'block';
+  document.getElementById('pc-content').style.display = 'none';
+}
+
+function pcDiffYM(fromStr, toStr) {
+  if (!fromStr) return {years:0, months:0};
+  var from = new Date(fromStr), to = new Date(toStr);
+  var months = (to.getFullYear()-from.getFullYear())*12 + (to.getMonth()-from.getMonth());
+  if (to.getDate() < from.getDate()) months--;
+  if (months < 0) months = 0;
+  return { years: Math.floor(months/12), months: months%12 };
+}
+function pcFmtYM(o) { return o.years+'년 '+o.months+'개월'; }
+
+function pcCalcTotalCareer(emp) {
+  var todayStr = new Date().toISOString().slice(0,10);
+  var tenureYM = pcDiffYM(emp.joindate || todayStr, todayStr);
+  var priorMonths = 0;
+  (emp.career||[]).forEach(function(c) {
+    if (!c.start) return;
+    var d = pcDiffYM(c.start, c.end || todayStr);
+    priorMonths += d.years*12 + d.months;
+  });
+  var totalMonths = priorMonths + (tenureYM.years*12 + tenureYM.months);
+  return {
+    tenure: tenureYM,
+    priorMonths: priorMonths,
+    total: { years: Math.floor(totalMonths/12), months: totalMonths%12 }
+  };
+}
+
+function pcLoadEmployee() {
+  var sel = document.getElementById('pc-emp-select');
+  var email = sel.value;
+  if (!email) {
+    document.getElementById('pc-empty').style.display = 'block';
+    document.getElementById('pc-content').style.display = 'none';
+    return;
+  }
+  var emp = employees.find(function(e){ return (e.id||e.email)===email; });
+  if (!emp) return;
+  document.getElementById('pc-empty').style.display = 'none';
+  document.getElementById('pc-content').style.display = 'grid';
+
+  document.getElementById('pc-photo').textContent = (emp.name||'?').charAt(0);
+  document.getElementById('pc-name').textContent = emp.name || '-';
+  document.getElementById('pc-deptpos').textContent = (emp.dept||'') + (emp.position?(' · '+emp.position):'');
+  document.getElementById('pc-joindate').textContent = emp.joindate || '-';
+
+  var calc = pcCalcTotalCareer(emp);
+  document.getElementById('pc-tenure').textContent = pcFmtYM(calc.tenure);
+  document.getElementById('pc-total-career').textContent = pcFmtYM(calc.total);
+  var priorYM = { years: Math.floor(calc.priorMonths/12), months: calc.priorMonths%12 };
+  document.getElementById('pc-career-breakdown').textContent = calc.priorMonths > 0
+    ? ('이전 경력 ' + pcFmtYM(priorYM) + ' + 근속 ' + pcFmtYM(calc.tenure))
+    : '';
+
+  pcRenderAppointmentHistory(emp);
+  pcRenderEduCareerLicense(emp);
+  document.getElementById('pc-edu-form').style.display = 'none';
+  document.getElementById('pc-edu-view').style.display = 'block';
+  document.getElementById('pc-edu-edit-btn').style.display = 'inline-flex';
+}
+
+function pcSwitchTab(tab, el) {
+  document.querySelectorAll('.pc-tab-btn').forEach(function(b){ b.classList.remove('active'); b.style.background='var(--white)'; b.style.color='var(--t1)'; });
+  if (el) { el.classList.add('active'); el.style.background='var(--acd)'; el.style.color='var(--ac)'; }
+  document.getElementById('pc-tab-appoint').style.display = tab==='appoint' ? 'block' : 'none';
+  document.getElementById('pc-tab-edu').style.display = tab==='edu' ? 'block' : 'none';
+}
+
+function pcRenderAppointmentHistory(emp) {
+  var el = document.getElementById('pc-tab-appoint');
+  var hist = (emp.history||[]).slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  if (!hist.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">인사발령 이력이 없습니다</div>';
+    return;
+  }
+  el.innerHTML = hist.map(function(h) {
+    var changesText = Array.isArray(h.changes) ? h.changes.join(', ') : (h.changes||'');
+    return '<div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px">' +
+      '<span style="color:var(--t3);width:140px;flex-shrink:0">'+(h.date||'')+'</span>' +
+      '<span>'+changesText+'</span>' +
+    '</div>';
+  }).join('');
+}
+
+function pcRenderEduCareerLicense(emp) {
+  var el = document.getElementById('pc-edu-view');
+  var edu = emp.education || [];
+  var career = emp.career || [];
+  var license = emp.license || [];
+  var html = '';
+
+  html += '<div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:8px">학력</div>';
+  html += edu.length ? edu.map(function(e) {
+    return '<div style="display:flex;gap:10px;padding:6px 0;font-size:13px;align-items:baseline">' +
+      '<span style="color:var(--t3);width:64px;flex-shrink:0">'+(e.date||'')+'</span>' +
+      '<span style="color:var(--ac);font-size:11px;flex-shrink:0;width:48px">'+(e.degree||'')+'</span>' +
+      '<span>'+(e.school||'')+'</span>' +
+    '</div>';
+  }).join('') : '<div style="font-size:12px;color:var(--t3);padding:4px 0">등록된 학력이 없습니다</div>';
+
+  html += '<div style="font-size:12px;font-weight:600;color:var(--t3);margin:14px 0 8px">경력</div>';
+  html += career.length ? career.map(function(c) {
+    return '<div style="display:flex;gap:10px;padding:6px 0;font-size:13px;align-items:baseline">' +
+      '<span style="color:var(--t3);width:150px;flex-shrink:0">'+(c.start||'')+' ~ '+(c.end||'현재')+'</span>' +
+      '<span>'+(c.company||'')+'</span>' +
+    '</div>';
+  }).join('') : '<div style="font-size:12px;color:var(--t3);padding:4px 0">등록된 경력이 없습니다</div>';
+
+  html += '<div style="font-size:12px;font-weight:600;color:var(--t3);margin:14px 0 8px">면허·자격</div>';
+  html += license.length ? license.map(function(l) {
+    return '<div style="display:flex;gap:10px;padding:6px 0;font-size:13px;align-items:baseline">' +
+      '<span style="color:var(--t3);width:64px;flex-shrink:0">'+(l.date||'')+'</span>' +
+      '<span style="flex:1">'+(l.name||'')+'</span>' +
+      '<span style="font-size:11px;color:var(--t3)">'+(l.org||'')+'</span>' +
+    '</div>';
+  }).join('') : '<div style="font-size:12px;color:var(--t3);padding:4px 0">등록된 자격이 없습니다</div>';
+
+  el.innerHTML = html;
+}
+
+function pcEditEduCareerLicense() {
+  var sel = document.getElementById('pc-emp-select');
+  var email = sel.value;
+  var emp = employees.find(function(e){ return (e.id||e.email)===email; });
+  if (!emp) return;
+  _pcEditEmp = email;
+  _pcEditData = {
+    education: JSON.parse(JSON.stringify(emp.education||[])),
+    career: JSON.parse(JSON.stringify(emp.career||[])),
+    license: JSON.parse(JSON.stringify(emp.license||[]))
+  };
+  document.getElementById('pc-edu-view').style.display = 'none';
+  document.getElementById('pc-edu-edit-btn').style.display = 'none';
+  document.getElementById('pc-edu-form').style.display = 'block';
+  pcRenderEduForm();
+}
+
+function pcRenderEduForm() {
+  var el = document.getElementById('pc-edu-form');
+  var html = '';
+
+  html += '<div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:8px">학력</div>';
+  _pcEditData.education.forEach(function(e, i) {
+    html += '<div style="display:flex;gap:6px;margin-bottom:6px">' +
+      '<input type="text" class="form-input" style="width:90px;font-size:12px" placeholder="2018.02" value="'+(e.date||'')+'" onchange="pcUpdateRow(\'education\','+i+',\'date\',this.value)">' +
+      '<select class="form-input" style="width:90px;font-size:12px" onchange="pcUpdateRow(\'education\','+i+',\'degree\',this.value)">' +
+        PC_DEGREE_OPTS.map(function(d){ return '<option'+(e.degree===d?' selected':'')+'>'+d+'</option>'; }).join('') +
+      '</select>' +
+      '<input type="text" class="form-input" style="flex:1;font-size:12px" placeholder="학교/전공" value="'+(e.school||'')+'" onchange="pcUpdateRow(\'education\','+i+',\'school\',this.value)">' +
+      '<button onclick="pcRemoveRow(\'education\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
+    '</div>';
+  });
+  html += '<button onclick="pcAddRow(\'education\')" style="font-size:12px;width:100%;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;padding:6px;cursor:pointer;margin-bottom:14px">+ 학력 추가</button>';
+
+  html += '<div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:8px">경력</div>';
+  _pcEditData.career.forEach(function(c, i) {
+    html += '<div style="display:flex;gap:6px;margin-bottom:6px">' +
+      '<input type="text" class="form-input" style="width:80px;font-size:12px" placeholder="시작" value="'+(c.start||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'start\',this.value)">' +
+      '<input type="text" class="form-input" style="width:80px;font-size:12px" placeholder="종료(재직시 공란)" value="'+(c.end||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'end\',this.value)">' +
+      '<input type="text" class="form-input" style="flex:1;font-size:12px" placeholder="회사/부서" value="'+(c.company||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'company\',this.value)">' +
+      '<button onclick="pcRemoveRow(\'career\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
+    '</div>';
+  });
+  html += '<button onclick="pcAddRow(\'career\')" style="font-size:12px;width:100%;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;padding:6px;cursor:pointer;margin-bottom:14px">+ 경력 추가</button>';
+
+  html += '<div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:8px">면허·자격</div>';
+  _pcEditData.license.forEach(function(l, i) {
+    html += '<div style="display:flex;gap:6px;margin-bottom:6px">' +
+      '<input type="text" class="form-input" style="width:90px;font-size:12px" placeholder="취득일" value="'+(l.date||'')+'" onchange="pcUpdateRow(\'license\','+i+',\'date\',this.value)">' +
+      '<input type="text" class="form-input" style="flex:1.3;font-size:12px" placeholder="자격명" value="'+(l.name||'')+'" onchange="pcUpdateRow(\'license\','+i+',\'name\',this.value)">' +
+      '<input type="text" class="form-input" style="flex:1;font-size:12px" placeholder="발급기관" value="'+(l.org||'')+'" onchange="pcUpdateRow(\'license\','+i+',\'org\',this.value)">' +
+      '<button onclick="pcRemoveRow(\'license\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
+    '</div>';
+  });
+  html += '<button onclick="pcAddRow(\'license\')" style="font-size:12px;width:100%;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;padding:6px;cursor:pointer;margin-bottom:14px">+ 자격 추가</button>';
+
+  html += '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">' +
+    '<button onclick="pcCancelEdit()" class="btn btn-ghost btn-sm" style="font-size:12px">취소</button>' +
+    '<button onclick="pcSaveEduCareerLicense()" class="btn btn-primary btn-sm" style="font-size:12px">저장</button>' +
+  '</div>';
+
+  el.innerHTML = html;
+}
+
+function pcUpdateRow(type, idx, field, value) {
+  _pcEditData[type][idx][field] = value;
+}
+function pcAddRow(type) {
+  var blank = type==='education' ? {date:'',degree:'학사',school:''} : type==='career' ? {start:'',end:'',company:''} : {date:'',name:'',org:''};
+  _pcEditData[type].push(blank);
+  pcRenderEduForm();
+}
+function pcRemoveRow(type, idx) {
+  _pcEditData[type].splice(idx, 1);
+  pcRenderEduForm();
+}
+function pcCancelEdit() {
+  document.getElementById('pc-edu-form').style.display = 'none';
+  document.getElementById('pc-edu-view').style.display = 'block';
+  document.getElementById('pc-edu-edit-btn').style.display = 'inline-flex';
+}
+function pcSaveEduCareerLicense() {
+  if (!_pcEditEmp) return;
+  var payload = {
+    education: _pcEditData.education,
+    career: _pcEditData.career,
+    license: _pcEditData.license
+  };
+  db.collection('employees').doc(_pcEditEmp).update(payload).then(function() {
+    showToast('✅ 저장되었습니다');
+    var emp = employees.find(function(e){ return (e.id||e.email)===_pcEditEmp; });
+    if (emp) Object.assign(emp, payload);
+    pcCancelEdit();
+    pcLoadEmployee();
+  }).catch(function(err) {
+    showToast('❌ 저장 실패: ' + err.message);
+  });
+}
+
 async function renderMyInfoHistory() {
   const container = document.getElementById('myinfo-history-content');
   if (!container) return;
@@ -13551,6 +13839,7 @@ function showPage(id, el) {
   if(id === 'monthly-report') { reportInitPage('monthly'); reportUpdateReviewBadge(); }
   if(id === 'settings') { svAdminPopulateEmpSelect(); }
   if(id === 'permission-manage') { pmPopulateEmpSelect(); }
+  if(id === 'personnel-card') { pcPopulateEmpSelect(); }
   if(id === 'task-admin') { taInitPage(); }
   applyPageReadOnlyLock(id);
 }
@@ -19322,6 +19611,7 @@ var PM_MENU_LIST = {
   hr: [
     {id:'orgview', label:'직원 조회'},
     {id:'employees', label:'직원 관리'},
+    {id:'personnel-card', label:'인사기록카드'},
     {id:'myinfo-history', label:'정보수정 이력'},
     {id:'organization', label:'조직 관리'},
     {id:'welfare', label:'복리후생'},
