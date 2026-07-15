@@ -2343,6 +2343,7 @@ select.form-input{cursor:pointer}
             </div>
             <div id="pm-emp-list" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px"></div>
             <div style="font-size:11px;color:var(--t3);margin-top:8px" id="pm-selected-count">0명 선택됨</div>
+            <div id="pm-single-hint" style="display:none;font-size:11px;color:var(--ac);margin-top:4px">✓ 이 사람의 기존 설정을 불러왔습니다. 오른쪽에서 확인·수정 후 저장하면 반영됩니다.</div>
           </div>
 
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
@@ -2359,6 +2360,11 @@ select.form-input{cursor:pointer}
             <button class="btn btn-primary btn-sm" style="margin-top:14px;width:100%" onclick="pmSaveGrants()">선택한 직원들에게 이 설정으로 저장 (덮어쓰기)</button>
           </div>
 
+        </div>
+
+        <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px">
+          <div style="font-weight:600;margin-bottom:10px">현재 개별 부여 현황</div>
+          <div id="pm-current-grants" style="font-size:12px;color:var(--t3)">불러오는 중...</div>
         </div>
       </div>
 
@@ -19649,6 +19655,8 @@ var PM_MENU_LIST = {
   ]
 };
 
+var _pmAllGrants = {};
+
 function pmPopulateEmpSelect() {
   _pmSelectedEmps = new Set();
   _pmMenuLevels = {};
@@ -19662,6 +19670,51 @@ function pmPopulateEmpSelect() {
   pmRenderEmpList();
   pmRenderMenuTree();
   pmUpdateSelectedCount();
+  db.collection('settings').doc('menuAccess').get().then(function(snap) {
+    _pmAllGrants = snap.exists ? (snap.data()||{}) : {};
+    pmRenderCurrentGrants();
+  }).catch(function() {
+    _pmAllGrants = {};
+    pmRenderCurrentGrants();
+  });
+}
+
+var PM_ALL_MENU_MAP = null;
+function pmMenuLabel(menuId) {
+  if (!PM_ALL_MENU_MAP) {
+    PM_ALL_MENU_MAP = {};
+    Object.keys(PM_MENU_LIST).forEach(function(g){ PM_MENU_LIST[g].forEach(function(m){ PM_ALL_MENU_MAP[m.id] = m.label; }); });
+  }
+  return PM_ALL_MENU_MAP[menuId] || menuId;
+}
+
+function pmRenderCurrentGrants() {
+  var el = document.getElementById('pm-current-grants');
+  if (!el) return;
+  var entries = Object.keys(_pmAllGrants).filter(function(email){ return _pmAllGrants[email] && Object.keys(_pmAllGrants[email]).length; });
+  if (!entries.length) {
+    el.innerHTML = '<div style="padding:8px 0">개별로 부여된 권한이 아직 없습니다</div>';
+    return;
+  }
+  entries.sort(function(a,b){
+    var ea = employees.find(function(e){ return (e.id||e.email)===a; });
+    var eb = employees.find(function(e){ return (e.id||e.email)===b; });
+    return ((ea&&ea.name)||a).localeCompare((eb&&eb.name)||b);
+  });
+  el.innerHTML = entries.map(function(email) {
+    var emp = employees.find(function(e){ return (e.id||e.email)===email; });
+    var name = emp ? emp.name : email;
+    var chips = Object.keys(_pmAllGrants[email]).map(function(menuId) {
+      var level = _pmAllGrants[email][menuId];
+      var color = level === 'full' ? 'var(--ac)' : '#B98900';
+      var bg = level === 'full' ? 'var(--acd)' : '#FFF3D6';
+      return '<span style="display:inline-block;padding:2px 8px;border-radius:6px;background:'+bg+';color:'+color+';font-size:11px;margin:2px 4px 2px 0">'+pmMenuLabel(menuId)+' · '+(level==='full'?'전체':'읽기전용')+'</span>';
+    }).join('');
+    return '<div style="padding:8px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="font-weight:600;color:var(--t1);margin-bottom:4px">'+name+'</div>' +
+      '<div>'+chips+'</div>' +
+    '</div>';
+  }).join('');
 }
 
 function pmRenderEmpList() {
@@ -19691,6 +19744,7 @@ function pmToggleEmp(email) {
   if (_pmSelectedEmps.has(email)) _pmSelectedEmps.delete(email);
   else _pmSelectedEmps.add(email);
   pmUpdateSelectedCount();
+  pmSyncLevelsWithSelection();
 }
 
 function pmSelectAllVisible() {
@@ -19704,17 +19758,33 @@ function pmSelectAllVisible() {
   }).forEach(function(e){ _pmSelectedEmps.add(e.id||e.email); });
   pmRenderEmpList();
   pmUpdateSelectedCount();
+  pmSyncLevelsWithSelection();
 }
 
 function pmDeselectAll() {
   _pmSelectedEmps.clear();
   pmRenderEmpList();
   pmUpdateSelectedCount();
+  pmSyncLevelsWithSelection();
 }
 
 function pmUpdateSelectedCount() {
   var el = document.getElementById('pm-selected-count');
   if (el) el.textContent = _pmSelectedEmps.size + '명 선택됨';
+}
+
+// 정확히 한 명만 선택됐을 때는 그 사람의 기존 부여 내역을 불러와서 미리 채워줌
+function pmSyncLevelsWithSelection() {
+  var hint = document.getElementById('pm-single-hint');
+  if (_pmSelectedEmps.size === 1) {
+    var email = Array.from(_pmSelectedEmps)[0];
+    _pmMenuLevels = Object.assign({}, _pmAllGrants[email] || {});
+    if (hint) hint.style.display = 'block';
+  } else {
+    _pmMenuLevels = {};
+    if (hint) hint.style.display = 'none';
+  }
+  pmRenderMenuTree();
 }
 
 function pmRenderMenuTree() {
@@ -19748,6 +19818,8 @@ function pmSaveGrants() {
   _pmSelectedEmps.forEach(function(email){ update[email] = grant; });
   db.collection('settings').doc('menuAccess').set(update, {merge:true}).then(function() {
     showToast('✅ ' + _pmSelectedEmps.size + '명에게 권한이 저장되었습니다 (기존 설정 덮어씀)');
+    _pmSelectedEmps.forEach(function(email){ _pmAllGrants[email] = grant; });
+    pmRenderCurrentGrants();
   }).catch(function(err) {
     showToast('❌ 저장 실패: ' + err.message);
   });
