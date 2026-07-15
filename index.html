@@ -3356,6 +3356,7 @@ function startMyRoleListener(email) {
     applyRoleUI();
     // 직원 목록도 업데이트 (이름 없는 불완전한 데이터는 화면에 반영하지 않음)
     if (data.name) {
+      data._docId = email;
       const idx = employees.findIndex(e => e.id === email || e.email === email);
       if (idx > -1) employees[idx] = data;
       else employees.push(data);
@@ -3613,9 +3614,14 @@ async function renderMenuUsage() {
 
 async function loadFirestoreData() {
   try {
-    // 직원 데이터 로드
+    // 직원 데이터 로드 (이름 없는 불완전한 문서는 화면에 표시하지 않음)
     const empSnap = await db.collection('employees').get();
-    employees = empSnap.docs.map(d => d.data());
+    const rawEmployees = empSnap.docs.map(d => Object.assign({ _docId: d.id }, d.data()));
+    const blankOnes = rawEmployees.filter(e => !e.name);
+    if (blankOnes.length) {
+      console.warn('[방어 처리] 이름 없는 직원 문서가 ' + blankOnes.length + '건 발견되어 화면 목록에서 제외했습니다:', blankOnes);
+    }
+    employees = rawEmployees.filter(e => e.name);
     localStorage.setItem('wg_employees', JSON.stringify(employees));
 
     // 부서 데이터 로드
@@ -4851,8 +4857,9 @@ function deleteEmployee(uid) {
   const emp = employees.find(e => e.uid === uid);
   employees = employees.filter(e => e.uid !== uid);
   saveEmployees();
-  // Firestore에서도 삭제
-  if (emp && emp.id) db.collection('employees').doc(emp.id).delete().catch(err => console.error(err));
+  // Firestore에서도 삭제 (문서 안의 id 필드가 비어있어도 실제 문서ID로 삭제되도록 함)
+  const docId = (emp && (emp._docId || emp.id));
+  if (docId) db.collection('employees').doc(docId).delete().catch(err => console.error(err));
   renderEmployeeTable();
   showToast('🗑 직원이 삭제되었습니다');
 }
