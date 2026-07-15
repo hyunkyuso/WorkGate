@@ -12287,6 +12287,20 @@ function pcSummarizeFile(file) {
 
 // 이미 드라이브에 올라간 파일(파일 객체 없이 driveId만 있는 경우)을 다시 받아와서 요약
 async function pcSummarizeFromDrive(driveId, mimeType) {
+  // 예전에 올린 파일은 형식 정보가 없을 수 있어서, 없으면 드라이브에서 실제 형식을 먼저 조회
+  if (!mimeType) {
+    try {
+      var metaR = await driveApiCall('https://www.googleapis.com/drive/v3/files/' + driveId + '?fields=mimeType');
+      var meta = await metaR.json();
+      mimeType = meta.mimeType || '';
+    } catch (e) { mimeType = ''; }
+  }
+  var isPdf = mimeType === 'application/pdf';
+  var isImage = mimeType.indexOf('image/') === 0;
+  if (!isPdf && !isImage) {
+    throw new Error('이 파일 형식(' + (mimeType || '알 수 없음') + ')은 AI가 읽을 수 없어요. 이미지나 PDF 파일만 분석 가능합니다.');
+  }
+
   var r = await driveApiCall('https://www.googleapis.com/drive/v3/files/' + driveId + '?alt=media');
   var blob = await r.blob();
   var base64 = await new Promise(function(resolve, reject) {
@@ -12295,11 +12309,10 @@ async function pcSummarizeFromDrive(driveId, mimeType) {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
-  var isPdf = mimeType === 'application/pdf';
   var prompt = '이 문서(이력서/평가표/증명서 등 인사 관련 서류일 수 있음)에 담긴 핵심 내용을 2~3문장으로 한국어 요약만 응답하세요. 다른 설명은 붙이지 마세요.';
   var contentArr = isPdf
     ? [{ type:'document', source:{type:'base64',media_type:'application/pdf',data:base64} }, {type:'text', text: prompt}]
-    : [{ type:'image', source:{type:'base64',media_type: mimeType || 'image/jpeg', data:base64} }, {type:'text', text: prompt}];
+    : [{ type:'image', source:{type:'base64',media_type: mimeType, data:base64} }, {type:'text', text: prompt}];
   var res = await fetch('https://twilight-dew-b966.hyunkyu-so.workers.dev', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:300, messages:[{role:'user', content: contentArr}] })
