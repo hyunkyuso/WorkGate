@@ -366,6 +366,7 @@ select.form-input{cursor:pointer}
         </div>
         <div id="system-menu-items">
           <div class="nav-item admin-only" onclick="showPage('codemanage',this)"><span class="nav-icon">🗂️</span> 코드 관리</div>
+          <div class="nav-item admin-only" onclick="showPage('permission-manage',this)"><span class="nav-icon">🔐</span> 권한 관리</div>
           <div class="nav-item admin-only" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> 설정</div>
           <div class="sidebar-section-label" style="margin-top:8px;padding:0 8px;font-size:11px">시스템 통계</div>
           <div class="nav-item admin-only" onclick="showPage('loginlogs',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🔑</span> 접속 이력</div>
@@ -2237,6 +2238,28 @@ select.form-input{cursor:pointer}
         </div>
       </div>
 
+      <!-- ══════ 권한 관리 ══════ -->
+      <div id="page-permission-manage" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">🔐 권한 관리</div>
+            <div class="page-sub">관리자 전용 메뉴를 직원별로 개별 선택해서 열어줄 수 있습니다. 일반 사용자 기본 메뉴는 그대로 유지됩니다.</div>
+          </div>
+        </div>
+        <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px;max-width:640px">
+          <select id="pm-emp-select" class="form-input" style="margin-bottom:14px" onchange="pmOnEmpSelect()">
+            <option value="">-- 직원 선택 --</option>
+          </select>
+          <div id="pm-menu-tree" style="display:none">
+            <div style="font-size:12px;font-weight:600;color:var(--t3);margin:10px 0 6px">인사</div>
+            <div class="pm-menu-group" data-group="hr"></div>
+            <div style="font-size:12px;font-weight:600;color:var(--t3);margin:14px 0 6px">시스템</div>
+            <div class="pm-menu-group" data-group="system"></div>
+          </div>
+          <button class="btn btn-primary btn-sm" style="margin-top:14px;display:none" id="pm-save-btn" onclick="pmSaveGrants()">저장</button>
+        </div>
+      </div>
+
     </div><!-- /main -->
   </div>
 </div>
@@ -3152,7 +3175,16 @@ function setupAuthListener() {
   });
 }
 
+var _myMenuGrants = [];
+function loadMyMenuGrants(email) {
+  return db.collection('settings').doc('menuAccess').get().then(function(snap) {
+    var data = snap.exists ? (snap.data()||{}) : {};
+    _myMenuGrants = data[email] || [];
+  }).catch(function(){ _myMenuGrants = []; });
+}
+
 function startMyRoleListener(email) {
+  loadMyMenuGrants(email).then(applyRoleUI);
   // 내 직원 문서를 실시간으로 감지해서 권한 변경 즉시 반영
   db.collection('employees').doc(email).onSnapshot(snap => {
     if (!snap.exists) return;
@@ -3474,11 +3506,17 @@ function isAdmin() {
 function applyRoleUI() {
   const admin = isAdmin();
   document.querySelectorAll('.admin-only').forEach(el => {
-    if (!admin) {
+    var isNavItem = el.classList.contains('nav-item');
+    var granted = false;
+    if (!admin && isNavItem) {
+      var m = (el.getAttribute('onclick')||'').match(/showPage\('([^']+)'/);
+      if (m && _myMenuGrants.indexOf(m[1]) >= 0) granted = true;
+    }
+    if (!admin && !granted) {
       el.style.setProperty('display', 'none', 'important');
     } else {
       el.style.removeProperty('display');
-      if (el.classList.contains('nav-item')) {
+      if (isNavItem) {
         el.style.display = 'flex';
       } else if (el.tagName === 'BUTTON') {
         el.style.display = 'inline-flex';
@@ -13435,6 +13473,7 @@ function showPage(id, el) {
   if(id === 'weekly-report') { reportInitPage('weekly'); reportUpdateReviewBadge(); }
   if(id === 'monthly-report') { reportInitPage('monthly'); reportUpdateReviewBadge(); }
   if(id === 'settings') { svAdminPopulateEmpSelect(); }
+  if(id === 'permission-manage') { pmPopulateEmpSelect(); }
   if(id === 'task-admin') { taInitPage(); }
 }
 
@@ -19123,6 +19162,90 @@ function svRenderHeatmap() {
 // ── 설정 페이지: 관리자가 현황보기 접근 권한을 직원별로 부여 ──
 var _svAdminSelectedEmp = null;
 var _svAdminWorkingSet = new Set();
+
+// ── 권한 관리: 관리자 전용 메뉴를 직원별로 개별 부여 ──
+var _pmSelectedEmp = null;
+var _pmWorkingSet = new Set();
+var PM_MENU_LIST = {
+  hr: [
+    {id:'employees', label:'직원 관리'},
+    {id:'myinfo-history', label:'정보수정 이력'},
+    {id:'organization', label:'조직 관리'},
+    {id:'welfare', label:'복리후생'},
+    {id:'birthday', label:'생일자 현황'},
+    {id:'parentbirthday', label:'부모님 생신현황'},
+    {id:'deptfund', label:'부서장 운영비'},
+    {id:'workforce', label:'상시근로자수'},
+    {id:'workforce-join', label:'입퇴사 현황'},
+    {id:'workforce-gender', label:'인력구성 분석'},
+    {id:'workforce-edit', label:'상시근로자수 수정'}
+  ],
+  system: [
+    {id:'codemanage', label:'코드 관리'},
+    {id:'settings', label:'설정'},
+    {id:'loginlogs', label:'접속 이력'},
+    {id:'menuUsage', label:'메뉴 사용 현황'}
+  ]
+};
+
+function pmPopulateEmpSelect() {
+  var sel = document.getElementById('pm-emp-select');
+  if (!sel) return;
+  var active = employees.filter(function(e){ return e.status !== '퇴직'; })
+    .sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+  sel.innerHTML = '<option value="">-- 직원 선택 --</option>' +
+    active.map(function(e){ var email=e.id||e.email; return '<option value="'+email+'">'+e.name+' ('+(e.dept||'')+')</option>'; }).join('');
+}
+
+function pmOnEmpSelect() {
+  var sel = document.getElementById('pm-emp-select');
+  _pmSelectedEmp = sel.value;
+  var tree = document.getElementById('pm-menu-tree');
+  var btn = document.getElementById('pm-save-btn');
+  if (!_pmSelectedEmp) {
+    tree.style.display = 'none'; btn.style.display = 'none';
+    return;
+  }
+  tree.style.display = 'block'; btn.style.display = 'inline-flex';
+  db.collection('settings').doc('menuAccess').get().then(function(snap) {
+    var data = snap.exists ? (snap.data()||{}) : {};
+    _pmWorkingSet = new Set(data[_pmSelectedEmp] || []);
+    pmRenderMenuTree();
+  }).catch(function() {
+    _pmWorkingSet = new Set();
+    pmRenderMenuTree();
+  });
+}
+
+function pmRenderMenuTree() {
+  ['hr','system'].forEach(function(group) {
+    var el = document.querySelector('.pm-menu-group[data-group="'+group+'"]');
+    if (!el) return;
+    el.innerHTML = PM_MENU_LIST[group].map(function(m) {
+      var checked = _pmWorkingSet.has(m.id);
+      return '<div style="padding:5px 4px;display:flex;align-items:center;gap:8px">' +
+        '<input type="checkbox" '+(checked?'checked':'')+' onchange="pmToggleMenu(\''+m.id+'\')" style="accent-color:var(--ac)">' +
+        '<span style="font-size:13px">'+m.label+'</span>' +
+      '</div>';
+    }).join('');
+  });
+}
+
+function pmToggleMenu(menuId) {
+  if (_pmWorkingSet.has(menuId)) _pmWorkingSet.delete(menuId);
+  else _pmWorkingSet.add(menuId);
+}
+
+function pmSaveGrants() {
+  if (!_pmSelectedEmp) return;
+  var update = {};
+  update[_pmSelectedEmp] = Array.from(_pmWorkingSet);
+  db.collection('settings').doc('menuAccess').set(update, {merge:true}).then(function() {
+    showToast('✅ 권한이 저장되었습니다');
+  }).catch(function(err) {
+    showToast('❌ 저장 실패: ' + err.message);
+  });
+}
 
 function svAdminPopulateEmpSelect() {
   var sel = document.getElementById('sv-admin-emp-select');
