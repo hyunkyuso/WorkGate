@@ -11925,6 +11925,7 @@ function pcPopulateEmpSelect() {
   document.getElementById('pc-empty').style.display = 'block';
   document.getElementById('pc-profile').style.display = 'none';
   document.getElementById('pc-tab-edu').style.display = 'none';
+  document.getElementById('pc-docs-card').style.display = 'none';
 }
 
 function pcRenderEmpList() {
@@ -12170,6 +12171,7 @@ function pcRenderEduForm() {
         '</select>' +
         '<span style="flex:1"></span>' +
         '<label style="cursor:pointer;font-size:14px;color:'+(e.driveLink?'var(--ac)':'var(--t3)')+'" title="파일 첨부">📎<input type="file" style="display:none" onchange="pcAttachRowFile(\'education\','+i+',this)"></label>' +
+        (e.driveLink ? '<span onclick="pcDetachRowFile(\'education\','+i+')" title="첨부 파일 제거" style="cursor:pointer;font-size:12px;color:var(--t3)">🗑</span>' : '') +
         '<button onclick="pcRemoveRow(\'education\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
       '</div>' +
       '<div style="display:flex;gap:6px">' +
@@ -12188,6 +12190,7 @@ function pcRenderEduForm() {
         '<input type="text" class="form-input" style="width:80px;font-size:12px" placeholder="종료(재직시 공란)" value="'+(c.end||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'end\',this.value)">' +
         '<span style="flex:1"></span>' +
         '<label style="cursor:pointer;font-size:14px;color:'+(c.driveLink?'var(--ac)':'var(--t3)')+'" title="파일 첨부">📎<input type="file" style="display:none" onchange="pcAttachRowFile(\'career\','+i+',this)"></label>' +
+        (c.driveLink ? '<span onclick="pcDetachRowFile(\'career\','+i+')" title="첨부 파일 제거" style="cursor:pointer;font-size:12px;color:var(--t3)">🗑</span>' : '') +
         '<button onclick="pcRemoveRow(\'career\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
       '</div>' +
       '<div style="display:flex;gap:6px">' +
@@ -12206,6 +12209,7 @@ function pcRenderEduForm() {
         '<input type="text" class="form-input" style="width:90px;font-size:12px" placeholder="취득일" value="'+(l.date||'')+'" onchange="pcUpdateRow(\'license\','+i+',\'date\',this.value)">' +
         '<span style="flex:1"></span>' +
         '<label style="cursor:pointer;font-size:14px;color:'+(l.driveLink?'var(--ac)':'var(--t3)')+'" title="파일 첨부">📎<input type="file" style="display:none" onchange="pcAttachRowFile(\'license\','+i+',this)"></label>' +
+        (l.driveLink ? '<span onclick="pcDetachRowFile(\'license\','+i+')" title="첨부 파일 제거" style="cursor:pointer;font-size:12px;color:var(--t3)">🗑</span>' : '') +
         '<button onclick="pcRemoveRow(\'license\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
       '</div>' +
       '<div style="display:flex;gap:6px">' +
@@ -12255,6 +12259,16 @@ function pcSummarizeFile(file) {
     reader.onerror = function(){ resolve(''); };
     reader.readAsDataURL(file);
   });
+}
+
+function pcDetachRowFile(type, idx) {
+  if (!confirm('첨부된 파일만 제거하시겠습니까? (항목 내용은 유지됩니다)')) return;
+  delete _pcEditData[type][idx].driveLink;
+  delete _pcEditData[type][idx].downloadLink;
+  delete _pcEditData[type][idx].fileName;
+  delete _pcEditData[type][idx].docSummary;
+  pcRenderEduForm();
+  showToast('🗑 첨부 파일이 제거되었습니다 (저장을 눌러야 최종 반영됩니다)');
 }
 
 async function pcAttachRowFile(type, idx, input) {
