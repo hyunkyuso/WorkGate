@@ -12067,10 +12067,31 @@ function pcRenderDocsList(emp) {
     return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px">' +
       '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(d.name||'파일')+(d.docSummary?' <span style="color:var(--ac);font-size:11px">✨AI 읽음</span>':'')+'</span>' +
       '<span style="font-size:11px;color:var(--t3)">'+(d.uploadedAt?d.uploadedAt.slice(0,10):'')+'</span>' +
+      (!d.docSummary ? '<span onclick="pcReanalyzeDoc('+i+')" style="font-size:11px;color:var(--ac);cursor:pointer;white-space:nowrap">🤖 다시 분석</span>' : '') +
       '<a href="'+d.driveLink+'" target="_blank" title="보기" style="font-size:14px;text-decoration:none">👁</a>' +
       '<span onclick="pcDeleteDoc('+i+')" style="font-size:12px;color:var(--t3);cursor:pointer">✕</span>' +
     '</div>';
   }).join('');
+}
+
+async function pcReanalyzeDoc(idx) {
+  var email = _pcSelectedEmp;
+  var emp = employees.find(function(e){ return (e.id||e.email)===email; });
+  var docs = (emp.personnelDocs || []).slice();
+  var d = docs[idx];
+  if (!d) return;
+  showToast('🤖 AI가 다시 읽는 중...');
+  try {
+    var summary = await pcSummarizeFromDrive(d.driveId, d.mimeType);
+    if (!summary) { showToast('⚠️ 분석 실패 (내용을 인식하지 못했습니다)'); return; }
+    docs[idx].docSummary = summary;
+    await db.collection('employees').doc(email).update({ personnelDocs: docs });
+    emp.personnelDocs = docs;
+    pcRenderDocsList(emp);
+    showToast('✨ AI가 내용을 읽었습니다');
+  } catch (err) {
+    showToast('❌ 분석 실패: ' + err.message);
+  }
 }
 
 function pcDeleteDoc(idx) {
@@ -12172,6 +12193,7 @@ function pcRenderEduForm() {
         '<span style="flex:1"></span>' +
         '<label style="cursor:pointer;font-size:14px;color:'+(e.driveLink?'var(--ac)':'var(--t3)')+'" title="파일 첨부">📎<input type="file" style="display:none" onchange="pcAttachRowFile(\'education\','+i+',this)"></label>' +
         (e.driveLink ? '<span onclick="pcDetachRowFile(\'education\','+i+')" title="첨부 파일 제거" style="cursor:pointer;font-size:12px;color:var(--t3)">🗑</span>' : '') +
+        (e.driveLink && !e.docSummary ? '<span onclick="pcReanalyzeRowFile(\'education\','+i+')" title="AI로 다시 분석" style="cursor:pointer;font-size:11px;color:var(--ac)">🤖</span>' : '') +
         '<button onclick="pcRemoveRow(\'education\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
       '</div>' +
       '<div style="display:flex;gap:6px">' +
@@ -12191,6 +12213,7 @@ function pcRenderEduForm() {
         '<span style="flex:1"></span>' +
         '<label style="cursor:pointer;font-size:14px;color:'+(c.driveLink?'var(--ac)':'var(--t3)')+'" title="파일 첨부">📎<input type="file" style="display:none" onchange="pcAttachRowFile(\'career\','+i+',this)"></label>' +
         (c.driveLink ? '<span onclick="pcDetachRowFile(\'career\','+i+')" title="첨부 파일 제거" style="cursor:pointer;font-size:12px;color:var(--t3)">🗑</span>' : '') +
+        (c.driveLink && !c.docSummary ? '<span onclick="pcReanalyzeRowFile(\'career\','+i+')" title="AI로 다시 분석" style="cursor:pointer;font-size:11px;color:var(--ac)">🤖</span>' : '') +
         '<button onclick="pcRemoveRow(\'career\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
       '</div>' +
       '<div style="display:flex;gap:6px">' +
@@ -12210,6 +12233,7 @@ function pcRenderEduForm() {
         '<span style="flex:1"></span>' +
         '<label style="cursor:pointer;font-size:14px;color:'+(l.driveLink?'var(--ac)':'var(--t3)')+'" title="파일 첨부">📎<input type="file" style="display:none" onchange="pcAttachRowFile(\'license\','+i+',this)"></label>' +
         (l.driveLink ? '<span onclick="pcDetachRowFile(\'license\','+i+')" title="첨부 파일 제거" style="cursor:pointer;font-size:12px;color:var(--t3)">🗑</span>' : '') +
+        (l.driveLink && !l.docSummary ? '<span onclick="pcReanalyzeRowFile(\'license\','+i+')" title="AI로 다시 분석" style="cursor:pointer;font-size:11px;color:var(--ac)">🤖</span>' : '') +
         '<button onclick="pcRemoveRow(\'license\','+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px">✕</button>' +
       '</div>' +
       '<div style="display:flex;gap:6px">' +
@@ -12261,6 +12285,29 @@ function pcSummarizeFile(file) {
   });
 }
 
+// 이미 드라이브에 올라간 파일(파일 객체 없이 driveId만 있는 경우)을 다시 받아와서 요약
+async function pcSummarizeFromDrive(driveId, mimeType) {
+  var r = await driveApiCall('https://www.googleapis.com/drive/v3/files/' + driveId + '?alt=media');
+  var blob = await r.blob();
+  var base64 = await new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(){ resolve(reader.result.split(',')[1]); };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+  var isPdf = mimeType === 'application/pdf';
+  var prompt = '이 문서(이력서/평가표/증명서 등 인사 관련 서류일 수 있음)에 담긴 핵심 내용을 2~3문장으로 한국어 요약만 응답하세요. 다른 설명은 붙이지 마세요.';
+  var contentArr = isPdf
+    ? [{ type:'document', source:{type:'base64',media_type:'application/pdf',data:base64} }, {type:'text', text: prompt}]
+    : [{ type:'image', source:{type:'base64',media_type: mimeType || 'image/jpeg', data:base64} }, {type:'text', text: prompt}];
+  var res = await fetch('https://twilight-dew-b966.hyunkyu-so.workers.dev', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:300, messages:[{role:'user', content: contentArr}] })
+  });
+  var data = await res.json();
+  return (data.content && data.content[0] && data.content[0].text) ? data.content[0].text.trim() : '';
+}
+
 function pcDetachRowFile(type, idx) {
   if (!confirm('첨부된 파일만 제거하시겠습니까? (항목 내용은 유지됩니다)')) return;
   delete _pcEditData[type][idx].driveLink;
@@ -12269,6 +12316,21 @@ function pcDetachRowFile(type, idx) {
   delete _pcEditData[type][idx].docSummary;
   pcRenderEduForm();
   showToast('🗑 첨부 파일이 제거되었습니다 (저장을 눌러야 최종 반영됩니다)');
+}
+
+async function pcReanalyzeRowFile(type, idx) {
+  var item = _pcEditData[type][idx];
+  if (!item || !item.driveLink) return;
+  showToast('🤖 AI가 다시 읽는 중...');
+  try {
+    var summary = await pcSummarizeFromDrive(item.driveId, item.mimeType);
+    if (!summary) { showToast('⚠️ 분석 실패 (내용을 인식하지 못했습니다)'); return; }
+    _pcEditData[type][idx].docSummary = summary;
+    pcRenderEduForm();
+    showToast('✨ AI가 내용을 읽었습니다 (저장을 눌러야 최종 반영됩니다)');
+  } catch (err) {
+    showToast('❌ 분석 실패: ' + err.message);
+  }
 }
 
 async function pcAttachRowFile(type, idx, input) {
@@ -12281,6 +12343,8 @@ async function pcAttachRowFile(type, idx, input) {
     _pcEditData[type][idx].driveLink = uploaded.driveLink;
     _pcEditData[type][idx].downloadLink = uploaded.downloadLink;
     _pcEditData[type][idx].fileName = uploaded.name;
+    _pcEditData[type][idx].driveId = uploaded.driveId;
+    _pcEditData[type][idx].mimeType = uploaded.mimeType;
     pcRenderEduForm();
     showToast('✅ 파일이 첨부되었습니다. AI가 내용을 읽는 중...');
     var summary = await pcSummarizeFile(file);
@@ -12390,6 +12454,8 @@ function pcAiScanSection(type, input) {
           item.driveLink = uploaded.driveLink;
           item.downloadLink = uploaded.downloadLink;
           item.fileName = uploaded.name;
+          item.driveId = uploaded.driveId;
+          item.mimeType = uploaded.mimeType;
         }
         if (summary) item.docSummary = summary;
         _pcEditData[type].push(item);
@@ -18589,7 +18655,7 @@ async function driveUploadPersonnelFile(file) {
   return {
     name: d.name, driveId: d.id, driveLink: d.webViewLink,
     downloadLink: d.webContentLink || ('https://drive.google.com/uc?export=download&id='+d.id),
-    size: file.size, uploadedAt: new Date().toISOString()
+    size: file.size, mimeType: file.type, uploadedAt: new Date().toISOString()
   };
 }
 
