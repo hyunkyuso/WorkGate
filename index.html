@@ -3431,8 +3431,11 @@ async function loginSuccess(name, picture, email) {
   state.myEmail = email;
   // 직원 자동 등록 (Firestore에 없으면 신규 등록)
   await autoRegisterEmployee(email, name, picture);
-  logLoginEvent(email, name);
   await loadFirestoreData();
+  // 로그인 기록은 전체 직원 목록을 다 불러온 "이후"에 남긴다.
+  // (먼저 남기면 본인 문서에 대한 로컬 병합 쓰기가 방금 막 시작된 전체 목록 조회와 겹쳐서,
+  //  본인 문서만 다른 필드 없이 lastLogin만 있는 것처럼 잠깐 보이는 캐시 타이밍 문제가 있었음)
+  logLoginEvent(email, name);
   // 관리자 여부 UI 반영 (loadFirestoreData 내에서 이미 호출되지만 한 번 더)
   applyRoleUI();
   initApp();
