@@ -12249,7 +12249,7 @@ function pcUpdateRow(type, idx, field, value) {
 
 // 업로드한 문서 내용을 AI가 짧게 요약해서 반환 (질의응답 때 참고용)
 function pcSummarizeFile(file) {
-  var isPdf = file.type === 'application/pdf';
+  var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name||'');
   return new Promise(function(resolve) {
     var reader = new FileReader();
     reader.onload = function(e) {
@@ -12436,7 +12436,7 @@ function pcAiScanSection(type, input) {
   input.value = '';
   if (!_pcEditData) return; // 수정 모드에서만 쓰는 버튼이라 항상 존재해야 정상
 
-  var isPdf = file.type === 'application/pdf';
+  var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name||'');
   document.getElementById('cert-ai-loading-msg').textContent = PC_AI_LOADING_MSG[type] || '문서 내용을 읽고 있습니다...';
   document.getElementById('cert-ai-loading-modal').style.display = 'flex';
 
@@ -15169,7 +15169,7 @@ function certAiRefresh(input) {
   reader.onload = function(e) {
     var base64 = e.target.result.split(',')[1];
     var mediaType = file.type || 'image/jpeg';
-    var isPdf = file.type === 'application/pdf';
+    var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name||'');
 
     var colGuide = dateFields.map(function(f){ return '"' + f.col + '"'; }).join(', ');
     var keysGuide = dateFields.map(function(f){ return '"' + f.key + '": "값"'; }).join(', ');
@@ -15633,7 +15633,7 @@ function certAiScan(type, input) {
   _certAiFileType = file.type;
 
   var schema = CERT_SCHEMAS[type];
-  var isPdf = file.type === 'application/pdf';
+  var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name||'');
 
   // 로딩 모달 표시
   document.getElementById('cert-ai-loading-msg').textContent = '인증서 내용을 읽고 있습니다...';
@@ -17595,7 +17595,7 @@ function docReview(input) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var base64 = e.target.result.split(',')[1];
-    var isPdf = file.type === 'application/pdf';
+    var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name||'');
     var fileContent = isPdf
       ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}}, {type:'text', text:prompt}]
       : [{type:'image', source:{type:'base64', media_type:file.type, data:base64}}, {type:'text', text:prompt}];
