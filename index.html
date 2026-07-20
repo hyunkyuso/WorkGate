@@ -12009,18 +12009,29 @@ function pcDiffYM(fromStr, toStr) {
 }
 function pcFmtYM(o) { return o.years+'년 '+o.months+'개월'; }
 
+var PC_INTERNAL_COMPANY_NAMES = ['정도유아이티', '인데이터', '다온소프트'];
+function pcIsInternalCareer(company) {
+  return PC_INTERNAL_COMPANY_NAMES.some(function(name){ return (company||'').indexOf(name) >= 0; });
+}
+
 function pcCalcTotalCareer(emp) {
   var todayStr = new Date().toISOString().slice(0,10);
   var tenureYM = pcDiffYM(emp.joindate || todayStr, todayStr);
+  var tenureMonths = tenureYM.years*12 + tenureYM.months;
   var priorMonths = 0;
   (emp.career||[]).forEach(function(c) {
     if (!c.start) return;
     var d = pcDiffYM(c.start, c.end || todayStr);
-    priorMonths += d.years*12 + d.months;
+    var months = d.years*12 + d.months;
+    if (c.countAsTenure) {
+      tenureMonths += months; // 체크된 경력(정도유아이티/인데이터/다온소프트 등)은 근속에 포함
+    } else {
+      priorMonths += months; // 체크 안 된 경력은 이전 경력
+    }
   });
-  var totalMonths = priorMonths + (tenureYM.years*12 + tenureYM.months);
+  var totalMonths = priorMonths + tenureMonths;
   return {
-    tenure: tenureYM,
+    tenure: { years: Math.floor(tenureMonths/12), months: tenureMonths%12 },
     priorMonths: priorMonths,
     total: { years: Math.floor(totalMonths/12), months: totalMonths%12 }
   };
@@ -12251,6 +12262,11 @@ function pcRenderEduForm() {
         '<input type="text" class="form-input" style="flex:1;font-size:12px" placeholder="직위" value="'+(c.position||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'position\',this.value)">' +
         '<input type="text" class="form-input" style="flex:1.4;font-size:12px" placeholder="담당업무" value="'+(c.duty||'')+'" onchange="pcUpdateRow(\'career\','+i+',\'duty\',this.value)">' +
       '</div>' +
+      (pcIsInternalCareer(c.company) ?
+        '<div style="margin-top:6px"><label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ac);cursor:pointer">' +
+          '<input type="checkbox" '+(c.countAsTenure?'checked':'')+' onchange="pcUpdateRow(\'career\','+i+',\'countAsTenure\',this.checked)" style="accent-color:var(--ac)">' +
+          '근속년수에 포함 (체크 해제 시 이전 경력으로 계산)' +
+        '</label></div>' : '') +
     '</div>';
   });
   html += '<button onclick="pcAddRow(\'career\')" style="font-size:12px;width:100%;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;padding:6px;cursor:pointer;margin-bottom:14px">+ 경력 추가</button>';
@@ -12285,6 +12301,7 @@ function pcRenderEduForm() {
 
 function pcUpdateRow(type, idx, field, value) {
   _pcEditData[type][idx][field] = value;
+  if (type === 'career' && field === 'company') pcRenderEduForm();
 }
 
 // 업로드한 문서 내용을 AI가 짧게 요약해서 반환 (질의응답 때 참고용)
@@ -12427,7 +12444,7 @@ async function pcAttachRowFile(type, idx, input) {
   }
 }
 function pcAddRow(type) {
-  var blank = type==='education' ? {date:'',degree:'학사',school:'',major:''} : type==='career' ? {start:'',end:'',company:'',position:'',duty:''} : {date:'',name:'',org:'',number:''};
+  var blank = type==='education' ? {date:'',degree:'학사',school:'',major:''} : type==='career' ? {start:'',end:'',company:'',position:'',duty:'',countAsTenure:false} : {date:'',name:'',org:'',number:''};
   _pcEditData[type].push(blank);
   pcRenderEduForm();
 }
