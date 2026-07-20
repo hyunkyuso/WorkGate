@@ -1172,15 +1172,48 @@ select.form-input{cursor:pointer}
               <div id="pc-edu-form" style="display:none"></div>
             </div>
 
-            <!-- 첨부 서류 (입사지원서, 인턴평가표 등 개인당 자유 첨부, AI가 내용도 읽어서 질의응답에 활용) -->
-            <div id="pc-docs-card" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px">
+            <!-- 입사서류 -->
+            <div id="pc-docs-card-docsJoin" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                <div style="font-weight:600">📎 첨부 서류</div>
+                <div style="font-weight:600">📎 입사서류</div>
                 <label class="btn btn-ghost btn-sm" style="font-size:12px;cursor:pointer">
-                  + 서류 업로드<input type="file" style="display:none" onchange="pcUploadDoc(this)">
+                  + 서류 업로드<input type="file" style="display:none" onchange="pcUploadCategoryDoc('docsJoin',this)">
                 </label>
               </div>
-              <div id="pc-docs-list"></div>
+              <div id="pc-docs-list-docsJoin"></div>
+            </div>
+
+            <!-- 인턴평가 -->
+            <div id="pc-docs-card-docsInternEval" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <div style="font-weight:600">📎 인턴평가</div>
+                <label class="btn btn-ghost btn-sm" style="font-size:12px;cursor:pointer">
+                  + 서류 업로드<input type="file" style="display:none" onchange="pcUploadCategoryDoc('docsInternEval',this)">
+                </label>
+              </div>
+              <div id="pc-docs-list-docsInternEval"></div>
+            </div>
+
+            <!-- 퇴직면담지 -->
+            <div id="pc-docs-card-docsExitInterview" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <div style="font-weight:600">📎 퇴직면담지</div>
+                <label class="btn btn-ghost btn-sm" style="font-size:12px;cursor:pointer">
+                  + 서류 업로드<input type="file" style="display:none" onchange="pcUploadCategoryDoc('docsExitInterview',this)">
+                </label>
+              </div>
+              <div id="pc-docs-list-docsExitInterview"></div>
+            </div>
+
+            <!-- 사직서 -->
+            <div id="pc-docs-card-docsResignation" style="display:none;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <div style="font-weight:600">📎 사직서</div>
+                <label class="btn btn-ghost btn-sm" style="font-size:12px;cursor:pointer">
+                  + 서류 업로드<input type="file" style="display:none" onchange="pcUploadCategoryDoc('docsResignation',this)">
+                </label>
+              </div>
+              <div id="pc-docs-list-docsResignation"></div>
             </div>
           </div>
         </div>
@@ -11936,7 +11969,7 @@ function pcPopulateEmpSelect() {
   document.getElementById('pc-empty').style.display = 'block';
   document.getElementById('pc-profile').style.display = 'none';
   document.getElementById('pc-tab-edu').style.display = 'none';
-  document.getElementById('pc-docs-card').style.display = 'none';
+  PC_DOC_CATEGORIES.forEach(function(cat){ document.getElementById('pc-docs-card-'+cat).style.display = 'none'; });
 }
 
 function pcRenderEmpList() {
@@ -11999,7 +12032,7 @@ function pcLoadEmployee() {
     document.getElementById('pc-empty').style.display = 'block';
     document.getElementById('pc-profile').style.display = 'none';
     document.getElementById('pc-tab-edu').style.display = 'none';
-    document.getElementById('pc-docs-card').style.display = 'none';
+    PC_DOC_CATEGORIES.forEach(function(cat){ document.getElementById('pc-docs-card-'+cat).style.display = 'none'; });
     return;
   }
   var emp = employees.find(function(e){ return (e.id||e.email)===email; });
@@ -12007,7 +12040,7 @@ function pcLoadEmployee() {
   document.getElementById('pc-empty').style.display = 'none';
   document.getElementById('pc-profile').style.display = 'block';
   document.getElementById('pc-tab-edu').style.display = 'block';
-  document.getElementById('pc-docs-card').style.display = 'block';
+  PC_DOC_CATEGORIES.forEach(function(cat){ document.getElementById('pc-docs-card-'+cat).style.display = 'block'; });
 
   var photoEl = document.getElementById('pc-photo');
   if (emp.photo) {
@@ -12042,11 +12075,13 @@ function pcLoadEmployee() {
   document.getElementById('pc-edu-view').style.display = 'block';
   document.getElementById('pc-edu-edit-btn').style.display = 'inline-flex';
 
-  pcRenderDocsList(emp);
+  PC_DOC_CATEGORIES.forEach(function(cat){ pcRenderCategoryDocsList(emp, cat); });
 }
 
 // ── 첨부 서류 (입사지원서, 인턴평가표 등 개인당 자유 첨부). 업로드 시 AI가 내용을 요약해서 질의응답에 활용 ──
-async function pcUploadDoc(input) {
+var PC_DOC_CATEGORIES = ['docsJoin', 'docsInternEval', 'docsExitInterview', 'docsResignation'];
+
+async function pcUploadCategoryDoc(category, input) {
   var file = input.files[0];
   if (!file) return;
   input.value = '';
@@ -12056,22 +12091,25 @@ async function pcUploadDoc(input) {
   try {
     var uploaded = await driveUploadPersonnelFile(file);
     var emp = employees.find(function(e){ return (e.id||e.email)===email; });
-    var docs = (emp.personnelDocs || []).slice();
+    var docs = (emp[category] || []).slice();
     docs.push(uploaded);
-    await db.collection('employees').doc(email).update({ personnelDocs: docs });
-    emp.personnelDocs = docs;
-    pcRenderDocsList(emp);
-    showToast('✅ 서류가 업로드되었습니다. AI가 읽게 하려면 "🤖 다시 분석"을 눌러주세요');
+    var payload = {};
+    payload[category] = docs;
+    await db.collection('employees').doc(email).update(payload);
+    emp[category] = docs;
+    pcRenderCategoryDocsList(emp, category);
+    showToast('✅ 서류가 업로드되었습니다');
   } catch (err) {
     showToast('❌ 업로드 실패: ' + err.message);
   }
 }
 
-function pcRenderDocsList(emp) {
-  var el = document.getElementById('pc-docs-list');
-  var docs = emp.personnelDocs || [];
+function pcRenderCategoryDocsList(emp, category) {
+  var el = document.getElementById('pc-docs-list-' + category);
+  if (!el) return;
+  var docs = emp[category] || [];
   if (!docs.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--t3);padding:4px 0">등록된 첨부 서류가 없습니다</div>';
+    el.innerHTML = '<div style="font-size:12px;color:var(--t3);padding:4px 0">등록된 서류가 없습니다</div>';
     return;
   }
   el.innerHTML = docs.map(function(d, i) {
@@ -12079,20 +12117,22 @@ function pcRenderDocsList(emp) {
       '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(d.name||'파일')+'</span>' +
       '<span style="font-size:11px;color:var(--t3)">'+(d.uploadedAt?d.uploadedAt.slice(0,10):'')+'</span>' +
       '<a href="'+d.driveLink+'" target="_blank" title="보기" style="font-size:14px;text-decoration:none">👁</a>' +
-      '<span onclick="pcDeleteDoc('+i+')" style="font-size:12px;color:var(--t3);cursor:pointer">✕</span>' +
+      '<span onclick="pcDeleteCategoryDoc(\''+category+'\','+i+')" style="font-size:12px;color:var(--t3);cursor:pointer">✕</span>' +
     '</div>';
   }).join('');
 }
 
-function pcDeleteDoc(idx) {
+function pcDeleteCategoryDoc(category, idx) {
   if (!confirm('이 서류를 삭제하시겠습니까?')) return;
   var email = _pcSelectedEmp;
   var emp = employees.find(function(e){ return (e.id||e.email)===email; });
-  var docs = (emp.personnelDocs || []).slice();
+  var docs = (emp[category] || []).slice();
   docs.splice(idx, 1);
-  db.collection('employees').doc(email).update({ personnelDocs: docs }).then(function() {
-    emp.personnelDocs = docs;
-    pcRenderDocsList(emp);
+  var payload = {};
+  payload[category] = docs;
+  db.collection('employees').doc(email).update(payload).then(function() {
+    emp[category] = docs;
+    pcRenderCategoryDocsList(emp, category);
     showToast('🗑 삭제되었습니다');
   }).catch(function(err) {
     showToast('❌ 삭제 실패: ' + err.message);
@@ -12514,7 +12554,8 @@ function pcBuildOneLineContext(emp) {
   var edu = (emp.education||[]).map(function(e){ return (e.degree||'')+' '+(e.school||'')+(e.major?(' '+e.major):''); }).join(', ');
   var career = (emp.career||[]).map(function(c){ return (c.company||'')+(c.position?(' '+c.position):'')+(c.duty?('/'+c.duty):''); }).join(', ');
   var license = (emp.license||[]).map(function(l){ return (l.name||'')+(l.number?(' '+l.number):''); }).join(', ');
-  var allItems = [].concat(emp.education||[], emp.career||[], emp.license||[], emp.personnelDocs||[]);
+  var allItems = [].concat(emp.education||[], emp.career||[], emp.license||[],
+    emp.docsJoin||[], emp.docsInternEval||[], emp.docsExitInterview||[], emp.docsResignation||[]);
   var docSummaries = allItems.filter(function(x){ return x.docSummary; }).map(function(x){ return x.docSummary; }).join(' / ');
   var selfIntros = allItems.filter(function(x){ return x.selfIntro; }).map(function(x){ return x.selfIntro; }).join('\n');
   var line = '- ' + (emp.name||'') + ' | 부서:' + (emp.dept||'') + ' | 직위:' + (emp.position||'') +
