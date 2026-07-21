@@ -12899,8 +12899,7 @@ var CAREER_OVERVIEW_COLS = [
   { key:'position',     label:'직위',        default:true },
   { key:'name',         label:'이름',        default:true }
 ].concat(CAREER_GRADE_COLS, [
-  { key:'firstJoin',    label:'최초입사일',   default:false },
-  { key:'recentJoin',   label:'최근입사일',   default:true },
+  { key:'recentJoin',   label:'입사일',       default:true },
   { key:'birthdate',    label:'생년월일',     default:true },
   { key:'age',          label:'만나이',       default:true },
   { key:'careerTotal',  label:'경력일자',     default:true },
@@ -12968,6 +12967,20 @@ function careerCalcAge(birthdate) {
   return age + '세';
 }
 
+function careerDaysBetween(fromStr, toStr) {
+  var from = new Date(fromStr), to = new Date(toStr);
+  if (isNaN(from) || isNaN(to)) return 0;
+  return Math.max(0, Math.floor((to - from) / (1000*60*60*24)));
+}
+function careerDaysToYMD(totalDays) {
+  var years = Math.floor(totalDays / 365);
+  var rem = totalDays % 365;
+  var months = Math.floor(rem / 30);
+  var days = rem % 30;
+  return { years:years, months:months, days:days };
+}
+function careerFmtYMD(o) { return o.years+'년 '+o.months+'월 '+o.days+'일'; }
+
 function careerFmtDate(str) {
   if (!str) return '';
   return String(str).replace(/\./g, '-');
@@ -12975,16 +12988,12 @@ function careerFmtDate(str) {
 
 function careerCalcSalesCareer(emp) {
   var todayStr = new Date().toISOString().slice(0,10);
-  var tenureYM = pcDiffYM(emp.joindate || todayStr, todayStr);
-  var tenureMonths = tenureYM.years*12 + tenureYM.months;
-  var salesMonths = 0;
+  var totalDays = careerDaysBetween(emp.joindate || todayStr, todayStr);
   (emp.career||[]).forEach(function(c) {
     if (!c.salesUse || !c.start) return;
-    var d = pcDiffYM(c.start, c.end || todayStr);
-    salesMonths += d.years*12 + d.months;
+    totalDays += careerDaysBetween(c.start, c.end || todayStr);
   });
-  var totalMonths = salesMonths + tenureMonths;
-  return { years: Math.floor(totalMonths/12), months: totalMonths%12 };
+  return careerDaysToYMD(totalDays);
 }
 
 function careerBuildOverviewRow(emp) {
@@ -13000,17 +13009,25 @@ function careerBuildOverviewRow(emp) {
     .filter(function(l){ return CAREER_RELEVANT_LICENSES.indexOf(l.name) >= 0; })
     .slice().sort(function(a, b){ return (b.date||'').localeCompare(a.date||''); });
 
+  var joindate = emp.joindate || '';
+  var earliestDoyu = null;
+  (emp.career||[]).forEach(function(c) {
+    if (c.salesUse && (c.company||'').indexOf('정도유아이티') >= 0 && c.start && joindate && c.start < joindate) {
+      if (!earliestDoyu || c.start < earliestDoyu) earliestDoyu = c.start;
+    }
+  });
+  var joinCell = joindate ? (earliestDoyu ? '(최초입사일) '+earliestDoyu+'<br>'+joindate : joindate) : '-';
+
   var row = {
     _emp: emp,
     bonbu: careerGetBonbu(emp),
     dept: emp.dept || '-',
     position: emp.position || '-',
     name: emp.name || '-',
-    firstJoin: emp.joindate || '-',
-    recentJoin: emp.joindate || '-',
+    recentJoin: joinCell,
     birthdate: emp.birthdate || '-',
     age: emp.birthdate ? careerCalcAge(emp.birthdate) : '-',
-    careerTotal: pcFmtYM(salesCareer),
+    careerTotal: careerFmtYMD(salesCareer),
     school: eduSorted.length ? eduSorted.map(function(e){ return e.school||'-'; }).join('<br>') : '-',
     major: eduSorted.length ? eduSorted.map(function(e){ return e.major||'-'; }).join('<br>') : '-',
     degree: eduSorted.length ? eduSorted.map(function(e){ return e.degree||'-'; }).join('<br>') : '-',
