@@ -12969,8 +12969,23 @@ function careerFmtDate(str) {
   return String(str).replace(/\./g, '-');
 }
 
+function careerCalcSalesCareer(emp) {
+  var todayStr = new Date().toISOString().slice(0,10);
+  var tenureYM = pcDiffYM(emp.joindate || todayStr, todayStr);
+  var tenureMonths = tenureYM.years*12 + tenureYM.months;
+  var salesMonths = 0;
+  (emp.career||[]).forEach(function(c) {
+    if (!c.salesUse || !c.start) return;
+    var d = pcDiffYM(c.start, c.end || todayStr);
+    salesMonths += d.years*12 + d.months;
+  });
+  var totalMonths = salesMonths + tenureMonths;
+  return { years: Math.floor(totalMonths/12), months: totalMonths%12 };
+}
+
 function careerBuildOverviewRow(emp) {
   var calc = pcCalcTotalCareer(emp);
+  var salesCareer = careerCalcSalesCareer(emp);
 
   var eduSorted = (emp.education||[]).slice().sort(function(a, b) {
     var oa = CAREER_DEGREE_ORDER[a.degree] !== undefined ? CAREER_DEGREE_ORDER[a.degree] : 9;
@@ -12991,7 +13006,7 @@ function careerBuildOverviewRow(emp) {
     recentJoin: emp.joindate || '-',
     birthdate: emp.birthdate || '-',
     age: emp.birthdate ? careerCalcAge(emp.birthdate) : '-',
-    careerTotal: pcFmtYM(calc.total),
+    careerTotal: pcFmtYM(salesCareer),
     school: eduSorted.length ? eduSorted.map(function(e){ return e.school||'-'; }).join('<br>') : '-',
     major: eduSorted.length ? eduSorted.map(function(e){ return e.major||'-'; }).join('<br>') : '-',
     degree: eduSorted.length ? eduSorted.map(function(e){ return e.degree||'-'; }).join('<br>') : '-',
@@ -13008,42 +13023,65 @@ function careerRenderOverviewTable() {
   var visible = careerGetVisibleCols();
   var cols = CAREER_OVERVIEW_COLS.filter(function(c){ return visible[c.key]; });
   var thead = document.getElementById('career-overview-thead');
-
-  var nonGradeCols = cols.filter(function(c){ return !c.assocId; });
-  var gradeCols = cols.filter(function(c){ return c.assocId; });
+  var hasGrade = cols.some(function(c){ return c.assocId; });
 
   function thSort(c, styleExtra) {
     var arrow = _careerOverviewSort.key === c.key ? (_careerOverviewSort.dir === 1 ? ' ▲' : ' ▼') : '';
     return '<th onclick="careerSortOverviewBy(\''+c.key+'\')" style="cursor:pointer;white-space:nowrap;'+(styleExtra||'')+'">' + c.label + arrow + '</th>';
   }
 
-  if (!gradeCols.length) {
-    thead.innerHTML = '<tr><th style="width:50px;text-align:center">제외</th>' + nonGradeCols.map(function(c){ return thSort(c); }).join('') + '</tr>';
+  if (!hasGrade) {
+    thead.innerHTML = '<tr><th style="width:50px;text-align:center">제외</th>' + cols.map(function(c){ return thSort(c); }).join('') + '</tr>';
   } else {
-    // 협회별로 grade 컬럼 그룹핑 (원래 순서 유지)
-    var groups = [];
-    gradeCols.forEach(function(c) {
-      var g = groups[groups.length-1];
-      if (!g || g.assocId !== c.assocId) { g = { assocId:c.assocId, cols:[] }; groups.push(g); }
-      g.cols.push(c);
+    // 원래 컬럼 순서를 그대로 유지하면서, 등급 컬럼이 연속으로 나오는 구간만 그룹으로 묶는다
+    var segments = [];
+    cols.forEach(function(c) {
+      if (c.assocId) {
+        var last = segments[segments.length-1];
+        if (last && last.type === 'gradeGroup') last.cols.push(c);
+        else segments.push({ type:'gradeGroup', cols:[c] });
+      } else {
+        segments.push({ type:'single', col:c });
+      }
     });
+
     var assocNameMap = {};
     CAREER_ASSOCIATIONS.forEach(function(a){ assocNameMap[a.id] = a.name; });
 
-    var row1 = '<th rowspan="3" style="width:50px;text-align:center">제외</th>' + nonGradeCols.map(function(c){ return '<th rowspan="3" style="cursor:pointer;white-space:nowrap" onclick="careerSortOverviewBy(\''+c.key+'\')">' + c.label + (_careerOverviewSort.key===c.key?(_careerOverviewSort.dir===1?' ▲':' ▼'):'') + '</th>'; }).join('') +
-      '<th colspan="'+gradeCols.length+'" style="text-align:center">기술등급</th>';
+    function splitByAssoc(list) {
+      var subgroups = [];
+      list.forEach(function(c) {
+        var g = subgroups[subgroups.length-1];
+        if (!g || g.assocId !== c.assocId) { g = { assocId:c.assocId, cols:[] }; subgroups.push(g); }
+        g.cols.push(c);
+      });
+      return subgroups;
+    }
 
-    var row2 = groups.map(function(g) {
-      if (g.cols.length === 1 && g.cols[0].field === null) {
-        return thSort(g.cols[0], 'font-size:11px;text-align:center;width:70px') .replace('<th ', '<th rowspan="2" ');
+    var row1 = '<th rowspan="3" style="width:50px;text-align:center">제외</th>';
+    segments.forEach(function(seg) {
+      if (seg.type === 'single') {
+        var c = seg.col;
+        var arrow = _careerOverviewSort.key===c.key ? (_careerOverviewSort.dir===1?' ▲':' ▼') : '';
+        row1 += '<th rowspan="3" style="cursor:pointer;white-space:nowrap" onclick="careerSortOverviewBy(\''+c.key+'\')">' + c.label + arrow + '</th>';
+      } else {
+        row1 += '<th colspan="'+seg.cols.length+'" style="text-align:center">기술등급</th>';
       }
-      return '<th colspan="'+g.cols.length+'" style="text-align:center;font-size:12px;white-space:nowrap">' + assocNameMap[g.assocId] + '</th>';
+    });
+
+    var row2 = segments.filter(function(s){ return s.type==='gradeGroup'; }).map(function(seg) {
+      return splitByAssoc(seg.cols).map(function(g) {
+        if (g.cols.length === 1 && g.cols[0].field === null) {
+          return thSort(g.cols[0], 'font-size:11px;text-align:center;width:70px').replace('<th ', '<th rowspan="2" ');
+        }
+        return '<th colspan="'+g.cols.length+'" style="text-align:center;font-size:12px;white-space:nowrap">' + assocNameMap[g.assocId] + '</th>';
+      }).join('');
     }).join('');
 
-    var row3 = groups.map(function(g) {
-      if (g.cols.length === 1 && g.cols[0].field === null) return '';
-      return g.cols.map(function(c) {
-        return thSort(c, 'font-size:11px;text-align:center;width:60px;padding:4px 2px');
+    var row3 = segments.filter(function(s){ return s.type==='gradeGroup'; }).map(function(seg) {
+      return splitByAssoc(seg.cols).map(function(g) {
+        if (g.cols.length === 1 && g.cols[0].field === null) return '';
+        return g.cols.map(function(c){ return thSort(c, 'font-size:11px;text-align:center;width:60px;padding:4px 2px'); }).join('');
       }).join('');
     }).join('');
 
