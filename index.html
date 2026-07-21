@@ -12874,14 +12874,23 @@ function careerRenderGradeDetail() {
 }
 
 // ── 인력 및 등급관리: 총괄관리표 ──
+var CAREER_GRADE_COLS = [];
+CAREER_ASSOCIATIONS.forEach(function(assoc) {
+  if (assoc.fields.length) {
+    assoc.fields.forEach(function(f) {
+      CAREER_GRADE_COLS.push({ key:'grade__'+assoc.id+'__'+f, label:assoc.name+' · '+f, default:true, assocId:assoc.id, field:f });
+    });
+  } else {
+    CAREER_GRADE_COLS.push({ key:'grade__'+assoc.id, label:assoc.name+' 등급', default:true, assocId:assoc.id, field:null });
+  }
+});
+
 var CAREER_OVERVIEW_COLS = [
   { key:'bonbu',        label:'본부',        default:true },
   { key:'dept',         label:'부서',        default:true },
   { key:'position',     label:'직위',        default:true },
-  { key:'name',         label:'이름',        default:true },
-  { key:'gradeEng',     label:'엔지니어링협회 등급',   default:true },
-  { key:'gradeConstruction', label:'건설기술인협회 등급', default:true },
-  { key:'gradeAisw',    label:'AI SW협회 등급',   default:true },
+  { key:'name',         label:'이름',        default:true }
+].concat(CAREER_GRADE_COLS, [
   { key:'firstJoin',    label:'최초입사일',   default:false },
   { key:'recentJoin',   label:'최근입사일',   default:true },
   { key:'birthdate',    label:'생년월일',     default:false },
@@ -12894,7 +12903,37 @@ var CAREER_OVERVIEW_COLS = [
   { key:'license',      label:'자격증',       default:true },
   { key:'licenseDate',  label:'자격취득일',   default:false },
   { key:'licenseNo',    label:'자격번호',     default:false }
+]);
+
+// 본부 표시 순서 (수석전문위원은 정도유아이티로 귀속)
+var CAREER_BONBU_ORDER = [
+  '정도유아이티','경영관리본부','AI전략기획본부','도시계획사업본부','SW영업본부',
+  'GIS사업본부','AI GIS 연구본부','SW기술연구소','글로벌사업본부','글로벌기획본부'
 ];
+var CAREER_LEADER_TITLES = ['대표이사','본부장','부서장','팀장'];
+var CAREER_POSITION_ORDER = ['대표이사','부사장','전무','상무','이사','부장','차장','과장','대리','주임','사원','인턴','미지정'];
+var CAREER_DEGREE_ORDER = { '박사':0, '석사':1, '학사':2, '전문학사':3, '고졸':4 };
+
+function careerGetBonbu(emp) {
+  if (emp.title === '수석전문위원' || emp.role === '수석전문위원') return '정도유아이티';
+  return getBonbu(emp) || '-';
+}
+
+// 기본 정렬: 본부(지정 순서) → 직책자 우선 → 직위 순서
+function careerDefaultSortRows(rows) {
+  return rows.slice().sort(function(a, b) {
+    var ba = CAREER_BONBU_ORDER.indexOf(a.bonbu); if (ba < 0) ba = 999;
+    var bb = CAREER_BONBU_ORDER.indexOf(b.bonbu); if (bb < 0) bb = 999;
+    if (ba !== bb) return ba - bb;
+    var la = CAREER_LEADER_TITLES.indexOf(a._emp.title) >= 0 ? 0 : 1;
+    var lb = CAREER_LEADER_TITLES.indexOf(b._emp.title) >= 0 ? 0 : 1;
+    if (la !== lb) return la - lb;
+    var pa = CAREER_POSITION_ORDER.indexOf(a.position); if (pa < 0) pa = 999;
+    var pb = CAREER_POSITION_ORDER.indexOf(b.position); if (pb < 0) pb = 999;
+    return pa - pb;
+  });
+}
+
 var _careerOverviewSort = { key:null, dir:1 };
 
 function careerGetVisibleCols() {
@@ -12921,30 +12960,37 @@ function careerCalcAge(birthdate) {
 
 function careerBuildOverviewRow(emp) {
   var calc = pcCalcTotalCareer(emp);
-  var edu = (emp.education||[]).slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); }).pop() || {};
-  var licenses = (emp.license||[]).filter(function(l){ return CAREER_RELEVANT_LICENSES.indexOf(l.name) >= 0; });
-  return {
+
+  var eduSorted = (emp.education||[]).slice().sort(function(a, b) {
+    var oa = CAREER_DEGREE_ORDER[a.degree] !== undefined ? CAREER_DEGREE_ORDER[a.degree] : 9;
+    var ob = CAREER_DEGREE_ORDER[b.degree] !== undefined ? CAREER_DEGREE_ORDER[b.degree] : 9;
+    return oa - ob;
+  });
+  var licSorted = (emp.license||[])
+    .filter(function(l){ return CAREER_RELEVANT_LICENSES.indexOf(l.name) >= 0; })
+    .slice().sort(function(a, b){ return (b.date||'').localeCompare(a.date||''); });
+
+  var row = {
     _emp: emp,
-    bonbu: getBonbu(emp) || '-',
+    bonbu: careerGetBonbu(emp),
     dept: emp.dept || '-',
     position: emp.position || '-',
     name: emp.name || '-',
-    gradeEng: '-',
-    gradeConstruction: '-',
-    gradeAisw: '-',
     firstJoin: emp.joindate || '-',
     recentJoin: emp.joindate || '-',
     birthdate: emp.birthdate || '-',
     age: emp.birthdate ? careerCalcAge(emp.birthdate) : '-',
     careerTotal: pcFmtYM(calc.total),
-    school: edu.school || '-',
-    major: edu.major || '-',
-    degree: edu.degree || '-',
-    gradDate: edu.date || '-',
-    license: licenses.length ? licenses.map(function(l){ return l.name; }).join(', ') : '-',
-    licenseDate: licenses.length ? licenses.map(function(l){ return l.date||''; }).filter(Boolean).join(', ') || '-' : '-',
-    licenseNo: licenses.length ? licenses.map(function(l){ return l.number||''; }).filter(Boolean).join(', ') || '-' : '-'
+    school: eduSorted.length ? eduSorted.map(function(e){ return e.school||'-'; }).join('<br>') : '-',
+    major: eduSorted.length ? eduSorted.map(function(e){ return e.major||'-'; }).join('<br>') : '-',
+    degree: eduSorted.length ? eduSorted.map(function(e){ return e.degree||'-'; }).join('<br>') : '-',
+    gradDate: eduSorted.length ? eduSorted.map(function(e){ return e.date||'-'; }).join('<br>') : '-',
+    license: licSorted.length ? licSorted.map(function(l){ return l.name; }).join('<br>') : '-',
+    licenseDate: licSorted.length ? licSorted.map(function(l){ return l.date||'-'; }).join('<br>') : '-',
+    licenseNo: licSorted.length ? licSorted.map(function(l){ return l.number||'-'; }).join('<br>') : '-'
   };
+  CAREER_GRADE_COLS.forEach(function(c){ row[c.key] = '-'; });
+  return row;
 }
 
 function careerRenderOverviewTable() {
@@ -12964,6 +13010,8 @@ function careerRenderOverviewTable() {
       return cols.some(function(c) { return String(r[c.key]||'').indexOf(keyword) >= 0; });
     });
   }
+
+  rows = careerDefaultSortRows(rows);
 
   if (_careerOverviewSort.key) {
     var sk = _careerOverviewSort.key, dir = _careerOverviewSort.dir;
