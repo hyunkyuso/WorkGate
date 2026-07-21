@@ -949,6 +949,7 @@ select.form-input{cursor:pointer}
           <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;position:relative">
             <input id="career-overview-search" type="text" class="form-input" style="max-width:240px;font-size:13px" placeholder="이름/부서 등 검색..." oninput="careerRenderOverviewTable()">
             <button class="btn btn-ghost btn-sm" onclick="careerToggleColumnPicker()">📋 컬럼 선택</button>
+            <button class="btn btn-ghost btn-sm" onclick="careerResetSort()">↺ 정렬 초기화(본부·부서순)</button>
             <div id="career-column-picker" style="display:none;position:absolute;top:38px;left:250px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.08);padding:10px;z-index:20;max-height:320px;overflow-y:auto;width:220px"></div>
           </div>
           <div class="table-wrap"><table id="career-overview-table">
@@ -13158,11 +13159,14 @@ function careerRenderOverviewTable() {
     return '<tr'+trStyle+'>' + checkboxCell + cols.map(function(c){
       if (c.key === 'bonbu') {
         if (bonbuSpan[idx] === 0) return '';
-        return '<td rowspan="'+bonbuSpan[idx]+'" style="vertical-align:middle">'+r.bonbu+'</td>';
+        var isSpecial = MERGE_DEPT_BONBU.indexOf(r.bonbu) >= 0;
+        return '<td rowspan="'+bonbuSpan[idx]+'" style="vertical-align:middle'+(isSpecial?';text-align:center':'')+'">'+r.bonbu+'</td>';
       }
       if (c.key === 'dept') {
         if (deptSpan[idx] === 0) return '';
-        return '<td rowspan="'+deptSpan[idx]+'" style="vertical-align:middle">'+r.dept+'</td>';
+        var isSpecialDept = MERGE_DEPT_BONBU.indexOf(r.bonbu) >= 0;
+        var deptVal = isSpecialDept ? r.bonbu : r.dept;
+        return '<td rowspan="'+deptSpan[idx]+'" style="vertical-align:middle'+(isSpecialDept?';text-align:center':'')+'">'+deptVal+'</td>';
       }
       var val = (excluded && keepCols.indexOf(c.key) < 0) ? '' : r[c.key];
       var tdStyle = c.assocId ? ' style="text-align:center;font-size:12px"' : '';
@@ -13183,6 +13187,11 @@ async function careerToggleExclude(empId, checked) {
   } catch (err) {
     showToast('❌ 변경 실패: ' + err.message);
   }
+}
+
+function careerResetSort() {
+  _careerOverviewSort = { key:null, dir:1 };
+  careerRenderOverviewTable();
 }
 
 function careerSortOverviewBy(key) {
