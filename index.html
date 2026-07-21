@@ -955,7 +955,7 @@ select.form-input{cursor:pointer}
             <div id="career-column-picker" style="display:none;position:absolute;top:38px;left:250px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.08);padding:10px;z-index:20;max-height:320px;overflow-y:auto;width:220px"></div>
           </div>
           <div class="table-wrap"><table id="career-overview-table">
-            <thead><tr id="career-overview-thead"></tr></thead>
+            <thead id="career-overview-thead"></thead>
             <tbody id="career-overview-tbody"></tbody>
           </table></div>
         </div>
@@ -12881,7 +12881,7 @@ var CAREER_GRADE_COLS = [];
 CAREER_ASSOCIATIONS.forEach(function(assoc) {
   if (assoc.fields.length) {
     assoc.fields.forEach(function(f) {
-      CAREER_GRADE_COLS.push({ key:'grade__'+assoc.id+'__'+f, label:assoc.name+' · '+f, default:true, assocId:assoc.id, field:f });
+      CAREER_GRADE_COLS.push({ key:'grade__'+assoc.id+'__'+f, label:f, default:true, assocId:assoc.id, field:f });
     });
   } else {
     CAREER_GRADE_COLS.push({ key:'grade__'+assoc.id, label:assoc.name+' 등급', default:true, assocId:assoc.id, field:null });
@@ -13005,10 +13005,47 @@ function careerRenderOverviewTable() {
   var visible = careerGetVisibleCols();
   var cols = CAREER_OVERVIEW_COLS.filter(function(c){ return visible[c.key]; });
   var thead = document.getElementById('career-overview-thead');
-  thead.innerHTML = cols.map(function(c) {
+
+  var nonGradeCols = cols.filter(function(c){ return !c.assocId; });
+  var gradeCols = cols.filter(function(c){ return c.assocId; });
+
+  function thSort(c, styleExtra) {
     var arrow = _careerOverviewSort.key === c.key ? (_careerOverviewSort.dir === 1 ? ' ▲' : ' ▼') : '';
-    return '<th onclick="careerSortOverviewBy(\''+c.key+'\')" style="cursor:pointer;white-space:nowrap">' + c.label + arrow + '</th>';
-  }).join('');
+    return '<th onclick="careerSortOverviewBy(\''+c.key+'\')" style="cursor:pointer;white-space:nowrap;'+(styleExtra||'')+'">' + c.label + arrow + '</th>';
+  }
+
+  if (!gradeCols.length) {
+    thead.innerHTML = '<tr>' + nonGradeCols.map(function(c){ return thSort(c); }).join('') + '</tr>';
+  } else {
+    // 협회별로 grade 컬럼 그룹핑 (원래 순서 유지)
+    var groups = [];
+    gradeCols.forEach(function(c) {
+      var g = groups[groups.length-1];
+      if (!g || g.assocId !== c.assocId) { g = { assocId:c.assocId, cols:[] }; groups.push(g); }
+      g.cols.push(c);
+    });
+    var assocNameMap = {};
+    CAREER_ASSOCIATIONS.forEach(function(a){ assocNameMap[a.id] = a.name; });
+
+    var row1 = nonGradeCols.map(function(c){ return '<th rowspan="3" style="cursor:pointer;white-space:nowrap" onclick="careerSortOverviewBy(\''+c.key+'\')">' + c.label + (_careerOverviewSort.key===c.key?(_careerOverviewSort.dir===1?' ▲':' ▼'):'') + '</th>'; }).join('') +
+      '<th colspan="'+gradeCols.length+'" style="text-align:center">기술등급</th>';
+
+    var row2 = groups.map(function(g) {
+      if (g.cols.length === 1 && g.cols[0].field === null) {
+        return thSort(g.cols[0], 'font-size:11px;text-align:center;width:70px') .replace('<th ', '<th rowspan="2" ');
+      }
+      return '<th colspan="'+g.cols.length+'" style="text-align:center;font-size:12px;white-space:nowrap">' + assocNameMap[g.assocId] + '</th>';
+    }).join('');
+
+    var row3 = groups.map(function(g) {
+      if (g.cols.length === 1 && g.cols[0].field === null) return '';
+      return g.cols.map(function(c) {
+        return thSort(c, 'font-size:11px;text-align:center;width:60px;padding:4px 2px');
+      }).join('');
+    }).join('');
+
+    thead.innerHTML = '<tr>' + row1 + '</tr><tr>' + row2 + '</tr><tr>' + row3 + '</tr>';
+  }
 
   var keyword = (document.getElementById('career-overview-search').value||'').trim();
   var rows = employees.filter(function(e){ return e.status !== '퇴직'; }).map(careerBuildOverviewRow);
@@ -13038,7 +13075,8 @@ function careerRenderOverviewTable() {
     var trStyle = isAdmin ? ' style="background:#f1f5f9"' : '';
     return '<tr'+trStyle+'>' + cols.map(function(c){
       var val = (isAdmin && keepCols.indexOf(c.key) < 0) ? '' : r[c.key];
-      return '<td>'+val+'</td>';
+      var tdStyle = c.assocId ? ' style="text-align:center;font-size:12px"' : '';
+      return '<td'+tdStyle+'>'+val+'</td>';
     }).join('') + '</tr>';
   }).join('');
 }
