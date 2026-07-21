@@ -13016,7 +13016,7 @@ function careerBuildOverviewRow(emp) {
       if (!earliestDoyu || c.start < earliestDoyu) earliestDoyu = c.start;
     }
   });
-  var joinCell = joindate ? (earliestDoyu ? '(최초입사일) '+earliestDoyu+'<br>'+joindate : joindate) : '-';
+  var joinCell = joindate ? (earliestDoyu ? '('+earliestDoyu+')<br>'+joindate : joindate) : '-';
 
   var row = {
     _emp: emp,
@@ -13132,12 +13132,38 @@ function careerRenderOverviewTable() {
   }
   var amAdmin = isAdmin();
   var keepCols = ['bonbu','dept','position','name'];
-  tbody.innerHTML = rows.map(function(r) {
+
+  // 본부(전체) / 본부+부서(정도유아이티·경영관리본부만) 셀 병합용 rowspan 계산
+  var MERGE_DEPT_BONBU = ['정도유아이티','경영관리본부'];
+  var bonbuSpan = new Array(rows.length).fill(1);
+  var deptSpan = new Array(rows.length).fill(1);
+  for (var i = 0; i < rows.length; ) {
+    var j = i;
+    while (j < rows.length && rows[j].bonbu === rows[i].bonbu) j++;
+    var span = j - i;
+    bonbuSpan[i] = span;
+    for (var k = i+1; k < j; k++) bonbuSpan[k] = 0;
+    if (MERGE_DEPT_BONBU.indexOf(rows[i].bonbu) >= 0) {
+      deptSpan[i] = span;
+      for (var k = i+1; k < j; k++) deptSpan[k] = 0;
+    }
+    i = j;
+  }
+
+  tbody.innerHTML = rows.map(function(r, idx) {
     var excluded = !!(r._emp && r._emp.careerExcluded);
     var trStyle = excluded ? ' style="background:#f1f5f9"' : '';
     var empId = r._emp ? (r._emp._docId || r._emp.id) : '';
     var checkboxCell = '<td style="text-align:center"><input type="checkbox" '+(excluded?'checked':'')+' '+(amAdmin?'':'disabled')+' onchange="careerToggleExclude(\''+empId+'\',this.checked)" title="'+(amAdmin?'제외 여부(관리자만 변경 가능)':'제외 여부(관리자만 변경 가능)')+'"></td>';
     return '<tr'+trStyle+'>' + checkboxCell + cols.map(function(c){
+      if (c.key === 'bonbu') {
+        if (bonbuSpan[idx] === 0) return '';
+        return '<td rowspan="'+bonbuSpan[idx]+'" style="vertical-align:middle">'+r.bonbu+'</td>';
+      }
+      if (c.key === 'dept') {
+        if (deptSpan[idx] === 0) return '';
+        return '<td rowspan="'+deptSpan[idx]+'" style="vertical-align:middle">'+r.dept+'</td>';
+      }
       var val = (excluded && keepCols.indexOf(c.key) < 0) ? '' : r[c.key];
       var tdStyle = c.assocId ? ' style="text-align:center;font-size:12px"' : '';
       return '<td'+tdStyle+'>'+val+'</td>';
