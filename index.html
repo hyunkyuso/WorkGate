@@ -949,9 +949,6 @@ select.form-input{cursor:pointer}
           <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;position:relative">
             <input id="career-overview-search" type="text" class="form-input" style="max-width:240px;font-size:13px" placeholder="이름/부서 등 검색..." oninput="careerRenderOverviewTable()">
             <button class="btn btn-ghost btn-sm" onclick="careerToggleColumnPicker()">📋 컬럼 선택</button>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);cursor:pointer;white-space:nowrap">
-              <input type="checkbox" id="career-exclude-admin" onchange="careerRenderOverviewTable()" style="accent-color:var(--ac)"> 관리자는 제외
-            </label>
             <div id="career-column-picker" style="display:none;position:absolute;top:38px;left:250px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.08);padding:10px;z-index:20;max-height:320px;overflow-y:auto;width:220px"></div>
           </div>
           <div class="table-wrap"><table id="career-overview-table">
@@ -2485,7 +2482,7 @@ select.form-input{cursor:pointer}
         <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">
           <div style="font-weight:600;margin-bottom:4px">"일반" 역할 기본 메뉴</div>
           <div style="font-size:11px;color:var(--t3);margin-bottom:12px">직원관리에서 권한이 "일반"인 모든 직원이 기본으로 보는 메뉴입니다. 아래 개별 부여가 이 기본값 위에 얹혀서 적용됩니다. (관리자는 항상 전체 접근이라 설정 대상 아님)</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:16px">
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">인사</div>
               <div class="pm-role-menu-group" data-group="hr"></div>
@@ -2497,6 +2494,10 @@ select.form-input{cursor:pointer}
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">총무</div>
               <div class="pm-role-menu-group" data-group="affairs"></div>
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">경력관리</div>
+              <div class="pm-role-menu-group" data-group="career"></div>
             </div>
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">시스템</div>
@@ -2535,6 +2536,8 @@ select.form-input{cursor:pointer}
             <div class="pm-menu-group" data-group="docs" style="margin-bottom:10px"></div>
             <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">총무</div>
             <div class="pm-menu-group" data-group="affairs" style="margin-bottom:10px"></div>
+            <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">경력관리</div>
+            <div class="pm-menu-group" data-group="career" style="margin-bottom:10px"></div>
             <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">시스템</div>
             <div class="pm-menu-group" data-group="system"></div>
             <button class="btn btn-primary btn-sm" style="margin-top:14px;width:100%" onclick="pmSaveGrants()">선택한 직원들에게 이 설정으로 저장 (덮어쓰기)</button>
@@ -12896,8 +12899,8 @@ var CAREER_OVERVIEW_COLS = [
 ].concat(CAREER_GRADE_COLS, [
   { key:'firstJoin',    label:'최초입사일',   default:false },
   { key:'recentJoin',   label:'최근입사일',   default:true },
-  { key:'birthdate',    label:'생년월일',     default:false },
-  { key:'age',          label:'만나이',       default:false },
+  { key:'birthdate',    label:'생년월일',     default:true },
+  { key:'age',          label:'만나이',       default:true },
   { key:'careerTotal',  label:'경력일자',     default:true },
   { key:'school',       label:'출신학교',     default:false },
   { key:'major',        label:'학과 및 전공', default:false },
@@ -12940,7 +12943,7 @@ function careerDefaultSortRows(rows) {
 var _careerOverviewSort = { key:null, dir:1 };
 
 function careerGetVisibleCols() {
-  var saved = localStorage.getItem('wg_career_overview_cols');
+  var saved = localStorage.getItem('wg_career_overview_cols_v2');
   if (saved) {
     try { return JSON.parse(saved); } catch(e){}
   }
@@ -12949,7 +12952,7 @@ function careerGetVisibleCols() {
   return obj;
 }
 function careerSaveVisibleCols(obj) {
-  localStorage.setItem('wg_career_overview_cols', JSON.stringify(obj));
+  localStorage.setItem('wg_career_overview_cols_v2', JSON.stringify(obj));
 }
 
 function careerCalcAge(birthdate) {
@@ -13015,7 +13018,7 @@ function careerRenderOverviewTable() {
   }
 
   if (!gradeCols.length) {
-    thead.innerHTML = '<tr>' + nonGradeCols.map(function(c){ return thSort(c); }).join('') + '</tr>';
+    thead.innerHTML = '<tr><th style="width:50px;text-align:center">제외</th>' + nonGradeCols.map(function(c){ return thSort(c); }).join('') + '</tr>';
   } else {
     // 협회별로 grade 컬럼 그룹핑 (원래 순서 유지)
     var groups = [];
@@ -13027,7 +13030,7 @@ function careerRenderOverviewTable() {
     var assocNameMap = {};
     CAREER_ASSOCIATIONS.forEach(function(a){ assocNameMap[a.id] = a.name; });
 
-    var row1 = nonGradeCols.map(function(c){ return '<th rowspan="3" style="cursor:pointer;white-space:nowrap" onclick="careerSortOverviewBy(\''+c.key+'\')">' + c.label + (_careerOverviewSort.key===c.key?(_careerOverviewSort.dir===1?' ▲':' ▼'):'') + '</th>'; }).join('') +
+    var row1 = '<th rowspan="3" style="width:50px;text-align:center">제외</th>' + nonGradeCols.map(function(c){ return '<th rowspan="3" style="cursor:pointer;white-space:nowrap" onclick="careerSortOverviewBy(\''+c.key+'\')">' + c.label + (_careerOverviewSort.key===c.key?(_careerOverviewSort.dir===1?' ▲':' ▼'):'') + '</th>'; }).join('') +
       '<th colspan="'+gradeCols.length+'" style="text-align:center">기술등급</th>';
 
     var row2 = groups.map(function(g) {
@@ -13065,20 +13068,36 @@ function careerRenderOverviewTable() {
 
   var tbody = document.getElementById('career-overview-tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="'+cols.length+'" style="text-align:center;padding:24px;color:var(--t3)">해당하는 직원이 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="'+(cols.length+1)+'" style="text-align:center;padding:24px;color:var(--t3)">해당하는 직원이 없습니다</td></tr>';
     return;
   }
-  var excludeAdmin = document.getElementById('career-exclude-admin').checked;
+  var amAdmin = isAdmin();
   var keepCols = ['bonbu','dept','position','name'];
   tbody.innerHTML = rows.map(function(r) {
-    var isAdmin = excludeAdmin && r._emp && r._emp.role === '관리자';
-    var trStyle = isAdmin ? ' style="background:#f1f5f9"' : '';
-    return '<tr'+trStyle+'>' + cols.map(function(c){
-      var val = (isAdmin && keepCols.indexOf(c.key) < 0) ? '' : r[c.key];
+    var excluded = !!(r._emp && r._emp.careerExcluded);
+    var trStyle = excluded ? ' style="background:#f1f5f9"' : '';
+    var empId = r._emp ? (r._emp._docId || r._emp.id) : '';
+    var checkboxCell = '<td style="text-align:center"><input type="checkbox" '+(excluded?'checked':'')+' '+(amAdmin?'':'disabled')+' onchange="careerToggleExclude(\''+empId+'\',this.checked)" title="'+(amAdmin?'제외 여부(관리자만 변경 가능)':'제외 여부(관리자만 변경 가능)')+'"></td>';
+    return '<tr'+trStyle+'>' + checkboxCell + cols.map(function(c){
+      var val = (excluded && keepCols.indexOf(c.key) < 0) ? '' : r[c.key];
       var tdStyle = c.assocId ? ' style="text-align:center;font-size:12px"' : '';
       return '<td'+tdStyle+'>'+val+'</td>';
     }).join('') + '</tr>';
   }).join('');
+}
+
+async function careerToggleExclude(empId, checked) {
+  if (!isAdmin()) { showToast('❌ 관리자만 변경할 수 있습니다'); careerRenderOverviewTable(); return; }
+  if (!empId) return;
+  try {
+    await db.collection('employees').doc(empId).update({ careerExcluded: checked });
+    var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+    if (emp) emp.careerExcluded = checked;
+    careerRenderOverviewTable();
+    showToast(checked ? '🚫 제외 처리되었습니다' : '✅ 제외가 해제되었습니다');
+  } catch (err) {
+    showToast('❌ 변경 실패: ' + err.message);
+  }
 }
 
 function careerSortOverviewBy(key) {
@@ -20658,7 +20677,7 @@ function pmRoleLoadDefaults() {
 }
 
 function pmRoleRenderMenuTree() {
-  ['hr','docs','affairs','system'].forEach(function(group) {
+  ['hr','docs','affairs','career','system'].forEach(function(group) {
     var el = document.querySelector('.pm-role-menu-group[data-group="'+group+'"]');
     if (!el) return;
     el.innerHTML = PM_MENU_LIST[group].map(function(m) {
@@ -20727,6 +20746,12 @@ var PM_MENU_LIST = {
     {id:'cert-excellence', label:'우수제품지정'},
     {id:'cert-survey', label:'측량기기 성능검사'},
     {id:'cert-award', label:'수상/훈장'}
+  ],
+  career: [
+    {id:'career-dashboard', label:'경력관리 대시보드'},
+    {id:'career-grade-status', label:'협회별 등급현황'},
+    {id:'career-people', label:'인력 및 등급관리'},
+    {id:'career-register', label:'경력관리 등록'}
   ],
   system: [
     {id:'codemanage', label:'코드 관리'},
@@ -20872,7 +20897,7 @@ function pmSyncLevelsWithSelection() {
 }
 
 function pmRenderMenuTree() {
-  ['hr','docs','affairs','system'].forEach(function(group) {
+  ['hr','docs','affairs','career','system'].forEach(function(group) {
     var el = document.querySelector('.pm-menu-group[data-group="'+group+'"]');
     if (!el) return;
     el.innerHTML = PM_MENU_LIST[group].map(function(m) {
