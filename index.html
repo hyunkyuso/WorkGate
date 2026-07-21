@@ -3536,10 +3536,10 @@ async function logLoginEvent(email, name) {
       device: parseUserAgent(navigator.userAgent),
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
     });
-    // 직원 문서에도 마지막 로그인 시각을 함께 기록(빠른 조회용)
-    db.collection('employees').doc(email).set({
-      lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true }).catch(function(){});
+    // 주의: 직원 문서(employees/{email})에는 더 이상 lastLogin을 기록하지 않음.
+    // 그 문서는 권한 실시간 감시(startMyRoleListener)가 동시에 지켜보고 있어서,
+    // 여기서 병합 쓰기를 하면 "이름 없는 직원 데이터"로 보이는 캐시 타이밍 문제가 반복적으로 생겼음.
+    // 최근 로그인 시각이 필요하면 loginLogs 컬렉션에서 이메일로 최신순 조회하면 됨.
   } catch(e) { console.error('로그인 기록 오류:', e); }
 }
 
@@ -3657,8 +3657,16 @@ async function renderMenuUsage() {
 
 async function loadFirestoreData() {
   try {
-    // 직원 데이터 로드 (이름 없는 불완전한 문서는 화면에 표시하지 않음)
-    const empSnap = await db.collection('employees').get();
+    // 직원 데이터 로드 (로그인 직후 권한 평가가 아직 안정되지 않았을 수 있어 실패 시 한 번 재시도)
+    let empSnap;
+    try {
+      empSnap = await db.collection('employees').get();
+    } catch (firstErr) {
+      console.warn('직원 목록 로드 실패, 1초 후 재시도:', firstErr.message);
+      await new Promise(r => setTimeout(r, 1000));
+      empSnap = await db.collection('employees').get();
+    }
+    // 이름 없는 불완전한 문서는 화면에 표시하지 않음
     const rawEmployees = empSnap.docs.map(d => Object.assign({ _docId: d.id }, d.data()));
     const blankOnes = rawEmployees.filter(e => !e.name);
     if (blankOnes.length) {
