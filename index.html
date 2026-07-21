@@ -12324,6 +12324,10 @@ function pcRenderEduForm() {
           '<input type="checkbox" '+(c.countAsTenure?'checked':'')+' onchange="pcUpdateRow(\'career\','+i+',\'countAsTenure\',this.checked)" style="accent-color:var(--ac)">' +
           '근속년수에 포함 (체크 해제 시 이전 경력으로 계산)' +
         '</label></div>' : '') +
+      '<div style="margin-top:6px"><label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);cursor:pointer">' +
+        '<input type="checkbox" '+(c.salesUse?'checked':'')+' onchange="pcUpdateRow(\'career\','+i+',\'salesUse\',this.checked)" style="accent-color:var(--ac)">' +
+        '영업활용' +
+      '</label></div>' +
     '</div>';
   });
   html += '<button onclick="pcAddRow(\'career\')" style="font-size:12px;width:100%;color:var(--ac);background:none;border:0.5px dashed var(--ac);border-radius:8px;padding:6px;cursor:pointer;margin-bottom:14px">+ 경력 추가</button>';
@@ -12501,7 +12505,7 @@ async function pcAttachRowFile(type, idx, input) {
   }
 }
 function pcAddRow(type) {
-  var blank = type==='education' ? {date:'',degree:'학사',school:'',major:''} : type==='career' ? {start:'',end:'',company:'',position:'',duty:'',countAsTenure:false} : {date:'',name:'',org:'',number:''};
+  var blank = type==='education' ? {date:'',degree:'학사',school:'',major:''} : type==='career' ? {start:'',end:'',company:'',position:'',duty:'',countAsTenure:false,salesUse:false} : {date:'',name:'',org:'',number:''};
   _pcEditData[type].push(blank);
   pcRenderEduForm();
 }
