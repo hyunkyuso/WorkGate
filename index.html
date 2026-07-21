@@ -937,8 +937,40 @@ select.form-input{cursor:pointer}
         <div class="page-header">
           <div><div class="page-title">👥 인력 및 등급관리</div><div class="page-sub">개인별 협회 소속 및 등급을 관리합니다</div></div>
         </div>
-        <div style="padding:60px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
-          준비 중입니다.
+
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button class="career-people-tab-btn active" onclick="careerPeopleSwitchTab('overview',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--acd);color:var(--ac);cursor:pointer;font-size:13px">총괄관리표</button>
+          <button class="career-people-tab-btn" onclick="careerPeopleSwitchTab('eng',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer;font-size:13px">한국엔지니어링협회</button>
+          <button class="career-people-tab-btn" onclick="careerPeopleSwitchTab('construction',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer;font-size:13px">한국건설기술인협회</button>
+          <button class="career-people-tab-btn" onclick="careerPeopleSwitchTab('aisw',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer;font-size:13px">한국인공지능소프트웨어산업협회</button>
+        </div>
+
+        <div id="career-people-tab-overview">
+          <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;position:relative">
+            <input id="career-overview-search" type="text" class="form-input" style="max-width:240px;font-size:13px" placeholder="이름/부서 등 검색..." oninput="careerRenderOverviewTable()">
+            <button class="btn btn-ghost btn-sm" onclick="careerToggleColumnPicker()">📋 컬럼 선택</button>
+            <div id="career-column-picker" style="display:none;position:absolute;top:38px;left:250px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.08);padding:10px;z-index:20;max-height:320px;overflow-y:auto;width:220px"></div>
+          </div>
+          <div class="table-wrap"><table id="career-overview-table">
+            <thead><tr id="career-overview-thead"></tr></thead>
+            <tbody id="career-overview-tbody"></tbody>
+          </table></div>
+        </div>
+
+        <div id="career-people-tab-eng" style="display:none">
+          <div style="padding:40px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+            등록된 인원이 없습니다. "등록" 메뉴에서 먼저 인원을 등록해주세요.
+          </div>
+        </div>
+        <div id="career-people-tab-construction" style="display:none">
+          <div style="padding:40px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+            등록된 인원이 없습니다. "등록" 메뉴에서 먼저 인원을 등록해주세요.
+          </div>
+        </div>
+        <div id="career-people-tab-aisw" style="display:none">
+          <div style="padding:40px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+            등록된 인원이 없습니다. "등록" 메뉴에서 먼저 인원을 등록해주세요.
+          </div>
         </div>
       </div>
 
@@ -12841,6 +12873,151 @@ function careerRenderGradeDetail() {
     '<div style="color:var(--t3);font-size:13px">소속 인원·등급 현황은 다음 단계에서 채워질 예정이에요.</div>';
 }
 
+// ── 인력 및 등급관리: 총괄관리표 ──
+var CAREER_OVERVIEW_COLS = [
+  { key:'bonbu',        label:'본부',        default:true },
+  { key:'dept',         label:'부서',        default:true },
+  { key:'position',     label:'직위',        default:true },
+  { key:'name',         label:'이름',        default:true },
+  { key:'gradeEng',     label:'엔지니어링협회 등급',   default:true },
+  { key:'gradeConstruction', label:'건설기술인협회 등급', default:true },
+  { key:'gradeAisw',    label:'AI SW협회 등급',   default:true },
+  { key:'firstJoin',    label:'최초입사일',   default:false },
+  { key:'recentJoin',   label:'최근입사일',   default:true },
+  { key:'birthdate',    label:'생년월일',     default:false },
+  { key:'age',          label:'만나이',       default:false },
+  { key:'careerTotal',  label:'경력일자',     default:true },
+  { key:'school',       label:'출신학교',     default:false },
+  { key:'major',        label:'학과 및 전공', default:false },
+  { key:'degree',       label:'학위',         default:false },
+  { key:'gradDate',     label:'졸업일',       default:false },
+  { key:'license',      label:'자격증',       default:true },
+  { key:'licenseDate',  label:'자격취득일',   default:false },
+  { key:'licenseNo',    label:'자격번호',     default:false }
+];
+var _careerOverviewSort = { key:null, dir:1 };
+
+function careerGetVisibleCols() {
+  var saved = localStorage.getItem('wg_career_overview_cols');
+  if (saved) {
+    try { return JSON.parse(saved); } catch(e){}
+  }
+  var obj = {};
+  CAREER_OVERVIEW_COLS.forEach(function(c){ obj[c.key] = c.default; });
+  return obj;
+}
+function careerSaveVisibleCols(obj) {
+  localStorage.setItem('wg_career_overview_cols', JSON.stringify(obj));
+}
+
+function careerCalcAge(birthdate) {
+  if (!birthdate) return '';
+  var b = new Date(birthdate), t = new Date();
+  var age = t.getFullYear() - b.getFullYear();
+  var hasHadBirthdayThisYear = (t.getMonth() > b.getMonth()) || (t.getMonth() === b.getMonth() && t.getDate() >= b.getDate());
+  if (!hasHadBirthdayThisYear) age--;
+  return age + '세';
+}
+
+function careerBuildOverviewRow(emp) {
+  var calc = pcCalcTotalCareer(emp);
+  var edu = (emp.education||[]).slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); }).pop() || {};
+  var licenses = (emp.license||[]).filter(function(l){ return CAREER_RELEVANT_LICENSES.indexOf(l.name) >= 0; });
+  return {
+    _emp: emp,
+    bonbu: getBonbu(emp) || '-',
+    dept: emp.dept || '-',
+    position: emp.position || '-',
+    name: emp.name || '-',
+    gradeEng: '-',
+    gradeConstruction: '-',
+    gradeAisw: '-',
+    firstJoin: emp.joindate || '-',
+    recentJoin: emp.joindate || '-',
+    birthdate: emp.birthdate || '-',
+    age: emp.birthdate ? careerCalcAge(emp.birthdate) : '-',
+    careerTotal: pcFmtYM(calc.total),
+    school: edu.school || '-',
+    major: edu.major || '-',
+    degree: edu.degree || '-',
+    gradDate: edu.date || '-',
+    license: licenses.length ? licenses.map(function(l){ return l.name; }).join(', ') : '-',
+    licenseDate: licenses.length ? licenses.map(function(l){ return l.date||''; }).filter(Boolean).join(', ') || '-' : '-',
+    licenseNo: licenses.length ? licenses.map(function(l){ return l.number||''; }).filter(Boolean).join(', ') || '-' : '-'
+  };
+}
+
+function careerRenderOverviewTable() {
+  var visible = careerGetVisibleCols();
+  var cols = CAREER_OVERVIEW_COLS.filter(function(c){ return visible[c.key]; });
+  var thead = document.getElementById('career-overview-thead');
+  thead.innerHTML = cols.map(function(c) {
+    var arrow = _careerOverviewSort.key === c.key ? (_careerOverviewSort.dir === 1 ? ' ▲' : ' ▼') : '';
+    return '<th onclick="careerSortOverviewBy(\''+c.key+'\')" style="cursor:pointer;white-space:nowrap">' + c.label + arrow + '</th>';
+  }).join('');
+
+  var keyword = (document.getElementById('career-overview-search').value||'').trim();
+  var rows = employees.filter(function(e){ return e.status !== '퇴직'; }).map(careerBuildOverviewRow);
+
+  if (keyword) {
+    rows = rows.filter(function(r) {
+      return cols.some(function(c) { return String(r[c.key]||'').indexOf(keyword) >= 0; });
+    });
+  }
+
+  if (_careerOverviewSort.key) {
+    var sk = _careerOverviewSort.key, dir = _careerOverviewSort.dir;
+    rows.sort(function(a,b) { return String(a[sk]||'').localeCompare(String(b[sk]||'')) * dir; });
+  }
+
+  var tbody = document.getElementById('career-overview-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="'+cols.length+'" style="text-align:center;padding:24px;color:var(--t3)">해당하는 직원이 없습니다</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function(r) {
+    return '<tr>' + cols.map(function(c){ return '<td>'+r[c.key]+'</td>'; }).join('') + '</tr>';
+  }).join('');
+}
+
+function careerSortOverviewBy(key) {
+  if (_careerOverviewSort.key === key) {
+    _careerOverviewSort.dir = -_careerOverviewSort.dir;
+  } else {
+    _careerOverviewSort.key = key;
+    _careerOverviewSort.dir = 1;
+  }
+  careerRenderOverviewTable();
+}
+
+function careerToggleColumnPicker() {
+  var el = document.getElementById('career-column-picker');
+  if (el.style.display === 'block') { el.style.display = 'none'; return; }
+  var visible = careerGetVisibleCols();
+  el.innerHTML = CAREER_OVERVIEW_COLS.map(function(c) {
+    return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:4px 0;cursor:pointer">' +
+      '<input type="checkbox" '+(visible[c.key]?'checked':'')+' onchange="careerSetColumnVisible(\''+c.key+'\',this.checked)">' + c.label +
+    '</label>';
+  }).join('');
+  el.style.display = 'block';
+}
+function careerSetColumnVisible(key, checked) {
+  var visible = careerGetVisibleCols();
+  visible[key] = checked;
+  careerSaveVisibleCols(visible);
+  careerRenderOverviewTable();
+}
+
+function careerPeopleSwitchTab(tab, el) {
+  ['overview','eng','construction','aisw'].forEach(function(t) {
+    document.getElementById('career-people-tab-'+t).style.display = (t===tab) ? 'block' : 'none';
+  });
+  document.querySelectorAll('.career-people-tab-btn').forEach(function(b){ b.classList.remove('active'); b.style.background='var(--white)'; b.style.color='var(--t1)'; });
+  if (el) { el.classList.add('active'); el.style.background='var(--acd)'; el.style.color='var(--ac)'; }
+  if (tab === 'overview') careerRenderOverviewTable();
+}
+
+
 async function renderMyInfoHistory() {
   const container = document.getElementById('myinfo-history-content');
   if (!container) return;
@@ -14589,6 +14766,7 @@ function showPage(id, el) {
   if(id === 'permission-manage') { pmPopulateEmpSelect(); }
   if(id === 'personnel-card') { pcPopulateEmpSelect(); }
   if(id === 'career-grade-status') { careerRenderAssocList(); careerRenderGradeDetail(); }
+  if(id === 'career-people') { careerRenderOverviewTable(); }
   if(id === 'task-admin') { taInitPage(); }
   applyPageReadOnlyLock(id);
 }
