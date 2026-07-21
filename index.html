@@ -12884,10 +12884,12 @@ var CAREER_GRADE_COLS = [];
 CAREER_ASSOCIATIONS.forEach(function(assoc) {
   if (assoc.fields.length) {
     assoc.fields.forEach(function(f) {
-      CAREER_GRADE_COLS.push({ key:'grade__'+assoc.id+'__'+f, label:f, default:true, assocId:assoc.id, field:f });
+      var lbl = f.indexOf('-') >= 0 ? f.replace('-', '-<br>') : f;
+      CAREER_GRADE_COLS.push({ key:'grade__'+assoc.id+'__'+f, label:lbl, default:true, assocId:assoc.id, field:f });
     });
   } else {
-    CAREER_GRADE_COLS.push({ key:'grade__'+assoc.id, label:assoc.name+' 등급', default:true, assocId:assoc.id, field:null });
+    var lbl3 = assoc.id === 'aisw' ? '한국인공지능<br>소프트웨어<br>산업협회' : assoc.name;
+    CAREER_GRADE_COLS.push({ key:'grade__'+assoc.id, label:lbl3, default:true, assocId:assoc.id, field:null });
   }
 });
 
@@ -12931,6 +12933,8 @@ function careerDefaultSortRows(rows) {
     var ba = CAREER_BONBU_ORDER.indexOf(a.bonbu); if (ba < 0) ba = 999;
     var bb = CAREER_BONBU_ORDER.indexOf(b.bonbu); if (bb < 0) bb = 999;
     if (ba !== bb) return ba - bb;
+    var da = String(a.dept||''), db = String(b.dept||'');
+    if (da !== db) return da.localeCompare(db);
     var la = CAREER_LEADER_TITLES.indexOf(a._emp.title) >= 0 ? 0 : 1;
     var lb = CAREER_LEADER_TITLES.indexOf(b._emp.title) >= 0 ? 0 : 1;
     if (la !== lb) return la - lb;
