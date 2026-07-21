@@ -178,8 +178,8 @@ select.form-input{cursor:pointer}
 .readonly-banner{display:flex;align-items:center;gap:8px;background:#FFF7E6;border:1px solid #F0C674;color:#8B5E00;font-size:12px;font-weight:600;padding:8px 14px;border-radius:8px;margin-bottom:14px}
 #cert-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
 #cert-menu-items.collapsed{max-height:0;opacity:0}
-#work-menu-items,#hr-menu-items,#doc-menu-items,#system-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
-#work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed{max-height:0;opacity:0}
+#work-menu-items,#hr-menu-items,#doc-menu-items,#system-menu-items,#career-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
+#work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed,#career-menu-items.collapsed{max-height:0;opacity:0}
 
 /* ── DRIVE STATUS ── */
 .drive-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;border-radius:8px;margin-bottom:14px}
@@ -347,6 +347,20 @@ select.form-input{cursor:pointer}
           <div class="nav-item admin-only" onclick="showPage('cert-excellence',this)"><span class="nav-icon">🥇</span> 우수제품지정</div>
           <div class="nav-item admin-only" onclick="showPage('cert-survey',this)"><span class="nav-icon">📡</span> 측량기기 성능검사</div>
           <div class="nav-item admin-only" onclick="showPage('cert-award',this)"><span class="nav-icon">🏆</span> 수상/훈장</div>
+        </div>
+      </div>
+
+      <!-- 경력관리 -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-label" onclick="toggleSideSection('career-menu-items','career-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>경력관리</span>
+          <span id="career-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block">▼</span>
+        </div>
+        <div id="career-menu-items">
+          <div class="nav-item admin-only" onclick="showPage('career-dashboard',this)"><span class="nav-icon">📊</span> 대시보드</div>
+          <div class="nav-item admin-only" onclick="showPage('career-grade-status',this)"><span class="nav-icon">🎖️</span> 협회별 등급현황</div>
+          <div class="nav-item admin-only" onclick="showPage('career-people',this)"><span class="nav-icon">👥</span> 인력 및 등급관리</div>
+          <div class="nav-item admin-only" onclick="showPage('career-register',this)"><span class="nav-icon">📝</span> 등록</div>
         </div>
       </div>
 
@@ -892,6 +906,43 @@ select.form-input{cursor:pointer}
           <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>수상명</th><th>수상기관</th><th>수상일</th><th>발급번호</th><th>수상내용</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-award"></tbody>
         </table></div>
+      </div>
+
+      <!-- ══ 경력관리 (뼈대만, 세부 구조는 추후 결정) ══ -->
+      <div id="page-career-dashboard" class="page">
+        <div class="page-header">
+          <div><div class="page-title">📊 경력관리 대시보드</div><div class="page-sub">협회별 등록 현황을 한눈에 봅니다</div></div>
+        </div>
+        <div style="padding:60px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+          준비 중입니다. 세부 구조(협회 목록, 등급 기준 등)를 정하고 나면 채워질 예정이에요.
+        </div>
+      </div>
+
+      <div id="page-career-grade-status" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🎖️ 협회별 등급현황</div><div class="page-sub">협회(및 분야)를 선택해 소속 인원과 등급을 확인합니다</div></div>
+        </div>
+        <div style="padding:60px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+          준비 중입니다.
+        </div>
+      </div>
+
+      <div id="page-career-people" class="page">
+        <div class="page-header">
+          <div><div class="page-title">👥 인력 및 등급관리</div><div class="page-sub">개인별 협회 소속 및 등급을 관리합니다</div></div>
+        </div>
+        <div style="padding:60px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+          준비 중입니다.
+        </div>
+      </div>
+
+      <div id="page-career-register" class="page">
+        <div class="page-header">
+          <div><div class="page-title">📝 등록</div><div class="page-sub">직원을 협회(및 분야)에 등록합니다</div></div>
+        </div>
+        <div style="padding:60px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+          준비 중입니다.
+        </div>
       </div>
 
       <!-- ══ 기업인증현황 (대시보드 내 별도 시트) ══ -->
@@ -14351,6 +14402,7 @@ const PAGE_LABELS = {
   'cert-dashboard':'인증 대시보드','cert-bizcert':'기업인증현황','cert-copyright':'저작권','cert-gs':'GS인증',
   'cert-patent':'특허증','cert-trademark':'상표등록증','cert-ogc':'OGC','cert-direct':'직접생산',
   'cert-program':'프로그램 인증서','cert-excellence':'우수제품지정','cert-survey':'측량기기 성능검사','cert-award':'수상/훈장',
+  'career-dashboard':'경력관리 대시보드','career-grade-status':'협회별 등급현황','career-people':'인력 및 등급관리','career-register':'경력관리 등록',
   'orgview':'직원 조회(조직도)','employees':'직원 관리','organization':'조직 관리','codemanage':'코드 관리',
   'mypage':'마이페이지','parentbirthday':'부모님 생신현황','myinfo-history':'정보수정 이력','loginlogs':'접속 이력',
   'menuUsage':'메뉴 사용 현황','deptfund':'부서장 운영비','birthday':'생일자 현황','welfare':'복리후생',
