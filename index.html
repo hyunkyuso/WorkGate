@@ -922,8 +922,14 @@ select.form-input{cursor:pointer}
         <div class="page-header">
           <div><div class="page-title">🎖️ 협회별 등급현황</div><div class="page-sub">협회(및 분야)를 선택해 소속 인원과 등급을 확인합니다</div></div>
         </div>
-        <div style="padding:60px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
-          준비 중입니다.
+        <div style="display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start">
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:16px">
+            <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--t1)">협회 목록</div>
+            <div id="career-assoc-list" style="padding:4px 0;max-height:calc(100vh - 200px);overflow-y:auto"></div>
+          </div>
+          <div id="career-grade-detail" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:40px;text-align:center;color:var(--t3);font-size:13px">
+            왼쪽에서 협회(또는 분야)를 선택하세요
+          </div>
         </div>
       </div>
 
@@ -12773,6 +12779,61 @@ function pcAskAI() {
   });
 }
 
+// ══════════════════════════════════════════════════
+// 경력관리 (협회별 경력/등급 관리) — 뼈대 단계
+// ══════════════════════════════════════════════════
+var CAREER_ASSOCIATIONS = [
+  { id: 'eng', name: '한국엔지니어링협회', fields: ['정보관리','정보통신','측량지적','도시계획','조경','교통'] },
+  { id: 'construction', name: '한국건설기술인협회', fields: ['도시교통-도시계획','토목-전문분야없음','토목-측량및지형공간정보'] },
+  { id: 'aisw', name: '한국인공지능소프트웨어산업협회', fields: [] }
+];
+
+var _careerSelectedAssoc = null;
+var _careerSelectedField = null;
+
+function careerRenderAssocList() {
+  var el = document.getElementById('career-assoc-list');
+  if (!el) return;
+  el.innerHTML = CAREER_ASSOCIATIONS.map(function(a) {
+    var isAssocActive = _careerSelectedAssoc === a.id && !_careerSelectedField;
+    var html = '<div onclick="careerSelectAssoc(\''+a.id+'\')" style="padding:8px 12px;cursor:pointer;font-size:13px;' +
+      (isAssocActive ? 'background:var(--acd);color:var(--ac);font-weight:600' : 'color:var(--t1)') + '">' + a.name + '</div>';
+    html += a.fields.map(function(f) {
+      var isFieldActive = _careerSelectedAssoc === a.id && _careerSelectedField === f;
+      return '<div onclick="careerSelectField(\''+a.id+'\',\''+f+'\')" style="padding:6px 12px 6px 24px;cursor:pointer;font-size:12px;' +
+        (isFieldActive ? 'background:var(--acd);color:var(--ac);font-weight:600' : 'color:var(--t2)') + '">' + f + '</div>';
+    }).join('');
+    return html;
+  }).join('');
+}
+
+function careerSelectAssoc(assocId) {
+  _careerSelectedAssoc = assocId;
+  _careerSelectedField = null;
+  careerRenderAssocList();
+  careerRenderGradeDetail();
+}
+function careerSelectField(assocId, field) {
+  _careerSelectedAssoc = assocId;
+  _careerSelectedField = field;
+  careerRenderAssocList();
+  careerRenderGradeDetail();
+}
+
+function careerRenderGradeDetail() {
+  var el = document.getElementById('career-grade-detail');
+  if (!el) return;
+  var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerSelectedAssoc; });
+  if (!assoc) {
+    el.innerHTML = '왼쪽에서 협회(또는 분야)를 선택하세요';
+    return;
+  }
+  var title = assoc.name + (_careerSelectedField ? ' · ' + _careerSelectedField : '');
+  el.style.textAlign = 'left';
+  el.innerHTML = '<div style="font-weight:600;font-size:14px;margin-bottom:10px">' + title + '</div>' +
+    '<div style="color:var(--t3);font-size:13px">소속 인원·등급 현황은 다음 단계에서 채워질 예정이에요.</div>';
+}
+
 async function renderMyInfoHistory() {
   const container = document.getElementById('myinfo-history-content');
   if (!container) return;
@@ -14520,6 +14581,7 @@ function showPage(id, el) {
   if(id === 'settings') { svAdminPopulateEmpSelect(); }
   if(id === 'permission-manage') { pmPopulateEmpSelect(); }
   if(id === 'personnel-card') { pcPopulateEmpSelect(); }
+  if(id === 'career-grade-status') { careerRenderAssocList(); careerRenderGradeDetail(); }
   if(id === 'task-admin') { taInitPage(); }
   applyPageReadOnlyLock(id);
 }
