@@ -949,6 +949,9 @@ select.form-input{cursor:pointer}
           <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;position:relative">
             <input id="career-overview-search" type="text" class="form-input" style="max-width:240px;font-size:13px" placeholder="이름/부서 등 검색..." oninput="careerRenderOverviewTable()">
             <button class="btn btn-ghost btn-sm" onclick="careerToggleColumnPicker()">📋 컬럼 선택</button>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);cursor:pointer;white-space:nowrap">
+              <input type="checkbox" id="career-exclude-admin" onchange="careerRenderOverviewTable()" style="accent-color:var(--ac)"> 관리자는 제외
+            </label>
             <div id="career-column-picker" style="display:none;position:absolute;top:38px;left:250px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.08);padding:10px;z-index:20;max-height:320px;overflow-y:auto;width:220px"></div>
           </div>
           <div class="table-wrap"><table id="career-overview-table">
@@ -12915,7 +12918,7 @@ var CAREER_POSITION_ORDER = ['대표이사','부사장','전무','상무','이�
 var CAREER_DEGREE_ORDER = { '박사':0, '석사':1, '학사':2, '전문학사':3, '고졸':4 };
 
 function careerGetBonbu(emp) {
-  if (emp.title === '수석전문위원' || emp.role === '수석전문위원') return '정도유아이티';
+  if ((emp.dept||'').indexOf('수석전문위원') >= 0 || emp.title === '수석전문위원' || emp.role === '수석전문위원') return '정도유아이티';
   return getBonbu(emp) || '-';
 }
 
@@ -12958,6 +12961,11 @@ function careerCalcAge(birthdate) {
   return age + '세';
 }
 
+function careerFmtDate(str) {
+  if (!str) return '';
+  return String(str).replace(/\./g, '-');
+}
+
 function careerBuildOverviewRow(emp) {
   var calc = pcCalcTotalCareer(emp);
 
@@ -12984,9 +12992,9 @@ function careerBuildOverviewRow(emp) {
     school: eduSorted.length ? eduSorted.map(function(e){ return e.school||'-'; }).join('<br>') : '-',
     major: eduSorted.length ? eduSorted.map(function(e){ return e.major||'-'; }).join('<br>') : '-',
     degree: eduSorted.length ? eduSorted.map(function(e){ return e.degree||'-'; }).join('<br>') : '-',
-    gradDate: eduSorted.length ? eduSorted.map(function(e){ return e.date||'-'; }).join('<br>') : '-',
+    gradDate: eduSorted.length ? eduSorted.map(function(e){ return careerFmtDate(e.date)||'-'; }).join('<br>') : '-',
     license: licSorted.length ? licSorted.map(function(l){ return l.name; }).join('<br>') : '-',
-    licenseDate: licSorted.length ? licSorted.map(function(l){ return l.date||'-'; }).join('<br>') : '-',
+    licenseDate: licSorted.length ? licSorted.map(function(l){ return careerFmtDate(l.date)||'-'; }).join('<br>') : '-',
     licenseNo: licSorted.length ? licSorted.map(function(l){ return l.number||'-'; }).join('<br>') : '-'
   };
   CAREER_GRADE_COLS.forEach(function(c){ row[c.key] = '-'; });
@@ -13023,8 +13031,15 @@ function careerRenderOverviewTable() {
     tbody.innerHTML = '<tr><td colspan="'+cols.length+'" style="text-align:center;padding:24px;color:var(--t3)">해당하는 직원이 없습니다</td></tr>';
     return;
   }
+  var excludeAdmin = document.getElementById('career-exclude-admin').checked;
+  var keepCols = ['bonbu','dept','position','name'];
   tbody.innerHTML = rows.map(function(r) {
-    return '<tr>' + cols.map(function(c){ return '<td>'+r[c.key]+'</td>'; }).join('') + '</tr>';
+    var isAdmin = excludeAdmin && r._emp && r._emp.role === '관리자';
+    var trStyle = isAdmin ? ' style="background:#f1f5f9"' : '';
+    return '<tr'+trStyle+'>' + cols.map(function(c){
+      var val = (isAdmin && keepCols.indexOf(c.key) < 0) ? '' : r[c.key];
+      return '<td>'+val+'</td>';
+    }).join('') + '</tr>';
   }).join('');
 }
 
