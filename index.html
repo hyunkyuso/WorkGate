@@ -915,24 +915,48 @@ select.form-input{cursor:pointer}
           <div><div class="page-title">📊 경력관리 대시보드</div><div class="page-sub">협회별 등록 현황을 한눈에 봅니다</div></div>
         </div>
 
-        <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
-          <div style="font-weight:600;margin-bottom:14px">🎓 자격증 보유현황</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
 
-          <div style="display:flex;gap:24px;margin-bottom:18px">
-            <div>
-              <div style="font-size:12px;color:var(--t3)">총 보유 인원</div>
-              <div style="font-size:24px;font-weight:700;color:var(--t1)" id="career-lic-total">0명</div>
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
+            <div style="font-weight:600;margin-bottom:14px">🎓 자격증 보유현황</div>
+
+            <div style="display:flex;gap:24px;margin-bottom:18px">
+              <div>
+                <div style="font-size:12px;color:var(--t3)">총 보유 인원</div>
+                <div style="font-size:24px;font-weight:700;color:var(--t1)" id="career-lic-total">0명</div>
+              </div>
+              <div style="cursor:pointer" onclick="careerGoToPeopleMultiLicense()">
+                <div style="font-size:12px;color:var(--t3)">복수 자격증 보유자</div>
+                <div style="font-size:24px;font-weight:700;color:var(--ac)" id="career-lic-multi">0명</div>
+              </div>
             </div>
-            <div style="cursor:pointer" onclick="careerGoToPeopleMultiLicense()">
-              <div style="font-size:12px;color:var(--t3)">복수 자격증 보유자</div>
-              <div style="font-size:24px;font-weight:700;color:var(--ac)" id="career-lic-multi">0명</div>
+
+            <div style="overflow-x:auto">
+              <table id="career-lic-matrix" style="width:100%;border-collapse:collapse;font-size:13px"></table>
             </div>
+            <div style="font-size:11px;color:var(--t3);margin-top:8px">숫자를 클릭하면 인력 및 등급관리에서 해당 인원만 걸러서 볼 수 있어요</div>
           </div>
 
-          <div style="overflow-x:auto">
-            <table id="career-lic-matrix" style="width:100%;border-collapse:collapse;font-size:13px"></table>
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
+            <div style="font-weight:600;margin-bottom:14px">🏫 학력 현황 (한국엔지니어링협회 분야 기준)</div>
+
+            <div style="display:flex;gap:24px;margin-bottom:18px">
+              <div>
+                <div style="font-size:12px;color:var(--t3)">기준 충족 인원</div>
+                <div style="font-size:24px;font-weight:700;color:var(--t1)" id="career-edu-total">0명</div>
+              </div>
+              <div style="cursor:pointer" onclick="careerGoToPeopleMultiDegree()">
+                <div style="font-size:12px;color:var(--t3)">복수 학위 보유자</div>
+                <div style="font-size:24px;font-weight:700;color:var(--ac)" id="career-edu-multi">0명</div>
+              </div>
+            </div>
+
+            <div style="overflow-x:auto">
+              <table id="career-edu-matrix" style="width:100%;border-collapse:collapse;font-size:13px"></table>
+            </div>
+            <div style="font-size:11px;color:var(--t3);margin-top:8px">전공 인정 목록을 알려주시면 채워질게요 (학과명 목록 대기 중)</div>
           </div>
-          <div style="font-size:11px;color:var(--t3);margin-top:8px">숫자를 클릭하면 인력 및 등급관리에서 해당 인원만 걸러서 볼 수 있어요</div>
+
         </div>
       </div>
 
@@ -12937,28 +12961,108 @@ function careerRenderLicenseDashboard() {
   el.innerHTML = html;
 }
 
+// ── 학력 현황 (한국엔지니어링협회 분야 기준) ──
+var CAREER_EDU_FIELDS = ['정보관리분야','정보통신분야','측량지적분야','도시계획분야','조경분야','교통분야'];
+var CAREER_EDU_DEGREES = ['박사','석사','학사'];
+// 분야별로 인정하는 학과명 목록 (전공명 목록을 알려주시면 여기 채워짐)
+// 출처: 엔지니어링기술관련학과의 범위(제27조 관련) [별표 2]
+// 학과명이 워낙 변형이 많아(토목건설/토목환경/토목시스템 등), 핵심 키워드만 넣어서
+// 포함(substring) 방식으로 웬만한 변형 학과명이 다 걸러지도록 함
+var CAREER_EDU_MAJOR_WHITELIST = {
+  '정보관리분야': ['정보관리','게임','소프트웨어','콘텐츠','컨텐츠','컴퓨터','정보통신','전산','미디어','IT','통신','응용전자','응용통계','전자계산','인터넷비즈니스'],
+  '정보통신분야': ['정보통신','통신','전자','IT','컴퓨터','네트워크','모바일','무선','인터넷','방송','전파','임베디드','정보기술','정보과학','정보전자','항공통신','항공전자','사이버','해킹','국방정보','광통신','이동통신','정보제어','정보미디어'],
+  '측량지적분야': ['지적','측량','측지','공간정보','지형정보','지리정보','토지정보','토목','건설','건축','구조','SOC'],
+  '도시계획분야': ['도시','지역개발','지역시스템','지역기반','지역환경','지역자원','SOC','토목','건설','건축','구조'],
+  '조경분야': ['조경','산림','원예','화훼','녹지','생태','환경디자인','환경자원','임학','SOC'],
+  '교통분야': ['교통','철도','항공교통','SOC','토목','건설','건축','구조']
+};
+
+function careerEduFieldsForMajor(major) {
+  major = major || '';
+  var matched = [];
+  CAREER_EDU_FIELDS.forEach(function(field) {
+    var list = CAREER_EDU_MAJOR_WHITELIST[field] || [];
+    if (list.some(function(m){ return major.indexOf(m) >= 0; })) matched.push(field);
+  });
+  return matched;
+}
+
+function careerBuildEduMatrix() {
+  var matrix = {};
+  var totalPeople = new Set();
+  var multiPeople = new Set();
+
+  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+    var empId = emp._docId || emp.id;
+    var matchCount = 0;
+    (emp.education||[]).forEach(function(e) {
+      if (CAREER_EDU_DEGREES.indexOf(e.degree) < 0) return;
+      var fields = careerEduFieldsForMajor(e.major);
+      if (!fields.length) return;
+      matchCount++;
+      fields.forEach(function(field) {
+        if (!matrix[field]) matrix[field] = {};
+        matrix[field][e.degree] = (matrix[field][e.degree] || 0) + 1;
+      });
+    });
+    if (matchCount >= 1) totalPeople.add(empId);
+    if (matchCount >= 2) multiPeople.add(empId);
+  });
+
+  return { matrix: matrix, totalCount: totalPeople.size, multiCount: multiPeople.size };
+}
+
+function careerRenderEduDashboard() {
+  var data = careerBuildEduMatrix();
+  document.getElementById('career-edu-total').textContent = data.totalCount + '명';
+  document.getElementById('career-edu-multi').textContent = data.multiCount + '명';
+
+  var el = document.getElementById('career-edu-matrix');
+  var html = '<thead><tr><td></td>' + CAREER_EDU_DEGREES.map(function(d){
+    return '<td style="text-align:center;padding:6px;color:var(--t3);font-weight:600">'+d+'</td>';
+  }).join('') + '</tr></thead><tbody>';
+
+  html += CAREER_EDU_FIELDS.map(function(f) {
+    return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px 6px;white-space:nowrap">'+f+'</td>' +
+      CAREER_EDU_DEGREES.map(function(d) {
+        var cnt = (data.matrix[f] && data.matrix[f][d]) || 0;
+        if (!cnt) return '<td style="text-align:center;color:var(--t3)">-</td>';
+        return '<td style="text-align:center"><span onclick="careerGoToPeopleFiltered(\''+d+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 10px;border-radius:8px;font-weight:600">'+cnt+'</span></td>';
+      }).join('') + '</tr>';
+  }).join('');
+
+  html += '</tbody>';
+  el.innerHTML = html;
+}
+
+function careerGoToPeopleMultiDegree() {
+  _careerPrefillSearch = '';
+  _careerPrefillMultiType = 'degree';
+  showPage('career-people', document.querySelector('[onclick*="careerNavToPeople"]'));
+}
+
 // 인력 및 등급관리로 이동해서 검색어로 자동 필터
 var _careerPrefillSearch = null;
-var _careerPrefillMultiOnly = false;
+var _careerPrefillMultiType = null; // null | 'license' | 'degree'
 function careerGoToPeopleFiltered(searchTerm) {
   _careerPrefillSearch = searchTerm;
-  _careerPrefillMultiOnly = false;
+  _careerPrefillMultiType = null;
   showPage('career-people', document.querySelector("[onclick*=\"careerNavToPeople\"]"));
 }
 function careerGoToPeopleMultiLicense() {
   _careerPrefillSearch = '';
-  _careerPrefillMultiOnly = true;
+  _careerPrefillMultiType = 'license';
   showPage('career-people', document.querySelector("[onclick*=\"careerNavToPeople\"]"));
 }
 
 function careerClearMultiFilter() {
-  _careerPrefillMultiOnly = false;
+  _careerPrefillMultiType = null;
   careerRenderOverviewTable();
 }
 
 function careerNavToPeople(el) {
   _careerPrefillSearch = '';
-  _careerPrefillMultiOnly = false;
+  _careerPrefillMultiType = null;
   showPage('career-people', el);
 }
 
@@ -13283,11 +13387,20 @@ function careerRenderOverviewTable() {
   }
 
   var multiBadge = document.getElementById('career-multi-filter-badge');
-  if (_careerPrefillMultiOnly) {
+  if (_careerPrefillMultiType === 'license') {
     rows = rows.filter(function(r) {
       return ((r._emp.license||[]).filter(careerIsRelevantLicense)).length >= 2;
     });
-    if (multiBadge) multiBadge.style.display = 'inline-block';
+    if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = '복수 자격증 보유자만 보기 '; }
+  } else if (_careerPrefillMultiType === 'degree') {
+    rows = rows.filter(function(r) {
+      var matchCount = 0;
+      (r._emp.education||[]).forEach(function(e) {
+        if (CAREER_EDU_DEGREES.indexOf(e.degree) >= 0 && careerEduFieldsForMajor(e.major).length) matchCount++;
+      });
+      return matchCount >= 2;
+    });
+    if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = '복수 학위 보유자만 보기 '; }
   } else if (multiBadge) {
     multiBadge.style.display = 'none';
   }
@@ -15168,7 +15281,7 @@ function showPage(id, el) {
   if(id === 'settings') { svAdminPopulateEmpSelect(); }
   if(id === 'permission-manage') { pmPopulateEmpSelect(); }
   if(id === 'personnel-card') { pcPopulateEmpSelect(); }
-  if(id === 'career-dashboard') { careerRenderLicenseDashboard(); }
+  if(id === 'career-dashboard') { careerRenderLicenseDashboard(); careerRenderEduDashboard(); }
   if(id === 'career-grade-status') { careerRenderAssocList(); careerRenderGradeDetail(); }
   if(id === 'career-people') {
     careerPeopleSwitchTab('overview', document.querySelector('.career-people-tab-btn'));
