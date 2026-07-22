@@ -1003,8 +1003,11 @@ select.form-input{cursor:pointer}
         </div>
 
         <div id="career-people-tab-eng" style="display:none">
-          <div style="padding:40px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
-            등록된 인원이 없습니다. "등록" 메뉴에서 먼저 인원을 등록해주세요.
+          <div class="table-wrap" style="overflow-x:auto">
+            <table id="career-eng-table" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px">
+              <thead id="career-eng-thead"></thead>
+              <tbody id="career-eng-tbody"></tbody>
+            </table>
           </div>
         </div>
         <div id="career-people-tab-construction" style="display:none">
@@ -13174,6 +13177,110 @@ async function careerSetGradeOverride(empId, field, grade) {
   }
 }
 
+// 타회사 등록가능 경력일수 / 정도유아이티 등록가능 경력일수 (영업활용 체크 기준, 회사별 분리)
+function careerSplitCompanyDays(emp) {
+  var todayStr = new Date().toISOString().slice(0,10);
+  var doyuDays = careerDaysBetween(emp.joindate || todayStr, todayStr); // 근속(정도유아이티) 기본
+  var otherDays = 0;
+  (emp.career||[]).forEach(function(c) {
+    if (!c.salesUse || !c.start) return;
+    var d = careerDaysBetween(c.start, c.end || todayStr);
+    if ((c.company||'').indexOf('정도유아이티') >= 0) doyuDays += d;
+    else otherDays += d;
+  });
+  return { doyu: doyuDays, other: otherDays };
+}
+
+function careerRenderEngTab() {
+  var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === 'eng'; });
+  var fields = assoc.fields;
+  var thead = document.getElementById('career-eng-thead');
+  var tbody = document.getElementById('career-eng-tbody');
+
+  thead.innerHTML =
+    '<tr>' +
+      '<td rowspan="3" style="padding:6px;white-space:nowrap">본부</td>' +
+      '<td rowspan="3" style="padding:6px;white-space:nowrap">직급</td>' +
+      '<td rowspan="3" style="padding:6px;white-space:nowrap">이름</td>' +
+      '<td colspan="'+fields.length+'" style="text-align:center;background:#eafaf0">등록현황</td>' +
+      '<td colspan="'+fields.length+'" style="text-align:center;background:#eaf2fa">다음 등급까지 필요 경력</td>' +
+      '<td rowspan="3" style="text-align:center;white-space:nowrap;padding:0 8px">타회사 등록<br>가능 경력일수</td>' +
+      '<td rowspan="3" style="text-align:center;white-space:nowrap;padding:0 8px">정도 등록<br>가능 경력일수</td>' +
+    '</tr>' +
+    '<tr>' +
+      '<td colspan="'+fields.length+'" style="text-align:center;color:var(--t3)">한국엔지니어링협회</td>' +
+      '<td colspan="'+fields.length+'" style="text-align:center;color:var(--t3)">한국엔지니어링협회</td>' +
+    '</tr>' +
+    '<tr>' +
+      fields.map(function(f){ return '<td style="text-align:center;white-space:nowrap;padding:2px 4px">'+f+'</td>'; }).join('') +
+      fields.map(function(f){ return '<td style="text-align:center;white-space:nowrap;padding:2px 4px">'+f+'</td>'; }).join('') +
+    '</tr>';
+
+  var amAdmin = isAdmin();
+  var people = employees.filter(function(emp) {
+    if (emp.status === '퇴직') return false;
+    return fields.some(function(field) {
+      var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseField(l.name) === field; });
+      var hasEdu = (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; });
+      return hasCert || hasEdu;
+    });
+  });
+
+  if (!people.length) {
+    tbody.innerHTML = '<tr><td colspan="'+(3+fields.length*2+2)+'" style="text-align:center;padding:24px;color:var(--t3)">한국엔지니어링협회 분야에 해당하는 자격증/학력을 가진 인원이 없습니다</td></tr>';
+    return;
+  }
+
+  var rows = people.map(function(emp) {
+    var empId = emp._docId || emp.id;
+    var bonbu = careerGetBonbu(emp);
+    var days = careerSplitCompanyDays(emp);
+    var gradeCells = fields.map(function(field) {
+      var hasAny = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseField(l.name) === field; }) ||
+                   (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; });
+      if (!hasAny) return '-';
+      return careerGetEffectiveGrade(emp, field).grade;
+    });
+    var needCells = fields.map(function(field, i) {
+      if (gradeCells[i] === '-') return '-';
+      if (gradeCells[i] === '기술사') return '-';
+      var need = careerDaysToNextGrade(emp, field, gradeCells[i]);
+      return need ? Math.ceil(need) : '충족';
+    });
+    return { emp: emp, empId: empId, bonbu: bonbu, position: emp.position||'-', name: emp.name||'-', gradeCells: gradeCells, needCells: needCells, other: days.other, doyu: days.doyu };
+  });
+
+  rows.sort(function(a, b) {
+    var ba = CAREER_BONBU_ORDER.indexOf(a.bonbu); if (ba < 0) ba = 999;
+    var bb = CAREER_BONBU_ORDER.indexOf(b.bonbu); if (bb < 0) bb = 999;
+    if (ba !== bb) return ba - bb;
+    var pa = CAREER_POSITION_ORDER.indexOf(a.position); if (pa < 0) pa = 999;
+    var pb = CAREER_POSITION_ORDER.indexOf(b.position); if (pb < 0) pb = 999;
+    return pa - pb;
+  });
+
+  var bonbuSpan = new Array(rows.length).fill(1);
+  for (var i = 0; i < rows.length; ) {
+    var j = i;
+    while (j < rows.length && rows[j].bonbu === rows[i].bonbu) j++;
+    bonbuSpan[i] = j - i;
+    for (var k = i+1; k < j; k++) bonbuSpan[k] = 0;
+    i = j;
+  }
+
+  tbody.innerHTML = rows.map(function(r, idx) {
+    var bonbuCell = bonbuSpan[idx] === 0 ? '' : '<td rowspan="'+bonbuSpan[idx]+'" style="white-space:nowrap;padding:6px;vertical-align:middle">'+r.bonbu+'</td>';
+    return '<tr style="border-top:1px solid var(--border)">' + bonbuCell +
+      '<td style="padding:6px;white-space:nowrap">'+r.position+'</td>' +
+      '<td style="padding:6px;white-space:nowrap">'+r.name+'</td>' +
+      r.gradeCells.map(function(g){ return '<td style="text-align:center">'+g+'</td>'; }).join('') +
+      r.needCells.map(function(n){ return '<td style="text-align:center">'+n+'</td>'; }).join('') +
+      '<td style="text-align:center">'+(r.other||'-')+'</td>' +
+      '<td style="text-align:center">'+(r.doyu||'-')+'</td>' +
+    '</tr>';
+  }).join('');
+}
+
 function careerRenderGradeDetail() {
   var el = document.getElementById('career-grade-detail');
   if (!el) return;
@@ -13813,6 +13920,7 @@ function careerPeopleSwitchTab(tab, el) {
   document.querySelectorAll('.career-people-tab-btn').forEach(function(b){ b.classList.remove('active'); b.style.background='var(--white)'; b.style.color='var(--t1)'; });
   if (el) { el.classList.add('active'); el.style.background='var(--acd)'; el.style.color='var(--ac)'; }
   if (tab === 'overview') careerRenderOverviewTable();
+  if (tab === 'eng') careerRenderEngTab();
 }
 
 
