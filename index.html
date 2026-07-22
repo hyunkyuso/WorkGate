@@ -13529,24 +13529,27 @@ function careerRenderEngTab() {
   var thead = document.getElementById('career-eng-thead');
   var tbody = document.getElementById('career-eng-tbody');
 
+  var thStyle1 = 'padding:6px;white-space:nowrap;text-align:center;position:sticky;top:0;background:#fff;z-index:5';
+  var thStyle2 = 'text-align:center;color:var(--t3);position:sticky;top:29px;background:#fff;z-index:5';
+  var thStyle3 = 'text-align:center;white-space:nowrap;padding:2px 4px;position:sticky;top:58px;background:#fff;z-index:5';
   thead.innerHTML =
     '<tr>' +
-      '<td rowspan="3" style="padding:6px;white-space:nowrap">본부</td>' +
-      '<td rowspan="3" style="padding:6px;white-space:nowrap">직급</td>' +
-      '<td rowspan="3" style="padding:6px;white-space:nowrap">이름</td>' +
-      '<td colspan="'+fields.length+'" style="text-align:center">등록현황</td>' +
-      '<td colspan="'+fields.length+'" style="text-align:center">다음 등급까지 필요 경력</td>' +
-      '<td rowspan="3" style="text-align:center;white-space:nowrap;padding:0 8px">타회사 등록<br>가능 경력일수</td>' +
-      '<td rowspan="3" style="text-align:center;white-space:nowrap;padding:0 8px">정도 등록<br>가능 경력일수</td>' +
-      '<td rowspan="3" style="text-align:center;white-space:nowrap;padding:0 8px">참여사업</td>' +
+      '<td rowspan="3" style="'+thStyle1+'">본부</td>' +
+      '<td rowspan="3" style="'+thStyle1+'">직급</td>' +
+      '<td rowspan="3" style="'+thStyle1+'">이름</td>' +
+      '<td colspan="'+fields.length+'" style="'+thStyle1+'">등록현황</td>' +
+      '<td colspan="'+fields.length+'" style="'+thStyle1+'">다음 등급까지 필요 경력</td>' +
+      '<td rowspan="3" style="'+thStyle1+';padding:0 8px">타회사 등록<br>가능 경력일수</td>' +
+      '<td rowspan="3" style="'+thStyle1+';padding:0 8px">정도 등록<br>가능 경력일수</td>' +
+      '<td rowspan="3" style="'+thStyle1+';padding:0 8px">참여사업</td>' +
     '</tr>' +
     '<tr>' +
-      '<td colspan="'+fields.length+'" style="text-align:center;color:var(--t3)">한국엔지니어링협회</td>' +
-      '<td colspan="'+fields.length+'" style="text-align:center;color:var(--t3)">한국엔지니어링협회</td>' +
+      '<td colspan="'+fields.length+'" style="'+thStyle2+'">한국엔지니어링협회</td>' +
+      '<td colspan="'+fields.length+'" style="'+thStyle2+'">한국엔지니어링협회</td>' +
     '</tr>' +
     '<tr>' +
-      fields.map(function(f){ return '<td style="text-align:center;white-space:nowrap;padding:2px 4px">'+f+'</td>'; }).join('') +
-      fields.map(function(f){ return '<td style="text-align:center;white-space:nowrap;padding:2px 4px">'+f+'</td>'; }).join('') +
+      fields.map(function(f){ return '<td style="'+thStyle3+'">'+f+'</td>'; }).join('') +
+      fields.map(function(f){ return '<td style="'+thStyle3+'">'+f+'</td>'; }).join('') +
     '</tr>';
 
   var amAdmin = isAdmin();
@@ -13603,10 +13606,10 @@ function careerRenderEngTab() {
 
   var gradeOptions = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자','숙련(고)','숙련(중)','숙련(초)','미달'];
   tbody.innerHTML = rows.map(function(r, idx) {
-    var bonbuCell = bonbuSpan[idx] === 0 ? '' : '<td rowspan="'+bonbuSpan[idx]+'" style="white-space:nowrap;padding:6px;vertical-align:middle">'+r.bonbu+'</td>';
+    var bonbuCell = bonbuSpan[idx] === 0 ? '' : '<td rowspan="'+bonbuSpan[idx]+'" style="white-space:nowrap;padding:6px;vertical-align:middle;text-align:center">'+r.bonbu+'</td>';
     return '<tr style="border-top:1px solid var(--border)">' + bonbuCell +
-      '<td style="padding:6px;white-space:nowrap">'+r.position+'</td>' +
-      '<td style="padding:6px;white-space:nowrap">'+r.name+'</td>' +
+      '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.position+'</td>' +
+      '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.name+'</td>' +
       r.gradeInfos.map(function(g) {
         if (!g) return '<td style="text-align:center">-</td>';
         return '<td style="text-align:center">'+careerShortGrade(g.grade)+'</td>';
@@ -14051,11 +14054,11 @@ function careerRenderOverviewTable() {
   function thSort(c, styleExtra) {
     var arrow = _careerOverviewSort.key === c.key ? (_careerOverviewSort.dir === 1 ? ' ▲' : ' ▼') : '';
     var extraWidth = c.key === 'licenseNo' ? 'width:140px;' : '';
-    return '<th onclick="careerSortOverviewBy(\''+c.key+'\')" style="cursor:pointer;white-space:nowrap;'+extraWidth+(styleExtra||'')+'">' + c.label + arrow + '</th>';
+    return '<th onclick="careerSortOverviewBy(\''+c.key+'\')" style="cursor:pointer;white-space:nowrap;text-align:center;position:sticky;top:0;background:#fff;z-index:5;'+extraWidth+(styleExtra||'')+'">' + c.label + arrow + '</th>';
   }
 
   if (!hasGrade) {
-    thead.innerHTML = '<tr><th style="width:50px;text-align:center">제외</th>' + cols.map(function(c){ return thSort(c); }).join('') + '</tr>';
+    thead.innerHTML = '<tr><th style="width:50px;text-align:center;position:sticky;top:0;background:#fff;z-index:5">제외</th>' + cols.map(function(c){ return thSort(c); }).join('') + '</tr>';
   } else {
     // 원래 컬럼 순서를 그대로 유지하면서, 등급 컬럼이 연속으로 나오는 구간만 그룹으로 묶는다
     var segments = [];
@@ -14082,30 +14085,30 @@ function careerRenderOverviewTable() {
       return subgroups;
     }
 
-    var row1 = '<th rowspan="3" style="width:50px;text-align:center">제외</th>';
+    var row1 = '<th rowspan="3" style="width:50px;text-align:center;position:sticky;top:0;background:#fff;z-index:5">제외</th>';
     segments.forEach(function(seg) {
       if (seg.type === 'single') {
         var c = seg.col;
         var arrow = _careerOverviewSort.key===c.key ? (_careerOverviewSort.dir===1?' ▲':' ▼') : '';
-        row1 += '<th rowspan="3" style="cursor:pointer;white-space:nowrap" onclick="careerSortOverviewBy(\''+c.key+'\')">' + c.label + arrow + '</th>';
+        row1 += '<th rowspan="3" style="cursor:pointer;white-space:nowrap;text-align:center;position:sticky;top:0;background:#fff;z-index:5" onclick="careerSortOverviewBy(\''+c.key+'\')">' + c.label + arrow + '</th>';
       } else {
-        row1 += '<th colspan="'+seg.cols.length+'" style="text-align:center">기술등급</th>';
+        row1 += '<th colspan="'+seg.cols.length+'" style="text-align:center;position:sticky;top:0;background:#fff;z-index:5">기술등급</th>';
       }
     });
 
     var row2 = segments.filter(function(s){ return s.type==='gradeGroup'; }).map(function(seg) {
       return splitByAssoc(seg.cols).map(function(g) {
         if (g.cols.length === 1 && g.cols[0].field === null) {
-          return thSort(g.cols[0], 'font-size:11px;text-align:center;width:55px').replace('<th ', '<th rowspan="2" ');
+          return thSort(g.cols[0], 'font-size:11px;width:55px;top:29px').replace('<th ', '<th rowspan="2" ');
         }
-        return '<th colspan="'+g.cols.length+'" style="text-align:center;font-size:12px;white-space:nowrap">' + assocNameMap[g.assocId] + '</th>';
+        return '<th colspan="'+g.cols.length+'" style="text-align:center;font-size:12px;white-space:nowrap;position:sticky;top:29px;background:#fff;z-index:5">' + assocNameMap[g.assocId] + '</th>';
       }).join('');
     }).join('');
 
     var row3 = segments.filter(function(s){ return s.type==='gradeGroup'; }).map(function(seg) {
       return splitByAssoc(seg.cols).map(function(g) {
         if (g.cols.length === 1 && g.cols[0].field === null) return '';
-        return g.cols.map(function(c){ return thSort(c, 'font-size:11px;text-align:center;width:48px;padding:4px 2px'); }).join('');
+        return g.cols.map(function(c){ return thSort(c, 'font-size:11px;width:48px;padding:4px 2px;top:58px'); }).join('');
       }).join('');
     }).join('');
 
