@@ -13387,7 +13387,23 @@ function careerRegFmtDate(val) {
   if (val instanceof Date) {
     return val.getFullYear() + '-' + String(val.getMonth()+1).padStart(2,'0') + '-' + String(val.getDate()).padStart(2,'0');
   }
-  return careerFmtDate(String(val));
+  var str = String(val).trim();
+  // M/D/YY 또는 M/D/YYYY (엑셀이 지역설정에 따라 짧은 미국식 날짜로 바꿔버리는 경우)
+  var slashMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (slashMatch) {
+    var mm = parseInt(slashMatch[1], 10);
+    var dd = parseInt(slashMatch[2], 10);
+    var yy = slashMatch[3];
+    var yyyy;
+    if (yy.length === 4) {
+      yyyy = parseInt(yy, 10);
+    } else {
+      var yyNum = parseInt(yy, 10);
+      yyyy = yyNum <= 30 ? 2000 + yyNum : 1900 + yyNum; // 94→1994, 08→2008, 20→2020, 21→2021
+    }
+    return yyyy + '-' + String(mm).padStart(2,'0') + '-' + String(dd).padStart(2,'0');
+  }
+  return careerFmtDate(str);
 }
 
 function careerRegUploadExcel(input) {
@@ -13398,7 +13414,19 @@ function careerRegUploadExcel(input) {
   reader.onload = function(ev) {
     var wb;
     if (file.name.toLowerCase().endsWith('.csv')) {
-      var text = new TextDecoder('utf-8').decode(new Uint8Array(ev.target.result));
+      var bytes = new Uint8Array(ev.target.result);
+      var text;
+      try {
+        text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      } catch (encErr) {
+        text = null;
+      }
+      // UTF-8 디코딩은 에러 없이 됐어도, 기대하는 한글 헤더가 하나도 안 보이면 EUC-KR로 재시도
+      var looksOk = text && ['협회','사업명','근무처','계약일'].some(function(h){ return text.indexOf(h) >= 0; });
+      if (!looksOk) {
+        console.warn('[협회 등록 업로드] UTF-8로 헤더를 못 찾음, EUC-KR로 재시도');
+        text = new TextDecoder('euc-kr').decode(bytes);
+      }
       wb = XLSX.read(text, { type:'string' });
     } else {
       wb = XLSX.read(new Uint8Array(ev.target.result), { type:'array' });
