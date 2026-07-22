@@ -13214,7 +13214,8 @@ function careerRenderOverviewTable() {
         return '<td rowspan="'+deptSpan[idx]+'" style="vertical-align:middle;white-space:nowrap">'+r.dept+'</td>';
       }
       var val = (excluded && keepCols.indexOf(c.key) < 0) ? '' : r[c.key];
-      var tdStyle = c.assocId ? ' style="text-align:center;font-size:12px"' : '';
+      var NOWRAP_COLS = ['name','birthdate','careerTotal','school','major','gradDate','license','licenseDate'];
+      var tdStyle = c.assocId ? ' style="text-align:center;font-size:12px"' : (NOWRAP_COLS.indexOf(c.key) >= 0 ? ' style="white-space:nowrap"' : '');
       return '<td'+tdStyle+'>'+val+'</td>';
     }).join('') + '</tr>';
   }).join('');
