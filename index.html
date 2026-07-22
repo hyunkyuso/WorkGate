@@ -179,6 +179,7 @@ select.form-input{cursor:pointer}
 #cert-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
 #cert-menu-items.collapsed{max-height:0;opacity:0}
 #work-menu-items,#hr-menu-items,#doc-menu-items,#system-menu-items,#career-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
+#career-overview-table th,#career-overview-table td{padding:5px 8px}
 #work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed,#career-menu-items.collapsed{max-height:0;opacity:0}
 
 /* ── DRIVE STATUS ── */
@@ -952,7 +953,7 @@ select.form-input{cursor:pointer}
             <button class="btn btn-ghost btn-sm" onclick="careerResetSort()">↺ 정렬 초기화(본부·부서순)</button>
             <div id="career-column-picker" style="display:none;position:absolute;top:38px;left:250px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.08);padding:10px;z-index:20;max-height:320px;overflow-y:auto;width:220px"></div>
           </div>
-          <div style="overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)"><table id="career-overview-table" style="width:max-content;min-width:100%">
+          <div style="overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)"><table id="career-overview-table" style="width:max-content;min-width:100%;font-size:12px">
             <thead id="career-overview-thead"></thead>
             <tbody id="career-overview-tbody"></tbody>
           </table></div>
@@ -13083,7 +13084,7 @@ function careerRenderOverviewTable() {
 
   function thSort(c, styleExtra) {
     var arrow = _careerOverviewSort.key === c.key ? (_careerOverviewSort.dir === 1 ? ' ▲' : ' ▼') : '';
-    var extraWidth = c.key === 'licenseNo' ? 'width:170px;' : '';
+    var extraWidth = c.key === 'licenseNo' ? 'width:140px;' : '';
     return '<th onclick="careerSortOverviewBy(\''+c.key+'\')" style="cursor:pointer;white-space:nowrap;'+extraWidth+(styleExtra||'')+'">' + c.label + arrow + '</th>';
   }
 
@@ -13129,7 +13130,7 @@ function careerRenderOverviewTable() {
     var row2 = segments.filter(function(s){ return s.type==='gradeGroup'; }).map(function(seg) {
       return splitByAssoc(seg.cols).map(function(g) {
         if (g.cols.length === 1 && g.cols[0].field === null) {
-          return thSort(g.cols[0], 'font-size:11px;text-align:center;width:70px').replace('<th ', '<th rowspan="2" ');
+          return thSort(g.cols[0], 'font-size:11px;text-align:center;width:55px').replace('<th ', '<th rowspan="2" ');
         }
         return '<th colspan="'+g.cols.length+'" style="text-align:center;font-size:12px;white-space:nowrap">' + assocNameMap[g.assocId] + '</th>';
       }).join('');
@@ -13138,7 +13139,7 @@ function careerRenderOverviewTable() {
     var row3 = segments.filter(function(s){ return s.type==='gradeGroup'; }).map(function(seg) {
       return splitByAssoc(seg.cols).map(function(g) {
         if (g.cols.length === 1 && g.cols[0].field === null) return '';
-        return g.cols.map(function(c){ return thSort(c, 'font-size:11px;text-align:center;width:60px;padding:4px 2px'); }).join('');
+        return g.cols.map(function(c){ return thSort(c, 'font-size:11px;text-align:center;width:48px;padding:4px 2px'); }).join('');
       }).join('');
     }).join('');
 
@@ -13218,7 +13219,7 @@ function careerRenderOverviewTable() {
       var NOWRAP_COLS = ['position','name','recentJoin','birthdate','careerTotal','school','major','degree','gradDate','license','licenseDate','licenseNo'];
       var tdStyle;
       if (c.assocId) tdStyle = ' style="text-align:center;font-size:12px"';
-      else if (c.key === 'licenseNo') tdStyle = ' style="white-space:nowrap;width:170px"';
+      else if (c.key === 'licenseNo') tdStyle = ' style="white-space:nowrap;width:140px"';
       else if (NOWRAP_COLS.indexOf(c.key) >= 0) tdStyle = ' style="white-space:nowrap"';
       else tdStyle = '';
       return '<td'+tdStyle+'>'+val+'</td>';
