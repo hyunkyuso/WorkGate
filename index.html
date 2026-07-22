@@ -938,7 +938,7 @@ select.form-input{cursor:pointer}
           </div>
 
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
-            <div style="font-weight:600;margin-bottom:14px">🏫 학력 현황 (한국엔지니어링협회 분야 기준)</div>
+            <div style="font-weight:600;margin-bottom:14px">🏫 학력 현황</div>
 
             <div style="display:flex;gap:24px;margin-bottom:18px">
               <div>
@@ -13027,7 +13027,7 @@ function careerRenderEduDashboard() {
       CAREER_EDU_DEGREES.map(function(d) {
         var cnt = (data.matrix[f] && data.matrix[f][d]) || 0;
         if (!cnt) return '<td style="text-align:center;color:var(--t3)">-</td>';
-        return '<td style="text-align:center"><span onclick="careerGoToPeopleFiltered(\''+d+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 10px;border-radius:8px;font-weight:600">'+cnt+'</span></td>';
+        return '<td style="text-align:center"><span onclick="careerGoToPeopleEduFiltered(\''+f+'\',\''+d+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 10px;border-radius:8px;font-weight:600">'+cnt+'</span></td>';
       }).join('') + '</tr>';
   }).join('');
 
@@ -13038,7 +13038,24 @@ function careerRenderEduDashboard() {
 function careerGoToPeopleMultiDegree() {
   _careerPrefillSearch = '';
   _careerPrefillMultiType = 'degree';
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null;
   showPage('career-people', document.querySelector('[onclick*="careerNavToPeople"]'));
+}
+
+// 학력 매트릭스 클릭 시 "그 분야로 인정되는 전공 + 그 학위"를 정확히 만족하는 사람만 필터
+var _careerPrefillEduField = null;
+var _careerPrefillEduDegree = null;
+function careerGoToPeopleEduFiltered(field, degree) {
+  _careerPrefillSearch = '';
+  _careerPrefillMultiType = null;
+  _careerPrefillEduField = field;
+  _careerPrefillEduDegree = degree;
+  showPage('career-people', document.querySelector('[onclick*="careerNavToPeople"]'));
+}
+function careerClearEduFilter() {
+  _careerPrefillEduField = null;
+  _careerPrefillEduDegree = null;
+  careerRenderOverviewTable();
 }
 
 // 인력 및 등급관리로 이동해서 검색어로 자동 필터
@@ -13047,22 +13064,27 @@ var _careerPrefillMultiType = null; // null | 'license' | 'degree'
 function careerGoToPeopleFiltered(searchTerm) {
   _careerPrefillSearch = searchTerm;
   _careerPrefillMultiType = null;
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null;
   showPage('career-people', document.querySelector("[onclick*=\"careerNavToPeople\"]"));
 }
 function careerGoToPeopleMultiLicense() {
   _careerPrefillSearch = '';
   _careerPrefillMultiType = 'license';
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null;
   showPage('career-people', document.querySelector("[onclick*=\"careerNavToPeople\"]"));
 }
 
 function careerClearMultiFilter() {
   _careerPrefillMultiType = null;
+  _careerPrefillEduField = null;
+  _careerPrefillEduDegree = null;
   careerRenderOverviewTable();
 }
 
 function careerNavToPeople(el) {
   _careerPrefillSearch = '';
   _careerPrefillMultiType = null;
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null;
   showPage('career-people', el);
 }
 
@@ -13401,6 +13423,13 @@ function careerRenderOverviewTable() {
       return matchCount >= 2;
     });
     if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = '복수 학위 보유자만 보기 '; }
+  } else if (_careerPrefillEduField) {
+    rows = rows.filter(function(r) {
+      return (r._emp.education||[]).some(function(e) {
+        return e.degree === _careerPrefillEduDegree && careerEduFieldsForMajor(e.major).indexOf(_careerPrefillEduField) >= 0;
+      });
+    });
+    if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = _careerPrefillEduField+' '+_careerPrefillEduDegree+'만 보기 '; }
   } else if (multiBadge) {
     multiBadge.style.display = 'none';
   }
