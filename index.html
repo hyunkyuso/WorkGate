@@ -360,7 +360,7 @@ select.form-input{cursor:pointer}
         <div id="career-menu-items">
           <div class="nav-item admin-only" onclick="showPage('career-dashboard',this)"><span class="nav-icon">📊</span> 대시보드</div>
           <div class="nav-item admin-only" onclick="showPage('career-grade-status',this)"><span class="nav-icon">🎖️</span> 협회별 등급현황</div>
-          <div class="nav-item admin-only" onclick="showPage('career-people',this)"><span class="nav-icon">👥</span> 인력 및 등급관리</div>
+          <div class="nav-item admin-only" onclick="careerNavToPeople(this)"><span class="nav-icon">👥</span> 인력 및 등급관리</div>
           <div class="nav-item admin-only" onclick="showPage('career-register',this)"><span class="nav-icon">📝</span> 등록</div>
         </div>
       </div>
@@ -914,8 +914,25 @@ select.form-input{cursor:pointer}
         <div class="page-header">
           <div><div class="page-title">📊 경력관리 대시보드</div><div class="page-sub">협회별 등록 현황을 한눈에 봅니다</div></div>
         </div>
-        <div style="padding:60px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
-          준비 중입니다. 세부 구조(협회 목록, 등급 기준 등)를 정하고 나면 채워질 예정이에요.
+
+        <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px">
+          <div style="font-weight:600;margin-bottom:14px">🎓 자격증 보유현황</div>
+
+          <div style="display:flex;gap:24px;margin-bottom:18px">
+            <div>
+              <div style="font-size:12px;color:var(--t3)">총 보유 인원</div>
+              <div style="font-size:24px;font-weight:700;color:var(--t1)" id="career-lic-total">0명</div>
+            </div>
+            <div style="cursor:pointer" onclick="careerGoToPeopleMultiLicense()">
+              <div style="font-size:12px;color:var(--t3)">복수 자격증 보유자</div>
+              <div style="font-size:24px;font-weight:700;color:var(--ac)" id="career-lic-multi">0명</div>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto">
+            <table id="career-lic-matrix" style="width:100%;border-collapse:collapse;font-size:13px"></table>
+          </div>
+          <div style="font-size:11px;color:var(--t3);margin-top:8px">숫자를 클릭하면 인력 및 등급관리에서 해당 인원만 걸러서 볼 수 있어요</div>
         </div>
       </div>
 
@@ -951,6 +968,7 @@ select.form-input{cursor:pointer}
             <input id="career-overview-search" type="text" class="form-input" style="max-width:240px;font-size:13px" placeholder="이름/부서 등 검색..." oninput="careerRenderOverviewTable()">
             <button class="btn btn-ghost btn-sm" onclick="careerToggleColumnPicker()">📋 컬럼 선택</button>
             <button class="btn btn-ghost btn-sm" onclick="careerResetSort()">↺ 정렬 초기화(본부·부서순)</button>
+            <span id="career-multi-filter-badge" style="display:none;background:var(--acd);color:var(--ac);font-size:12px;padding:5px 10px;border-radius:8px;white-space:nowrap">복수 자격증 보유자만 보기 <span onclick="careerClearMultiFilter()" style="cursor:pointer;font-weight:700">✕</span></span>
             <div id="career-column-picker" style="display:none;position:absolute;top:38px;left:250px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.08);padding:10px;z-index:20;max-height:320px;overflow-y:auto;width:220px"></div>
           </div>
           <div style="overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)"><table id="career-overview-table" style="width:max-content;min-width:100%;font-size:12px">
@@ -12845,6 +12863,105 @@ function careerLicenseGradeRank(name) {
   return 9;
 }
 
+var CAREER_LIC_GRADES = ['기술사','기사','산업기사','기능사'];
+var CAREER_LIC_FIELD_ORDER = ['지적','측량및지형공간정보','정보처리','도시계획','교통','사무자동화','지도제작'];
+
+// 자격명에서 등급 접미사를 뗀 나머지를 "분야"로 취급 (산업기사/기술사/기능사를 먼저 확인해야 '기사'에 안 걸림)
+function careerLicenseField(name) {
+  name = name || '';
+  var suffixes = ['산업기사','기술사','기능사','기사'];
+  for (var i = 0; i < suffixes.length; i++) {
+    if (name.indexOf(suffixes[i]) >= 0) return name.replace(suffixes[i], '') || '기타';
+  }
+  return name || '기타';
+}
+
+function careerIsRelevantLicense(l) {
+  return CAREER_RELEVANT_LICENSES.indexOf(l.name) >= 0 || (l.org||'').indexOf('한국산업인력공단') >= 0;
+}
+
+function careerBuildLicenseMatrix() {
+  var matrix = {}; // matrix[field][grade] = count
+  var totalPeople = new Set();
+  var multiPeople = new Set();
+
+  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+    var matched = (emp.license||[]).filter(careerIsRelevantLicense);
+    if (!matched.length) return;
+    var empId = emp._docId || emp.id;
+    totalPeople.add(empId);
+    if (matched.length >= 2) multiPeople.add(empId);
+    matched.forEach(function(l) {
+      var field = careerLicenseField(l.name);
+      var grade = CAREER_LIC_GRADES[careerLicenseGradeRank(l.name)] || '기타';
+      if (!matrix[field]) matrix[field] = {};
+      matrix[field][grade] = (matrix[field][grade] || 0) + 1;
+    });
+  });
+
+  return { matrix: matrix, totalCount: totalPeople.size, multiCount: multiPeople.size };
+}
+
+function careerRenderLicenseDashboard() {
+  var data = careerBuildLicenseMatrix();
+  document.getElementById('career-lic-total').textContent = data.totalCount + '명';
+  document.getElementById('career-lic-multi').textContent = data.multiCount + '명';
+
+  var fields = Object.keys(data.matrix);
+  fields.sort(function(a, b) {
+    var ia = CAREER_LIC_FIELD_ORDER.indexOf(a); if (ia < 0) ia = 999;
+    var ib = CAREER_LIC_FIELD_ORDER.indexOf(b); if (ib < 0) ib = 999;
+    return ia - ib;
+  });
+
+  var el = document.getElementById('career-lic-matrix');
+  if (!fields.length) {
+    el.innerHTML = '<tr><td style="padding:20px;text-align:center;color:var(--t3)">등록된 자격증이 없습니다</td></tr>';
+    return;
+  }
+
+  var html = '<thead><tr><td></td>' + CAREER_LIC_GRADES.map(function(g){
+    return '<td style="text-align:center;padding:6px;color:var(--t3);font-weight:600">'+g+'</td>';
+  }).join('') + '</tr></thead><tbody>';
+
+  html += fields.map(function(f) {
+    return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px 6px;white-space:nowrap">'+f+'</td>' +
+      CAREER_LIC_GRADES.map(function(g) {
+        var cnt = (data.matrix[f] && data.matrix[f][g]) || 0;
+        if (!cnt) return '<td style="text-align:center;color:var(--t3)">-</td>';
+        return '<td style="text-align:center"><span onclick="careerGoToPeopleFiltered(\''+f+g+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 10px;border-radius:8px;font-weight:600">'+cnt+'</span></td>';
+      }).join('') + '</tr>';
+  }).join('');
+
+  html += '</tbody>';
+  el.innerHTML = html;
+}
+
+// 인력 및 등급관리로 이동해서 검색어로 자동 필터
+var _careerPrefillSearch = null;
+var _careerPrefillMultiOnly = false;
+function careerGoToPeopleFiltered(searchTerm) {
+  _careerPrefillSearch = searchTerm;
+  _careerPrefillMultiOnly = false;
+  showPage('career-people', document.querySelector("[onclick*=\"careerNavToPeople\"]"));
+}
+function careerGoToPeopleMultiLicense() {
+  _careerPrefillSearch = '';
+  _careerPrefillMultiOnly = true;
+  showPage('career-people', document.querySelector("[onclick*=\"careerNavToPeople\"]"));
+}
+
+function careerClearMultiFilter() {
+  _careerPrefillMultiOnly = false;
+  careerRenderOverviewTable();
+}
+
+function careerNavToPeople(el) {
+  _careerPrefillSearch = '';
+  _careerPrefillMultiOnly = false;
+  showPage('career-people', el);
+}
+
 var _careerSelectedAssoc = null;
 var _careerSelectedField = null;
 
@@ -13163,6 +13280,16 @@ function careerRenderOverviewTable() {
     rows = rows.filter(function(r) {
       return cols.some(function(c) { return String(r[c.key]||'').indexOf(keyword) >= 0; });
     });
+  }
+
+  var multiBadge = document.getElementById('career-multi-filter-badge');
+  if (_careerPrefillMultiOnly) {
+    rows = rows.filter(function(r) {
+      return ((r._emp.license||[]).filter(careerIsRelevantLicense)).length >= 2;
+    });
+    if (multiBadge) multiBadge.style.display = 'inline-block';
+  } else if (multiBadge) {
+    multiBadge.style.display = 'none';
   }
 
   rows = careerDefaultSortRows(rows);
@@ -15041,8 +15168,16 @@ function showPage(id, el) {
   if(id === 'settings') { svAdminPopulateEmpSelect(); }
   if(id === 'permission-manage') { pmPopulateEmpSelect(); }
   if(id === 'personnel-card') { pcPopulateEmpSelect(); }
+  if(id === 'career-dashboard') { careerRenderLicenseDashboard(); }
   if(id === 'career-grade-status') { careerRenderAssocList(); careerRenderGradeDetail(); }
-  if(id === 'career-people') { careerRenderOverviewTable(); }
+  if(id === 'career-people') {
+    careerPeopleSwitchTab('overview', document.querySelector('.career-people-tab-btn'));
+    if (_careerPrefillSearch !== null) {
+      document.getElementById('career-overview-search').value = _careerPrefillSearch;
+      _careerPrefillSearch = null;
+    }
+    careerRenderOverviewTable();
+  }
   if(id === 'task-admin') { taInitPage(); }
   applyPageReadOnlyLock(id);
 }
