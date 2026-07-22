@@ -1010,7 +1010,7 @@ select.form-input{cursor:pointer}
         <div class="page-header">
           <div><div class="page-title">📝 등록</div><div class="page-sub">직원별 협회 등록 경력을 관리합니다 (인사기록카드 경력과 별개로, 협회 제출용 경력을 직접 입력/관리)</div></div>
           <div style="display:flex;gap:8px">
-            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls" style="display:none" onchange="careerRegUploadExcel(this)"></label>
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📂 엑셀 업로드<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="careerRegUploadExcel(this)"></label>
             <button class="btn btn-ghost btn-sm" onclick="careerRegDownloadTemplate()">📊 엑셀 양식 다운로드</button>
           </div>
         </div>
@@ -13232,9 +13232,28 @@ function careerRegRenderDetail() {
 
   var entries = ((emp.assocCareer||{})[_careerRegSelectedAssoc]) || [];
   var fieldOptions = assoc.fields.length ? assoc.fields : [assoc.name];
+  var gradeOptionsForOverride = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자','미달'];
+  var overrides = emp.careerGradeOverride || {};
+
+  var gradeInitHtml = '<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;background:#fafafa">' +
+    '<div style="font-weight:600;font-size:13px;margin-bottom:8px">분야별 등급 (초기값 / 직접 지정)</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' +
+    fieldOptions.map(function(f) {
+      var cur = overrides[f] || '';
+      return '<div style="display:flex;align-items:center;gap:6px;font-size:12px">' +
+        '<span style="width:80px;white-space:nowrap;color:var(--t2)">'+f+'</span>' +
+        '<select onchange="careerSetGradeOverride(\''+(emp._docId||emp.id)+'\',\''+f+'\',this.value||null);careerRegRenderDetail()" style="font-size:12px;padding:2px;flex:1">' +
+          '<option value="">(미설정 · 자동계산)</option>' +
+          gradeOptionsForOverride.map(function(g){ return '<option value="'+g+'"'+(cur===g?' selected':'')+'>'+g+'</option>'; }).join('') +
+        '</select></div>';
+    }).join('') +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--t3);margin-top:6px">여기서 지정하면 그 값이 우선 적용되고, 비워두면 아래 사업 경력 기준으로 자동 계산됩니다</div>' +
+  '</div>';
 
   var html = '<div style="font-weight:600;font-size:14px;margin-bottom:12px">'+emp.name+' · 협회 등록 경력(사업 단위)</div>' +
     '<div style="display:flex;gap:6px;margin-bottom:14px">'+assocTabs+'</div>' +
+    gradeInitHtml +
     '<div class="table-wrap" style="overflow-x:auto;margin-bottom:10px"><table style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px">' +
     '<thead><tr style="color:var(--t3)"><td style="padding:4px 6px">구분</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">계약일</td><td style="padding:4px 6px">준공일</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">비고</td><td></td></tr></thead><tbody id="career-reg-rows">' +
     entries.map(function(en, i) {
@@ -13383,7 +13402,8 @@ function careerRenderEngTab() {
   var people = employees.filter(function(emp) {
     if (emp.status === '퇴직') return false;
     var regEntries = (emp.assocCareer||{})['eng'] || [];
-    return regEntries.length > 0;
+    var hasOverride = Object.keys(emp.careerGradeOverride||{}).some(function(f){ return fields.indexOf(f) >= 0; });
+    return regEntries.length > 0 || hasOverride;
   });
 
   if (!people.length) {
@@ -13399,7 +13419,8 @@ function careerRenderEngTab() {
     var gradeInfos = fields.map(function(field) {
       var hasAny = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseField(l.name) === field; }) ||
                    (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; }) ||
-                   regEntries.some(function(c){ return c.field === field; });
+                   regEntries.some(function(c){ return c.field === field; }) ||
+                   !!(emp.careerGradeOverride||{})[field];
       if (!hasAny) return null;
       return careerGetEffectiveGrade(emp, field, 'eng');
     });
