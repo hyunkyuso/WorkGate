@@ -13083,7 +13083,8 @@ function careerRenderOverviewTable() {
 
   function thSort(c, styleExtra) {
     var arrow = _careerOverviewSort.key === c.key ? (_careerOverviewSort.dir === 1 ? ' ▲' : ' ▼') : '';
-    return '<th onclick="careerSortOverviewBy(\''+c.key+'\')" style="cursor:pointer;white-space:nowrap;'+(styleExtra||'')+'">' + c.label + arrow + '</th>';
+    var extraWidth = c.key === 'licenseNo' ? 'width:170px;' : '';
+    return '<th onclick="careerSortOverviewBy(\''+c.key+'\')" style="cursor:pointer;white-space:nowrap;'+extraWidth+(styleExtra||'')+'">' + c.label + arrow + '</th>';
   }
 
   if (!hasGrade) {
@@ -13214,10 +13215,10 @@ function careerRenderOverviewTable() {
         return '<td rowspan="'+deptSpan[idx]+'" style="vertical-align:middle;white-space:nowrap">'+r.dept+'</td>';
       }
       var val = (excluded && keepCols.indexOf(c.key) < 0) ? '' : r[c.key];
-      var NOWRAP_COLS = ['position','name','birthdate','careerTotal','school','major','degree','gradDate','license','licenseDate','licenseNo'];
+      var NOWRAP_COLS = ['position','name','recentJoin','birthdate','careerTotal','school','major','degree','gradDate','license','licenseDate','licenseNo'];
       var tdStyle;
       if (c.assocId) tdStyle = ' style="text-align:center;font-size:12px"';
-      else if (c.key === 'licenseNo') tdStyle = ' style="white-space:nowrap;min-width:150px"';
+      else if (c.key === 'licenseNo') tdStyle = ' style="white-space:nowrap;width:170px"';
       else if (NOWRAP_COLS.indexOf(c.key) >= 0) tdStyle = ' style="white-space:nowrap"';
       else tdStyle = '';
       return '<td'+tdStyle+'>'+val+'</td>';
