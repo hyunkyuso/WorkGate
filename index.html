@@ -13299,7 +13299,8 @@ function careerRegRenderDetail() {
     }).join('') +
     '</tbody></table></div>' +
     '<button class="btn btn-ghost btn-sm" onclick="careerRegAddRow()">+ 사업 추가</button> ' +
-    '<button class="btn btn-primary btn-sm" onclick="careerRegSave()">저장</button>' +
+    '<button class="btn btn-primary btn-sm" onclick="careerRegSave()">저장</button> ' +
+    (entries.length ? '<button class="btn btn-danger btn-sm" onclick="careerRegClearAll()">🗑 전체 삭제 ('+entries.length+'건)</button>' : '') +
     '<div style="font-size:11px;color:var(--t3);margin-top:8px">참여일은 여러 사업이 겹치는 기간을 감안해 직접 조정한 값을 입력하세요 (계약일~준공일 그대로 계산하지 않음)</div>';
 
   el.innerHTML = html;
@@ -13324,6 +13325,22 @@ function careerRegAddRow() {
 function careerRegRemoveRow(idx) {
   var emp = employees.find(function(e){ return (e._docId||e.id) === _careerRegSelectedEmp; });
   emp.assocCareer[_careerRegSelectedAssoc].splice(idx, 1);
+  careerRegRenderDetail();
+}
+async function careerRegClearAll() {
+  var emp = employees.find(function(e){ return (e._docId||e.id) === _careerRegSelectedEmp; });
+  if (!emp) return;
+  var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerRegSelectedAssoc; });
+  var count = ((emp.assocCareer||{})[_careerRegSelectedAssoc] || []).length;
+  if (!confirm(emp.name + '님의 '+(assoc?assoc.name:_careerRegSelectedAssoc)+' 등록 사업 '+count+'건을 전부 삭제할까요? 되돌릴 수 없습니다.')) return;
+  emp.assocCareer[_careerRegSelectedAssoc] = [];
+  var empId = emp._docId || emp.id;
+  try {
+    await db.collection('employees').doc(empId).update({ assocCareer: emp.assocCareer });
+    showToast('🗑 전체 삭제되었습니다');
+  } catch (err) {
+    showToast('❌ 삭제 실패: ' + err.message);
+  }
   careerRegRenderDetail();
 }
 function careerRegUpdateRow(idx, field, value) {
