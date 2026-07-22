@@ -359,7 +359,6 @@ select.form-input{cursor:pointer}
         </div>
         <div id="career-menu-items">
           <div class="nav-item admin-only" onclick="showPage('career-dashboard',this)"><span class="nav-icon">📊</span> 대시보드</div>
-          <div class="nav-item admin-only" onclick="showPage('career-grade-status',this)"><span class="nav-icon">🎖️</span> 협회별 등급현황</div>
           <div class="nav-item admin-only" onclick="careerNavToPeople(this)"><span class="nav-icon">👥</span> 인력 및 등급관리</div>
           <div class="nav-item admin-only" onclick="showPage('career-register',this)"><span class="nav-icon">📝</span> 등록</div>
         </div>
@@ -958,21 +957,6 @@ select.form-input{cursor:pointer}
             </div>
           </div>
 
-        </div>
-      </div>
-
-      <div id="page-career-grade-status" class="page">
-        <div class="page-header">
-          <div><div class="page-title">🎖️ 협회별 등급현황</div><div class="page-sub">협회(및 분야)를 선택해 소속 인원과 등급을 확인합니다</div></div>
-        </div>
-        <div style="display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start">
-          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:16px">
-            <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--t1)">협회 목록</div>
-            <div id="career-assoc-list" style="padding:4px 0;max-height:calc(100vh - 200px);overflow-y:auto"></div>
-          </div>
-          <div id="career-grade-detail" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:40px;text-align:center;color:var(--t3);font-size:13px">
-            왼쪽에서 협회(또는 분야)를 선택하세요
-          </div>
         </div>
       </div>
 
@@ -13182,7 +13166,6 @@ async function careerSetGradeOverride(empId, field, grade) {
   try {
     await db.collection('employees').doc(empId).update({ careerGradeOverride: overrides });
     emp.careerGradeOverride = overrides;
-    careerRenderGradeDetail();
     showToast('✅ 등급이 저장되었습니다');
   } catch (err) {
     showToast('❌ 저장 실패: ' + err.message);
@@ -13399,15 +13382,12 @@ function careerRenderEngTab() {
   var amAdmin = isAdmin();
   var people = employees.filter(function(emp) {
     if (emp.status === '퇴직') return false;
-    return fields.some(function(field) {
-      var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseField(l.name) === field; });
-      var hasEdu = (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; });
-      return hasCert || hasEdu;
-    });
+    var regEntries = (emp.assocCareer||{})['eng'] || [];
+    return regEntries.length > 0;
   });
 
   if (!people.length) {
-    tbody.innerHTML = '<tr><td colspan="'+(3+fields.length*2+2)+'" style="text-align:center;padding:24px;color:var(--t3)">한국엔지니어링협회 분야에 해당하는 자격증/학력을 가진 인원이 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="'+(3+fields.length*2+2)+'" style="text-align:center;padding:24px;color:var(--t3)">"등록" 메뉴에서 한국엔지니어링협회에 등록된 인원이 없습니다</td></tr>';
     return;
   }
 
@@ -13415,19 +13395,22 @@ function careerRenderEngTab() {
     var empId = emp._docId || emp.id;
     var bonbu = careerGetBonbu(emp);
     var days = careerSplitCompanyDays(emp);
-    var gradeCells = fields.map(function(field) {
+    var regEntries = (emp.assocCareer||{})['eng'] || [];
+    var gradeInfos = fields.map(function(field) {
       var hasAny = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseField(l.name) === field; }) ||
-                   (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; });
-      if (!hasAny) return '-';
-      return careerGetEffectiveGrade(emp, field, 'eng').grade;
+                   (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; }) ||
+                   regEntries.some(function(c){ return c.field === field; });
+      if (!hasAny) return null;
+      return careerGetEffectiveGrade(emp, field, 'eng');
     });
+    var gradeCells = gradeInfos.map(function(g){ return g ? g.grade : '-'; });
     var needCells = fields.map(function(field, i) {
       if (gradeCells[i] === '-') return '-';
       if (gradeCells[i] === '기술사') return '-';
       var need = careerDaysToNextGrade(emp, field, gradeCells[i], 'eng');
       return need ? Math.ceil(need) : '충족';
     });
-    return { emp: emp, empId: empId, bonbu: bonbu, position: emp.position||'-', name: emp.name||'-', gradeCells: gradeCells, needCells: needCells, other: days.other, doyu: days.doyu };
+    return { emp: emp, empId: empId, bonbu: bonbu, position: emp.position||'-', name: emp.name||'-', gradeCells: gradeCells, gradeInfos: gradeInfos, needCells: needCells, other: days.other, doyu: days.doyu };
   });
 
   rows.sort(function(a, b) {
@@ -13448,12 +13431,21 @@ function careerRenderEngTab() {
     i = j;
   }
 
+  var gradeOptions = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자','미달'];
   tbody.innerHTML = rows.map(function(r, idx) {
     var bonbuCell = bonbuSpan[idx] === 0 ? '' : '<td rowspan="'+bonbuSpan[idx]+'" style="white-space:nowrap;padding:6px;vertical-align:middle">'+r.bonbu+'</td>';
     return '<tr style="border-top:1px solid var(--border)">' + bonbuCell +
       '<td style="padding:6px;white-space:nowrap">'+r.position+'</td>' +
       '<td style="padding:6px;white-space:nowrap">'+r.name+'</td>' +
-      r.gradeCells.map(function(g){ return '<td style="text-align:center">'+g+'</td>'; }).join('') +
+      r.gradeInfos.map(function(g, fi) {
+        if (!g) return '<td style="text-align:center">-</td>';
+        if (!amAdmin) return '<td style="text-align:center">'+g.grade+(g.isOverride?' (수동)':'')+'</td>';
+        var field = fields[fi];
+        return '<td style="text-align:center"><select onchange="careerSetGradeOverride(\''+r.empId+'\',\''+field+'\',this.value===\'auto\'?null:this.value);careerRenderEngTab()" style="font-size:11px;padding:1px">' +
+          '<option value="auto"'+(g.isOverride?'':' selected')+'>자동('+g.autoGrade+')</option>' +
+          gradeOptions.map(function(go){ return '<option value="'+go+'"'+(g.isOverride && g.grade===go?' selected':'')+'>'+go+'(수동)</option>'; }).join('') +
+        '</select></td>';
+      }).join('') +
       r.needCells.map(function(n){ return '<td style="text-align:center">'+n+'</td>'; }).join('') +
       '<td style="text-align:center">'+(r.other||'-')+'</td>' +
       '<td style="text-align:center">'+(r.doyu||'-')+'</td>' +
@@ -15749,7 +15741,7 @@ const PAGE_LABELS = {
   'cert-dashboard':'인증 대시보드','cert-bizcert':'기업인증현황','cert-copyright':'저작권','cert-gs':'GS인증',
   'cert-patent':'특허증','cert-trademark':'상표등록증','cert-ogc':'OGC','cert-direct':'직접생산',
   'cert-program':'프로그램 인증서','cert-excellence':'우수제품지정','cert-survey':'측량기기 성능검사','cert-award':'수상/훈장',
-  'career-dashboard':'경력관리 대시보드','career-grade-status':'협회별 등급현황','career-people':'인력 및 등급관리','career-register':'경력관리 등록',
+  'career-dashboard':'경력관리 대시보드','career-people':'인력 및 등급관리','career-register':'경력관리 등록',
   'orgview':'직원 조회(조직도)','employees':'직원 관리','organization':'조직 관리','codemanage':'코드 관리',
   'mypage':'마이페이지','parentbirthday':'부모님 생신현황','myinfo-history':'정보수정 이력','loginlogs':'접속 이력',
   'menuUsage':'메뉴 사용 현황','deptfund':'부서장 운영비','birthday':'생일자 현황','welfare':'복리후생',
@@ -15868,7 +15860,6 @@ function showPage(id, el) {
   if(id === 'permission-manage') { pmPopulateEmpSelect(); }
   if(id === 'personnel-card') { pcPopulateEmpSelect(); }
   if(id === 'career-dashboard') { careerRenderLicenseDashboard(); careerRenderEduDashboard(); }
-  if(id === 'career-grade-status') { careerRenderAssocList(); careerRenderGradeDetail(); }
   if(id === 'career-people') {
     careerPeopleSwitchTab('overview', document.querySelector('.career-people-tab-btn'));
     if (_careerPrefillSearch !== null) {
@@ -21740,7 +21731,6 @@ var PM_MENU_LIST = {
   ],
   career: [
     {id:'career-dashboard', label:'경력관리 대시보드'},
-    {id:'career-grade-status', label:'협회별 등급현황'},
     {id:'career-people', label:'인력 및 등급관리'},
     {id:'career-register', label:'경력관리 등록'}
   ],
