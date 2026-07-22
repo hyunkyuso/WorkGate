@@ -12901,9 +12901,10 @@ function careerLicenseField(name) {
   return name || '기타';
 }
 
-var CAREER_LICENSE_EXCLUDE = ['조주기능사', '직업상담사2급'];
+var CAREER_LICENSE_EXCLUDE = ['조주', '직업상담사'];
 function careerIsRelevantLicense(l) {
-  if (CAREER_LICENSE_EXCLUDE.indexOf(l.name) >= 0) return false;
+  var nm = l.name || '';
+  if (CAREER_LICENSE_EXCLUDE.some(function(ex){ return nm.indexOf(ex) >= 0; })) return false;
   return CAREER_RELEVANT_LICENSES.indexOf(l.name) >= 0 || (l.org||'').indexOf('한국산업인력공단') >= 0;
 }
 
