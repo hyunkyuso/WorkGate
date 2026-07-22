@@ -921,9 +921,10 @@ select.form-input{cursor:pointer}
             <div style="font-weight:600;margin-bottom:14px">🎓 자격증 보유현황</div>
 
             <div style="display:flex;gap:24px;margin-bottom:18px">
-              <div>
-                <div style="font-size:12px;color:var(--t3)">총 보유 인원</div>
+              <div style="cursor:pointer" onclick="careerGoToPeopleAnyLicense()">
+                <div style="font-size:12px;color:var(--t3)">합계</div>
                 <div style="font-size:24px;font-weight:700;color:var(--t1)" id="career-lic-total">0명</div>
+                <div style="font-size:10px;color:var(--t3)">(중복인원 제외)</div>
               </div>
               <div style="cursor:pointer" onclick="careerGoToPeopleMultiLicense()">
                 <div style="font-size:12px;color:var(--t3)">복수 자격증 보유자</div>
@@ -941,9 +942,10 @@ select.form-input{cursor:pointer}
             <div style="font-weight:600;margin-bottom:14px">🏫 학력 현황</div>
 
             <div style="display:flex;gap:24px;margin-bottom:18px">
-              <div>
-                <div style="font-size:12px;color:var(--t3)">기준 충족 인원</div>
+              <div style="cursor:pointer" onclick="careerGoToPeopleAnyDegree()">
+                <div style="font-size:12px;color:var(--t3)">합계</div>
                 <div style="font-size:24px;font-weight:700;color:var(--t1)" id="career-edu-total">0명</div>
+                <div style="font-size:10px;color:var(--t3)">(중복인원 제외)</div>
               </div>
               <div style="cursor:pointer" onclick="careerGoToPeopleMultiDegree()">
                 <div style="font-size:12px;color:var(--t3)">복수 학위 보유자</div>
@@ -954,7 +956,6 @@ select.form-input{cursor:pointer}
             <div style="overflow-x:auto">
               <table id="career-edu-matrix" style="width:100%;border-collapse:collapse;font-size:13px"></table>
             </div>
-            <div style="font-size:11px;color:var(--t3);margin-top:8px">전공 인정 목록을 알려주시면 채워질게요 (학과명 목록 대기 중)</div>
           </div>
 
         </div>
@@ -13035,7 +13036,13 @@ function careerRenderEduDashboard() {
 
 function careerGoToPeopleMultiDegree() {
   _careerPrefillSearch = '';
-  _careerPrefillMultiType = 'degree';
+  _careerPrefillMultiType = 'degree-multi';
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null;
+  showPage('career-people', document.querySelector('[onclick*="careerNavToPeople"]'));
+}
+function careerGoToPeopleAnyDegree() {
+  _careerPrefillSearch = '';
+  _careerPrefillMultiType = 'degree-any';
   _careerPrefillEduField = null; _careerPrefillEduDegree = null;
   showPage('career-people', document.querySelector('[onclick*="careerNavToPeople"]'));
 }
@@ -13067,7 +13074,13 @@ function careerGoToPeopleFiltered(searchTerm) {
 }
 function careerGoToPeopleMultiLicense() {
   _careerPrefillSearch = '';
-  _careerPrefillMultiType = 'license';
+  _careerPrefillMultiType = 'license-multi';
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null;
+  showPage('career-people', document.querySelector("[onclick*=\"careerNavToPeople\"]"));
+}
+function careerGoToPeopleAnyLicense() {
+  _careerPrefillSearch = '';
+  _careerPrefillMultiType = 'license-any';
   _careerPrefillEduField = null; _careerPrefillEduDegree = null;
   showPage('career-people', document.querySelector("[onclick*=\"careerNavToPeople\"]"));
 }
@@ -13407,20 +13420,22 @@ function careerRenderOverviewTable() {
   }
 
   var multiBadge = document.getElementById('career-multi-filter-badge');
-  if (_careerPrefillMultiType === 'license') {
+  if (_careerPrefillMultiType === 'license-multi' || _careerPrefillMultiType === 'license-any') {
+    var minCount = _careerPrefillMultiType === 'license-multi' ? 2 : 1;
     rows = rows.filter(function(r) {
-      return ((r._emp.license||[]).filter(careerIsRelevantLicense)).length >= 2;
+      return ((r._emp.license||[]).filter(careerIsRelevantLicense)).length >= minCount;
     });
-    if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = '복수 자격증 보유자만 보기 '; }
-  } else if (_careerPrefillMultiType === 'degree') {
+    if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = (minCount===2?'복수 자격증 보유자만 보기 ':'자격증 보유자만 보기 '); }
+  } else if (_careerPrefillMultiType === 'degree-multi' || _careerPrefillMultiType === 'degree-any') {
+    var minCount2 = _careerPrefillMultiType === 'degree-multi' ? 2 : 1;
     rows = rows.filter(function(r) {
       var matchCount = 0;
       (r._emp.education||[]).forEach(function(e) {
         if (CAREER_EDU_DEGREES.indexOf(e.degree) >= 0 && careerEduFieldsForMajor(e.major).length) matchCount++;
       });
-      return matchCount >= 2;
+      return matchCount >= minCount2;
     });
-    if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = '복수 학위 보유자만 보기 '; }
+    if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = (minCount2===2?'복수 학위 보유자만 보기 ':'학력 기준 충족자만 보기 '); }
   } else if (_careerPrefillEduField) {
     rows = rows.filter(function(r) {
       return (r._emp.education||[]).some(function(e) {
