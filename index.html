@@ -965,13 +965,7 @@ select.form-input{cursor:pointer}
           <div><div class="page-title">👥 인력 및 등급관리</div><div class="page-sub">개인별 협회 소속 및 등급을 관리합니다</div></div>
         </div>
 
-        <div style="display:flex;gap:6px;margin-bottom:14px">
-          <button class="career-people-tab-btn active" onclick="careerPeopleSwitchTab('overview',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--acd);color:var(--ac);cursor:pointer;font-size:13px">총괄관리표</button>
-          <button class="career-people-tab-btn" onclick="careerPeopleSwitchTab('eng',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer;font-size:13px">한국엔지니어링협회</button>
-          <button class="career-people-tab-btn" onclick="careerPeopleSwitchTab('construction',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer;font-size:13px">한국건설기술인협회</button>
-          <button class="career-people-tab-btn" onclick="careerPeopleSwitchTab('aisw',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer;font-size:13px">한국인공지능소프트웨어산업협회</button>
-        </div>
-
+        <div style="font-weight:600;font-size:14px;margin-bottom:10px">총괄관리표</div>
         <div id="career-people-tab-overview">
           <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;position:relative">
             <input id="career-overview-search" type="text" class="form-input" style="max-width:240px;font-size:13px" placeholder="이름/부서 등 검색..." oninput="careerRenderOverviewTable()">
@@ -986,22 +980,27 @@ select.form-input{cursor:pointer}
           </table></div>
         </div>
 
-        <div id="career-people-tab-eng" style="display:none">
-          <div class="table-wrap" style="overflow-x:auto">
-            <table id="career-eng-table" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px">
+        <div style="font-weight:600;font-size:14px;margin:24px 0 10px">한국엔지니어링협회</div>
+        <div id="career-people-tab-eng">
+          <div style="overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)">
+            <table id="career-eng-table" style="width:max-content;min-width:100%;font-size:12px">
               <thead id="career-eng-thead"></thead>
               <tbody id="career-eng-tbody"></tbody>
             </table>
           </div>
         </div>
-        <div id="career-people-tab-construction" style="display:none">
-          <div style="padding:40px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
-            등록된 인원이 없습니다. "등록" 메뉴에서 먼저 인원을 등록해주세요.
+
+        <div style="font-weight:600;font-size:14px;margin:24px 0 10px">한국건설기술인협회</div>
+        <div id="career-people-tab-construction">
+          <div style="padding:24px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+            준비 중입니다.
           </div>
         </div>
-        <div id="career-people-tab-aisw" style="display:none">
-          <div style="padding:40px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
-            등록된 인원이 없습니다. "등록" 메뉴에서 먼저 인원을 등록해주세요.
+
+        <div style="font-weight:600;font-size:14px;margin:24px 0 10px">한국인공지능소프트웨어산업협회</div>
+        <div id="career-people-tab-aisw">
+          <div style="padding:24px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
+            준비 중입니다.
           </div>
         </div>
       </div>
@@ -2600,6 +2599,29 @@ select.form-input{cursor:pointer}
 </div>
 
 <!-- 모달: 새 업무 -->
+
+<!-- 모달: 참여사업 -->
+<div id="career-project-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('career-project-modal')">
+  <div class="modal" style="max-width:900px;max-height:80vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title" id="career-project-modal-title">참여사업</div>
+      <button class="modal-close" onclick="closeModal('career-project-modal')">✕</button>
+    </div>
+    <div style="padding:16px">
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+        <input id="career-project-search" type="text" class="form-input" style="max-width:220px;font-size:13px" placeholder="사업명/근무처/발주처 검색..." oninput="careerRenderProjectModal()">
+        <span id="career-project-count" style="font-size:12px;color:var(--t3)"></span>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="careerDownloadProjectCsv()">📥 CSV 저장</button>
+      </div>
+      <div class="table-wrap" style="overflow-x:auto">
+        <table id="career-project-table" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">계약일</td><td style="padding:4px 6px">준공일</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">비고</td></tr></thead>
+          <tbody id="career-project-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- 모달: 인사기록카드 AI 채팅 -->
 <div id="pc-ai-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('pc-ai-modal')">
@@ -13328,40 +13350,72 @@ function careerRegDownloadTemplate() {
   XLSX.writeFile(wb, '협회등록_양식.xlsx');
 }
 
+function careerRegGetCol(row, names) {
+  for (var i = 0; i < names.length; i++) {
+    if (row[names[i]] !== undefined && row[names[i]] !== '') return row[names[i]];
+  }
+  return '';
+}
+
 function careerRegUploadExcel(input) {
   var file = input.files[0];
   if (!file) return;
   input.value = '';
   var reader = new FileReader();
   reader.onload = function(ev) {
-    var wb = XLSX.read(new Uint8Array(ev.target.result), { type:'array' });
+    var wb;
+    if (file.name.toLowerCase().endsWith('.csv')) {
+      var text = new TextDecoder('utf-8').decode(new Uint8Array(ev.target.result));
+      wb = XLSX.read(text, { type:'string' });
+    } else {
+      wb = XLSX.read(new Uint8Array(ev.target.result), { type:'array' });
+    }
     var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'' });
+    if (!rows.length) { showToast('❌ 파일에 데이터가 없습니다'); return; }
+
+    var hasNameCol = rows.some(function(r){ return careerRegGetCol(r, ['이름']); });
     var okCount = 0, failNames = [];
     var updates = {};
+
     rows.forEach(function(row) {
-      var name = row['이름']; if (!name) return;
-      var assocName = row['협회'];
+      var assocName = careerRegGetCol(row, ['협회']);
       var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.name === assocName; });
-      if (!assoc) { failNames.push(name + '(협회명 불일치)'); return; }
-      var emp = employees.find(function(e){ return e.name === name; });
-      if (!emp) { failNames.push(name + '(직원 없음)'); return; }
+      if (!assoc) { failNames.push('(협회명 불일치: '+assocName+')'); return; }
+
+      var emp;
+      if (hasNameCol) {
+        var name = careerRegGetCol(row, ['이름']);
+        if (!name) return;
+        emp = employees.find(function(e){ return e.name === name; });
+        if (!emp) { failNames.push(name + '(직원 없음)'); return; }
+      } else {
+        // 이름 컬럼이 없으면(1인 전용 파일) 현재 선택된 직원 기준으로 등록
+        emp = employees.find(function(e){ return (e._docId||e.id) === _careerRegSelectedEmp; });
+        if (!emp) { showToast('❌ 이 파일은 이름 컬럼이 없어서, 먼저 왼쪽에서 등록할 직원을 선택해야 합니다'); return; }
+      }
+
       var empId = emp._docId || emp.id;
       emp.assocCareer = emp.assocCareer || {};
       emp.assocCareer[assoc.id] = emp.assocCareer[assoc.id] || [];
       emp.assocCareer[assoc.id].push({
-        name: row['사업명'] || '',
-        employer: row['근무처'] || '',
-        client: row['발주처'] || '',
-        field: row['전문분야'] || (assoc.fields.length ? assoc.fields[0] : assoc.name),
-        contractDate: row['계약일(YYYY-MM-DD)'] || '',
-        completionDate: row['준공일(YYYY-MM-DD)'] || '',
-        days: row['참여일(중복조정 후)'] || '',
-        note: row['비고'] || ''
+        name: careerRegGetCol(row, ['사업명']),
+        employer: careerRegGetCol(row, ['근무처']),
+        client: careerRegGetCol(row, ['발주처']),
+        field: careerRegGetCol(row, ['전문분야']) || (assoc.fields.length ? assoc.fields[0] : assoc.name),
+        contractDate: careerRegGetCol(row, ['계약일','계약일(YYYY-MM-DD)']),
+        completionDate: careerRegGetCol(row, ['준공일','준공일(YYYY-MM-DD)']),
+        days: careerRegGetCol(row, ['참여일','참여일(중복조정 후)']),
+        note: careerRegGetCol(row, ['비고'])
       });
       updates[empId] = emp.assocCareer;
       okCount++;
     });
+
     var ids = Object.keys(updates);
+    if (!ids.length) {
+      showToast('❌ 업로드된 건이 없습니다' + (failNames.length ? (' ('+failNames.join(', ')+')') : ''));
+      return;
+    }
     Promise.all(ids.map(function(id){ return db.collection('employees').doc(id).update({ assocCareer: updates[id] }); }))
       .then(function() {
         showToast('✅ ' + okCount + '건 업로드 완료' + (failNames.length ? (', 실패 ' + failNames.length + '건') : ''));
@@ -13371,6 +13425,62 @@ function careerRegUploadExcel(input) {
       .catch(function(err) { showToast('❌ 저장 실패: ' + err.message); });
   };
   reader.readAsArrayBuffer(file);
+}
+
+var _careerProjectModalEmpId = null;
+function careerOpenProjectModal(empId) {
+  _careerProjectModalEmpId = empId;
+  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+  document.getElementById('career-project-modal-title').textContent = (emp?emp.name:'') + ' · 참여사업 (한국엔지니어링협회)';
+  document.getElementById('career-project-search').value = '';
+  document.getElementById('career-project-modal').style.display = 'flex';
+  careerRenderProjectModal();
+}
+
+function careerRenderProjectModal() {
+  var emp = employees.find(function(e){ return (e._docId||e.id) === _careerProjectModalEmpId; });
+  var tbody = document.getElementById('career-project-tbody');
+  if (!emp) { tbody.innerHTML = ''; return; }
+  var entries = ((emp.assocCareer||{})['eng']) || [];
+  var keyword = (document.getElementById('career-project-search').value||'').trim();
+  var filtered = entries;
+  if (keyword) {
+    filtered = entries.filter(function(en) {
+      return [en.name, en.employer, en.client].some(function(v){ return (v||'').indexOf(keyword) >= 0; });
+    });
+  }
+  document.getElementById('career-project-count').textContent = filtered.length + '건 (전체 ' + entries.length + '건)';
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--t3)">등록된 참여사업이 없습니다</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(function(en, i) {
+    return '<tr style="border-top:1px solid var(--border)">' +
+      '<td style="padding:4px 6px;text-align:center;color:var(--t3)">'+(i+1)+'</td>' +
+      '<td style="padding:4px 6px">'+(en.name||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap">'+(en.employer||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap">'+(en.client||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap">'+(en.field||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap">'+(en.contractDate||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap">'+(en.completionDate||'-')+'</td>' +
+      '<td style="padding:4px 6px;text-align:center">'+(en.days||'-')+'</td>' +
+      '<td style="padding:4px 6px">'+(en.note||'')+'</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function careerDownloadProjectCsv() {
+  var emp = employees.find(function(e){ return (e._docId||e.id) === _careerProjectModalEmpId; });
+  if (!emp) return;
+  var entries = ((emp.assocCareer||{})['eng']) || [];
+  var wb = XLSX.utils.book_new();
+  var aoa = [['협회','No','사업명','근무처','발주처','전문분야','계약일','준공일','참여일','비고']];
+  entries.forEach(function(en, i) {
+    aoa.push(['한국엔지니어링협회', i+1, en.name||'', en.employer||'', en.client||'', en.field||'', en.contractDate||'', en.completionDate||'', en.days||'', en.note||'']);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  XLSX.utils.book_append_sheet(wb, ws, '참여사업');
+  XLSX.writeFile(wb, '참여사업_'+(emp.name||'')+'.csv', { bookType:'csv' });
 }
 
 function careerRenderEngTab() {
@@ -13384,10 +13494,11 @@ function careerRenderEngTab() {
       '<td rowspan="3" style="padding:6px;white-space:nowrap">본부</td>' +
       '<td rowspan="3" style="padding:6px;white-space:nowrap">직급</td>' +
       '<td rowspan="3" style="padding:6px;white-space:nowrap">이름</td>' +
-      '<td colspan="'+fields.length+'" style="text-align:center;background:#eafaf0">등록현황</td>' +
-      '<td colspan="'+fields.length+'" style="text-align:center;background:#eaf2fa">다음 등급까지 필요 경력</td>' +
+      '<td colspan="'+fields.length+'" style="text-align:center">등록현황</td>' +
+      '<td colspan="'+fields.length+'" style="text-align:center">다음 등급까지 필요 경력</td>' +
       '<td rowspan="3" style="text-align:center;white-space:nowrap;padding:0 8px">타회사 등록<br>가능 경력일수</td>' +
       '<td rowspan="3" style="text-align:center;white-space:nowrap;padding:0 8px">정도 등록<br>가능 경력일수</td>' +
+      '<td rowspan="3" style="text-align:center;white-space:nowrap;padding:0 8px">참여사업</td>' +
     '</tr>' +
     '<tr>' +
       '<td colspan="'+fields.length+'" style="text-align:center;color:var(--t3)">한국엔지니어링협회</td>' +
@@ -13407,7 +13518,7 @@ function careerRenderEngTab() {
   });
 
   if (!people.length) {
-    tbody.innerHTML = '<tr><td colspan="'+(3+fields.length*2+2)+'" style="text-align:center;padding:24px;color:var(--t3)">"등록" 메뉴에서 한국엔지니어링협회에 등록된 인원이 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="'+(3+fields.length*2+3)+'" style="text-align:center;padding:24px;color:var(--t3)">"등록" 메뉴에서 한국엔지니어링협회에 등록된 인원이 없습니다</td></tr>';
     return;
   }
 
@@ -13417,11 +13528,9 @@ function careerRenderEngTab() {
     var days = careerSplitCompanyDays(emp);
     var regEntries = (emp.assocCareer||{})['eng'] || [];
     var gradeInfos = fields.map(function(field) {
-      var hasAny = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseField(l.name) === field; }) ||
-                   (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; }) ||
-                   regEntries.some(function(c){ return c.field === field; }) ||
-                   !!(emp.careerGradeOverride||{})[field];
-      if (!hasAny) return null;
+      var isRegistered = regEntries.some(function(c){ return c.field === field; }) ||
+                          !!(emp.careerGradeOverride||{})[field];
+      if (!isRegistered) return null;
       return careerGetEffectiveGrade(emp, field, 'eng');
     });
     var gradeCells = gradeInfos.map(function(g){ return g ? g.grade : '-'; });
@@ -13458,18 +13567,14 @@ function careerRenderEngTab() {
     return '<tr style="border-top:1px solid var(--border)">' + bonbuCell +
       '<td style="padding:6px;white-space:nowrap">'+r.position+'</td>' +
       '<td style="padding:6px;white-space:nowrap">'+r.name+'</td>' +
-      r.gradeInfos.map(function(g, fi) {
+      r.gradeInfos.map(function(g) {
         if (!g) return '<td style="text-align:center">-</td>';
-        if (!amAdmin) return '<td style="text-align:center">'+careerShortGrade(g.grade)+(g.isOverride?' (수동)':'')+'</td>';
-        var field = fields[fi];
-        return '<td style="text-align:center"><select onchange="careerSetGradeOverride(\''+r.empId+'\',\''+field+'\',this.value===\'auto\'?null:this.value);careerRenderEngTab()" style="font-size:11px;padding:1px">' +
-          '<option value="auto"'+(g.isOverride?'':' selected')+'>자동('+careerShortGrade(g.autoGrade)+')</option>' +
-          gradeOptions.map(function(go){ return '<option value="'+go+'"'+(g.isOverride && g.grade===go?' selected':'')+'>'+careerShortGrade(go)+'(수동)</option>'; }).join('') +
-        '</select></td>';
+        return '<td style="text-align:center">'+careerShortGrade(g.grade)+(g.isOverride?'(수동)':'')+'</td>';
       }).join('') +
       r.needCells.map(function(n){ return '<td style="text-align:center">'+n+'</td>'; }).join('') +
       '<td style="text-align:center">'+(r.other||'-')+'</td>' +
       '<td style="text-align:center">'+(r.doyu||'-')+'</td>' +
+      '<td style="text-align:center"><span onclick="careerOpenProjectModal(\''+r.empId+'\')" style="cursor:pointer;color:var(--ac);text-decoration:underline">참여사업 보기</span></td>' +
     '</tr>';
   }).join('');
 }
@@ -13887,11 +13992,9 @@ function careerBuildOverviewRow(emp) {
   CAREER_GRADE_COLS.forEach(function(c) {
     if (c.assocId === 'eng') {
       var regEntries = (emp.assocCareer||{})['eng'] || [];
-      var hasAny = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseField(l.name) === c.field; }) ||
-                   (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(c.field) >= 0; }) ||
-                   regEntries.some(function(en){ return en.field === c.field; }) ||
-                   !!(emp.careerGradeOverride||{})[c.field];
-      row[c.key] = hasAny ? careerShortGrade(careerGetEffectiveGrade(emp, c.field, 'eng').grade) : '-';
+      var isRegistered = regEntries.some(function(en){ return en.field === c.field; }) ||
+                          !!(emp.careerGradeOverride||{})[c.field];
+      row[c.key] = isRegistered ? careerShortGrade(careerGetEffectiveGrade(emp, c.field, 'eng').grade) : '-';
     } else {
       row[c.key] = '-';
     }
@@ -15899,12 +16002,12 @@ function showPage(id, el) {
   if(id === 'personnel-card') { pcPopulateEmpSelect(); }
   if(id === 'career-dashboard') { careerRenderLicenseDashboard(); careerRenderEduDashboard(); }
   if(id === 'career-people') {
-    careerPeopleSwitchTab('overview', document.querySelector('.career-people-tab-btn'));
     if (_careerPrefillSearch !== null) {
       document.getElementById('career-overview-search').value = _careerPrefillSearch;
       _careerPrefillSearch = null;
     }
     careerRenderOverviewTable();
+    careerRenderEngTab();
   }
   if(id === 'career-register') { careerRegRenderEmpList(); careerRegRenderDetail(); }
   if(id === 'task-admin') { taInitPage(); }
