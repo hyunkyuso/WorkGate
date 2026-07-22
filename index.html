@@ -922,7 +922,7 @@ select.form-input{cursor:pointer}
 
             <div style="display:flex;gap:24px;margin-bottom:18px">
               <div style="cursor:pointer" onclick="careerGoToPeopleAnyLicense()">
-                <div style="font-size:12px;color:var(--t3)">합계</div>
+                <div style="font-size:12px;color:var(--t3)">전체 합계</div>
                 <div style="font-size:24px;font-weight:700;color:var(--t1)" id="career-lic-total">0명</div>
                 <div style="font-size:10px;color:var(--t3)">(중복인원 제외)</div>
               </div>
@@ -943,7 +943,7 @@ select.form-input{cursor:pointer}
 
             <div style="display:flex;gap:24px;margin-bottom:18px">
               <div style="cursor:pointer" onclick="careerGoToPeopleAnyDegree()">
-                <div style="font-size:12px;color:var(--t3)">합계</div>
+                <div style="font-size:12px;color:var(--t3)">전체 합계</div>
                 <div style="font-size:24px;font-weight:700;color:var(--t1)" id="career-edu-total">0명</div>
                 <div style="font-size:10px;color:var(--t3)">(중복인원 제외)</div>
               </div>
@@ -12901,12 +12901,15 @@ function careerLicenseField(name) {
   return name || '기타';
 }
 
+var CAREER_LICENSE_EXCLUDE = ['조주기능사', '직업상담사2급'];
 function careerIsRelevantLicense(l) {
+  if (CAREER_LICENSE_EXCLUDE.indexOf(l.name) >= 0) return false;
   return CAREER_RELEVANT_LICENSES.indexOf(l.name) >= 0 || (l.org||'').indexOf('한국산업인력공단') >= 0;
 }
 
 function careerBuildLicenseMatrix() {
   var matrix = {}; // matrix[field][grade] = count
+  var fieldPeople = {}; // fieldPeople[field] = Set of person ids (dedup)
   var totalPeople = new Set();
   var multiPeople = new Set();
 
@@ -12921,10 +12924,12 @@ function careerBuildLicenseMatrix() {
       var grade = CAREER_LIC_GRADES[careerLicenseGradeRank(l.name)] || '기타';
       if (!matrix[field]) matrix[field] = {};
       matrix[field][grade] = (matrix[field][grade] || 0) + 1;
+      if (!fieldPeople[field]) fieldPeople[field] = new Set();
+      fieldPeople[field].add(empId);
     });
   });
 
-  return { matrix: matrix, totalCount: totalPeople.size, multiCount: multiPeople.size };
+  return { matrix: matrix, fieldPeople: fieldPeople, totalCount: totalPeople.size, multiCount: multiPeople.size };
 }
 
 function careerRenderLicenseDashboard() {
@@ -12945,12 +12950,14 @@ function careerRenderLicenseDashboard() {
     return;
   }
 
-  var html = '<thead><tr><td></td>' + CAREER_LIC_GRADES.map(function(g){
+  var html = '<thead><tr><td></td><td style="text-align:center;padding:6px;color:var(--t3);font-weight:600">합계</td>' + CAREER_LIC_GRADES.map(function(g){
     return '<td style="text-align:center;padding:6px;color:var(--t3);font-weight:600">'+g+'</td>';
   }).join('') + '</tr></thead><tbody>';
 
   html += fields.map(function(f) {
-    return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px 6px;white-space:nowrap">'+f+'</td>' +
+    var fieldTotal = (data.fieldPeople[f] && data.fieldPeople[f].size) || 0;
+    var totalCell = fieldTotal ? '<td style="text-align:center"><span onclick="careerGoToPeopleFieldFiltered(\''+f+'\',\'license\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 10px;border-radius:8px;font-weight:700">'+fieldTotal+'</span></td>' : '<td style="text-align:center;color:var(--t3)">-</td>';
+    return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px 6px;white-space:nowrap">'+f+'</td>' + totalCell +
       CAREER_LIC_GRADES.map(function(g) {
         var cnt = (data.matrix[f] && data.matrix[f][g]) || 0;
         if (!cnt) return '<td style="text-align:center;color:var(--t3)">-</td>';
@@ -12988,6 +12995,7 @@ function careerEduFieldsForMajor(major) {
 
 function careerBuildEduMatrix() {
   var matrix = {};
+  var fieldPeople = {};
   var totalPeople = new Set();
   var multiPeople = new Set();
 
@@ -13002,13 +13010,15 @@ function careerBuildEduMatrix() {
       fields.forEach(function(field) {
         if (!matrix[field]) matrix[field] = {};
         matrix[field][e.degree] = (matrix[field][e.degree] || 0) + 1;
+        if (!fieldPeople[field]) fieldPeople[field] = new Set();
+        fieldPeople[field].add(empId);
       });
     });
     if (matchCount >= 1) totalPeople.add(empId);
     if (matchCount >= 2) multiPeople.add(empId);
   });
 
-  return { matrix: matrix, totalCount: totalPeople.size, multiCount: multiPeople.size };
+  return { matrix: matrix, fieldPeople: fieldPeople, totalCount: totalPeople.size, multiCount: multiPeople.size };
 }
 
 function careerRenderEduDashboard() {
@@ -13017,12 +13027,14 @@ function careerRenderEduDashboard() {
   document.getElementById('career-edu-multi').textContent = data.multiCount + '명';
 
   var el = document.getElementById('career-edu-matrix');
-  var html = '<thead><tr><td></td>' + CAREER_EDU_DEGREES.map(function(d){
+  var html = '<thead><tr><td></td><td style="text-align:center;padding:6px;color:var(--t3);font-weight:600">합계</td>' + CAREER_EDU_DEGREES.map(function(d){
     return '<td style="text-align:center;padding:6px;color:var(--t3);font-weight:600">'+d+'</td>';
   }).join('') + '</tr></thead><tbody>';
 
   html += CAREER_EDU_FIELDS.map(function(f) {
-    return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px 6px;white-space:nowrap">'+f+'</td>' +
+    var fieldTotal = (data.fieldPeople[f] && data.fieldPeople[f].size) || 0;
+    var totalCell = fieldTotal ? '<td style="text-align:center"><span onclick="careerGoToPeopleFieldFiltered(\''+f+'\',\'edu\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 10px;border-radius:8px;font-weight:700">'+fieldTotal+'</span></td>' : '<td style="text-align:center;color:var(--t3)">-</td>';
+    return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px 6px;white-space:nowrap">'+f+'</td>' + totalCell +
       CAREER_EDU_DEGREES.map(function(d) {
         var cnt = (data.matrix[f] && data.matrix[f][d]) || 0;
         if (!cnt) return '<td style="text-align:center;color:var(--t3)">-</td>';
@@ -13055,6 +13067,13 @@ function careerGoToPeopleEduFiltered(field, degree) {
   _careerPrefillMultiType = null;
   _careerPrefillEduField = field;
   _careerPrefillEduDegree = degree;
+  showPage('career-people', document.querySelector('[onclick*="careerNavToPeople"]'));
+}
+function careerGoToPeopleFieldFiltered(field, type) {
+  _careerPrefillSearch = '';
+  _careerPrefillEduField = field;
+  _careerPrefillEduDegree = null;
+  _careerPrefillMultiType = (type === 'license') ? 'license-field' : 'edu-field';
   showPage('career-people', document.querySelector('[onclick*="careerNavToPeople"]'));
 }
 function careerClearEduFilter() {
@@ -13436,6 +13455,20 @@ function careerRenderOverviewTable() {
       return matchCount >= minCount2;
     });
     if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = (minCount2===2?'복수 학위 보유자만 보기 ':'학력 기준 충족자만 보기 '); }
+  } else if (_careerPrefillMultiType === 'license-field') {
+    rows = rows.filter(function(r) {
+      return (r._emp.license||[]).some(function(l) {
+        return careerIsRelevantLicense(l) && careerLicenseField(l.name) === _careerPrefillEduField;
+      });
+    });
+    if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = _careerPrefillEduField+' 자격증 보유자만 보기 '; }
+  } else if (_careerPrefillMultiType === 'edu-field') {
+    rows = rows.filter(function(r) {
+      return (r._emp.education||[]).some(function(e) {
+        return CAREER_EDU_DEGREES.indexOf(e.degree) >= 0 && careerEduFieldsForMajor(e.major).indexOf(_careerPrefillEduField) >= 0;
+      });
+    });
+    if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = _careerPrefillEduField+' 학력 기준 충족자만 보기 '; }
   } else if (_careerPrefillEduField) {
     rows = rows.filter(function(r) {
       return (r._emp.education||[]).some(function(e) {
