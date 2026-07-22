@@ -13241,73 +13241,67 @@ function careerRegRenderDetail() {
   if (!emp) { el.innerHTML = '왼쪽에서 직원을 선택하세요'; return; }
 
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerRegSelectedAssoc; });
-  if (!_careerRegSelectedField && assoc.fields.length) _careerRegSelectedField = assoc.fields[0];
 
   var assocTabs = CAREER_ASSOCIATIONS.map(function(a) {
     var active = a.id === _careerRegSelectedAssoc;
     return '<button onclick="careerRegSwitchAssoc(\''+a.id+'\')" style="padding:6px 12px;border-radius:8px;border:0.5px solid var(--border);background:'+(active?'var(--acd)':'var(--white)')+';color:'+(active?'var(--ac)':'var(--t1)')+';cursor:pointer;font-size:12px">'+a.name+'</button>';
   }).join('');
 
-  var fieldTabs = assoc.fields.length ? assoc.fields.map(function(f) {
-    var active = f === _careerRegSelectedField;
-    return '<button onclick="careerRegSwitchField(\''+f+'\')" style="padding:5px 10px;border-radius:8px;border:0.5px solid var(--border);background:'+(active?'var(--acd)':'var(--white)')+';color:'+(active?'var(--ac)':'var(--t2)')+';cursor:pointer;font-size:12px">'+f+'</button>';
-  }).join('') : '';
+  var entries = ((emp.assocCareer||{})[_careerRegSelectedAssoc]) || [];
+  var fieldOptions = assoc.fields.length ? assoc.fields : [assoc.name];
 
-  var key = careerRegKey(_careerRegSelectedAssoc, assoc.fields.length ? _careerRegSelectedField : null);
-  var entries = ((emp.assocCareer||{})[key]) || [];
-
-  var html = '<div style="font-weight:600;font-size:14px;margin-bottom:12px">'+emp.name+' · 협회 등록 경력</div>' +
-    '<div style="display:flex;gap:6px;margin-bottom:10px">'+assocTabs+'</div>' +
-    (fieldTabs ? '<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">'+fieldTabs+'</div>' : '') +
-    '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px">' +
-    '<thead><tr style="color:var(--t3)"><td>시작일</td><td>종료일</td><td>회사</td><td>비고</td><td></td></tr></thead><tbody id="career-reg-rows">' +
+  var html = '<div style="font-weight:600;font-size:14px;margin-bottom:12px">'+emp.name+' · 협회 등록 경력(사업 단위)</div>' +
+    '<div style="display:flex;gap:6px;margin-bottom:14px">'+assocTabs+'</div>' +
+    '<div class="table-wrap" style="overflow-x:auto;margin-bottom:10px"><table style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px">' +
+    '<thead><tr style="color:var(--t3)"><td style="padding:4px 6px">구분</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">계약일</td><td style="padding:4px 6px">준공일</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">비고</td><td></td></tr></thead><tbody id="career-reg-rows">' +
     entries.map(function(en, i) {
       return '<tr>' +
-        '<td><input type="date" class="form-input" style="font-size:12px" value="'+(en.start||'')+'" onchange="careerRegUpdateRow('+i+',\'start\',this.value)"></td>' +
-        '<td><input type="date" class="form-input" style="font-size:12px" value="'+(en.end||'')+'" onchange="careerRegUpdateRow('+i+',\'end\',this.value)"></td>' +
-        '<td><input type="text" class="form-input" style="font-size:12px" value="'+(en.company||'')+'" onchange="careerRegUpdateRow('+i+',\'company\',this.value)"></td>' +
-        '<td><input type="text" class="form-input" style="font-size:12px" value="'+(en.note||'')+'" onchange="careerRegUpdateRow('+i+',\'note\',this.value)"></td>' +
+        '<td style="text-align:center;color:var(--t3)">'+(i+1)+'</td>' +
+        '<td><input type="text" class="form-input" style="font-size:12px;width:160px" value="'+(en.name||'')+'" onchange="careerRegUpdateRow('+i+',\'name\',this.value)"></td>' +
+        '<td><input type="text" class="form-input" style="font-size:12px;width:110px" value="'+(en.employer||'')+'" onchange="careerRegUpdateRow('+i+',\'employer\',this.value)"></td>' +
+        '<td><input type="text" class="form-input" style="font-size:12px;width:110px" value="'+(en.client||'')+'" onchange="careerRegUpdateRow('+i+',\'client\',this.value)"></td>' +
+        '<td><select class="form-input" style="font-size:12px" onchange="careerRegUpdateRow('+i+',\'field\',this.value)">' +
+          fieldOptions.map(function(f){ return '<option value="'+f+'"'+(en.field===f?' selected':'')+'>'+f+'</option>'; }).join('') +
+        '</select></td>' +
+        '<td><input type="date" class="form-input" style="font-size:12px" value="'+(en.contractDate||'')+'" onchange="careerRegUpdateRow('+i+',\'contractDate\',this.value)"></td>' +
+        '<td><input type="date" class="form-input" style="font-size:12px" value="'+(en.completionDate||'')+'" onchange="careerRegUpdateRow('+i+',\'completionDate\',this.value)"></td>' +
+        '<td><input type="number" class="form-input" style="font-size:12px;width:70px" value="'+(en.days||'')+'" onchange="careerRegUpdateRow('+i+',\'days\',this.value)" title="중복기간 조정 후 실제 참여일수"></td>' +
+        '<td><input type="text" class="form-input" style="font-size:12px;width:120px" value="'+(en.note||'')+'" onchange="careerRegUpdateRow('+i+',\'note\',this.value)"></td>' +
         '<td><span onclick="careerRegRemoveRow('+i+')" style="cursor:pointer;color:var(--t3)">✕</span></td>' +
       '</tr>';
     }).join('') +
-    '</tbody></table>' +
-    '<button class="btn btn-ghost btn-sm" onclick="careerRegAddRow()">+ 경력 추가</button> ' +
-    '<button class="btn btn-primary btn-sm" onclick="careerRegSave()">저장</button>';
+    '</tbody></table></div>' +
+    '<button class="btn btn-ghost btn-sm" onclick="careerRegAddRow()">+ 사업 추가</button> ' +
+    '<button class="btn btn-primary btn-sm" onclick="careerRegSave()">저장</button>' +
+    '<div style="font-size:11px;color:var(--t3);margin-top:8px">참여일은 여러 사업이 겹치는 기간을 감안해 직접 조정한 값을 입력하세요 (계약일~준공일 그대로 계산하지 않음)</div>';
 
   el.innerHTML = html;
 }
 
 function careerRegSwitchAssoc(assocId) {
   _careerRegSelectedAssoc = assocId;
-  _careerRegSelectedField = null;
-  careerRegRenderDetail();
-}
-function careerRegSwitchField(field) {
-  _careerRegSelectedField = field;
   careerRegRenderDetail();
 }
 
 function careerRegAddRow() {
   var emp = employees.find(function(e){ return (e._docId||e.id) === _careerRegSelectedEmp; });
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerRegSelectedAssoc; });
-  var key = careerRegKey(_careerRegSelectedAssoc, assoc.fields.length ? _careerRegSelectedField : null);
   emp.assocCareer = emp.assocCareer || {};
-  emp.assocCareer[key] = emp.assocCareer[key] || [];
-  emp.assocCareer[key].push({ start:'', end:'', company:'', note:'' });
+  emp.assocCareer[_careerRegSelectedAssoc] = emp.assocCareer[_careerRegSelectedAssoc] || [];
+  emp.assocCareer[_careerRegSelectedAssoc].push({
+    name:'', employer:'', client:'', field: assoc.fields.length ? assoc.fields[0] : assoc.name,
+    contractDate:'', completionDate:'', days:'', note:''
+  });
   careerRegRenderDetail();
 }
 function careerRegRemoveRow(idx) {
   var emp = employees.find(function(e){ return (e._docId||e.id) === _careerRegSelectedEmp; });
-  var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerRegSelectedAssoc; });
-  var key = careerRegKey(_careerRegSelectedAssoc, assoc.fields.length ? _careerRegSelectedField : null);
-  emp.assocCareer[key].splice(idx, 1);
+  emp.assocCareer[_careerRegSelectedAssoc].splice(idx, 1);
   careerRegRenderDetail();
 }
 function careerRegUpdateRow(idx, field, value) {
   var emp = employees.find(function(e){ return (e._docId||e.id) === _careerRegSelectedEmp; });
-  var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerRegSelectedAssoc; });
-  var key = careerRegKey(_careerRegSelectedAssoc, assoc.fields.length ? _careerRegSelectedField : null);
-  emp.assocCareer[key][idx][field] = value;
+  emp.assocCareer[_careerRegSelectedAssoc][idx][field] = value;
 }
 
 async function careerRegSave() {
@@ -13325,8 +13319,8 @@ async function careerRegSave() {
 function careerRegDownloadTemplate() {
   var wb = XLSX.utils.book_new();
   var ws = XLSX.utils.aoa_to_sheet([
-    ['이름','협회','분야','시작일(YYYY-MM-DD)','종료일(YYYY-MM-DD, 비우면 현재)','회사','비고'],
-    ['김남균','한국엔지니어링협회','정보통신','2015-03-01','2018-02-28','(주)예시회사','']
+    ['이름','협회','사업명','근무처','발주처','전문분야','계약일(YYYY-MM-DD)','준공일(YYYY-MM-DD)','참여일(중복조정 후)','비고'],
+    ['김남균','한국엔지니어링협회','냉천지방공업단지개발계획수립용역','(주)대경종합기술공사','(주)대원기공','도시계획','1994-10-01','1995-04-30',20,'참여일 중복 차감']
   ]);
   XLSX.utils.book_append_sheet(wb, ws, '등록양식');
   XLSX.writeFile(wb, '협회등록_양식.xlsx');
@@ -13344,19 +13338,22 @@ function careerRegUploadExcel(input) {
     var updates = {};
     rows.forEach(function(row) {
       var name = row['이름']; if (!name) return;
-      var assocName = row['협회']; var field = row['분야'];
+      var assocName = row['협회'];
       var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.name === assocName; });
       if (!assoc) { failNames.push(name + '(협회명 불일치)'); return; }
       var emp = employees.find(function(e){ return e.name === name; });
       if (!emp) { failNames.push(name + '(직원 없음)'); return; }
       var empId = emp._docId || emp.id;
-      var key = careerRegKey(assoc.id, assoc.fields.length ? field : null);
       emp.assocCareer = emp.assocCareer || {};
-      emp.assocCareer[key] = emp.assocCareer[key] || [];
-      emp.assocCareer[key].push({
-        start: row['시작일(YYYY-MM-DD)'] || '',
-        end: row['종료일(YYYY-MM-DD, 비우면 현재)'] || '',
-        company: row['회사'] || '',
+      emp.assocCareer[assoc.id] = emp.assocCareer[assoc.id] || [];
+      emp.assocCareer[assoc.id].push({
+        name: row['사업명'] || '',
+        employer: row['근무처'] || '',
+        client: row['발주처'] || '',
+        field: row['전문분야'] || (assoc.fields.length ? assoc.fields[0] : assoc.name),
+        contractDate: row['계약일(YYYY-MM-DD)'] || '',
+        completionDate: row['준공일(YYYY-MM-DD)'] || '',
+        days: row['참여일(중복조정 후)'] || '',
         note: row['비고'] || ''
       });
       updates[empId] = emp.assocCareer;
@@ -13682,27 +13679,36 @@ function careerGetRelevantCareerPeriods(emp, assocId, field) {
   });
   if (emp.joindate) periods.push({ start: emp.joindate, end: todayStr });
   if (assocId) {
-    var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === assocId; });
-    var key = careerRegKey(assocId, (assoc && assoc.fields.length) ? field : null);
-    ((emp.assocCareer||{})[key] || []).forEach(function(c) {
-      if (c.start) periods.push({ start: c.start, end: c.end || todayStr });
+    ((emp.assocCareer||{})[assocId] || []).forEach(function(c) {
+      if (!c.contractDate) return;
+      if (field && c.field !== field) return;
+      periods.push({
+        start: c.contractDate,
+        end: c.completionDate || todayStr,
+        overrideDays: (c.days !== undefined && c.days !== '') ? Number(c.days) : null
+      });
     });
   }
   return periods;
 }
 
 // 자격/학력 취득일(qualDate) 이전 경력은 60%, 이후는 100%로 가중 합산 (일수)
+// overrideDays(참여일, 중복기간 조정 후 실제값)가 있으면 원래 달력일수 대비 비율만큼 축소해서 반영
 function careerWeightedDays(periods, qualDate) {
   var total = 0;
   periods.forEach(function(p) {
-    if (!qualDate) { total += careerDaysBetween(p.start, p.end); return; }
+    var rawDays = careerDaysBetween(p.start, p.end);
+    var scale = (p.overrideDays != null && rawDays > 0) ? (p.overrideDays / rawDays) : 1;
+    if (!qualDate) { total += rawDays * scale; return; }
     var qd = careerFmtDate(qualDate);
     if (p.end <= qd) {
-      total += careerDaysBetween(p.start, p.end) * 0.6;
+      total += rawDays * scale * 0.6;
     } else if (p.start >= qd) {
-      total += careerDaysBetween(p.start, p.end);
+      total += rawDays * scale;
     } else {
-      total += careerDaysBetween(p.start, qd) * 0.6 + careerDaysBetween(qd, p.end);
+      var beforeDays = careerDaysBetween(p.start, qd);
+      var afterDays = careerDaysBetween(qd, p.end);
+      total += beforeDays * scale * 0.6 + afterDays * scale;
     }
   });
   return total;
