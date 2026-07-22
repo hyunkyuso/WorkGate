@@ -13151,6 +13151,29 @@ function careerSelectField(assocId, field) {
   careerRenderGradeDetail();
 }
 
+function careerGetEffectiveGrade(emp, field) {
+  var override = (emp.careerGradeOverride||{})[field];
+  var auto = careerDetermineGrade(emp, field);
+  if (override) return { grade: override, isOverride: true, autoGrade: auto.grade };
+  return { grade: auto.grade, isOverride: false, autoGrade: auto.grade };
+}
+
+async function careerSetGradeOverride(empId, field, grade) {
+  if (!isAdmin()) { showToast('❌ 관리자만 변경할 수 있습니다'); return; }
+  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+  if (!emp) return;
+  var overrides = Object.assign({}, emp.careerGradeOverride||{});
+  if (grade) overrides[field] = grade; else delete overrides[field];
+  try {
+    await db.collection('employees').doc(empId).update({ careerGradeOverride: overrides });
+    emp.careerGradeOverride = overrides;
+    careerRenderGradeDetail();
+    showToast('✅ 등급이 저장되었습니다');
+  } catch (err) {
+    showToast('❌ 저장 실패: ' + err.message);
+  }
+}
+
 function careerRenderGradeDetail() {
   var el = document.getElementById('career-grade-detail');
   if (!el) return;
@@ -13160,9 +13183,47 @@ function careerRenderGradeDetail() {
     return;
   }
   var title = assoc.name + (_careerSelectedField ? ' · ' + _careerSelectedField : '');
+  var fields = _careerSelectedField ? [_careerSelectedField] : assoc.fields;
+  if (!fields.length) fields = [assoc.name]; // 분야 없는 협회(AI SW)는 협회명 자체를 필드처럼 사용
+
+  var amAdmin = isAdmin();
+  var rows = [];
+  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+    fields.forEach(function(field) {
+      var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseField(l.name) === field; });
+      var hasEdu = (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; });
+      if (!hasCert && !hasEdu) return;
+      var g = careerGetEffectiveGrade(emp, field);
+      var nextNeed = g.grade !== '기술사' ? careerDaysToNextGrade(emp, field, g.grade) : null;
+      rows.push({ emp: emp, field: field, grade: g, nextNeed: nextNeed });
+    });
+  });
+
   el.style.textAlign = 'left';
-  el.innerHTML = '<div style="font-weight:600;font-size:14px;margin-bottom:10px">' + title + '</div>' +
-    '<div style="color:var(--t3);font-size:13px">소속 인원·등급 현황은 다음 단계에서 채워질 예정이에요.</div>';
+  if (!rows.length) {
+    el.innerHTML = '<div style="font-weight:600;font-size:14px;margin-bottom:10px">' + title + '</div>' +
+      '<div style="color:var(--t3);font-size:13px">해당 분야의 자격증 또는 학력을 가진 인원이 없습니다.</div>';
+    return;
+  }
+
+  var gradeOptions = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자','미달'];
+  var html = '<div style="font-weight:600;font-size:14px;margin-bottom:10px">' + title + '</div>' +
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+    '<thead><tr style="color:var(--t3)"><td style="padding:6px">이름</td><td style="padding:6px">분야</td><td style="padding:6px">등급</td><td style="padding:6px">다음 등급까지</td></tr></thead><tbody>';
+  html += rows.map(function(r) {
+    var empId = r.emp._docId || r.emp.id;
+    var gradeCell = amAdmin ?
+      '<select onchange="careerSetGradeOverride(\''+empId+'\',\''+r.field+'\',this.value===\'auto\'?null:this.value)" style="font-size:12px;padding:2px">' +
+        '<option value="auto"'+(r.grade.isOverride?'':' selected')+'>자동('+r.grade.autoGrade+')</option>' +
+        gradeOptions.map(function(g){ return '<option value="'+g+'"'+(r.grade.isOverride && r.grade.grade===g?' selected':'')+'>'+g+' (수동)</option>'; }).join('') +
+      '</select>' :
+      r.grade.grade + (r.grade.isOverride ? ' (수동조정)' : '');
+    var nextCell = r.nextNeed ? (Math.ceil(r.nextNeed) + '일') : (r.grade.grade === '기술사' ? '-' : '충족');
+    return '<tr style="border-top:1px solid var(--border)"><td style="padding:6px">'+r.emp.name+'</td><td style="padding:6px">'+r.field+'</td>' +
+      '<td style="padding:6px">'+gradeCell+'</td><td style="padding:6px">'+nextCell+'</td></tr>';
+  }).join('');
+  html += '</tbody></table>';
+  el.innerHTML = html;
 }
 
 // ── 인력 및 등급관리: 총괄관리표 ──
@@ -13306,6 +13367,151 @@ function careerCalcSalesCareer(emp) {
     totalDays += careerDaysBetween(c.start, c.end || todayStr);
   });
   return careerDaysToYMD(totalDays);
+}
+
+// ══════════════════════════════════════════════════
+// 등급 자동 판단 엔진 — 엔지니어링기술자 등급(별표2) 기준
+// 자격증 경로 / 학력 경로 중 하나만 만족해도 그 등급 인정
+// 비고5: 자격/학력 취득 전 경력은 60%만 인정
+// ══════════════════════════════════════════════════
+var CAREER_GRADE_ORDER_LIST = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자','미달'];
+
+// 등급별 기준: certPaths=[{grade:'기사'|'산업기사', years}], eduPaths=[{degree:'박사'|'석사'|'학사', years}]
+var CAREER_GRADE_CRITERIA = [
+  { grade:'특급기술자', certPaths:[{g:'기사',y:10},{g:'산업기사',y:13}], eduPaths:[{d:'박사',y:4},{d:'석사',y:9},{d:'학사',y:12}] },
+  { grade:'고급기술자', certPaths:[{g:'기사',y:7},{g:'산업기사',y:10}],  eduPaths:[{d:'박사',y:1},{d:'석사',y:6},{d:'학사',y:9}] },
+  { grade:'중급기술자', certPaths:[{g:'기사',y:4},{g:'산업기사',y:7}],   eduPaths:[{d:'박사',y:0},{d:'석사',y:3},{d:'학사',y:6}] },
+  { grade:'초급기술자', certPaths:[{g:'기사',y:0},{g:'산업기사',y:2}],   eduPaths:[{d:'석사',y:0},{d:'학사',y:3}] }
+];
+
+function careerGetRelevantCareerPeriods(emp) {
+  var todayStr = new Date().toISOString().slice(0,10);
+  var periods = [];
+  (emp.career||[]).forEach(function(c) {
+    if (c.salesUse && c.start) periods.push({ start: c.start, end: c.end || todayStr });
+  });
+  if (emp.joindate) periods.push({ start: emp.joindate, end: todayStr });
+  return periods;
+}
+
+// 자격/학력 취득일(qualDate) 이전 경력은 60%, 이후는 100%로 가중 합산 (일수)
+function careerWeightedDays(periods, qualDate) {
+  var total = 0;
+  periods.forEach(function(p) {
+    if (!qualDate) { total += careerDaysBetween(p.start, p.end); return; }
+    var qd = careerFmtDate(qualDate);
+    if (p.end <= qd) {
+      total += careerDaysBetween(p.start, p.end) * 0.6;
+    } else if (p.start >= qd) {
+      total += careerDaysBetween(p.start, p.end);
+    } else {
+      total += careerDaysBetween(p.start, qd) * 0.6 + careerDaysBetween(qd, p.end);
+    }
+  });
+  return total;
+}
+
+function careerDetermineGrade(emp, field) {
+  var licsInField = (emp.license||[]).filter(function(l){
+    return careerIsRelevantLicense(l) && careerLicenseField(l.name) === field;
+  });
+  if (licsInField.some(function(l){ return careerLicenseGradeRank(l.name) === 0; })) {
+    return { grade:'기술사', days:null, neededForNext:null };
+  }
+  var byGrade = { '기사':[], '산업기사':[] };
+  licsInField.forEach(function(l) {
+    var r = careerLicenseGradeRank(l.name);
+    if (r === 1) byGrade['기사'].push(l);
+    else if (r === 2) byGrade['산업기사'].push(l);
+  });
+
+  var edusInField = (emp.education||[]).filter(function(e){
+    return careerEduFieldsForMajor(e.major).indexOf(field) >= 0;
+  });
+  var byDegree = { '박사':null, '석사':null, '학사':null };
+  edusInField.forEach(function(e) {
+    if (byDegree.hasOwnProperty(e.degree) && !byDegree[e.degree]) byDegree[e.degree] = e;
+  });
+
+  var periods = careerGetRelevantCareerPeriods(emp);
+
+  function certQualDate(g) {
+    var list = byGrade[g];
+    if (!list || !list.length) return null;
+    var dates = list.map(function(l){ return l.date; }).filter(Boolean).sort();
+    return dates.length ? dates[0] : undefined; // undefined = 자격은 있는데 취득일 정보 없음
+  }
+  function pathDays(qualDate) {
+    if (qualDate === null) return -1; // 해당 자격/학력 없음
+    return careerWeightedDays(periods, qualDate || null);
+  }
+
+  for (var i = 0; i < CAREER_GRADE_CRITERIA.length; i++) {
+    var crit = CAREER_GRADE_CRITERIA[i];
+    var bestDays = -1, bestNeed = null;
+    crit.certPaths.forEach(function(cp) {
+      var qd = certQualDate(cp.g);
+      if (qd === null) return;
+      var days = pathDays(qd);
+      var need = cp.y * 365;
+      if (days >= need) { if (days > bestDays) bestDays = days; }
+    });
+    crit.eduPaths.forEach(function(ep) {
+      var e = byDegree[ep.d];
+      if (!e) return;
+      var days = pathDays(e.date);
+      var need = ep.y * 365;
+      if (days >= need) { if (days > bestDays) bestDays = days; }
+    });
+    if (bestDays >= 0) {
+      return { grade: crit.grade, days: bestDays };
+    }
+  }
+  return { grade: '미달', days: 0 };
+}
+
+// 다음 등급까지 필요한 일수 (현재 등급 기준으로 다음 상위 등급 요건까지 부족한 일수, 가장 유리한 경로 기준)
+function careerDaysToNextGrade(emp, field, currentGrade) {
+  var idx = CAREER_GRADE_ORDER_LIST.indexOf(currentGrade);
+  if (idx <= 0) return null; // 이미 기술사거나 목록에 없음
+  var nextCrit = CAREER_GRADE_CRITERIA[idx - 1]; // 한 단계 위 등급 기준
+  if (!nextCrit) return null;
+
+  var licsInField = (emp.license||[]).filter(function(l){
+    return careerIsRelevantLicense(l) && careerLicenseField(l.name) === field;
+  });
+  var byGrade = { '기사':[], '산업기사':[] };
+  licsInField.forEach(function(l) {
+    var r = careerLicenseGradeRank(l.name);
+    if (r === 1) byGrade['기사'].push(l);
+    else if (r === 2) byGrade['산업기사'].push(l);
+  });
+  var edusInField = (emp.education||[]).filter(function(e){
+    return careerEduFieldsForMajor(e.major).indexOf(field) >= 0;
+  });
+  var byDegree = { '박사':null, '석사':null, '학사':null };
+  edusInField.forEach(function(e) { if (byDegree.hasOwnProperty(e.degree) && !byDegree[e.degree]) byDegree[e.degree] = e; });
+
+  var periods = careerGetRelevantCareerPeriods(emp);
+  var minShortfall = null;
+
+  nextCrit.certPaths.forEach(function(cp) {
+    var list = byGrade[cp.g];
+    if (!list || !list.length) return;
+    var dates = list.map(function(l){ return l.date; }).filter(Boolean).sort();
+    if (!dates.length) return;
+    var days = careerWeightedDays(periods, dates[0]);
+    var shortfall = cp.y * 365 - days;
+    if (shortfall > 0 && (minShortfall === null || shortfall < minShortfall)) minShortfall = shortfall;
+  });
+  nextCrit.eduPaths.forEach(function(ep) {
+    var e = byDegree[ep.d];
+    if (!e) return;
+    var days = careerWeightedDays(periods, e.date);
+    var shortfall = ep.y * 365 - days;
+    if (shortfall > 0 && (minShortfall === null || shortfall < minShortfall)) minShortfall = shortfall;
+  });
+  return minShortfall === null ? null : Math.ceil(minShortfall);
 }
 
 // 직원관리에 등록된 이름을 기준으로 생년월일을 찾아옴 (혹시 다른 레코드로 중복 저장된 경우 대비)
