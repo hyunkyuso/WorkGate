@@ -12922,6 +12922,24 @@ var CAREER_LEADER_TITLES = ['대표이사','본부장','부서장','팀장'];
 var CAREER_POSITION_ORDER = ['대표이사','부사장','전무','상무','이사','부장','차장','과장','대리','주임','사원','인턴','미지정'];
 var CAREER_DEGREE_ORDER = { '박사':0, '석사':1, '학사':2, '전문학사':3, '고졸':4 };
 
+// 본부별 부서 표시 순서 (부분 일치로 매칭, 목록에 없는 부서는 뒤로 밀리고 가나다순)
+var CAREER_DEPT_ORDER = {
+  'AI전략기획본부':    ['AI기획팀','디자인팀'],
+  '도시계획사업본부':  ['도시계획사업본부','도시계획사업부','1팀','2팀'],
+  'GIS사업본부':       ['GIS사업1부','사업1팀','사업2팀','GIS사업2부'],
+  'AI GIS 연구본부':   ['AI GIS 연구본부','AI GIS 연구부','연구1팀','연구2팀','R&D기획팀','SW지원부','SW지원팀'],
+  'SW기술연구소':      ['SW기술연구소','응용개발연구부']
+};
+function careerDeptRank(bonbu, dept) {
+  var order = CAREER_DEPT_ORDER[bonbu];
+  if (!order) return -1;
+  dept = dept || '';
+  for (var i = 0; i < order.length; i++) {
+    if (dept === order[i] || dept.indexOf(order[i]) >= 0) return i;
+  }
+  return 999;
+}
+
 function careerGetBonbu(emp) {
   if ((emp.dept||'').indexOf('수석전문위원') >= 0 || emp.title === '수석전문위원' || emp.role === '수석전문위원') return '정도유아이티';
   return getBonbu(emp) || '-';
@@ -12937,6 +12955,11 @@ function careerDefaultSortRows(rows) {
     var bb = CAREER_BONBU_ORDER.indexOf(b.bonbu); if (bb < 0) bb = 999;
     if (ba !== bb) return ba - bb;
     var da = String(a.dept||''), db = String(b.dept||'');
+    var ra = careerDeptRank(a.bonbu, da), rb = careerDeptRank(b.bonbu, db);
+    if (ra >= 0 || rb >= 0) {
+      var raa = ra < 0 ? 999 : ra, rbb = rb < 0 ? 999 : rb;
+      if (raa !== rbb) return raa - rbb;
+    }
     if (da !== db) return da.localeCompare(db);
     var la = CAREER_LEADER_TITLES.indexOf(a._emp.title) >= 0 ? 0 : 1;
     var lb = CAREER_LEADER_TITLES.indexOf(b._emp.title) >= 0 ? 0 : 1;
@@ -13158,6 +13181,16 @@ function careerRenderOverviewTable() {
     if (MERGE_DEPT_BONBU.indexOf(rows[i].bonbu) >= 0) {
       deptSpan[i] = span;
       for (var k = i+1; k < j; k++) deptSpan[k] = 0;
+    } else {
+      // 같은 본부 안에서, 연속으로 같은 부서인 경우 부서 셀도 병합
+      for (var m = i; m < j; ) {
+        var n = m;
+        while (n < j && rows[n].dept === rows[m].dept) n++;
+        var dspan = n - m;
+        deptSpan[m] = dspan;
+        for (var p = m+1; p < n; p++) deptSpan[p] = 0;
+        m = n;
+      }
     }
     i = j;
   }
@@ -13172,13 +13205,13 @@ function careerRenderOverviewTable() {
         if (bonbuSpan[idx] === 0) return '';
         var isSpecial = MERGE_DEPT_BONBU.indexOf(r.bonbu) >= 0;
         var colspanAttr = isSpecial ? ' colspan="2"' : '';
-        return '<td rowspan="'+bonbuSpan[idx]+'"'+colspanAttr+' style="vertical-align:middle'+(isSpecial?';text-align:center':'')+'">'+r.bonbu+'</td>';
+        return '<td rowspan="'+bonbuSpan[idx]+'"'+colspanAttr+' style="vertical-align:middle;white-space:nowrap'+(isSpecial?';text-align:center':'')+'">'+r.bonbu+'</td>';
       }
       if (c.key === 'dept') {
         var isSpecialDept = MERGE_DEPT_BONBU.indexOf(r.bonbu) >= 0;
         if (isSpecialDept) return ''; // 본부 셀에 colspan=2로 이미 합쳐짐
         if (deptSpan[idx] === 0) return '';
-        return '<td rowspan="'+deptSpan[idx]+'" style="vertical-align:middle">'+r.dept+'</td>';
+        return '<td rowspan="'+deptSpan[idx]+'" style="vertical-align:middle;white-space:nowrap">'+r.dept+'</td>';
       }
       var val = (excluded && keepCols.indexOf(c.key) < 0) ? '' : r[c.key];
       var tdStyle = c.assocId ? ' style="text-align:center;font-size:12px"' : '';
