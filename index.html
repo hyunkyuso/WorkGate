@@ -12832,8 +12832,18 @@ var CAREER_ASSOCIATIONS = [
 var CAREER_RELEVANT_LICENSES = [
   '교통기사', '도시계획기사', '측량및지형공간정보기사', '지적기사', '정보처리기사',
   '측량및지형공간정보산업기사', '지적산업기사', '정보처리산업기사', '사무자동화산업기사',
-  '지도제작기능사', '지적기능사'
+  '지도제작기능사', '지적기능사', '지적기술사'
 ];
+
+// 자격증 등급 순서: 기술사 > 기사 > 산업기사 > 기능사 (산업기사가 '기사'를 포함하므로 먼저 체크)
+function careerLicenseGradeRank(name) {
+  name = name || '';
+  if (name.indexOf('기술사') >= 0) return 0;
+  if (name.indexOf('산업기사') >= 0) return 2;
+  if (name.indexOf('기사') >= 0) return 1;
+  if (name.indexOf('기능사') >= 0) return 3;
+  return 9;
+}
 
 var _careerSelectedAssoc = null;
 var _careerSelectedField = null;
@@ -13042,8 +13052,8 @@ function careerBuildOverviewRow(emp) {
     return oa - ob;
   });
   var licSorted = (emp.license||[])
-    .filter(function(l){ return CAREER_RELEVANT_LICENSES.indexOf(l.name) >= 0; })
-    .slice().sort(function(a, b){ return (b.date||'').localeCompare(a.date||''); });
+    .filter(function(l){ return CAREER_RELEVANT_LICENSES.indexOf(l.name) >= 0 || (l.org||'').indexOf('한국산업인력공단') >= 0; })
+    .slice().sort(function(a, b){ return careerLicenseGradeRank(a.name) - careerLicenseGradeRank(b.name); });
 
   var joindate = emp.joindate || '';
   var earliestDoyu = null;
