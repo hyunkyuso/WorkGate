@@ -12997,9 +12997,17 @@ function careerCalcSalesCareer(emp) {
   return careerDaysToYMD(totalDays);
 }
 
+// 직원관리에 등록된 이름을 기준으로 생년월일을 찾아옴 (혹시 다른 레코드로 중복 저장된 경우 대비)
+function careerGetBirthdateByName(emp) {
+  if (emp.birthdate) return emp.birthdate;
+  var match = employees.find(function(e){ return e.name === emp.name && e.birthdate; });
+  return match ? match.birthdate : '';
+}
+
 function careerBuildOverviewRow(emp) {
   var calc = pcCalcTotalCareer(emp);
   var salesCareer = careerCalcSalesCareer(emp);
+  var birthdate = careerGetBirthdateByName(emp);
 
   var eduSorted = (emp.education||[]).slice().sort(function(a, b) {
     var oa = CAREER_DEGREE_ORDER[a.degree] !== undefined ? CAREER_DEGREE_ORDER[a.degree] : 9;
@@ -13026,8 +13034,8 @@ function careerBuildOverviewRow(emp) {
     position: emp.position || '-',
     name: emp.name || '-',
     recentJoin: joinCell,
-    birthdate: emp.birthdate || '-',
-    age: emp.birthdate ? careerCalcAge(emp.birthdate) : '-',
+    birthdate: birthdate || '-',
+    age: birthdate ? careerCalcAge(birthdate) : '-',
     careerTotal: careerFmtYMD(salesCareer),
     school: eduSorted.length ? eduSorted.map(function(e){ return e.school||'-'; }).join('<br>') : '-',
     major: eduSorted.length ? eduSorted.map(function(e){ return e.major||'-'; }).join('<br>') : '-',
