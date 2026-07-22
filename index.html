@@ -12930,6 +12930,9 @@ function careerGetBonbu(emp) {
 // 기본 정렬: 본부(지정 순서) → 직책자 우선 → 직위 순서
 function careerDefaultSortRows(rows) {
   return rows.slice().sort(function(a, b) {
+    var ceoA = a.position === '대표이사' ? 0 : 1;
+    var ceoB = b.position === '대표이사' ? 0 : 1;
+    if (ceoA !== ceoB) return ceoA - ceoB;
     var ba = CAREER_BONBU_ORDER.indexOf(a.bonbu); if (ba < 0) ba = 999;
     var bb = CAREER_BONBU_ORDER.indexOf(b.bonbu); if (bb < 0) bb = 999;
     if (ba !== bb) return ba - bb;
@@ -13168,13 +13171,14 @@ function careerRenderOverviewTable() {
       if (c.key === 'bonbu') {
         if (bonbuSpan[idx] === 0) return '';
         var isSpecial = MERGE_DEPT_BONBU.indexOf(r.bonbu) >= 0;
-        return '<td rowspan="'+bonbuSpan[idx]+'" style="vertical-align:middle'+(isSpecial?';text-align:center':'')+'">'+r.bonbu+'</td>';
+        var colspanAttr = isSpecial ? ' colspan="2"' : '';
+        return '<td rowspan="'+bonbuSpan[idx]+'"'+colspanAttr+' style="vertical-align:middle'+(isSpecial?';text-align:center':'')+'">'+r.bonbu+'</td>';
       }
       if (c.key === 'dept') {
-        if (deptSpan[idx] === 0) return '';
         var isSpecialDept = MERGE_DEPT_BONBU.indexOf(r.bonbu) >= 0;
-        var deptVal = isSpecialDept ? r.bonbu : r.dept;
-        return '<td rowspan="'+deptSpan[idx]+'" style="vertical-align:middle'+(isSpecialDept?';text-align:center':'')+'">'+deptVal+'</td>';
+        if (isSpecialDept) return ''; // 본부 셀에 colspan=2로 이미 합쳐짐
+        if (deptSpan[idx] === 0) return '';
+        return '<td rowspan="'+deptSpan[idx]+'" style="vertical-align:middle">'+r.dept+'</td>';
       }
       var val = (excluded && keepCols.indexOf(c.key) < 0) ? '' : r[c.key];
       var tdStyle = c.assocId ? ' style="text-align:center;font-size:12px"' : '';
