@@ -952,7 +952,7 @@ select.form-input{cursor:pointer}
             <button class="btn btn-ghost btn-sm" onclick="careerResetSort()">↺ 정렬 초기화(본부·부서순)</button>
             <div id="career-column-picker" style="display:none;position:absolute;top:38px;left:250px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.08);padding:10px;z-index:20;max-height:320px;overflow-y:auto;width:220px"></div>
           </div>
-          <div class="table-wrap"><table id="career-overview-table">
+          <div style="overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)"><table id="career-overview-table" style="width:max-content;min-width:100%">
             <thead id="career-overview-thead"></thead>
             <tbody id="career-overview-tbody"></tbody>
           </table></div>
@@ -13051,7 +13051,7 @@ function careerBuildOverviewRow(emp) {
       if (!earliestDoyu || c.start < earliestDoyu) earliestDoyu = c.start;
     }
   });
-  var joinCell = joindate ? (earliestDoyu ? '('+earliestDoyu+')<br>'+joindate : joindate) : '-';
+  var joinCell = joindate ? (earliestDoyu ? '('+careerFmtDate(earliestDoyu)+')<br>'+joindate : joindate) : '-';
 
   var row = {
     _emp: emp,
