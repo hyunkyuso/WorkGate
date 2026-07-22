@@ -903,7 +903,7 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div class="table-wrap"><table id="tbl-award">
-          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>수상명</th><th>수상기관</th><th>수상일</th><th>발급번호</th><th>수상내용</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
+          <thead><tr><th style="width:60px;white-space:nowrap">구분</th><th>수상명</th><th>수상기관</th><th>수상일</th><th>발급번호</th><th style="max-width:280px">수상내용</th><th style="width:200px;white-space:nowrap;text-align:center" class="admin-only">파일</th><th style="width:140px;white-space:nowrap;text-align:center" class="admin-only">관리</th></tr></thead>
           <tbody id="tbody-award"></tbody>
         </table></div>
       </div>
@@ -965,7 +965,13 @@ select.form-input{cursor:pointer}
           <div><div class="page-title">👥 인력 및 등급관리</div><div class="page-sub">개인별 협회 소속 및 등급을 관리합니다</div></div>
         </div>
 
-        <div style="font-weight:600;font-size:14px;margin-bottom:10px">총괄관리표</div>
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button class="career-people-tab-btn active" onclick="careerPeopleSwitchTab('overview',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--acd);color:var(--ac);cursor:pointer;font-size:13px">총괄관리표</button>
+          <button class="career-people-tab-btn" onclick="careerPeopleSwitchTab('eng',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer;font-size:13px">한국엔지니어링협회</button>
+          <button class="career-people-tab-btn" onclick="careerPeopleSwitchTab('construction',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer;font-size:13px">한국건설기술인협회</button>
+          <button class="career-people-tab-btn" onclick="careerPeopleSwitchTab('aisw',this)" style="padding:7px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--white);color:var(--t1);cursor:pointer;font-size:13px">한국인공지능소프트웨어산업협회</button>
+        </div>
+
         <div id="career-people-tab-overview">
           <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;position:relative">
             <input id="career-overview-search" type="text" class="form-input" style="max-width:240px;font-size:13px" placeholder="이름/부서 등 검색..." oninput="careerRenderOverviewTable()">
@@ -980,8 +986,7 @@ select.form-input{cursor:pointer}
           </table></div>
         </div>
 
-        <div style="font-weight:600;font-size:14px;margin:24px 0 10px">한국엔지니어링협회</div>
-        <div id="career-people-tab-eng">
+        <div id="career-people-tab-eng" style="display:none">
           <div style="overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)">
             <table id="career-eng-table" style="width:max-content;min-width:100%;font-size:12px">
               <thead id="career-eng-thead"></thead>
@@ -990,15 +995,13 @@ select.form-input{cursor:pointer}
           </div>
         </div>
 
-        <div style="font-weight:600;font-size:14px;margin:24px 0 10px">한국건설기술인협회</div>
-        <div id="career-people-tab-construction">
+        <div id="career-people-tab-construction" style="display:none">
           <div style="padding:24px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
             준비 중입니다.
           </div>
         </div>
 
-        <div style="font-weight:600;font-size:14px;margin:24px 0 10px">한국인공지능소프트웨어산업협회</div>
-        <div id="career-people-tab-aisw">
+        <div id="career-people-tab-aisw" style="display:none">
           <div style="padding:24px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
             준비 중입니다.
           </div>
@@ -13357,6 +13360,19 @@ function careerRegGetCol(row, names) {
   return '';
 }
 
+// 엑셀에서 날짜 셀이 일련번호(예: 34974)나 Date 객체로 들어오는 경우를 대비해 YYYY-MM-DD로 정규화
+function careerRegFmtDate(val) {
+  if (val === '' || val === undefined || val === null) return '';
+  if (typeof val === 'number') {
+    var parsed = XLSX.SSF.parse_date_code(val);
+    if (parsed) return parsed.y + '-' + String(parsed.m).padStart(2,'0') + '-' + String(parsed.d).padStart(2,'0');
+  }
+  if (val instanceof Date) {
+    return val.getFullYear() + '-' + String(val.getMonth()+1).padStart(2,'0') + '-' + String(val.getDate()).padStart(2,'0');
+  }
+  return careerFmtDate(String(val));
+}
+
 function careerRegUploadExcel(input) {
   var file = input.files[0];
   if (!file) return;
@@ -13402,8 +13418,8 @@ function careerRegUploadExcel(input) {
         employer: careerRegGetCol(row, ['근무처']),
         client: careerRegGetCol(row, ['발주처']),
         field: careerRegGetCol(row, ['전문분야']) || (assoc.fields.length ? assoc.fields[0] : assoc.name),
-        contractDate: careerRegGetCol(row, ['계약일','계약일(YYYY-MM-DD)']),
-        completionDate: careerRegGetCol(row, ['준공일','준공일(YYYY-MM-DD)']),
+        contractDate: careerRegFmtDate(careerRegGetCol(row, ['계약일','계약일(YYYY-MM-DD)'])),
+        completionDate: careerRegFmtDate(careerRegGetCol(row, ['준공일','준공일(YYYY-MM-DD)'])),
         days: careerRegGetCol(row, ['참여일','참여일(중복조정 후)']),
         note: careerRegGetCol(row, ['비고'])
       });
@@ -13461,8 +13477,8 @@ function careerRenderProjectModal() {
       '<td style="padding:4px 6px;white-space:nowrap">'+(en.employer||'-')+'</td>' +
       '<td style="padding:4px 6px;white-space:nowrap">'+(en.client||'-')+'</td>' +
       '<td style="padding:4px 6px;white-space:nowrap">'+(en.field||'-')+'</td>' +
-      '<td style="padding:4px 6px;white-space:nowrap">'+(en.contractDate||'-')+'</td>' +
-      '<td style="padding:4px 6px;white-space:nowrap">'+(en.completionDate||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap;min-width:90px">'+(en.contractDate||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap;min-width:90px">'+(en.completionDate||'-')+'</td>' +
       '<td style="padding:4px 6px;text-align:center">'+(en.days||'-')+'</td>' +
       '<td style="padding:4px 6px">'+(en.note||'')+'</td>' +
     '</tr>';
@@ -13569,7 +13585,7 @@ function careerRenderEngTab() {
       '<td style="padding:6px;white-space:nowrap">'+r.name+'</td>' +
       r.gradeInfos.map(function(g) {
         if (!g) return '<td style="text-align:center">-</td>';
-        return '<td style="text-align:center">'+careerShortGrade(g.grade)+(g.isOverride?'(수동)':'')+'</td>';
+        return '<td style="text-align:center">'+careerShortGrade(g.grade)+'</td>';
       }).join('') +
       r.needCells.map(function(n){ return '<td style="text-align:center">'+n+'</td>'; }).join('') +
       '<td style="text-align:center">'+(r.other||'-')+'</td>' +
@@ -16002,12 +16018,12 @@ function showPage(id, el) {
   if(id === 'personnel-card') { pcPopulateEmpSelect(); }
   if(id === 'career-dashboard') { careerRenderLicenseDashboard(); careerRenderEduDashboard(); }
   if(id === 'career-people') {
+    careerPeopleSwitchTab('overview', document.querySelector('.career-people-tab-btn'));
     if (_careerPrefillSearch !== null) {
       document.getElementById('career-overview-search').value = _careerPrefillSearch;
       _careerPrefillSearch = null;
     }
     careerRenderOverviewTable();
-    careerRenderEngTab();
   }
   if(id === 'career-register') { careerRegRenderEmpList(); careerRegRenderDetail(); }
   if(id === 'task-admin') { taInitPage(); }
@@ -16489,9 +16505,9 @@ function certRender(type) {
     return trTag + numCell +
       schema.keys.map(function(k, ki) { 
         var v = (row[k]||'-').replace(/(\d+)\.\s+(\d)/g, '$1.&nbsp;$2');
-        var style = ki === 0 
+        var style = ki === 0
           ? 'font-size:15px'
-          : 'font-size:15px;white-space:nowrap';
+          : (k === 'content' ? 'font-size:15px;white-space:normal;max-width:280px' : 'font-size:15px;white-space:nowrap');
 
         // 날짜/기간 필드 만료 임박 음영
         var ftype = schema.types && schema.types[ki];
