@@ -13163,9 +13163,9 @@ async function careerSetGradeOverride(empId, field, grade) {
   if (!emp) return;
   var overrides = Object.assign({}, emp.careerGradeOverride||{});
   if (grade) overrides[field] = grade; else delete overrides[field];
+  emp.careerGradeOverride = overrides; // 즉시 반영 (재렌더가 바로 뒤에 호출되므로)
   try {
     await db.collection('employees').doc(empId).update({ careerGradeOverride: overrides });
-    emp.careerGradeOverride = overrides;
     showToast('✅ 등급이 저장되었습니다');
   } catch (err) {
     showToast('❌ 저장 실패: ' + err.message);
@@ -13232,7 +13232,7 @@ function careerRegRenderDetail() {
 
   var entries = ((emp.assocCareer||{})[_careerRegSelectedAssoc]) || [];
   var fieldOptions = assoc.fields.length ? assoc.fields : [assoc.name];
-  var gradeOptionsForOverride = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자','미달'];
+  var gradeOptionsForOverride = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자','숙련(고)','숙련(중)','숙련(초)','미달'];
   var overrides = emp.careerGradeOverride || {};
 
   var gradeInitHtml = '<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;background:#fafafa">' +
@@ -13429,7 +13429,7 @@ function careerRenderEngTab() {
       if (gradeCells[i] === '-') return '-';
       if (gradeCells[i] === '기술사') return '-';
       var need = careerDaysToNextGrade(emp, field, gradeCells[i], 'eng');
-      return need ? Math.ceil(need) : '충족';
+      return need ? Math.ceil(need) : '-';
     });
     return { emp: emp, empId: empId, bonbu: bonbu, position: emp.position||'-', name: emp.name||'-', gradeCells: gradeCells, gradeInfos: gradeInfos, needCells: needCells, other: days.other, doyu: days.doyu };
   });
@@ -13452,7 +13452,7 @@ function careerRenderEngTab() {
     i = j;
   }
 
-  var gradeOptions = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자','미달'];
+  var gradeOptions = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자','숙련(고)','숙련(중)','숙련(초)','미달'];
   tbody.innerHTML = rows.map(function(r, idx) {
     var bonbuCell = bonbuSpan[idx] === 0 ? '' : '<td rowspan="'+bonbuSpan[idx]+'" style="white-space:nowrap;padding:6px;vertical-align:middle">'+r.bonbu+'</td>';
     return '<tr style="border-top:1px solid var(--border)">' + bonbuCell +
@@ -13460,11 +13460,11 @@ function careerRenderEngTab() {
       '<td style="padding:6px;white-space:nowrap">'+r.name+'</td>' +
       r.gradeInfos.map(function(g, fi) {
         if (!g) return '<td style="text-align:center">-</td>';
-        if (!amAdmin) return '<td style="text-align:center">'+g.grade+(g.isOverride?' (수동)':'')+'</td>';
+        if (!amAdmin) return '<td style="text-align:center">'+careerShortGrade(g.grade)+(g.isOverride?' (수동)':'')+'</td>';
         var field = fields[fi];
         return '<td style="text-align:center"><select onchange="careerSetGradeOverride(\''+r.empId+'\',\''+field+'\',this.value===\'auto\'?null:this.value);careerRenderEngTab()" style="font-size:11px;padding:1px">' +
-          '<option value="auto"'+(g.isOverride?'':' selected')+'>자동('+g.autoGrade+')</option>' +
-          gradeOptions.map(function(go){ return '<option value="'+go+'"'+(g.isOverride && g.grade===go?' selected':'')+'>'+go+'(수동)</option>'; }).join('') +
+          '<option value="auto"'+(g.isOverride?'':' selected')+'>자동('+careerShortGrade(g.autoGrade)+')</option>' +
+          gradeOptions.map(function(go){ return '<option value="'+go+'"'+(g.isOverride && g.grade===go?' selected':'')+'>'+careerShortGrade(go)+'(수동)</option>'; }).join('') +
         '</select></td>';
       }).join('') +
       r.needCells.map(function(n){ return '<td style="text-align:center">'+n+'</td>'; }).join('') +
@@ -13676,6 +13676,12 @@ function careerCalcSalesCareer(emp) {
 // ══════════════════════════════════════════════════
 var CAREER_GRADE_ORDER_LIST = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자','미달'];
 
+var CAREER_GRADE_SHORT_LABEL = {
+  '기술사':'기술사', '특급기술자':'특급', '고급기술자':'고급', '중급기술자':'중급', '초급기술자':'초급',
+  '숙련(고)':'숙련(고)', '숙련(중)':'숙련(중)', '숙련(초)':'숙련(초)', '미달':'미달'
+};
+function careerShortGrade(g) { return CAREER_GRADE_SHORT_LABEL[g] || g; }
+
 // 등급별 기준: certPaths=[{grade:'기사'|'산업기사', years}], eduPaths=[{degree:'박사'|'석사'|'학사', years}]
 var CAREER_GRADE_CRITERIA = [
   { grade:'특급기술자', certPaths:[{g:'기사',y:10},{g:'산업기사',y:13}], eduPaths:[{d:'박사',y:4},{d:'석사',y:9},{d:'학사',y:12}] },
@@ -13878,7 +13884,18 @@ function careerBuildOverviewRow(emp) {
     licenseDate: licSorted.length ? licSorted.map(function(l){ return careerFmtDate(l.date)||'-'; }).join('<br>') : '-',
     licenseNo: licSorted.length ? licSorted.map(function(l){ return l.number||'-'; }).join('<br>') : '-'
   };
-  CAREER_GRADE_COLS.forEach(function(c){ row[c.key] = '-'; });
+  CAREER_GRADE_COLS.forEach(function(c) {
+    if (c.assocId === 'eng') {
+      var regEntries = (emp.assocCareer||{})['eng'] || [];
+      var hasAny = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseField(l.name) === c.field; }) ||
+                   (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(c.field) >= 0; }) ||
+                   regEntries.some(function(en){ return en.field === c.field; }) ||
+                   !!(emp.careerGradeOverride||{})[c.field];
+      row[c.key] = hasAny ? careerShortGrade(careerGetEffectiveGrade(emp, c.field, 'eng').grade) : '-';
+    } else {
+      row[c.key] = '-';
+    }
+  });
   return row;
 }
 
