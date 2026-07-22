@@ -13386,7 +13386,9 @@ function careerRegUploadExcel(input) {
     } else {
       wb = XLSX.read(new Uint8Array(ev.target.result), { type:'array' });
     }
-    var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'' });
+    var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'', raw:false });
+    console.log('[협회 등록 업로드] 파일:', file.name, '/ 파싱된 행 수:', rows.length);
+    console.log('[협회 등록 업로드] 첫 번째 행 원본:', rows[0]);
     if (!rows.length) { showToast('❌ 파일에 데이터가 없습니다'); return; }
 
     var hasNameCol = rows.some(function(r){ return careerRegGetCol(r, ['이름']); });
@@ -13411,6 +13413,11 @@ function careerRegUploadExcel(input) {
       }
 
       var empId = emp._docId || emp.id;
+      var rawContract = careerRegGetCol(row, ['계약일','계약일(YYYY-MM-DD)']);
+      var rawCompletion = careerRegGetCol(row, ['준공일','준공일(YYYY-MM-DD)']);
+      var fmtContract = careerRegFmtDate(rawContract);
+      var fmtCompletion = careerRegFmtDate(rawCompletion);
+      console.log('[협회 등록 업로드] 날짜 변환:', '원본계약일=', rawContract, '(타입:'+typeof rawContract+')', '→', fmtContract, '| 원본준공일=', rawCompletion, '→', fmtCompletion);
       emp.assocCareer = emp.assocCareer || {};
       emp.assocCareer[assoc.id] = emp.assocCareer[assoc.id] || [];
       emp.assocCareer[assoc.id].push({
@@ -13418,8 +13425,8 @@ function careerRegUploadExcel(input) {
         employer: careerRegGetCol(row, ['근무처']),
         client: careerRegGetCol(row, ['발주처']),
         field: careerRegGetCol(row, ['전문분야']) || (assoc.fields.length ? assoc.fields[0] : assoc.name),
-        contractDate: careerRegFmtDate(careerRegGetCol(row, ['계약일','계약일(YYYY-MM-DD)'])),
-        completionDate: careerRegFmtDate(careerRegGetCol(row, ['준공일','준공일(YYYY-MM-DD)'])),
+        contractDate: fmtContract,
+        completionDate: fmtCompletion,
         days: careerRegGetCol(row, ['참여일','참여일(중복조정 후)']),
         note: careerRegGetCol(row, ['비고'])
       });
