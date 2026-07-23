@@ -14454,10 +14454,8 @@ var CAREER_SKILLED_CRITERIA = [
 function careerGetRelevantCareerPeriods(emp, assocId, field) {
   var todayStr = new Date().toISOString().slice(0,10);
   var periods = [];
-  (emp.career||[]).forEach(function(c) {
-    if (c.salesUse && c.start) periods.push({ start: c.start, end: c.end || todayStr });
-  });
-  if (emp.joindate) periods.push({ start: emp.joindate, end: todayStr });
+  // 협회 등급 산정에는 그 협회에 명시적으로 등록한 사업(경력)만 반영한다.
+  // 일반 인사기록카드 경력이나 근속기간은 포함하지 않음 (체크만 해도 근속으로 등급이 올라가는 문제 방지)
   if (assocId) {
     ((emp.assocCareer||{})[assocId] || []).forEach(function(c) {
       if (!c.contractDate) return;
