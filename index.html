@@ -1009,8 +1009,11 @@ select.form-input{cursor:pointer}
         </div>
 
         <div id="career-people-tab-aisw" style="display:none">
-          <div style="padding:24px;text-align:center;color:var(--t3);font-size:13px;background:var(--white);border:1px solid var(--border);border-radius:12px">
-            준비 중입니다.
+          <div style="overflow:auto;max-height:70vh;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)">
+            <table id="career-aisw-table" style="width:max-content;min-width:100%;font-size:12px">
+              <thead id="career-aisw-thead"></thead>
+              <tbody id="career-aisw-tbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -12954,6 +12957,10 @@ function careerIsFieldRegistered(emp, assocId, field) {
       var hasCert2 = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerConstructionFieldsForLicense(l.name).indexOf(field) >= 0; });
       var hasEdu2 = (emp.education||[]).some(function(e){ return careerConstructionFieldsForMajor(e.major).indexOf(field) >= 0; });
       if (hasCert2 || hasEdu2) return true;
+    } else if (assocId === 'aisw') {
+      var hasCert3 = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l); });
+      var hasEdu3 = (emp.education||[]).length > 0;
+      if (hasCert3 || hasEdu3) return true;
     } else {
       var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && field.indexOf(careerLicenseField(l.name)) === 0; });
       var hasEdu = (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; });
@@ -13561,6 +13568,11 @@ function careerRegRenderDetail() {
       var hasEdu2 = (emp.education||[]).some(function(e){ return careerConstructionFieldsForMajor(e.major).indexOf(f) >= 0; });
       return hasCert2 || hasEdu2;
     }
+    if (_careerRegSelectedAssoc === 'aisw') {
+      var hasCert3 = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l); });
+      var hasEdu3 = (emp.education||[]).length > 0;
+      return hasCert3 || hasEdu3;
+    }
     var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && f.indexOf(careerLicenseField(l.name)) === 0; });
     var hasEdu = (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(f) >= 0; });
     return hasCert || hasEdu;
@@ -14022,6 +14034,70 @@ function careerRenderConstructionTab() {
   }).join('');
 }
 
+function careerRenderAiswTab() {
+  var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === 'aisw'; });
+  var field = assoc.name; // 분야 구분 없음 -> 협회명 자체를 단일 필드로 사용
+  var thead = document.getElementById('career-aisw-thead');
+  var tbody = document.getElementById('career-aisw-tbody');
+  var sticky = 'position:sticky;top:0;background:#f1f5f9;z-index:5;text-align:center;white-space:nowrap';
+
+  thead.innerHTML =
+    '<tr>' +
+      '<th style="padding:6px;'+sticky+'">부서</th>' +
+      '<th style="padding:6px;'+sticky+'">직급</th>' +
+      '<th style="padding:6px;'+sticky+'">이름</th>' +
+      '<th style="padding:6px;'+sticky+'">등록현황</th>' +
+      '<th style="padding:6px;'+sticky+'">다음 등급까지<br>필요 경력</th>' +
+      '<th style="padding:0 6px;'+sticky+'">타회사 등록<br>가능 경력일수</th>' +
+      '<th style="padding:0 6px;'+sticky+'">정도 등록<br>가능 경력일수</th>' +
+      '<th style="padding:0 6px;'+sticky+'">등록경력일</th>' +
+      '<th style="padding:0 6px;'+sticky+'">등록경력<br>연수환산</th>' +
+    '</tr>';
+
+  var rows = [];
+  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+    if (!careerIsFieldRegistered(emp, 'aisw', field)) return;
+    var g = careerGetEffectiveGrade(emp, field, 'aisw');
+    var need = g.grade !== '기술사' ? careerDaysToNextGrade(emp, field, g.grade, 'aisw') : null;
+    var days = careerSplitCompanyDays(emp);
+    var regDays = 0;
+    ((emp.assocCareer||{})['aisw'] || []).forEach(function(c) { regDays += Number(c.days) || 0; });
+    rows.push({
+      emp: emp, bonbu: careerGetBonbu(emp), position: emp.position||'-', name: emp.name||'-',
+      grade: g.grade, need: need, other: days.other, doyu: days.doyu,
+      regDays: regDays, regYears: Math.round((regDays/365)*100)/100
+    });
+  });
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--t3)">"등록" 메뉴에서 한국인공지능소프트웨어산업협회에 등록된 인원이 없습니다</td></tr>';
+    return;
+  }
+
+  rows.sort(function(a, b) {
+    var ba = CAREER_BONBU_ORDER.indexOf(a.bonbu); if (ba < 0) ba = 999;
+    var bb = CAREER_BONBU_ORDER.indexOf(b.bonbu); if (bb < 0) bb = 999;
+    if (ba !== bb) return ba - bb;
+    var pa = CAREER_POSITION_ORDER.indexOf(a.position); if (pa < 0) pa = 999;
+    var pb = CAREER_POSITION_ORDER.indexOf(b.position); if (pb < 0) pb = 999;
+    return pa - pb;
+  });
+
+  tbody.innerHTML = rows.map(function(r) {
+    return '<tr style="border-top:1px solid var(--border)">' +
+      '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.bonbu+'</td>' +
+      '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.position+'</td>' +
+      '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.name+'</td>' +
+      '<td style="text-align:center">'+careerGradeBadge(r.grade)+'</td>' +
+      '<td style="text-align:center">'+(r.need ? Math.ceil(r.need) : '-')+'</td>' +
+      '<td style="text-align:center">'+(r.other||'-')+'</td>' +
+      '<td style="text-align:center">'+(r.doyu||'-')+'</td>' +
+      '<td style="text-align:center">'+(r.regDays||'-')+'</td>' +
+      '<td style="text-align:center">'+(r.regYears||'-')+'</td>' +
+    '</tr>';
+  }).join('');
+}
+
 function careerRenderEngTab() {
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === 'eng'; });
   var fields = assoc.fields;
@@ -14406,7 +14482,9 @@ function careerWeightedDays(periods, qualDate) {
 
 function careerDetermineGrade(emp, field, assocId) {
   var licsInField = (emp.license||[]).filter(function(l){
-    return careerIsRelevantLicense(l) && field.indexOf(careerLicenseField(l.name)) === 0;
+    if (!careerIsRelevantLicense(l)) return false;
+    if (assocId === 'aisw') return true; // 자격 범위 내 IT 자격증이면 분야 구분 없이 전부 인정
+    return field.indexOf(careerLicenseField(l.name)) === 0;
   });
   if (licsInField.some(function(l){ return careerLicenseGradeRank(l.name) === 0; })) {
     return { grade:'기술사', days:null, neededForNext:null };
@@ -14420,6 +14498,7 @@ function careerDetermineGrade(emp, field, assocId) {
   });
 
   var edusInField = (emp.education||[]).filter(function(e){
+    if (assocId === 'aisw') return true; // 학과 상관없음
     return careerEduFieldsForMajor(e.major).indexOf(field) >= 0;
   });
   var byDegree = { '박사':null, '석사':null, '학사':null, '전문학사':null, '고졸':null };
@@ -14495,7 +14574,9 @@ function careerDaysToNextGrade(emp, field, currentGrade, assocId) {
   if (!nextCrit) return null;
 
   var licsInField = (emp.license||[]).filter(function(l){
-    return careerIsRelevantLicense(l) && field.indexOf(careerLicenseField(l.name)) === 0;
+    if (!careerIsRelevantLicense(l)) return false;
+    if (assocId === 'aisw') return true;
+    return field.indexOf(careerLicenseField(l.name)) === 0;
   });
   var byGrade = { '기사':[], '산업기사':[] };
   licsInField.forEach(function(l) {
@@ -14504,6 +14585,7 @@ function careerDaysToNextGrade(emp, field, currentGrade, assocId) {
     else if (r === 2) byGrade['산업기사'].push(l);
   });
   var edusInField = (emp.education||[]).filter(function(e){
+    if (assocId === 'aisw') return true;
     return careerEduFieldsForMajor(e.major).indexOf(field) >= 0;
   });
   var byDegree = { '박사':null, '석사':null, '학사':null };
@@ -14583,6 +14665,11 @@ function careerBuildOverviewRow(emp) {
     if (c.assocId === 'eng' || c.assocId === 'construction') {
       var isRegistered = careerIsFieldRegistered(emp, c.assocId, c.field);
       row[c.key] = isRegistered ? careerGradeBadge(careerGetEffectiveGrade(emp, c.field, c.assocId).grade) : '-';
+    } else if (c.assocId === 'aisw') {
+      var aiswAssoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === 'aisw'; });
+      var aiswField = aiswAssoc.name;
+      var isRegisteredAisw = careerIsFieldRegistered(emp, 'aisw', aiswField);
+      row[c.key] = isRegisteredAisw ? careerGradeBadge(careerGetEffectiveGrade(emp, aiswField, 'aisw').grade) : '-';
     } else {
       row[c.key] = '-';
     }
@@ -14846,6 +14933,7 @@ function careerPeopleSwitchTab(tab, el) {
   if (tab === 'overview') careerRenderOverviewTable();
   if (tab === 'eng') careerRenderEngTab();
   if (tab === 'construction') careerRenderConstructionTab();
+  if (tab === 'aisw') careerRenderAiswTab();
 }
 
 
