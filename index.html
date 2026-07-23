@@ -14353,6 +14353,14 @@ var CAREER_GRADE_CRITERIA = [
   { grade:'초급기술자', certPaths:[{g:'기사',y:0},{g:'산업기사',y:2}],   eduPaths:[{d:'석사',y:0},{d:'학사',y:3}] }
 ];
 
+// 숙련기술계: 학과범위(기술계 학력)에 해당 안 되고 기능사 자격이나 고졸/전문학사 학력만 있는 경우 적용
+// (기능장/기능사보 데이터가 없어 기능사·산업기사 자격 경로와 고졸·전문학사 학력 경로만 반영)
+var CAREER_SKILLED_CRITERIA = [
+  { grade:'숙련(고)', certPaths:[{g:'산업기사',y:4},{g:'기능사',y:7}], eduPaths:[{d:'전문학사',y:5},{d:'고졸',y:8}] },
+  { grade:'숙련(중)', certPaths:[{g:'산업기사',y:0},{g:'기능사',y:3}], eduPaths:[{d:'전문학사',y:1},{d:'고졸',y:4}] },
+  { grade:'숙련(초)', certPaths:[{g:'기능사',y:0}],                   eduPaths:[{d:'고졸',y:0}] }
+];
+
 function careerGetRelevantCareerPeriods(emp, assocId, field) {
   var todayStr = new Date().toISOString().slice(0,10);
   var periods = [];
@@ -14403,17 +14411,18 @@ function careerDetermineGrade(emp, field, assocId) {
   if (licsInField.some(function(l){ return careerLicenseGradeRank(l.name) === 0; })) {
     return { grade:'기술사', days:null, neededForNext:null };
   }
-  var byGrade = { '기사':[], '산업기사':[] };
+  var byGrade = { '기사':[], '산업기사':[], '기능사':[] };
   licsInField.forEach(function(l) {
     var r = careerLicenseGradeRank(l.name);
     if (r === 1) byGrade['기사'].push(l);
     else if (r === 2) byGrade['산업기사'].push(l);
+    else if (r === 3) byGrade['기능사'].push(l);
   });
 
   var edusInField = (emp.education||[]).filter(function(e){
     return careerEduFieldsForMajor(e.major).indexOf(field) >= 0;
   });
-  var byDegree = { '박사':null, '석사':null, '학사':null };
+  var byDegree = { '박사':null, '석사':null, '학사':null, '전문학사':null, '고졸':null };
   edusInField.forEach(function(e) {
     if (byDegree.hasOwnProperty(e.degree) && !byDegree[e.degree]) byDegree[e.degree] = e;
   });
@@ -14450,6 +14459,29 @@ function careerDetermineGrade(emp, field, assocId) {
     });
     if (bestDays >= 0) {
       return { grade: crit.grade, days: bestDays };
+    }
+  }
+
+  // 기술계로 판정이 안 되면(학과범위 미해당 등) 숙련기술계 기준으로 대체 판정
+  for (var si = 0; si < CAREER_SKILLED_CRITERIA.length; si++) {
+    var scrit = CAREER_SKILLED_CRITERIA[si];
+    var sBestDays = -1;
+    scrit.certPaths.forEach(function(cp) {
+      var qd = certQualDate(cp.g);
+      if (qd === null) return;
+      var days = pathDays(qd);
+      var need = cp.y * 365;
+      if (days >= need && days > sBestDays) sBestDays = days;
+    });
+    scrit.eduPaths.forEach(function(ep) {
+      var e = byDegree[ep.d];
+      if (!e) return;
+      var days = pathDays(e.date);
+      var need = ep.y * 365;
+      if (days >= need && days > sBestDays) sBestDays = days;
+    });
+    if (sBestDays >= 0) {
+      return { grade: scrit.grade, days: sBestDays };
     }
   }
   return { grade: '미달', days: 0 };
