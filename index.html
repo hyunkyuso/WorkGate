@@ -13734,6 +13734,25 @@ function careerRegGetCol(row, names) {
   return '';
 }
 
+// 엑셀 "전문분야" 값이 정확한 필드명과 다르게(짧게) 적혀있는 경우를 정확한 필드명으로 정규화
+function careerRegNormalizeField(assocId, rawField) {
+  var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === assocId; });
+  if (!assoc || !assoc.fields.length) return rawField || (assoc ? assoc.name : '');
+  var val = (rawField || '').trim();
+  if (!val) return assoc.fields[0];
+  // 이미 정확히 일치하면 그대로
+  if (assoc.fields.indexOf(val) >= 0) return val;
+  // 각 필드명에 포함되는 키워드로 매칭 (예: "도시계획" → "도시교통-도시계획")
+  var found = assoc.fields.find(function(f){ return f.indexOf(val) >= 0 || val.indexOf(f) >= 0; });
+  if (found) return found;
+  if (assocId === 'construction') {
+    if (val.indexOf('측량') >= 0 || val.indexOf('지형공간정보') >= 0 || val.indexOf('지적') >= 0) return '토목-측량및지형공간정보';
+    if (val.indexOf('도시') >= 0 || val.indexOf('교통') >= 0) return '도시교통-도시계획';
+    if (val.indexOf('토목') >= 0 || val.indexOf('없음') >= 0) return '토목-전문분야없음';
+  }
+  return assoc.fields[0];
+}
+
 // 엑셀에서 날짜 셀이 일련번호(예: 34974)나 Date 객체로 들어오는 경우를 대비해 YYYY-MM-DD로 정규화
 function careerRegFmtDate(val) {
   if (val === '' || val === undefined || val === null) return '';
@@ -13830,7 +13849,7 @@ function careerRegUploadExcel(input) {
         name: careerRegGetCol(row, ['사업명']),
         employer: careerRegGetCol(row, ['근무처']),
         client: careerRegGetCol(row, ['발주처']),
-        field: careerRegGetCol(row, ['전문분야']) || (assoc.fields.length ? assoc.fields[0] : assoc.name),
+        field: careerRegNormalizeField(assoc.id, careerRegGetCol(row, ['전문분야'])),
         contractDate: fmtContract,
         completionDate: fmtCompletion,
         days: careerRegGetCol(row, ['참여일','참여일(중복조정 후)']),
