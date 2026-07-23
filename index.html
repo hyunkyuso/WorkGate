@@ -13742,15 +13742,12 @@ function careerRegNormalizeField(assocId, rawField) {
   if (!val) return assoc.fields[0];
   // 이미 정확히 일치하면 그대로
   if (assoc.fields.indexOf(val) >= 0) return val;
-  // 각 필드명에 포함되는 키워드로 매칭 (예: "도시계획" → "도시교통-도시계획")
+  // 각 필드명에 포함되는 키워드로 매칭 (예: "도시계획" → "도시교통-도시계획", 이건 표현만 다른 같은 분야를 맞춰주는 것)
   var found = assoc.fields.find(function(f){ return f.indexOf(val) >= 0 || val.indexOf(f) >= 0; });
   if (found) return found;
-  if (assocId === 'construction') {
-    if (val.indexOf('측량') >= 0 || val.indexOf('지형공간정보') >= 0 || val.indexOf('지적') >= 0) return '토목-측량및지형공간정보';
-    if (val.indexOf('도시') >= 0 || val.indexOf('교통') >= 0) return '도시교통-도시계획';
-    if (val.indexOf('토목') >= 0 || val.indexOf('없음') >= 0) return '토목-전문분야없음';
-  }
-  return assoc.fields[0];
+  // 우리가 추적하는 3개 분야 중 어디에도 해당 안 되면(예: "지적" 등 새로운 전문분야),
+  // 억지로 끼워맞추지 않고 그 이름 그대로 저장만 함 → 자동으로 경력지수 계산 대상에서는 제외됨
+  return val;
 }
 
 // 엑셀에서 날짜 셀이 일련번호(예: 34974)나 Date 객체로 들어오는 경우를 대비해 YYYY-MM-DD로 정규화
