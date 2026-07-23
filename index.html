@@ -13361,7 +13361,7 @@ function careerDetermineConstructionGrade(emp, field, extraDays) {
       if (e.degree === '박사') hasDoctor = true;
       eduBase = Math.max(eduBase, careerConstructionEduBaseScore(e.degree));
     });
-    eduScore = eduBase + (hasDoctor ? 3 : (hasMaster ? 1.5 : 0));
+    eduScore = Math.min(20, eduBase + (hasDoctor ? 3 : (hasMaster ? 1.5 : 0)));
   }
 
   // 경력지수: 수동값이 있으면 그걸 쓰고, 없으면 등록된 사업 참여일 합산으로 자동 계산 (+예상 시나리오 추가일수)
@@ -13386,7 +13386,7 @@ function careerDetermineConstructionGrade(emp, field, extraDays) {
 
 var CAREER_CONSTRUCTION_SCORE_FIELDS = {
   lic: { firestoreField: 'constructionLicScoreManual', min: 0, max: 40 },
-  academic: { firestoreField: 'constructionAcademicScoreManual', min: 0, max: 25 },
+  academic: { firestoreField: 'constructionAcademicScoreManual', min: 0, max: 20 },
   career: { firestoreField: 'constructionCareerScoreManual', min: 0, max: 40 },
   eduTrain: { firestoreField: 'constructionEduScore', min: 0, max: 5 }
 };
@@ -13597,7 +13597,7 @@ function careerRegRenderDetail() {
     eduTrainHtml = '<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;background:#fafafa">' +
       '<div style="font-weight:600;font-size:13px;margin-bottom:8px">지수 수동 입력 (자동계산값을 덮어씀, 비워두면 자동계산)</div>' +
       '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
-      '<thead><tr style="color:var(--t3)"><td>분야</td><td>①자격지수(0~40)</td><td>②학력지수(0~25)</td><td>③경력지수(0~40)</td><td>④교육지수(0~5)</td></tr></thead><tbody>' +
+      '<thead><tr style="color:var(--t3)"><td>분야</td><td>①자격지수(0~40)</td><td>②학력지수(0~20)</td><td>③경력지수(0~40)</td><td>④교육지수(0~5)</td></tr></thead><tbody>' +
       fieldOptions.map(function(f) {
         var curLic = manualLicScores[f] !== undefined ? manualLicScores[f] : '';
         var curAcademic = manualAcademicScores[f] !== undefined ? manualAcademicScores[f] : '';
@@ -13606,7 +13606,7 @@ function careerRegRenderDetail() {
         var empId = emp._docId || emp.id;
         return '<tr><td style="white-space:nowrap;color:var(--t2)">'+f+'</td>' +
           '<td><input type="number" min="0" max="40" step="1" class="form-input" style="font-size:12px" value="'+curLic+'" placeholder="자동" onchange="careerSetConstructionScore(\''+empId+'\',\''+f+'\',\'lic\',this.value)"></td>' +
-          '<td><input type="number" min="0" max="25" step="0.5" class="form-input" style="font-size:12px" value="'+curAcademic+'" placeholder="자동" onchange="careerSetConstructionScore(\''+empId+'\',\''+f+'\',\'academic\',this.value)"></td>' +
+          '<td><input type="number" min="0" max="20" step="0.5" class="form-input" style="font-size:12px" value="'+curAcademic+'" placeholder="자동" onchange="careerSetConstructionScore(\''+empId+'\',\''+f+'\',\'academic\',this.value)"></td>' +
           '<td><input type="number" min="0" max="40" step="0.01" class="form-input" style="font-size:12px" value="'+curCareer+'" placeholder="자동" onchange="careerSetConstructionScore(\''+empId+'\',\''+f+'\',\'career\',this.value)"></td>' +
           '<td><input type="number" min="0" max="5" step="0.5" class="form-input" style="font-size:12px" value="'+curEdu+'" placeholder="0" onchange="careerSetConstructionEduScore(\''+empId+'\',\''+f+'\',this.value)"></td>' +
         '</tr>';
