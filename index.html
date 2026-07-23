@@ -13844,13 +13844,15 @@ function careerRegUploadExcel(input) {
     if (!rows.length) { showToast('❌ 파일에 데이터가 없습니다'); return; }
 
     var hasNameCol = rows.some(function(r){ return careerRegGetCol(r, ['이름']); });
-    var okCount = 0, failNames = [], badDateCount = 0;
+    var okCount = 0, failNames = [], badDateCount = 0, skippedOtherAssoc = 0;
     var updates = {};
+    var currentAssoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerRegSelectedAssoc; });
 
     rows.forEach(function(row) {
       var assocName = careerRegGetCol(row, ['협회']);
       var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.name === assocName; });
       if (!assoc) { failNames.push('(협회명 불일치: '+assocName+')'); return; }
+      if (currentAssoc && assoc.id !== currentAssoc.id) { skippedOtherAssoc++; return; } // 지금 선택된 협회가 아니면 건너뜀
 
       var emp;
       if (hasNameCol) {
@@ -13889,12 +13891,12 @@ function careerRegUploadExcel(input) {
 
     var ids = Object.keys(updates);
     if (!ids.length) {
-      showToast('❌ 업로드된 건이 없습니다' + (failNames.length ? (' ('+failNames.join(', ')+')') : ''));
+      showToast('❌ 업로드된 건이 없습니다' + (failNames.length ? (' ('+failNames.join(', ')+')') : '') + (skippedOtherAssoc ? (' / 다른 협회라 건너뜀 ' + skippedOtherAssoc + '건') : ''));
       return;
     }
     Promise.all(ids.map(function(id){ return db.collection('employees').doc(id).update({ assocCareer: updates[id] }); }))
       .then(function() {
-        showToast('✅ ' + okCount + '건 업로드 완료' + (failNames.length ? (', 실패 ' + failNames.length + '건') : '') + (badDateCount ? (', ⚠️ 날짜 인식 안 된 값 ' + badDateCount + '건(빈칸 처리, 콘솔 확인)') : ''));
+        showToast('✅ ' + okCount + '건 업로드 완료' + (failNames.length ? (', 실패 ' + failNames.length + '건') : '') + (badDateCount ? (', ⚠️ 날짜 인식 안 된 값 ' + badDateCount + '건(빈칸 처리, 콘솔 확인)') : '') + (skippedOtherAssoc ? (', 다른 협회라 건너뜀 ' + skippedOtherAssoc + '건') : ''));
         if (failNames.length) console.warn('업로드 실패 목록:', failNames);
         careerRegRenderDetail();
       })
