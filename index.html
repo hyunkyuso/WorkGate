@@ -12948,7 +12948,7 @@ function careerIsRelevantLicense(l) {
 // - 등급이 수동으로 지정되어 있으면 등록된 것으로 봄
 function careerIsFieldRegistered(emp, assocId, field) {
   var regEntries = (emp.assocCareer||{})[assocId] || [];
-  if (regEntries.some(function(en){ return en.field === field; })) return true;
+  if (assocId === 'aisw' ? regEntries.length > 0 : regEntries.some(function(en){ return en.field === field; })) return true;
   if (!!(emp.careerGradeOverride||{})[field]) return true;
   var excludedFields = (emp.assocExcludedFields||{})[assocId] || [];
   if (excludedFields.indexOf(field) >= 0) return false;
@@ -13765,7 +13765,7 @@ function careerRegGetCol(row, names) {
 function careerRegNormalizeField(assocId, rawField) {
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === assocId; });
   if (!assoc) return rawField || '';
-  if (!assoc.fields.length) return assoc.name; // 분야 구분 없는 협회는 값이 뭐든 전부 하나로 통일해서 무조건 계산에 포함
+  if (!assoc.fields.length) return (rawField || '').trim() || assoc.name; // 분야 구분 없는 협회 - 입력값 그대로 유지(경력 계산은 값과 무관하게 전부 포함)
   var val = (rawField || '').trim();
   if (!val) return assoc.fields[0];
   // 이미 정확히 일치하면 그대로
@@ -14463,7 +14463,7 @@ function careerGetRelevantCareerPeriods(emp, assocId, field) {
   if (assocId) {
     ((emp.assocCareer||{})[assocId] || []).forEach(function(c) {
       if (!c.contractDate) return;
-      if (field && c.field !== field) return;
+      if (assocId !== 'aisw' && field && c.field !== field) return; // AI SW는 분야 구분 없이 전부 포함
       periods.push({
         start: c.contractDate,
         end: c.completionDate || todayStr,
