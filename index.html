@@ -13380,7 +13380,7 @@ function careerDetermineConstructionGrade(emp, field, extraDays) {
   } else {
     var totalDays = 0;
     ((emp.assocCareer||{})['construction'] || []).forEach(function(c) {
-      if (c.field === field) totalDays += Number(c.days) || 0;
+      if (c.field === field) totalDays += careerSanitizeDays(c.days);
     });
     totalDays += extraDays || 0;
     careerScore = careerConstructionCareerScore(totalDays);
@@ -13764,6 +13764,13 @@ function careerRegGetCol(row, names) {
   return '';
 }
 
+// 참여일 값이 숫자가 아니거나(예: "근무중") 말도 안 되는 범위(음수, 억 단위 등)면 0으로 처리
+function careerSanitizeDays(val) {
+  var n = Number(val);
+  if (isNaN(n) || n < 0 || n > 50000) return 0;
+  return n;
+}
+
 // 엑셀 "전문분야" 값이 정확한 필드명과 다르게(짧게) 적혀있는 경우를 정확한 필드명으로 정규화
 function careerRegNormalizeField(assocId, rawField) {
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === assocId; });
@@ -14083,7 +14090,7 @@ function careerRenderAiswTab() {
     var need = g.grade !== '기술사' ? careerDaysToNextGrade(emp, field, g.grade, 'aisw') : null;
     var days = careerSplitCompanyDays(emp);
     var regDays = 0;
-    ((emp.assocCareer||{})['aisw'] || []).forEach(function(c) { regDays += Number(c.days) || 0; });
+    ((emp.assocCareer||{})['aisw'] || []).forEach(function(c) { regDays += careerSanitizeDays(c.days); });
     rows.push({
       emp: emp, empId: emp._docId||emp.id, bonbu: careerGetBonbu(emp), position: emp.position||'-', name: emp.name||'-',
       grade: g.grade, need: need, other: days.other, doyu: days.doyu,
@@ -14472,7 +14479,7 @@ function careerGetRelevantCareerPeriods(emp, assocId, field) {
       periods.push({
         start: c.contractDate,
         end: c.completionDate || todayStr,
-        overrideDays: (function(){ var n = Number(c.days); return (c.days !== undefined && c.days !== '' && !isNaN(n)) ? n : null; })()
+        overrideDays: (function(){ var n = Number(c.days); return (c.days !== undefined && c.days !== '' && !isNaN(n) && n >= 0 && n <= 50000) ? n : null; })()
       });
     });
   }
