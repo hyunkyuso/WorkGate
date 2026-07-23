@@ -13361,7 +13361,9 @@ function careerDetermineConstructionGrade(emp, field, extraDays) {
   if (manualEdu !== undefined && manualEdu !== null && manualEdu !== '') {
     eduScore = Number(manualEdu);
   } else {
-    var eduBase = 10, hasMaster = false, hasDoctor = false; // 기타(비전공) 기본 10점
+    var eduBase = 10, hasMaster = false, hasDoctor = false; // 기본값(기타·비전공) 10점
+    var hasAnyHigherEdu = (emp.education||[]).some(function(e){ return ['전문학사','학사','석사','박사'].indexOf(e.degree) >= 0; });
+    if (hasAnyHigherEdu) eduBase = 15; // 비고4: 전문대학 이상 학력이 있으면(분야가 달라도) 최소 15점
     (emp.education||[]).forEach(function(e) {
       if (careerConstructionFieldsForMajor(e.major).indexOf(field) < 0) return;
       if (e.degree === '석사') hasMaster = true;
@@ -14066,6 +14068,7 @@ function careerRenderAiswTab() {
       '<th style="padding:0 6px;'+sticky+'">정도 등록<br>가능 경력일수</th>' +
       '<th style="padding:0 6px;'+sticky+'">등록경력일</th>' +
       '<th style="padding:0 6px;'+sticky+'">등록경력<br>연수환산</th>' +
+      '<th style="padding:0 6px;'+sticky+'">참여사업</th>' +
     '</tr>';
 
   var rows = [];
@@ -14077,14 +14080,14 @@ function careerRenderAiswTab() {
     var regDays = 0;
     ((emp.assocCareer||{})['aisw'] || []).forEach(function(c) { regDays += Number(c.days) || 0; });
     rows.push({
-      emp: emp, bonbu: careerGetBonbu(emp), position: emp.position||'-', name: emp.name||'-',
+      emp: emp, empId: emp._docId||emp.id, bonbu: careerGetBonbu(emp), position: emp.position||'-', name: emp.name||'-',
       grade: g.grade, need: need, other: days.other, doyu: days.doyu,
       regDays: regDays, regYears: Math.round((regDays/365)*100)/100
     });
   });
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--t3)">"등록" 메뉴에서 한국인공지능소프트웨어산업협회에 등록된 인원이 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--t3)">"등록" 메뉴에서 한국인공지능소프트웨어산업협회에 등록된 인원이 없습니다</td></tr>';
     return;
   }
 
@@ -14108,6 +14111,7 @@ function careerRenderAiswTab() {
       '<td style="text-align:center">'+(r.doyu||'-')+'</td>' +
       '<td style="text-align:center">'+(r.regDays||'-')+'</td>' +
       '<td style="text-align:center">'+(r.regYears||'-')+'</td>' +
+      '<td style="text-align:center"><span onclick="careerOpenProjectModal(\''+r.empId+'\',\'aisw\')" style="cursor:pointer;color:var(--ac);text-decoration:underline">참여사업 보기</span></td>' +
     '</tr>';
   }).join('');
 }
