@@ -13316,7 +13316,7 @@ function careerConstructionLicenseScore(name) {
 
 // 학력지수 (20점 만점, 석/박사 가산): 학사=20, 전문학사=19, 고졸=15, 기타=10
 function careerConstructionEduBaseScore(degree) {
-  if (degree === '학사') return 20;
+  if (degree === '학사' || degree === '석사' || degree === '박사') return 20; // 학사 이상(석/박사는 여기에 가산점을 별도로 더함)
   if (degree === '전문학사') return 19;
   if (degree === '고졸') return 15;
   return 10;
@@ -13659,11 +13659,11 @@ function careerRegRenderDetail() {
         '<td><input type="text" class="form-input" style="font-size:12px;width:160px" value="'+(en.name||'')+'" onchange="careerRegUpdateRow('+i+',\'name\',this.value)"></td>' +
         '<td><input type="text" class="form-input" style="font-size:12px;width:110px" value="'+(en.employer||'')+'" onchange="careerRegUpdateRow('+i+',\'employer\',this.value)"></td>' +
         '<td><input type="text" class="form-input" style="font-size:12px;width:110px" value="'+(en.client||'')+'" onchange="careerRegUpdateRow('+i+',\'client\',this.value)"></td>' +
-        '<td>' + (assoc.fields.length
+        '<td>' + ((assoc.fields.length && (fieldOptions.indexOf(en.field) >= 0 || !en.field))
           ? '<select class="form-input" style="font-size:12px" onchange="careerRegUpdateRow('+i+',\'field\',this.value)">' +
               fieldOptions.map(function(f){ return '<option value="'+f+'"'+(en.field===f?' selected':'')+'>'+f+'</option>'; }).join('') +
             '</select>'
-          : '<input type="text" class="form-input" style="font-size:12px;width:130px" value="'+(en.field||'')+'" placeholder="예: 응용SW개발, DB구축" onchange="careerRegUpdateRow('+i+',\'field\',this.value)">'
+          : '<input type="text" class="form-input" style="font-size:12px;width:150px" value="'+(en.field||'')+'" placeholder="새 전문분야(추적 안 되는 분야는 경력계산 제외)" onchange="careerRegUpdateRow('+i+',\'field\',this.value)">'
         ) + '</td>' +
         '<td><input type="date" class="form-input" style="font-size:12px" value="'+(en.contractDate||'')+'" onchange="careerRegUpdateRow('+i+',\'contractDate\',this.value)"></td>' +
         '<td><input type="date" class="form-input" style="font-size:12px" value="'+(en.completionDate||'')+'" onchange="careerRegUpdateRow('+i+',\'completionDate\',this.value)"></td>' +
@@ -25274,7 +25274,7 @@ function taskDeleteFromDetail() {
   auth = firebase.auth();
   setupAuthListener();
 })();
-</script> 
+</script>
 </body>
 </html>
  
