@@ -13749,7 +13749,8 @@ function careerRegGetCol(row, names) {
 // 엑셀 "전문분야" 값이 정확한 필드명과 다르게(짧게) 적혀있는 경우를 정확한 필드명으로 정규화
 function careerRegNormalizeField(assocId, rawField) {
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === assocId; });
-  if (!assoc || !assoc.fields.length) return rawField || (assoc ? assoc.name : '');
+  if (!assoc) return rawField || '';
+  if (!assoc.fields.length) return assoc.name; // 분야 구분 없는 협회는 값이 뭐든 전부 하나로 통일해서 무조건 계산에 포함
   var val = (rawField || '').trim();
   if (!val) return assoc.fields[0];
   // 이미 정확히 일치하면 그대로
@@ -13757,7 +13758,7 @@ function careerRegNormalizeField(assocId, rawField) {
   // 각 필드명에 포함되는 키워드로 매칭 (예: "도시계획" → "도시교통-도시계획", 이건 표현만 다른 같은 분야를 맞춰주는 것)
   var found = assoc.fields.find(function(f){ return f.indexOf(val) >= 0 || val.indexOf(f) >= 0; });
   if (found) return found;
-  // 우리가 추적하는 3개 분야 중 어디에도 해당 안 되면(예: "지적" 등 새로운 전문분야),
+  // 우리가 추적하는 분야 중 어디에도 해당 안 되면(예: "지적" 등 새로운 전문분야),
   // 억지로 끼워맞추지 않고 그 이름 그대로 저장만 함 → 자동으로 경력지수 계산 대상에서는 제외됨
   return val;
 }
