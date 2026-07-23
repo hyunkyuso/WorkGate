@@ -14452,10 +14452,10 @@ function careerGradeBadge(g) {
 
 // 등급별 기준: certPaths=[{grade:'기사'|'산업기사', years}], eduPaths=[{degree:'박사'|'석사'|'학사', years}]
 var CAREER_GRADE_CRITERIA = [
-  { grade:'특급기술자', certPaths:[{g:'기사',y:10},{g:'산업기사',y:13}], eduPaths:[{d:'박사',y:4},{d:'석사',y:9},{d:'학사',y:12}] },
-  { grade:'고급기술자', certPaths:[{g:'기사',y:7},{g:'산업기사',y:10}],  eduPaths:[{d:'박사',y:1},{d:'석사',y:6},{d:'학사',y:9}] },
-  { grade:'중급기술자', certPaths:[{g:'기사',y:4},{g:'산업기사',y:7}],   eduPaths:[{d:'박사',y:0},{d:'석사',y:3},{d:'학사',y:6}] },
-  { grade:'초급기술자', certPaths:[{g:'기사',y:0},{g:'산업기사',y:2}],   eduPaths:[{d:'석사',y:0},{d:'학사',y:3}] }
+  { grade:'특급기술자', certPaths:[{g:'기사',y:10},{g:'산업기사',y:13}], eduPaths:[{d:'박사',y:4},{d:'석사',y:9},{d:'학사',y:12},{d:'전문학사',y:15}] },
+  { grade:'고급기술자', certPaths:[{g:'기사',y:7},{g:'산업기사',y:10}],  eduPaths:[{d:'박사',y:1},{d:'석사',y:6},{d:'학사',y:9},{d:'전문학사',y:12}] },
+  { grade:'중급기술자', certPaths:[{g:'기사',y:4},{g:'산업기사',y:7}],   eduPaths:[{d:'박사',y:0},{d:'석사',y:3},{d:'학사',y:6},{d:'전문학사',y:9}] },
+  { grade:'초급기술자', certPaths:[{g:'기사',y:0},{g:'산업기사',y:2}],   eduPaths:[{d:'석사',y:0},{d:'학사',y:0},{d:'전문학사',y:3}] }
 ];
 
 // 숙련기술계: 학과범위(기술계 학력)에 해당 안 되고 기능사 자격이나 고졸/전문학사 학력만 있는 경우 적용
@@ -14620,7 +14620,7 @@ function careerDaysToNextGrade(emp, field, currentGrade, assocId) {
     if (assocId === 'aisw') return true;
     return careerEduFieldsForMajor(e.major).indexOf(field) >= 0;
   });
-  var byDegree = { '박사':null, '석사':null, '학사':null };
+  var byDegree = { '박사':null, '석사':null, '학사':null, '전문학사':null };
   edusInField.forEach(function(e) { if (byDegree.hasOwnProperty(e.degree) && !byDegree[e.degree]) byDegree[e.degree] = e; });
 
   var periods = careerGetRelevantCareerPeriods(emp, assocId, field);
@@ -25280,7 +25280,7 @@ function taskDeleteFromDetail() {
     messagingSenderId: "187107745836",
     appId: "1:187107745836:web:c8f1c7395e157bbc2ff189"
   };
-  firebase.initializeApp(firebaseConfig); 
+  firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
   auth = firebase.auth();
   setupAuthListener();
