@@ -12936,6 +12936,22 @@ function careerIsRelevantLicense(l) {
   return CAREER_RELEVANT_LICENSES.indexOf(l.name) >= 0 || (l.org||'').indexOf('한국산업인력공단') >= 0;
 }
 
+// 특정 협회+분야에 대해 이 사람이 "등록됨"으로 취급되는지 판단
+// - 협회에 등록되어 있고(assocEnrolled) 그 분야 자격증/학력이 자동 인식되거나
+// - 사업(경력)이 그 분야로 등록되어 있거나
+// - 등급이 수동으로 지정되어 있으면 등록된 것으로 봄
+function careerIsFieldRegistered(emp, assocId, field) {
+  var regEntries = (emp.assocCareer||{})[assocId] || [];
+  if (regEntries.some(function(en){ return en.field === field; })) return true;
+  if (!!(emp.careerGradeOverride||{})[field]) return true;
+  if (!!(emp.assocEnrolled||{})[assocId]) {
+    var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseField(l.name) === field; });
+    var hasEdu = (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; });
+    if (hasCert || hasEdu) return true;
+  }
+  return false;
+}
+
 function careerBuildLicenseMatrix() {
   var matrix = {}; // matrix[field][grade] = count
   var fieldPeople = {}; // fieldPeople[field] = Set of person ids (dedup)
@@ -12970,10 +12986,8 @@ function careerBuildGradeMatrix(assocId) {
   var matrix = {}; // matrix[field][grade] = count
 
   employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
-    var regEntries = (emp.assocCareer||{})[assocId] || [];
     fields.forEach(function(field) {
-      var isRegistered = regEntries.some(function(en){ return en.field === field; }) ||
-                          !!(emp.careerGradeOverride||{})[field];
+      var isRegistered = careerIsFieldRegistered(emp, assocId, field);
       if (!isRegistered) return;
       var grade = careerGetEffectiveGrade(emp, field, assocId).grade;
       if (CAREER_GRADE_MATRIX_COLS.indexOf(grade) < 0) return;
@@ -13249,6 +13263,22 @@ function careerGetEffectiveGrade(emp, field, assocId) {
   return { grade: auto.grade, isOverride: false, autoGrade: auto.grade };
 }
 
+async function careerSetAssocEnrolled(empId, assocId, checked) {
+  if (!isAdmin()) { showToast('❌ 관리자만 변경할 수 있습니다'); return; }
+  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+  if (!emp) return;
+  var enrolled = Object.assign({}, emp.assocEnrolled || {});
+  if (checked) enrolled[assocId] = true; else delete enrolled[assocId];
+  emp.assocEnrolled = enrolled; // 즉시 로컬 반영
+  careerRegRenderDetail();
+  try {
+    await db.collection('employees').doc(empId).update({ assocEnrolled: enrolled });
+    showToast(checked ? '✅ 등록되었습니다' : '등록이 취소되었습니다');
+  } catch (err) {
+    showToast('❌ 저장 실패: ' + err.message);
+  }
+}
+
 async function careerSetGradeOverride(empId, field, grade) {
   if (!isAdmin()) { showToast('❌ 관리자만 변경할 수 있습니다'); return; }
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
@@ -13326,9 +13356,31 @@ function careerRegRenderDetail() {
   var fieldOptions = assoc.fields.length ? assoc.fields : [assoc.name];
   var gradeOptionsForOverride = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자','숙련(고)','숙련(중)','숙련(초)','미달'];
   var overrides = emp.careerGradeOverride || {};
+  var enrolled = (emp.assocEnrolled||{})[_careerRegSelectedAssoc] || {};
+
+  var isEnrolled = !!(emp.assocEnrolled||{})[_careerRegSelectedAssoc];
+  var autoFields = fieldOptions.filter(function(f) {
+    var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseField(l.name) === f; });
+    var hasEdu = (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(f) >= 0; });
+    return hasCert || hasEdu;
+  });
+  var enrollHtml = '<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;background:#fafafa">' +
+    '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">' +
+      '<input type="checkbox" '+(isEnrolled?'checked':'')+' onchange="careerSetAssocEnrolled(\''+(emp._docId||emp.id)+'\',\''+_careerRegSelectedAssoc+'\',this.checked)">' +
+      assoc.name + '에 등록' +
+    '</label>' +
+    '<div style="font-size:11px;color:var(--t3);margin-top:6px">등록하면 이 사람의 자격증/학력을 보고 해당되는 분야를 자동으로 찾아서 등급을 계산해요. 이후 사업(경력)을 등록하면 등급이 자동으로 올라갑니다.</div>' +
+    (isEnrolled ? (
+      autoFields.length
+        ? '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">' +
+            autoFields.map(function(f){ return '<span style="font-size:12px;color:var(--t2)">'+f+' '+careerGradeBadge(careerGetEffectiveGrade(emp, f, _careerRegSelectedAssoc).grade)+'</span>'; }).join('') +
+          '</div>'
+        : '<div style="font-size:12px;color:#c2410c;margin-top:10px">⚠️ 자동으로 인식되는 분야가 없습니다 — 인사기록카드에 관련 자격증이나 학력(전공)을 먼저 등록해주세요</div>'
+    ) : '') +
+  '</div>';
 
   var gradeInitHtml = '<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;background:#fafafa">' +
-    '<div style="font-weight:600;font-size:13px;margin-bottom:8px">분야별 등급 (초기값 / 직접 지정)</div>' +
+    '<div style="font-weight:600;font-size:13px;margin-bottom:8px">분야별 등급 (수동으로 덮어쓰기)</div>' +
     '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' +
     fieldOptions.map(function(f) {
       var cur = overrides[f] || '';
@@ -13345,6 +13397,7 @@ function careerRegRenderDetail() {
 
   var html = '<div style="font-weight:600;font-size:14px;margin-bottom:12px">'+emp.name+' · 협회 등록 경력(사업 단위)</div>' +
     '<div style="display:flex;gap:6px;margin-bottom:14px">'+assocTabs+'</div>' +
+    enrollHtml +
     gradeInitHtml +
     '<div class="table-wrap" style="overflow-x:auto;margin-bottom:10px"><table style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px">' +
     '<thead><tr style="color:var(--t3)"><td style="padding:4px 6px">구분</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">계약일</td><td style="padding:4px 6px">준공일</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">비고</td><td></td></tr></thead><tbody id="career-reg-rows">' +
@@ -13652,7 +13705,8 @@ function careerRenderEngTab() {
     if (emp.status === '퇴직') return false;
     var regEntries = (emp.assocCareer||{})['eng'] || [];
     var hasOverride = Object.keys(emp.careerGradeOverride||{}).some(function(f){ return fields.indexOf(f) >= 0; });
-    return regEntries.length > 0 || hasOverride;
+    var hasEnrolled = !!(emp.assocEnrolled||{})['eng'] && fields.some(function(f){ return careerIsFieldRegistered(emp, 'eng', f); });
+    return regEntries.length > 0 || hasOverride || hasEnrolled;
   });
 
   if (!people.length) {
@@ -13664,10 +13718,8 @@ function careerRenderEngTab() {
     var empId = emp._docId || emp.id;
     var bonbu = careerGetBonbu(emp);
     var days = careerSplitCompanyDays(emp);
-    var regEntries = (emp.assocCareer||{})['eng'] || [];
     var gradeInfos = fields.map(function(field) {
-      var isRegistered = regEntries.some(function(c){ return c.field === field; }) ||
-                          !!(emp.careerGradeOverride||{})[field];
+      var isRegistered = careerIsFieldRegistered(emp, 'eng', field);
       if (!isRegistered) return null;
       return careerGetEffectiveGrade(emp, field, 'eng');
     });
@@ -14146,9 +14198,7 @@ function careerBuildOverviewRow(emp) {
   };
   CAREER_GRADE_COLS.forEach(function(c) {
     if (c.assocId === 'eng') {
-      var regEntries = (emp.assocCareer||{})['eng'] || [];
-      var isRegistered = regEntries.some(function(en){ return en.field === c.field; }) ||
-                          !!(emp.careerGradeOverride||{})[c.field];
+      var isRegistered = careerIsFieldRegistered(emp, 'eng', c.field);
       row[c.key] = isRegistered ? careerGradeBadge(careerGetEffectiveGrade(emp, c.field, 'eng').grade) : '-';
     } else {
       row[c.key] = '-';
@@ -14269,9 +14319,7 @@ function careerRenderOverviewTable() {
     if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = _careerPrefillEduField+' 학력 기준 충족자만 보기 '; }
   } else if (_careerPrefillGradeValue) {
     rows = rows.filter(function(r) {
-      var regEntries = (r._emp.assocCareer||{})['eng'] || [];
-      var isRegistered = regEntries.some(function(en){ return en.field === _careerPrefillEduField; }) ||
-                         !!(r._emp.careerGradeOverride||{})[_careerPrefillEduField];
+      var isRegistered = careerIsFieldRegistered(r._emp, 'eng', _careerPrefillEduField);
       if (!isRegistered) return false;
       return careerGetEffectiveGrade(r._emp, _careerPrefillEduField, 'eng').grade === _careerPrefillGradeValue;
     });
