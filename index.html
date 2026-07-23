@@ -12947,11 +12947,11 @@ function careerIsRelevantLicense(l) {
 // - 사업(경력)이 그 분야로 등록되어 있거나
 // - 등급이 수동으로 지정되어 있으면 등록된 것으로 봄
 function careerIsFieldRegistered(emp, assocId, field) {
+  var excludedFields = (emp.assocExcludedFields||{})[assocId] || [];
+  if (excludedFields.indexOf(field) >= 0) return false; // 제외(X) 처리는 최우선 - 사업/수동등급이 있어도 무조건 안 뜨게
   var regEntries = (emp.assocCareer||{})[assocId] || [];
   if (assocId === 'aisw' ? regEntries.length > 0 : regEntries.some(function(en){ return en.field === field; })) return true;
   if (!!(emp.careerGradeOverride||{})[field]) return true;
-  var excludedFields = (emp.assocExcludedFields||{})[assocId] || [];
-  if (excludedFields.indexOf(field) >= 0) return false;
   if (!!(emp.assocEnrolled||{})[assocId]) {
     if (assocId === 'construction') {
       var hasCert2 = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerConstructionFieldsForLicense(l.name).indexOf(field) >= 0; });
