@@ -13435,12 +13435,25 @@ async function careerSetAssocEnrolled(empId, assocId, checked) {
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   if (!emp) return;
   var enrolled = Object.assign({}, emp.assocEnrolled || {});
-  if (checked) enrolled[assocId] = true; else delete enrolled[assocId];
+  var updateData = {};
+  if (checked) {
+    enrolled[assocId] = true;
+  } else {
+    delete enrolled[assocId];
+    // 등록을 취소하면 이 협회에 대한 제외 목록도 같이 초기화 (재등록 시 깨끗한 상태로 시작)
+    var excluded = Object.assign({}, emp.assocExcludedFields || {});
+    if (excluded[assocId]) {
+      delete excluded[assocId];
+      emp.assocExcludedFields = excluded;
+      updateData.assocExcludedFields = excluded;
+    }
+  }
   emp.assocEnrolled = enrolled; // 즉시 로컬 반영
   careerRegRenderDetail();
+  updateData.assocEnrolled = enrolled;
   try {
-    await db.collection('employees').doc(empId).update({ assocEnrolled: enrolled });
-    showToast(checked ? '✅ 등록되었습니다' : '등록이 취소되었습니다');
+    await db.collection('employees').doc(empId).update(updateData);
+    showToast(checked ? '✅ 등록되었습니다' : '등록이 취소되었습니다 (제외 목록도 초기화됨)');
   } catch (err) {
     showToast('❌ 저장 실패: ' + err.message);
   }
