@@ -12942,6 +12942,14 @@ function careerIsRelevantLicense(l) {
   return CAREER_RELEVANT_LICENSES.indexOf(l.name) >= 0 || (l.org||'').indexOf('한국산업인력공단') >= 0;
 }
 
+// 한국인공지능소프트웨어산업협회 자격범위: 정보관리/정보처리/전자계산조직응용/사무자동화 관련 자격증만 인정
+var CAREER_AISW_LICENSE_KEYWORDS = ['정보관리','정보처리','전자계산','사무자동화'];
+function careerAiswIsRelevantLicense(l) {
+  if (!careerIsRelevantLicense(l)) return false;
+  var nm = l.name || '';
+  return CAREER_AISW_LICENSE_KEYWORDS.some(function(k){ return nm.indexOf(k) >= 0; });
+}
+
 // 특정 협회+분야에 대해 이 사람이 "등록됨"으로 취급되는지 판단
 // - 협회에 등록되어 있고(assocEnrolled) 그 분야 자격증/학력이 자동 인식되거나
 // - 사업(경력)이 그 분야로 등록되어 있거나
@@ -12958,7 +12966,7 @@ function careerIsFieldRegistered(emp, assocId, field) {
       var hasEdu2 = (emp.education||[]).some(function(e){ return careerConstructionFieldsForMajor(e.major).indexOf(field) >= 0; });
       if (hasCert2 || hasEdu2) return true;
     } else if (assocId === 'aisw') {
-      var hasCert3 = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l); });
+      var hasCert3 = (emp.license||[]).some(function(l){ return careerAiswIsRelevantLicense(l); });
       var hasEdu3 = (emp.education||[]).length > 0;
       if (hasCert3 || hasEdu3) return true;
     } else {
@@ -14515,7 +14523,7 @@ function careerWeightedDays(periods, qualDate) {
 function careerDetermineGrade(emp, field, assocId) {
   var licsInField = (emp.license||[]).filter(function(l){
     if (!careerIsRelevantLicense(l)) return false;
-    if (assocId === 'aisw') return true; // 자격 범위 내 IT 자격증이면 분야 구분 없이 전부 인정
+    if (assocId === 'aisw') return careerAiswIsRelevantLicense(l); // 정보관리/정보처리/전자계산조직응용/사무자동화 관련만 인정
     return field.indexOf(careerLicenseField(l.name)) === 0;
   });
   if (licsInField.some(function(l){ return careerLicenseGradeRank(l.name) === 0; })) {
@@ -14607,7 +14615,7 @@ function careerDaysToNextGrade(emp, field, currentGrade, assocId) {
 
   var licsInField = (emp.license||[]).filter(function(l){
     if (!careerIsRelevantLicense(l)) return false;
-    if (assocId === 'aisw') return true;
+    if (assocId === 'aisw') return careerAiswIsRelevantLicense(l);
     return field.indexOf(careerLicenseField(l.name)) === 0;
   });
   var byGrade = { '기사':[], '산업기사':[] };
