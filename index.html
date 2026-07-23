@@ -13938,11 +13938,25 @@ function careerOpenDocPreview(title, driveId, mimeType, driveLink) {
   if (!driveId) {
     body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3)">첨부된 파일이 없습니다</div>';
     dl.style.display = 'none';
-  } else {
-    body.innerHTML = '<iframe src="https://drive.google.com/file/d/'+driveId+'/preview" style="width:100%;height:100%;border:0"></iframe>';
-    dl.href = 'https://drive.google.com/uc?id='+driveId+'&export=download';
-    dl.style.display = 'inline';
+    document.getElementById('career-doc-preview-modal').style.display = 'flex';
+    return;
   }
+  var downloadUrl = 'https://drive.google.com/uc?id='+driveId+'&export=download';
+  var viewUrl = driveLink || ('https://drive.google.com/file/d/'+driveId+'/view');
+  if ((mimeType||'').indexOf('image/') === 0) {
+    // 이미지는 구글 드라이브 프레임 정책과 무관하게 직접 표시 가능
+    body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:12px;background:#fafafa">' +
+      '<img src="https://drive.google.com/uc?export=view&id='+driveId+'" style="max-width:100%;max-height:100%;object-fit:contain">' +
+    '</div>';
+  } else {
+    // PDF 등은 구글 드라이브 자체 보안정책(frame-ancestors)으로 iframe 삽입이 막혀있어, 새 창으로 열도록 안내
+    body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;padding:40px;text-align:center">' +
+      '<div style="font-size:14px;color:var(--t2)">이 파일 형식은 화면 안에서 미리보기가 지원되지 않아요 (구글 드라이브 보안 정책)</div>' +
+      '<a href="'+viewUrl+'" target="_blank" class="btn btn-primary" style="text-decoration:none">🔗 새 창에서 열어보기</a>' +
+    '</div>';
+  }
+  dl.href = downloadUrl;
+  dl.style.display = 'inline';
   document.getElementById('career-doc-preview-modal').style.display = 'flex';
 }
 
