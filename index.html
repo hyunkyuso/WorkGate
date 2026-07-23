@@ -13578,19 +13578,7 @@ function careerRegRenderDetail() {
   var excludedFields = (emp.assocExcludedFields||{})[_careerRegSelectedAssoc] || [];
   var autoFields = fieldOptions.filter(function(f) {
     if (excludedFields.indexOf(f) >= 0) return false;
-    if (_careerRegSelectedAssoc === 'construction') {
-      var hasCert2 = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerConstructionFieldsForLicense(l.name).indexOf(f) >= 0; });
-      var hasEdu2 = (emp.education||[]).some(function(e){ return careerConstructionFieldsForMajor(e.major).indexOf(f) >= 0; });
-      return hasCert2 || hasEdu2;
-    }
-    if (_careerRegSelectedAssoc === 'aisw') {
-      var hasCert3 = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l); });
-      var hasEdu3 = (emp.education||[]).length > 0;
-      return hasCert3 || hasEdu3;
-    }
-    var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && f.indexOf(careerLicenseField(l.name)) === 0; });
-    var hasEdu = (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(f) >= 0; });
-    return hasCert || hasEdu;
+    return careerIsFieldRegistered(emp, _careerRegSelectedAssoc, f);
   });
   var enrollHtml = '<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;background:#fafafa">' +
     '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">' +
