@@ -14030,22 +14030,33 @@ function careerRenderConstructionTab() {
     i = j;
   }
 
+  // 같은 사람이 여러 분야에 등록되어 있으면 직급/이름/참여사업 칸도 병합
+  var personSpan = new Array(rows.length).fill(1);
+  for (var pi = 0; pi < rows.length; ) {
+    var pj = pi;
+    while (pj < rows.length && rows[pj].empId === rows[pi].empId) pj++;
+    personSpan[pi] = pj - pi;
+    for (var pk = pi+1; pk < pj; pk++) personSpan[pk] = 0;
+    pi = pj;
+  }
+
   function cell(v) { return '<td style="text-align:center;font-size:12px">'+(v===undefined||v===null?'-':v)+'</td>'; }
 
   tbody.innerHTML = rows.map(function(r, idx) {
     var bonbuCell = bonbuSpan[idx] === 0 ? '' : '<td rowspan="'+bonbuSpan[idx]+'" style="white-space:nowrap;padding:6px;vertical-align:middle;text-align:center">'+r.bonbu+'</td>';
+    var positionCell = personSpan[idx] === 0 ? '' : '<td rowspan="'+personSpan[idx]+'" style="padding:6px;white-space:nowrap;text-align:center;vertical-align:middle">'+r.position+'</td>';
+    var nameCell = personSpan[idx] === 0 ? '' : '<td rowspan="'+personSpan[idx]+'" style="padding:6px;white-space:nowrap;text-align:center;vertical-align:middle">'+r.name+'</td>';
+    var projectCell = personSpan[idx] === 0 ? '' : '<td rowspan="'+personSpan[idx]+'" style="text-align:center;vertical-align:middle"><span onclick="careerOpenProjectModal(\''+r.empId+'\',\'construction\')" style="cursor:pointer;color:var(--ac);text-decoration:underline">참여사업 보기</span></td>';
     var gradeCells = fields.map(function(f) {
       return '<td style="text-align:center">'+(f === r.field ? careerGradeBadge(r.cur.grade) : '-')+'</td>';
     }).join('');
-    return '<tr style="border-top:1px solid var(--border)">' + bonbuCell +
-      '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.position+'</td>' +
-      '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.name+'</td>' +
+    return '<tr style="border-top:1px solid var(--border)">' + bonbuCell + positionCell + nameCell +
       gradeCells +
       cell(r.cur.licScore) + cell(r.cur.eduScore) + cell(r.cur.careerScore) + cell(r.cur.eduTrainScore) + cell(r.cur.score) +
       cell(r.proj.licScore) + cell(r.proj.eduScore) + cell(r.proj.careerScore) + cell(r.proj.eduTrainScore) + cell(r.proj.score) +
       '<td style="text-align:center">'+careerGradeBadge(r.proj.grade)+'</td>' +
       cell(r.other||'-') + cell(r.doyu||'-') +
-      '<td style="text-align:center"><span onclick="careerOpenProjectModal(\''+r.empId+'\',\'construction\')" style="cursor:pointer;color:var(--ac);text-decoration:underline">참여사업 보기</span></td>' +
+      projectCell +
     '</tr>';
   }).join('');
 }
