@@ -12898,7 +12898,7 @@ function pcAskAI() {
 // ══════════════════════════════════════════════════
 var CAREER_ASSOCIATIONS = [
   { id: 'eng', name: '한국엔지니어링협회', fields: ['정보관리','정보통신','측량지적','도시계획','조경','교통'] },
-  { id: 'construction', name: '한국건설기술인협회', fields: ['토목','도시교통'] },
+  { id: 'construction', name: '한국건설기술인협회', fields: ['도시교통-도시계획','토목-전문분야없음','토목-측량및지형공간정보'] },
   { id: 'aisw', name: '한국인공지능소프트웨어산업협회', fields: [] }
 ];
 
@@ -13269,29 +13269,26 @@ function careerSelectField(assocId, field) {
 // 한국건설기술인협회 등급 판단 엔진 (자격지수+학력지수+경력지수+교육지수 = 역량지수)
 // 보정계수(책임정도/업무유형)는 생략, 참여일 그대로 사용
 // ══════════════════════════════════════════════════
-var CAREER_CONSTRUCTION_MAJOR_WHITELIST = {
-  '토목': ['토목','건설','측량','공간정보','지리정보','도시정보','구조시스템공학','공업교육','철도보선','광산','지질','지적','토지정보','환경','자원공학','농공'],
-  '도시교통': ['도시','지역','국토','개발','교통','항공']
-};
-var CAREER_CONSTRUCTION_LICENSE_KEYWORDS = {
-  '토목': ['토목','지질','토질','항만','해안','도로','공항','철도','삭도','수자원','상하수도','농어업토목','측량','지적'],
-  '도시교통': ['도시계획','교통']
-};
+// 학과는 대분류(토목/도시교통)로 매칭 → 그 밑의 세부분야 전체에 학력지수 적용
+// 도시교통-도시계획: 도시/교통 관련 // 토목-측량및지형공간정보: 측량/지적 관련 (구체적으로 매칭) // 토목-전문분야없음: 그 외 토목 관련 전부(구체적 세부분야 매칭 안 되는 경우 기본값)
+var CAREER_CONSTRUCTION_URBAN_KEYWORDS = ['도시','지역','국토','개발','교통','항공','도시계획'];
+var CAREER_CONSTRUCTION_SURVEY_KEYWORDS = ['측량','지형공간정보','지적'];
+var CAREER_CONSTRUCTION_CIVIL_KEYWORDS = ['토목','건설','구조','지질','토질','항만','해안','도로','공항','철도','삭도','수자원','상하수도','농어업','시공','품질관리','품질','환경','자원공학','농공','공간정보','지리정보','도시정보','철도보선','광산','토지정보'];
 
 function careerConstructionFieldsForMajor(major) {
   major = major || '';
   var matched = [];
-  Object.keys(CAREER_CONSTRUCTION_MAJOR_WHITELIST).forEach(function(field) {
-    if (CAREER_CONSTRUCTION_MAJOR_WHITELIST[field].some(function(m){ return major.indexOf(m) >= 0; })) matched.push(field);
-  });
+  if (CAREER_CONSTRUCTION_URBAN_KEYWORDS.some(function(k){ return major.indexOf(k) >= 0; })) matched.push('도시교통-도시계획');
+  if (CAREER_CONSTRUCTION_SURVEY_KEYWORDS.some(function(k){ return major.indexOf(k) >= 0; })) matched.push('토목-측량및지형공간정보');
+  else if (CAREER_CONSTRUCTION_CIVIL_KEYWORDS.some(function(k){ return major.indexOf(k) >= 0; })) matched.push('토목-전문분야없음');
   return matched;
 }
 function careerConstructionFieldsForLicense(name) {
   name = name || '';
   var matched = [];
-  Object.keys(CAREER_CONSTRUCTION_LICENSE_KEYWORDS).forEach(function(field) {
-    if (CAREER_CONSTRUCTION_LICENSE_KEYWORDS[field].some(function(k){ return name.indexOf(k) >= 0; })) matched.push(field);
-  });
+  if (CAREER_CONSTRUCTION_URBAN_KEYWORDS.some(function(k){ return name.indexOf(k) >= 0; })) matched.push('도시교통-도시계획');
+  if (CAREER_CONSTRUCTION_SURVEY_KEYWORDS.some(function(k){ return name.indexOf(k) >= 0; })) matched.push('토목-측량및지형공간정보');
+  else if (CAREER_CONSTRUCTION_CIVIL_KEYWORDS.some(function(k){ return name.indexOf(k) >= 0; })) matched.push('토목-전문분야없음');
   return matched;
 }
 
@@ -13829,20 +13826,27 @@ function careerRenderConstructionTab() {
   var fields = assoc.fields;
   var thead = document.getElementById('career-construction-thead');
   var tbody = document.getElementById('career-construction-tbody');
-  var amAdmin = isAdmin();
+  var n = fields.length;
 
-  thead.innerHTML =
-    '<tr>' +
-      '<th rowspan="2" style="padding:6px;white-space:nowrap;text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5">본부</th>' +
-      '<th rowspan="2" style="padding:6px;white-space:nowrap;text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5">직급</th>' +
-      '<th rowspan="2" style="padding:6px;white-space:nowrap;text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5">이름</th>' +
-      '<th colspan="'+fields.length+'" style="text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5">등급</th>' +
-      '<th colspan="'+fields.length+'" style="text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5">역량지수(자격/학력/경력/교육)</th>' +
-      '<th rowspan="2" style="padding:0 8px;text-align:center;white-space:nowrap;position:sticky;top:0;background:#f1f5f9;z-index:5">참여사업</th>' +
-    '</tr><tr>' +
-      fields.map(function(f){ return '<th style="text-align:center;white-space:nowrap;position:sticky;top:29px;background:#f1f5f9;z-index:5">'+f+'</th>'; }).join('') +
-      fields.map(function(f){ return '<th style="text-align:center;white-space:nowrap;position:sticky;top:29px;background:#f1f5f9;z-index:5">'+f+'</th>'; }).join('') +
-    '</tr>';
+  var groupDefs = [
+    { label:'현재 등급', top2:0 },
+    { label:'①자격지수', top2:29 },
+    { label:'②학력지수', top2:29 },
+    { label:'③경력지수', top2:29 },
+    { label:'④교육지수', top2:29 },
+    { label:'역량지수(①+②+③+④)', top2:29 }
+  ];
+
+  var row1 =
+    '<th rowspan="2" style="padding:6px;white-space:nowrap;text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5">본부</th>' +
+    '<th rowspan="2" style="padding:6px;white-space:nowrap;text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5">직급</th>' +
+    '<th rowspan="2" style="padding:6px;white-space:nowrap;text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5">이름</th>' +
+    groupDefs.map(function(g){ return '<th colspan="'+n+'" style="text-align:center;white-space:nowrap;position:sticky;top:0;background:#f1f5f9;z-index:5">'+g.label+'</th>'; }).join('') +
+    '<th rowspan="2" style="padding:0 8px;text-align:center;white-space:nowrap;position:sticky;top:0;background:#f1f5f9;z-index:5">참여사업</th>';
+  var row2 = groupDefs.map(function() {
+    return fields.map(function(f){ return '<th style="text-align:center;white-space:nowrap;font-size:11px;padding:2px 4px;position:sticky;top:29px;background:#f1f5f9;z-index:5">'+f+'</th>'; }).join('');
+  }).join('');
+  thead.innerHTML = '<tr>'+row1+'</tr><tr>'+row2+'</tr>';
 
   var people = employees.filter(function(emp) {
     if (emp.status === '퇴직') return false;
@@ -13850,22 +13854,20 @@ function careerRenderConstructionTab() {
   });
 
   if (!people.length) {
-    tbody.innerHTML = '<tr><td colspan="'+(3+fields.length*2+1)+'" style="text-align:center;padding:24px;color:var(--t3)">"등록" 메뉴에서 한국건설기술인협회에 등록된 인원이 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="'+(3+n*6+1)+'" style="text-align:center;padding:24px;color:var(--t3)">"등록" 메뉴에서 한국건설기술인협회에 등록된 인원이 없습니다</td></tr>';
     return;
   }
 
   var rows = people.map(function(emp) {
     var empId = emp._docId || emp.id;
     var bonbu = careerGetBonbu(emp);
-    var results = fields.map(function(f) {
+    var perField = fields.map(function(f) {
       if (!careerIsFieldRegistered(emp, 'construction', f)) return null;
-      return careerGetEffectiveGrade(emp, f, 'construction');
+      var g = careerGetEffectiveGrade(emp, f, 'construction');
+      var d = careerDetermineConstructionGrade(emp, f);
+      return { grade: g.grade, lic: d.licScore, edu: d.eduScore, career: d.careerScore, eduTrain: d.eduTrainScore, total: d.score };
     });
-    var detail = fields.map(function(f) {
-      if (!careerIsFieldRegistered(emp, 'construction', f)) return null;
-      return careerDetermineConstructionGrade(emp, f);
-    });
-    return { emp: emp, empId: empId, bonbu: bonbu, position: emp.position||'-', name: emp.name||'-', results: results, detail: detail };
+    return { emp: emp, empId: empId, bonbu: bonbu, position: emp.position||'-', name: emp.name||'-', perField: perField };
   });
 
   rows.sort(function(a, b) {
@@ -13886,16 +13888,20 @@ function careerRenderConstructionTab() {
     i = j;
   }
 
+  function cell(v) { return '<td style="text-align:center;font-size:12px">'+(v===undefined||v===null?'-':v)+'</td>'; }
+
   tbody.innerHTML = rows.map(function(r, idx) {
     var bonbuCell = bonbuSpan[idx] === 0 ? '' : '<td rowspan="'+bonbuSpan[idx]+'" style="white-space:nowrap;padding:6px;vertical-align:middle;text-align:center">'+r.bonbu+'</td>';
+    var gradeCells = r.perField.map(function(p){ return '<td style="text-align:center">'+(p?careerGradeBadge(p.grade):'-')+'</td>'; }).join('');
+    var licCells = r.perField.map(function(p){ return cell(p?p.lic:null); }).join('');
+    var eduCells = r.perField.map(function(p){ return cell(p?p.edu:null); }).join('');
+    var careerCells = r.perField.map(function(p){ return cell(p?p.career:null); }).join('');
+    var eduTrainCells = r.perField.map(function(p){ return cell(p?p.eduTrain:null); }).join('');
+    var totalCells = r.perField.map(function(p){ return cell(p?p.total:null); }).join('');
     return '<tr style="border-top:1px solid var(--border)">' + bonbuCell +
       '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.position+'</td>' +
       '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.name+'</td>' +
-      r.results.map(function(g){ return '<td style="text-align:center">'+(g?careerGradeBadge(g.grade):'-')+'</td>'; }).join('') +
-      r.detail.map(function(d){
-        if (!d) return '<td style="text-align:center">-</td>';
-        return '<td style="text-align:center;font-size:11px;white-space:nowrap">'+d.score+' ('+d.licScore+'/'+d.eduScore+'/'+d.careerScore+'/'+d.eduTrainScore+')</td>';
-      }).join('') +
+      gradeCells + licCells + eduCells + careerCells + eduTrainCells + totalCells +
       '<td style="text-align:center"><span onclick="careerOpenProjectModal(\''+r.empId+'\',\'construction\')" style="cursor:pointer;color:var(--ac);text-decoration:underline">참여사업 보기</span></td>' +
     '</tr>';
   }).join('');
