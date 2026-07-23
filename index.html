@@ -12947,6 +12947,8 @@ function careerIsFieldRegistered(emp, assocId, field) {
   var regEntries = (emp.assocCareer||{})[assocId] || [];
   if (regEntries.some(function(en){ return en.field === field; })) return true;
   if (!!(emp.careerGradeOverride||{})[field]) return true;
+  var excludedFields = (emp.assocExcludedFields||{})[assocId] || [];
+  if (excludedFields.indexOf(field) >= 0) return false;
   if (!!(emp.assocEnrolled||{})[assocId]) {
     if (assocId === 'construction') {
       var hasCert2 = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerConstructionFieldsForLicense(l.name).indexOf(field) >= 0; });
@@ -13339,7 +13341,7 @@ function careerDetermineConstructionGrade(emp, field, extraDays) {
   if (manualLic !== undefined && manualLic !== null && manualLic !== '') {
     licScore = Number(manualLic);
   } else {
-    licScore = 0;
+    licScore = 10; // 기타(자격증 없음) 기본 10점
     (emp.license||[]).filter(careerIsRelevantLicense).forEach(function(l) {
       if (careerConstructionFieldsForLicense(l.name).indexOf(field) >= 0) {
         licScore = Math.max(licScore, careerConstructionLicenseScore(l.name));
@@ -13352,7 +13354,7 @@ function careerDetermineConstructionGrade(emp, field, extraDays) {
   if (manualEdu !== undefined && manualEdu !== null && manualEdu !== '') {
     eduScore = Number(manualEdu);
   } else {
-    var eduBase = 0, hasMaster = false, hasDoctor = false;
+    var eduBase = 10, hasMaster = false, hasDoctor = false; // 기타(비전공) 기본 10점
     (emp.education||[]).forEach(function(e) {
       if (careerConstructionFieldsForMajor(e.major).indexOf(field) < 0) return;
       if (e.degree === '석사') hasMaster = true;
@@ -13432,6 +13434,40 @@ async function careerSetAssocEnrolled(empId, assocId, checked) {
   try {
     await db.collection('employees').doc(empId).update({ assocEnrolled: enrolled });
     showToast(checked ? '✅ 등록되었습니다' : '등록이 취소되었습니다');
+  } catch (err) {
+    showToast('❌ 저장 실패: ' + err.message);
+  }
+}
+
+async function careerExcludeAutoField(empId, assocId, field) {
+  if (!isAdmin()) { showToast('❌ 관리자만 변경할 수 있습니다'); return; }
+  if (!confirm('"'+field+'" 분야를 자동인식에서 제외할까요? 인력및등급관리 표에서도 이 분야 줄이 사라집니다.')) return;
+  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+  if (!emp) return;
+  var excluded = Object.assign({}, emp.assocExcludedFields || {});
+  excluded[assocId] = (excluded[assocId] || []).slice();
+  if (excluded[assocId].indexOf(field) < 0) excluded[assocId].push(field);
+  emp.assocExcludedFields = excluded;
+  careerRegRenderDetail();
+  try {
+    await db.collection('employees').doc(empId).update({ assocExcludedFields: excluded });
+    showToast('✅ 제외되었습니다');
+  } catch (err) {
+    showToast('❌ 저장 실패: ' + err.message);
+  }
+}
+
+async function careerUnexcludeAutoField(empId, assocId, field) {
+  if (!isAdmin()) { showToast('❌ 관리자만 변경할 수 있습니다'); return; }
+  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+  if (!emp) return;
+  var excluded = Object.assign({}, emp.assocExcludedFields || {});
+  excluded[assocId] = (excluded[assocId] || []).filter(function(f){ return f !== field; });
+  emp.assocExcludedFields = excluded;
+  careerRegRenderDetail();
+  try {
+    await db.collection('employees').doc(empId).update({ assocExcludedFields: excluded });
+    showToast('✅ 되돌렸습니다');
   } catch (err) {
     showToast('❌ 저장 실패: ' + err.message);
   }
@@ -13517,7 +13553,9 @@ function careerRegRenderDetail() {
   var enrolled = (emp.assocEnrolled||{})[_careerRegSelectedAssoc] || {};
 
   var isEnrolled = !!(emp.assocEnrolled||{})[_careerRegSelectedAssoc] || entries.length > 0;
+  var excludedFields = (emp.assocExcludedFields||{})[_careerRegSelectedAssoc] || [];
   var autoFields = fieldOptions.filter(function(f) {
+    if (excludedFields.indexOf(f) >= 0) return false;
     if (_careerRegSelectedAssoc === 'construction') {
       var hasCert2 = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerConstructionFieldsForLicense(l.name).indexOf(f) >= 0; });
       var hasEdu2 = (emp.education||[]).some(function(e){ return careerConstructionFieldsForMajor(e.major).indexOf(f) >= 0; });
@@ -13532,13 +13570,21 @@ function careerRegRenderDetail() {
       '<input type="checkbox" '+(isEnrolled?'checked':'')+' onchange="careerSetAssocEnrolled(\''+(emp._docId||emp.id)+'\',\''+_careerRegSelectedAssoc+'\',this.checked)">' +
       assoc.name + '에 등록' +
     '</label>' +
-    '<div style="font-size:11px;color:var(--t3);margin-top:6px">등록하면 이 사람의 자격증/학력을 보고 해당되는 분야를 자동으로 찾아서 등급을 계산해요. 이후 사업(경력)을 등록하면 등급이 자동으로 올라갑니다.</div>' +
+    '<div style="font-size:11px;color:var(--t3);margin-top:6px">등록하면 이 사람의 자격증/학력을 보고 해당되는 분야를 자동으로 찾아서 등급을 계산해요. 이후 사업(경력)을 등록하면 등급이 자동으로 올라갑니다. 자동으로 잡힌 분야가 실제와 다르면 옆의 ✕로 빼세요.</div>' +
     (isEnrolled ? (
       autoFields.length
         ? '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">' +
-            autoFields.map(function(f){ return '<span style="font-size:12px;color:var(--t2)">'+f+' '+careerGradeBadge(careerGetEffectiveGrade(emp, f, _careerRegSelectedAssoc).grade)+'</span>'; }).join('') +
+            autoFields.map(function(f){
+              return '<span style="font-size:12px;color:var(--t2);display:inline-flex;align-items:center;gap:4px">'+f+' '+careerGradeBadge(careerGetEffectiveGrade(emp, f, _careerRegSelectedAssoc).grade)+
+                '<span onclick="careerExcludeAutoField(\''+(emp._docId||emp.id)+'\',\''+_careerRegSelectedAssoc+'\',\''+f+'\')" style="cursor:pointer;color:var(--t3);font-weight:700" title="이 분야 자동인식에서 제외">✕</span></span>';
+            }).join('') +
           '</div>'
         : '<div style="font-size:12px;color:#c2410c;margin-top:10px">⚠️ 자동으로 인식되는 분야가 없습니다 — 인사기록카드에 관련 자격증이나 학력(전공)을 먼저 등록해주세요</div>'
+    ) : '') +
+    (excludedFields.length ? (
+      '<div style="font-size:11px;color:var(--t3);margin-top:8px">제외된 분야: ' +
+      excludedFields.map(function(f){ return '<span style="margin-right:8px">'+f+' <span onclick="careerUnexcludeAutoField(\''+(emp._docId||emp.id)+'\',\''+_careerRegSelectedAssoc+'\',\''+f+'\')" style="cursor:pointer;color:var(--ac)">(되돌리기)</span></span>'; }).join('') +
+      '</div>'
     ) : '') +
   '</div>';
 
@@ -13881,15 +13927,15 @@ function careerRenderConstructionTab() {
     '<th rowspan="2" style="padding:6px;white-space:nowrap;text-align:center;'+sticky1+'">직급</th>' +
     '<th rowspan="2" style="padding:6px;white-space:nowrap;text-align:center;'+sticky1+'">이름</th>' +
     '<th colspan="'+n+'" style="text-align:center;'+sticky1+'">현재 등급</th>' +
-    '<th colspan="4" style="text-align:center;'+sticky1+'">현재 역량지수</th>' +
-    '<th colspan="5" style="text-align:center;'+sticky1+'">정도 경력 추가 후 예상 등급</th>' +
+    '<th colspan="5" style="text-align:center;'+sticky1+'">현재 역량지수</th>' +
+    '<th colspan="6" style="text-align:center;'+sticky1+'">정도 경력 추가 후 예상 등급</th>' +
     '<th rowspan="2" style="padding:0 6px;text-align:center;white-space:nowrap;'+sticky1+'">타회사 등록<br>가능 경력일수</th>' +
     '<th rowspan="2" style="padding:0 6px;text-align:center;white-space:nowrap;'+sticky1+'">정도 등록<br>가능 경력일수</th>' +
     '<th rowspan="2" style="padding:0 6px;text-align:center;white-space:nowrap;'+sticky1+'">참여사업</th>';
   var row2 =
     fields.map(function(f){ return '<th style="text-align:center;white-space:nowrap;font-size:11px;padding:2px 4px;'+sticky2+'">'+f+'</th>'; }).join('') +
-    ['①자격지수','②학력지수','③경력지수','역량지수(①+②+③)'].map(function(h){ return '<th style="text-align:center;white-space:nowrap;font-size:11px;'+sticky2+'">'+h+'</th>'; }).join('') +
-    ['①자격지수','②학력지수','③경력지수','역량지수(①+②+③)','경력 추가 후<br>예상 등급'].map(function(h){ return '<th style="text-align:center;white-space:nowrap;font-size:11px;'+sticky2+'">'+h+'</th>'; }).join('');
+    ['①자격지수','②학력지수','③경력지수','④교육지수','역량지수(①+②+③+④)'].map(function(h){ return '<th style="text-align:center;white-space:nowrap;font-size:11px;'+sticky2+'">'+h+'</th>'; }).join('') +
+    ['①자격지수','②학력지수','③경력지수','④교육지수','역량지수(①+②+③+④)','경력 추가 후<br>예상 등급'].map(function(h){ return '<th style="text-align:center;white-space:nowrap;font-size:11px;'+sticky2+'">'+h+'</th>'; }).join('');
   thead.innerHTML = '<tr>'+row1+'</tr><tr>'+row2+'</tr>';
 
   // 사람 × 등록된 분야 조합으로 행을 만든다 (한 사람이 여러 분야에 등록되어 있으면 여러 줄)
@@ -13898,8 +13944,11 @@ function careerRenderConstructionTab() {
     fields.forEach(function(field) {
       if (!careerIsFieldRegistered(emp, 'construction', field)) return;
       var d = careerDetermineConstructionGrade(emp, field);
+      var override = (emp.careerGradeOverride||{})[field];
+      if (override) d = Object.assign({}, d, { grade: override });
       var days = careerSplitCompanyDays(emp);
       var dProj = careerDetermineConstructionGrade(emp, field, days.doyu);
+      if (override) dProj = Object.assign({}, dProj, { grade: override });
       rows.push({
         emp: emp, empId: emp._docId||emp.id, bonbu: careerGetBonbu(emp),
         position: emp.position||'-', name: emp.name||'-', field: field,
@@ -13909,7 +13958,7 @@ function careerRenderConstructionTab() {
   });
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="'+(3+n+4+5+3)+'" style="text-align:center;padding:24px;color:var(--t3)">"등록" 메뉴에서 한국건설기술인협회에 등록된 인원이 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="'+(3+n+5+6+3)+'" style="text-align:center;padding:24px;color:var(--t3)">"등록" 메뉴에서 한국건설기술인협회에 등록된 인원이 없습니다</td></tr>';
     return;
   }
 
@@ -13944,8 +13993,8 @@ function careerRenderConstructionTab() {
       '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.position+'</td>' +
       '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.name+'</td>' +
       gradeCells +
-      cell(r.cur.licScore) + cell(r.cur.eduScore) + cell(r.cur.careerScore) + cell(r.cur.score) +
-      cell(r.proj.licScore) + cell(r.proj.eduScore) + cell(r.proj.careerScore) + cell(r.proj.score) +
+      cell(r.cur.licScore) + cell(r.cur.eduScore) + cell(r.cur.careerScore) + cell(r.cur.eduTrainScore) + cell(r.cur.score) +
+      cell(r.proj.licScore) + cell(r.proj.eduScore) + cell(r.proj.careerScore) + cell(r.proj.eduTrainScore) + cell(r.proj.score) +
       '<td style="text-align:center">'+careerGradeBadge(r.proj.grade)+'</td>' +
       cell(r.other||'-') + cell(r.doyu||'-') +
       '<td style="text-align:center"><span onclick="careerOpenProjectModal(\''+r.empId+'\',\'construction\')" style="cursor:pointer;color:var(--ac);text-decoration:underline">참여사업 보기</span></td>' +
