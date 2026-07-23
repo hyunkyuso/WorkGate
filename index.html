@@ -2613,6 +2613,17 @@ select.form-input{cursor:pointer}
 
 <!-- 모달: 새 업무 -->
 
+<!-- 모달: 졸업증명서/자격증 미리보기 -->
+<div id="career-doc-preview-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('career-doc-preview-modal')">
+  <div class="modal" style="max-width:800px;width:90vw;height:85vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+    <div class="modal-header" style="padding:14px 18px;flex-shrink:0">
+      <div class="modal-title" id="career-doc-preview-title">문서 미리보기</div>
+      <button class="modal-close" onclick="closeModal('career-doc-preview-modal')">✕</button>
+    </div>
+    <div id="career-doc-preview-body" style="flex:1;overflow:auto;padding:0"></div>
+  </div>
+</div>
+
 <!-- 모달: 참여사업 -->
 <div id="career-project-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('career-project-modal')">
   <div class="modal" style="max-width:95vw;width:1400px;max-height:85vh;overflow-y:auto">
@@ -13910,6 +13921,26 @@ function careerRegUploadExcel(input) {
 
 var _careerProjectModalEmpId = null;
 var _careerProjectModalAssocId = 'eng';
+function careerEscJs(s) {
+  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+}
+function careerDocDateCellHtml(dateText, title, item) {
+  if (!item || !item.driveId) return dateText;
+  var onclick = "careerOpenDocPreview('"+careerEscJs(title)+"','"+careerEscJs(item.driveId)+"','"+careerEscJs(item.mimeType)+"','"+careerEscJs(item.driveLink)+"')";
+  return '<span onclick="'+onclick+'" style="cursor:pointer;color:var(--ac);text-decoration:underline">'+dateText+'</span>';
+}
+
+function careerOpenDocPreview(title, driveId, mimeType, driveLink) {
+  document.getElementById('career-doc-preview-title').textContent = title;
+  var body = document.getElementById('career-doc-preview-body');
+  if (!driveId) {
+    body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3)">첨부된 파일이 없습니다</div>';
+  } else {
+    body.innerHTML = '<iframe src="https://drive.google.com/file/d/'+driveId+'/preview" style="width:100%;height:100%;border:0"></iframe>';
+  }
+  document.getElementById('career-doc-preview-modal').style.display = 'flex';
+}
+
 function careerOpenProjectModal(empId, assocId) {
   _careerProjectModalEmpId = empId;
   _careerProjectModalAssocId = assocId || 'eng';
@@ -14717,9 +14748,9 @@ function careerBuildOverviewRow(emp) {
     school: eduSorted.length ? eduSorted.map(function(e){ return e.school||'-'; }).join('<br>') : '-',
     major: eduSorted.length ? eduSorted.map(function(e){ return e.major||'-'; }).join('<br>') : '-',
     degree: eduSorted.length ? eduSorted.map(function(e){ return e.degree||'-'; }).join('<br>') : '-',
-    gradDate: eduSorted.length ? eduSorted.map(function(e){ return careerFmtDate(e.date)||'-'; }).join('<br>') : '-',
+    gradDate: eduSorted.length ? eduSorted.map(function(e){ return careerDocDateCellHtml(careerFmtDate(e.date)||'-', (e.school||'')+' '+(e.degree||'')+' 졸업증명서', e); }).join('<br>') : '-',
     license: licSorted.length ? licSorted.map(function(l){ return l.name; }).join('<br>') : '-',
-    licenseDate: licSorted.length ? licSorted.map(function(l){ return careerFmtDate(l.date)||'-'; }).join('<br>') : '-',
+    licenseDate: licSorted.length ? licSorted.map(function(l){ return careerDocDateCellHtml(careerFmtDate(l.date)||'-', (l.name||'')+' 자격증', l); }).join('<br>') : '-',
     licenseNo: licSorted.length ? licSorted.map(function(l){ return l.number||'-'; }).join('<br>') : '-'
   };
   CAREER_GRADE_COLS.forEach(function(c) {
