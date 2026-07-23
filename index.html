@@ -13326,35 +13326,54 @@ function careerConstructionGradeFromScore(score) {
   if (score >= 65) return '고급기술자';
   if (score >= 55) return '중급기술자';
   if (score >= 35) return '초급기술자';
-  return '미달';
+  return '-'; // 35점 미만이면 "미달"로 자동 표기하지 않고 그냥 빈칸(데이터 미비로 간주). 정말 미달로 표기하고 싶으면 등급 수동 지정에서 직접 선택
 }
 
 function careerDetermineConstructionGrade(emp, field, extraDays) {
-  // 자격지수: 해당 분야 자격증 중 최고 점수
-  var licScore = 0;
-  (emp.license||[]).filter(careerIsRelevantLicense).forEach(function(l) {
-    if (careerConstructionFieldsForLicense(l.name).indexOf(field) >= 0) {
-      licScore = Math.max(licScore, careerConstructionLicenseScore(l.name));
-    }
-  });
+  var manualLic = ((emp.constructionLicScoreManual||{})[field]);
+  var manualEdu = ((emp.constructionAcademicScoreManual||{})[field]);
+  var manualCareer = ((emp.constructionCareerScoreManual||{})[field]);
 
-  // 학력지수: 해당 분야 학력 중 최고 학위 기준 + 석/박사 가산
-  var eduBase = 0, hasMaster = false, hasDoctor = false;
-  (emp.education||[]).forEach(function(e) {
-    if (careerConstructionFieldsForMajor(e.major).indexOf(field) < 0) return;
-    if (e.degree === '석사') hasMaster = true;
-    if (e.degree === '박사') hasDoctor = true;
-    eduBase = Math.max(eduBase, careerConstructionEduBaseScore(e.degree));
-  });
-  var eduScore = eduBase + (hasDoctor ? 3 : (hasMaster ? 1.5 : 0));
+  // 자격지수: 수동값이 있으면 그걸 쓰고, 없으면 해당 분야 자격증 중 최고 점수
+  var licScore;
+  if (manualLic !== undefined && manualLic !== null && manualLic !== '') {
+    licScore = Number(manualLic);
+  } else {
+    licScore = 0;
+    (emp.license||[]).filter(careerIsRelevantLicense).forEach(function(l) {
+      if (careerConstructionFieldsForLicense(l.name).indexOf(field) >= 0) {
+        licScore = Math.max(licScore, careerConstructionLicenseScore(l.name));
+      }
+    });
+  }
 
-  // 경력지수: 등록된 사업 중 해당 분야 참여일 합산 (보정계수 없이 그대로) + 예상 시나리오면 추가일수 더함
-  var totalDays = 0;
-  ((emp.assocCareer||{})['construction'] || []).forEach(function(c) {
-    if (c.field === field) totalDays += Number(c.days) || 0;
-  });
-  totalDays += extraDays || 0;
-  var careerScore = careerConstructionCareerScore(totalDays);
+  // 학력지수: 수동값이 있으면 그걸 쓰고, 없으면 해당 분야 학력 중 최고 학위 기준 + 석/박사 가산
+  var eduScore;
+  if (manualEdu !== undefined && manualEdu !== null && manualEdu !== '') {
+    eduScore = Number(manualEdu);
+  } else {
+    var eduBase = 0, hasMaster = false, hasDoctor = false;
+    (emp.education||[]).forEach(function(e) {
+      if (careerConstructionFieldsForMajor(e.major).indexOf(field) < 0) return;
+      if (e.degree === '석사') hasMaster = true;
+      if (e.degree === '박사') hasDoctor = true;
+      eduBase = Math.max(eduBase, careerConstructionEduBaseScore(e.degree));
+    });
+    eduScore = eduBase + (hasDoctor ? 3 : (hasMaster ? 1.5 : 0));
+  }
+
+  // 경력지수: 수동값이 있으면 그걸 쓰고, 없으면 등록된 사업 참여일 합산으로 자동 계산 (+예상 시나리오 추가일수)
+  var careerScore;
+  if (manualCareer !== undefined && manualCareer !== null && manualCareer !== '') {
+    careerScore = Number(manualCareer);
+  } else {
+    var totalDays = 0;
+    ((emp.assocCareer||{})['construction'] || []).forEach(function(c) {
+      if (c.field === field) totalDays += Number(c.days) || 0;
+    });
+    totalDays += extraDays || 0;
+    careerScore = careerConstructionCareerScore(totalDays);
+  }
 
   // 교육지수: 수동 입력값 (0~5점)
   var eduTrainScore = Number(((emp.constructionEduScore||{})[field])) || 0;
@@ -13363,21 +13382,36 @@ function careerDetermineConstructionGrade(emp, field, extraDays) {
   return { grade: careerConstructionGradeFromScore(total), score: total, licScore: licScore, eduScore: eduScore, careerScore: careerScore, eduTrainScore: eduTrainScore };
 }
 
-async function careerSetConstructionEduScore(empId, field, value) {
+var CAREER_CONSTRUCTION_SCORE_FIELDS = {
+  lic: { firestoreField: 'constructionLicScoreManual', min: 0, max: 40 },
+  academic: { firestoreField: 'constructionAcademicScoreManual', min: 0, max: 25 },
+  career: { firestoreField: 'constructionCareerScoreManual', min: 0, max: 40 },
+  eduTrain: { firestoreField: 'constructionEduScore', min: 0, max: 5 }
+};
+
+async function careerSetConstructionScore(empId, field, type, value) {
   if (!isAdmin()) { showToast('❌ 관리자만 변경할 수 있습니다'); return; }
+  var def = CAREER_CONSTRUCTION_SCORE_FIELDS[type];
+  if (!def) return;
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   if (!emp) return;
-  var scores = Object.assign({}, emp.constructionEduScore || {});
+  var scores = Object.assign({}, emp[def.firestoreField] || {});
   var num = Number(value);
-  if (value === '' || isNaN(num)) delete scores[field]; else scores[field] = Math.max(0, Math.min(5, num));
-  emp.constructionEduScore = scores;
+  if (value === '' || isNaN(num)) delete scores[field]; else scores[field] = Math.max(def.min, Math.min(def.max, num));
+  emp[def.firestoreField] = scores;
   careerRegRenderDetail();
+  var update = {};
+  update[def.firestoreField] = scores;
   try {
-    await db.collection('employees').doc(empId).update({ constructionEduScore: scores });
+    await db.collection('employees').doc(empId).update(update);
     showToast('✅ 저장되었습니다');
   } catch (err) {
     showToast('❌ 저장 실패: ' + err.message);
   }
+}
+
+async function careerSetConstructionEduScore(empId, field, value) {
+  return careerSetConstructionScore(empId, field, 'eduTrain', value);
 }
 
 function careerGetEffectiveGrade(emp, field, assocId) {
@@ -13510,18 +13544,28 @@ function careerRegRenderDetail() {
 
   var eduTrainHtml = '';
   if (_careerRegSelectedAssoc === 'construction') {
+    var manualLicScores = emp.constructionLicScoreManual || {};
+    var manualAcademicScores = emp.constructionAcademicScoreManual || {};
+    var manualCareerScores = emp.constructionCareerScoreManual || {};
     var eduScores = emp.constructionEduScore || {};
     eduTrainHtml = '<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;background:#fafafa">' +
-      '<div style="font-weight:600;font-size:13px;margin-bottom:8px">교육지수 (0~5점, 수동 입력)</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' +
+      '<div style="font-weight:600;font-size:13px;margin-bottom:8px">지수 수동 입력 (자동계산값을 덮어씀, 비워두면 자동계산)</div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
+      '<thead><tr style="color:var(--t3)"><td>분야</td><td>①자격지수(0~40)</td><td>②학력지수(0~25)</td><td>③경력지수(0~40)</td><td>④교육지수(0~5)</td></tr></thead><tbody>' +
       fieldOptions.map(function(f) {
-        var cur = eduScores[f] !== undefined ? eduScores[f] : '';
-        return '<div style="display:flex;align-items:center;gap:6px;font-size:12px">' +
-          '<span style="width:60px;white-space:nowrap;color:var(--t2)">'+f+'</span>' +
-          '<input type="number" min="0" max="5" step="0.5" class="form-input" style="font-size:12px;flex:1" value="'+cur+'" onchange="careerSetConstructionEduScore(\''+(emp._docId||emp.id)+'\',\''+f+'\',this.value)">' +
-        '</div>';
+        var curLic = manualLicScores[f] !== undefined ? manualLicScores[f] : '';
+        var curAcademic = manualAcademicScores[f] !== undefined ? manualAcademicScores[f] : '';
+        var curCareer = manualCareerScores[f] !== undefined ? manualCareerScores[f] : '';
+        var curEdu = eduScores[f] !== undefined ? eduScores[f] : '';
+        var empId = emp._docId || emp.id;
+        return '<tr><td style="white-space:nowrap;color:var(--t2)">'+f+'</td>' +
+          '<td><input type="number" min="0" max="40" step="1" class="form-input" style="font-size:12px" value="'+curLic+'" placeholder="자동" onchange="careerSetConstructionScore(\''+empId+'\',\''+f+'\',\'lic\',this.value)"></td>' +
+          '<td><input type="number" min="0" max="25" step="0.5" class="form-input" style="font-size:12px" value="'+curAcademic+'" placeholder="자동" onchange="careerSetConstructionScore(\''+empId+'\',\''+f+'\',\'academic\',this.value)"></td>' +
+          '<td><input type="number" min="0" max="40" step="0.01" class="form-input" style="font-size:12px" value="'+curCareer+'" placeholder="자동" onchange="careerSetConstructionScore(\''+empId+'\',\''+f+'\',\'career\',this.value)"></td>' +
+          '<td><input type="number" min="0" max="5" step="0.5" class="form-input" style="font-size:12px" value="'+curEdu+'" placeholder="0" onchange="careerSetConstructionEduScore(\''+empId+'\',\''+f+'\',this.value)"></td>' +
+        '</tr>';
       }).join('') +
-      '</div>' +
+      '</tbody></table>' +
     '</div>';
   }
 
