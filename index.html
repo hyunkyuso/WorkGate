@@ -14097,7 +14097,17 @@ function careerRenderAiswTab() {
     var need = g.grade !== '기술사' ? careerDaysToNextGrade(emp, field, g.grade, 'aisw') : null;
     var days = careerSplitCompanyDays(emp);
     var regDays = 0;
-    ((emp.assocCareer||{})['aisw'] || []).forEach(function(c) { regDays += careerSanitizeDays(c.days); });
+    var aMinStart = null, aMaxEnd = null;
+    ((emp.assocCareer||{})['aisw'] || []).forEach(function(c) {
+      regDays += careerSanitizeDays(c.days);
+      if (c.contractDate && (aMinStart === null || c.contractDate < aMinStart)) aMinStart = c.contractDate;
+      var endD = c.completionDate || (new Date().toISOString().slice(0,10));
+      if (endD && (aMaxEnd === null || endD > aMaxEnd)) aMaxEnd = endD;
+    });
+    if (aMinStart && aMaxEnd) {
+      var aMaxPossible = careerDaysBetween(aMinStart, aMaxEnd);
+      if (regDays > aMaxPossible) regDays = aMaxPossible;
+    }
     rows.push({
       emp: emp, empId: emp._docId||emp.id, bonbu: careerGetBonbu(emp), position: emp.position||'-', name: emp.name||'-',
       grade: g.grade, need: need, other: days.other, doyu: days.doyu,
@@ -14495,8 +14505,9 @@ function careerGetRelevantCareerPeriods(emp, assocId, field) {
 
 // 자격/학력 취득일(qualDate) 이전 경력은 60%, 이후는 100%로 가중 합산 (일수)
 // overrideDays(참여일, 중복기간 조정 후 실제값)가 있으면 원래 달력일수 대비 비율만큼 축소해서 반영
-function careerWeightedDays(periods, qualDate) {
+function careerWeightedDays(periods, qualDate, applyCap) {
   var total = 0;
+  var minStart = null, maxEnd = null;
   periods.forEach(function(p) {
     var rawDays = careerDaysBetween(p.start, p.end);
     var scale = (p.overrideDays != null && rawDays > 0) ? (p.overrideDays / rawDays) : 1;
@@ -14515,8 +14526,18 @@ function careerWeightedDays(periods, qualDate) {
         add = beforeDays * scale * 0.6 + afterDays * scale;
       }
     }
-    if (isFinite(add)) total += add; // 방어: 이 사업 하나가 이상해도 전체 합산은 유지
+    if (isFinite(add)) {
+      total += add; // 방어: 이 사업 하나가 이상해도 전체 합산은 유지
+      if (p.start && (minStart === null || p.start < minStart)) minStart = p.start;
+      if (p.end && (maxEnd === null || p.end > maxEnd)) maxEnd = p.end;
+    }
   });
+  // 안전장치(AI SW 전용): 중복차감 공식이 따로 없는 협회라, 아무리 사업이 겹쳐도
+  // 실제 인정 경력은 (가장 이른 시작일)~(가장 늦은 종료일)의 달력상 기간을 넘을 수 없음
+  if (applyCap && minStart && maxEnd) {
+    var maxPossible = careerDaysBetween(minStart, maxEnd);
+    if (total > maxPossible) total = maxPossible;
+  }
   return total;
 }
 
@@ -14556,7 +14577,7 @@ function careerDetermineGrade(emp, field, assocId) {
   }
   function pathDays(qualDate) {
     if (qualDate === null) return -1; // 해당 자격/학력 없음
-    return careerWeightedDays(periods, qualDate || null);
+    return careerWeightedDays(periods, qualDate || null, assocId === 'aisw');
   }
 
   for (var i = 0; i < CAREER_GRADE_CRITERIA.length; i++) {
@@ -14639,14 +14660,14 @@ function careerDaysToNextGrade(emp, field, currentGrade, assocId) {
     if (!list || !list.length) return;
     var dates = list.map(function(l){ return l.date; }).filter(Boolean).sort();
     if (!dates.length) return;
-    var days = careerWeightedDays(periods, dates[0]);
+    var days = careerWeightedDays(periods, dates[0], assocId === 'aisw');
     var shortfall = cp.y * 365 - days;
     if (shortfall > 0 && (minShortfall === null || shortfall < minShortfall)) minShortfall = shortfall;
   });
   nextCrit.eduPaths.forEach(function(ep) {
     var e = byDegree[ep.d];
     if (!e) return;
-    var days = careerWeightedDays(periods, e.date);
+    var days = careerWeightedDays(periods, e.date, assocId === 'aisw');
     var shortfall = ep.y * 365 - days;
     if (shortfall > 0 && (minShortfall === null || shortfall < minShortfall)) minShortfall = shortfall;
   });
