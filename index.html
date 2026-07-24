@@ -914,7 +914,7 @@ select.form-input{cursor:pointer}
           <div><div class="page-title">📊 경력관리 대시보드</div><div class="page-sub">협회별 등록 현황을 한눈에 봅니다</div></div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div style="display:grid;grid-template-columns:1.6fr 0.8fr 0.8fr;gap:12px">
 
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px">
             <div style="font-weight:600;margin-bottom:10px;font-size:13px">🎖️ 협회별 등급현황</div>
@@ -13085,10 +13085,15 @@ function careerBuildLicenseMatrix() {
 
 // ── 협회별 등급현황 (분야 × 등급) ──
 var CAREER_GRADE_MATRIX_COLS = ['기술사','특급기술자','고급기술자','중급기술자','초급기술자'];
+var CAREER_GRADE_MATRIX_COLS_ENG = CAREER_GRADE_MATRIX_COLS.concat(['숙련(고)','숙련(중)','숙련(초)']);
+function careerGradeMatrixColsFor(assocId) {
+  return assocId === 'eng' ? CAREER_GRADE_MATRIX_COLS_ENG : CAREER_GRADE_MATRIX_COLS;
+}
 
 function careerBuildGradeMatrix(assocId) {
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === assocId; });
   var fields = assoc.fields.length ? assoc.fields : [assoc.name];
+  var cols = careerGradeMatrixColsFor(assocId);
   var matrix = {}; // matrix[field][grade] = count
   var fieldPeople = {}; // fieldPeople[field] = Set(empId) - 분야별 중복제거 합계용
   var totalPeople = new Set(); // 협회 전체 중복제거 합계용
@@ -13102,7 +13107,7 @@ function careerBuildGradeMatrix(assocId) {
       totalPeople.add(empId);
       if (!fieldPeople[field]) fieldPeople[field] = new Set();
       fieldPeople[field].add(empId);
-      if (CAREER_GRADE_MATRIX_COLS.indexOf(grade) < 0) return;
+      if (cols.indexOf(grade) < 0) return;
       if (!matrix[field]) matrix[field] = {};
       matrix[field][grade] = (matrix[field][grade] || 0) + 1;
     });
@@ -13115,6 +13120,7 @@ function careerRenderGradeStatusDashboard() {
   var el = document.getElementById('career-grade-status-body');
   el.innerHTML = CAREER_ASSOCIATIONS.map(function(assoc) {
     var data = careerBuildGradeMatrix(assoc.id);
+    var cols = careerGradeMatrixColsFor(assoc.id);
     var hasAny = Object.keys(data.matrix).length > 0;
     var html = '<div style="display:flex;align-items:baseline;gap:8px;margin:14px 0 8px">' +
       '<span style="font-size:13px;color:var(--t3)">' + assoc.name + '</span>' +
@@ -13123,21 +13129,21 @@ function careerRenderGradeStatusDashboard() {
     if (!hasAny) {
       return html + '<div style="padding:14px;text-align:center;color:var(--t3);font-size:13px;border:1px solid var(--border);border-radius:8px">등록된 인원이 없습니다</div>';
     }
-    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
-      '<thead><tr><td></td><td style="text-align:center;padding:6px;color:var(--t3);font-weight:600">합계</td>' + CAREER_GRADE_MATRIX_COLS.map(function(g){
-        return '<td style="text-align:center;padding:6px;color:var(--t3);font-weight:600">'+careerShortGrade(g)+'</td>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:11px">' +
+      '<thead><tr><td></td><td style="text-align:center;padding:4px;color:var(--t3);font-weight:600">합계</td>' + cols.map(function(g){
+        return '<td style="text-align:center;padding:4px;color:var(--t3);font-weight:600">'+careerShortGrade(g)+'</td>';
       }).join('') + '</tr></thead><tbody>';
     html += data.fields.map(function(f) {
       if (!data.matrix[f]) return '';
       var fieldTotal = (data.fieldPeople[f] && data.fieldPeople[f].size) || 0;
       var totalCell = fieldTotal
-        ? '<td style="text-align:center"><span onclick="careerGoToPeopleFieldRegistered(\''+f+'\',\''+assoc.id+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 10px;border-radius:8px;font-weight:700">'+fieldTotal+'</span></td>'
+        ? '<td style="text-align:center"><span onclick="careerGoToPeopleFieldRegistered(\''+f+'\',\''+assoc.id+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 6px;border-radius:6px;font-weight:700">'+fieldTotal+'</span></td>'
         : '<td style="text-align:center;color:var(--t3)">-</td>';
-      return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px 6px;white-space:nowrap">'+f+'</td>' + totalCell +
-        CAREER_GRADE_MATRIX_COLS.map(function(g) {
+      return '<tr style="border-top:1px solid var(--border)"><td style="padding:6px 4px;white-space:nowrap">'+f+'</td>' + totalCell +
+        cols.map(function(g) {
           var cnt = (data.matrix[f] && data.matrix[f][g]) || 0;
           if (!cnt) return '<td style="text-align:center;color:var(--t3)">-</td>';
-          return '<td style="text-align:center"><span onclick="careerGoToPeopleGradeFiltered(\''+f+'\',\''+g+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 10px;border-radius:8px;font-weight:600">'+cnt+'</span></td>';
+          return '<td style="text-align:center"><span onclick="careerGoToPeopleGradeFiltered(\''+f+'\',\''+g+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 6px;border-radius:6px;font-weight:600">'+cnt+'</span></td>';
         }).join('') + '</tr>';
     }).join('');
     html += '</tbody></table>';
@@ -14395,19 +14401,19 @@ function careerRenderEngTab() {
       '<td rowspan="3" style="'+thStyle1+'">본부</td>' +
       '<td rowspan="3" style="'+thStyle1+'">직급</td>' +
       '<td rowspan="3" style="'+thStyle1+'">이름</td>' +
-      '<td colspan="'+fields.length+'" style="'+thStyle1+';background:#f1f5f9">등록현황</td>' +
-      '<td colspan="'+fields.length+'" style="'+thStyle1+';background:#f1f5f9">다음 등급까지 필요 경력</td>' +
-      '<td rowspan="3" style="'+thStyle1+';padding:0 8px">타회사 등록<br>가능 경력일수</td>' +
+      '<td colspan="'+fields.length+'" style="'+thStyle1+';background:#f1f5f9;border-left:2px solid var(--border)">등록현황</td>' +
+      '<td colspan="'+fields.length+'" style="'+thStyle1+';background:#f1f5f9;border-left:2px solid var(--border)">다음 등급까지 필요 경력</td>' +
+      '<td rowspan="3" style="'+thStyle1+';padding:0 8px;border-left:2px solid var(--border)">타회사 등록<br>가능 경력일수</td>' +
       '<td rowspan="3" style="'+thStyle1+';padding:0 8px">정도 등록<br>가능 경력일수</td>' +
-      '<td rowspan="3" style="'+thStyle1+';padding:0 8px">참여사업</td>' +
+      '<td rowspan="3" style="'+thStyle1+';padding:0 8px;border-left:2px solid var(--border)">참여사업</td>' +
     '</tr>' +
     '<tr>' +
-      '<td colspan="'+fields.length+'" style="'+thStyle2+'">한국엔지니어링협회</td>' +
-      '<td colspan="'+fields.length+'" style="'+thStyle2+'">한국엔지니어링협회</td>' +
+      '<td colspan="'+fields.length+'" style="'+thStyle2+';border-left:2px solid var(--border)">한국엔지니어링협회</td>' +
+      '<td colspan="'+fields.length+'" style="'+thStyle2+';border-left:2px solid var(--border)">한국엔지니어링협회</td>' +
     '</tr>' +
     '<tr>' +
-      fields.map(function(f){ return '<td style="'+thStyle3+'">'+f+'</td>'; }).join('') +
-      fields.map(function(f){ return '<td style="'+thStyle3+'">'+f+'</td>'; }).join('') +
+      fields.map(function(f, i){ return '<td style="'+thStyle3+(i===0?';border-left:2px solid var(--border)':'')+'">'+f+'</td>'; }).join('') +
+      fields.map(function(f, i){ return '<td style="'+thStyle3+(i===0?';border-left:2px solid var(--border)':'')+'">'+f+'</td>'; }).join('') +
     '</tr>';
 
   var amAdmin = isAdmin();
@@ -14438,10 +14444,11 @@ function careerRenderEngTab() {
       var g = gradeInfos[i];
       if (!g || gradeCells[i] === '-') return '-';
       if (gradeCells[i] === '기술사') return '-';
+      if (gradeCells[i].indexOf('숙련') === 0) return '-'; // 숙련계는 다음등급 계산/안내 대상 아님
       // 수동으로 낮게 지정된 경우, 실제로는 자격/학력만으로 즉시(0년) 더 높은 등급이 가능하면 그걸 안내
-      if (g.isOverride && g.autoGrade && g.autoGrade !== g.grade) {
+      if (g.isOverride && g.autoGrade && g.autoGrade !== g.grade && g.autoGrade.indexOf('숙련') !== 0) {
         var cred = careerFindZeroYearCredential(emp, field, g.autoGrade);
-        if (cred) return cred + ' 등록시 ' + careerShortGrade(g.autoGrade);
+        if (cred) return { text: cred + ' 등록시 ' + careerShortGrade(g.autoGrade), small: true };
       }
       var need = careerDaysToNextGrade(emp, field, gradeCells[i], 'eng');
       return need ? Math.ceil(need) : '-';
@@ -14474,14 +14481,21 @@ function careerRenderEngTab() {
     return '<tr style="border-top:1px solid var(--border)">' + bonbuCell +
       '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.position+'</td>' +
       '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.name+'</td>' +
-      r.gradeInfos.map(function(g) {
-        if (!g) return '<td style="text-align:center">-</td>';
-        return '<td style="text-align:center">'+careerGradeBadge(g.grade)+'</td>';
+      r.gradeInfos.map(function(g, i) {
+        var b = i === 0 ? 'border-left:2px solid var(--border);' : '';
+        if (!g) return '<td style="'+b+'text-align:center">-</td>';
+        return '<td style="'+b+'text-align:center">'+careerGradeBadge(g.grade)+'</td>';
       }).join('') +
-      r.needCells.map(function(n){ return '<td style="text-align:center">'+n+'</td>'; }).join('') +
-      '<td style="text-align:center">'+(r.other||'-')+'</td>' +
+      r.needCells.map(function(n, i){
+        var b = i === 0 ? 'border-left:2px solid var(--border);' : '';
+        if (n && typeof n === 'object' && n.small) {
+          return '<td style="'+b+'text-align:center"><span style="font-size:10px;white-space:nowrap">'+n.text+'</span></td>';
+        }
+        return '<td style="'+b+'text-align:center">'+n+'</td>';
+      }).join('') +
+      '<td style="border-left:2px solid var(--border);text-align:center">'+(r.other||'-')+'</td>' +
       '<td style="text-align:center">'+(r.doyu||'-')+'</td>' +
-      '<td style="text-align:center"><span onclick="careerOpenProjectModal(\''+r.empId+'\')" style="cursor:pointer;color:var(--ac);text-decoration:underline">참여사업 보기</span></td>' +
+      '<td style="border-left:2px solid var(--border);text-align:center"><span onclick="careerOpenProjectModal(\''+r.empId+'\')" style="cursor:pointer;color:var(--ac);text-decoration:underline">참여사업 보기</span></td>' +
     '</tr>';
   }).join('');
 }
