@@ -14377,7 +14377,7 @@ function careerRenderEngTab() {
       var need = careerDaysToNextGrade(emp, field, gradeCells[i], 'eng');
       return need ? Math.ceil(need) : '-';
     });
-    return { emp: emp, empId: empId, bonbu: bonbu, position: emp.position||'-', name: emp.name||'-', gradeCells: gradeCells, gradeInfos: gradeInfos, needCells: needCells, other: days.other, doyu: days.doyu };
+    return { emp: emp, empId: empId, bonbu: bonbu, position: emp.position||'-', name: emp.name||'-', joindate: emp.joindate||'', gradeCells: gradeCells, gradeInfos: gradeInfos, needCells: needCells, other: days.other, doyu: days.doyu };
   });
 
   rows.sort(function(a, b) {
@@ -14386,7 +14386,8 @@ function careerRenderEngTab() {
     if (ba !== bb) return ba - bb;
     var pa = CAREER_POSITION_ORDER.indexOf(a.position); if (pa < 0) pa = 999;
     var pb = CAREER_POSITION_ORDER.indexOf(b.position); if (pb < 0) pb = 999;
-    return pa - pb;
+    if (pa !== pb) return pa - pb;
+    return (a.joindate||'').localeCompare(b.joindate||'');
   });
 
   var bonbuSpan = new Array(rows.length).fill(1);
@@ -14503,8 +14504,8 @@ var CAREER_OVERVIEW_COLS = [
 
 // 본부 표시 순서 (수석전문위원은 정도유아이티로 귀속)
 var CAREER_BONBU_ORDER = [
-  '정도유아이티','경영관리본부','AI전략기획본부','도시계획사업본부','SW영업본부',
-  'GIS사업본부','AI GIS 연구본부','SW기술연구소','글로벌사업본부','글로벌기획본부'
+  '정도유아이티','도시계획사업본부','SW영업본부','GIS사업본부','AI전략기획본부',
+  '글로벌사업본부','AI GIS 연구본부','SW기술연구소','경영관리본부','글로벌기획본부'
 ];
 var CAREER_LEADER_TITLES = ['대표이사','본부장','부서장','팀장'];
 var CAREER_POSITION_ORDER = ['대표이사','부사장','전무','상무','이사','부장','차장','과장','대리','주임','사원','인턴','미지정'];
