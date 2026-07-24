@@ -13611,7 +13611,8 @@ function careerRegRenderDetail() {
   var overrides = emp.careerGradeOverride || {};
   var enrolled = (emp.assocEnrolled||{})[_careerRegSelectedAssoc] || {};
 
-  var isEnrolled = !!(emp.assocEnrolled||{})[_careerRegSelectedAssoc] || entries.length > 0;
+  var isRealEnrolled = !!(emp.assocEnrolled||{})[_careerRegSelectedAssoc];
+  var hasData = entries.length > 0 || Object.keys(overrides).length > 0;
   var excludedFields = (emp.assocExcludedFields||{})[_careerRegSelectedAssoc] || [];
   var autoFields = fieldOptions.filter(function(f) {
     if (excludedFields.indexOf(f) >= 0) return false;
@@ -13619,11 +13620,12 @@ function careerRegRenderDetail() {
   });
   var enrollHtml = '<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;background:#fafafa">' +
     '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">' +
-      '<input type="checkbox" '+(isEnrolled?'checked':'')+' onchange="careerSetAssocEnrolled(\''+(emp._docId||emp.id)+'\',\''+_careerRegSelectedAssoc+'\',this.checked)">' +
+      '<input type="checkbox" '+(isRealEnrolled?'checked':'')+' onchange="careerSetAssocEnrolled(\''+(emp._docId||emp.id)+'\',\''+_careerRegSelectedAssoc+'\',this.checked)">' +
       assoc.name + '에 등록' +
     '</label>' +
     '<div style="font-size:11px;color:var(--t3);margin-top:6px">등록하면 이 사람의 자격증/학력을 보고 해당되는 분야를 자동으로 찾아서 등급을 계산해요. 이후 사업(경력)을 등록하면 등급이 자동으로 올라갑니다. 자동으로 잡힌 분야가 실제와 다르면 옆의 ✕로 빼세요.</div>' +
-    (isEnrolled ? (
+    (!isRealEnrolled && hasData ? '<div style="font-size:12px;color:#c2410c;margin-top:10px">⚠️ 등록된 사업/수동등급 데이터는 있지만, 위 "등록" 체크가 안 되어 있어서 자격증/학력 자동인식은 꺼져있는 상태예요. 체크해주세요.</div>' : '') +
+    (isRealEnrolled ? (
       autoFields.length
         ? '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">' +
             autoFields.map(function(f){
