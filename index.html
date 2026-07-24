@@ -14151,30 +14151,30 @@ function careerOpenDocPreview(title, driveId, mimeType, driveLink, firebaseBacku
 
 var _careerProjectGroupBy = { employer: false, field: false };
 var _careerProjectBMMode = null; // null | 'all' | '3year'
-var _careerProjectDrillEmployer = null; // 근무처별 그룹에서 특정 근무처 클릭시 드릴다운
+var _careerProjectDrill = null; // { type:'employer'|'field'|'employerField'|'bm', employer, field, bm, yearsLimit, label }
 var CAREER_BM_KEYWORDS = ['기초조사','재해취약성','토지적성평가','공원녹지','UPIS','소규모','성장관리','공업지역','KRAS','GIS SW','농업생산기반'];
 
 function careerToggleProjectGroup(type) {
   _careerProjectGroupBy[type] = !_careerProjectGroupBy[type];
   _careerProjectBMMode = null;
-  _careerProjectDrillEmployer = null;
+  _careerProjectDrill = null;
   careerRenderProjectModal();
 }
 
 function careerToggleProjectBM(mode) {
   _careerProjectBMMode = (_careerProjectBMMode === mode) ? null : mode;
   _careerProjectGroupBy = { employer: false, field: false };
-  _careerProjectDrillEmployer = null;
+  _careerProjectDrill = null;
   careerRenderProjectModal();
 }
 
-function careerDrillIntoEmployer(employer) {
-  _careerProjectDrillEmployer = employer;
+function careerDrillInto(type, employer, field, bm, yearsLimit, label) {
+  _careerProjectDrill = { type: type, employer: employer||null, field: field||null, bm: bm||null, yearsLimit: yearsLimit||null, label: label };
   careerRenderProjectModal();
 }
 
-function careerClearEmployerDrill() {
-  _careerProjectDrillEmployer = null;
+function careerClearDrill() {
+  _careerProjectDrill = null;
   careerRenderProjectModal();
 }
 
@@ -14183,7 +14183,7 @@ function careerOpenProjectModal(empId, assocId) {
   _careerProjectModalAssocId = assocId || 'eng';
   _careerProjectGroupBy = { employer: false, field: false };
   _careerProjectBMMode = null;
-  _careerProjectDrillEmployer = null;
+  _careerProjectDrill = null;
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerProjectModalAssocId; });
   document.getElementById('career-project-modal-title').textContent = (emp?emp.name:'') + ' · 참여사업 (' + (assoc?assoc.name:'') + ')';
@@ -14305,8 +14305,9 @@ function careerRenderProjectModal() {
         var other = parts[0] === bm ? parts[1] : parts[0];
         overlapNotes.push(other + '와 ' + bmData.overlapPairs[key] + '일 중복');
       });
-      return '<tr style="border-top:1px solid var(--border)">' +
-        '<td style="padding:4px 6px;white-space:nowrap;font-weight:'+(bm==='기타'?'400':'600')+'">'+bm+'</td>' +
+      var yl = yearsLimit || '';
+      return '<tr style="border-top:1px solid var(--border);cursor:pointer" onclick="careerDrillInto(\'bm\',null,null,\''+bm+'\','+(yearsLimit||'null')+',\''+bm+'\')">' +
+        '<td style="padding:4px 6px;white-space:nowrap;font-weight:'+(bm==='기타'?'400':'600')+';color:var(--ac);text-decoration:underline">'+bm+'</td>' +
         '<td style="padding:4px 6px;text-align:center;font-weight:600">'+days+'일</td>' +
         '<td style="padding:4px 6px;font-size:11px;color:var(--t3)">'+(overlapNotes.join(', ')||'-')+'</td>' +
       '</tr>';
@@ -14314,11 +14315,32 @@ function careerRenderProjectModal() {
     return;
   }
 
-  // 근무처 드릴다운 모드
-  if (_careerProjectDrillEmployer) {
-    var drillList = filtered.filter(function(en){ return (en.employer||'-') === _careerProjectDrillEmployer; });
+  // 드릴다운 모드 (근무처별/전문분야별/BM별 어디서든 클릭하면 여기로)
+  if (_careerProjectDrill) {
+    var drill = _careerProjectDrill;
+    var drillList;
+    if (drill.type === 'bm') {
+      var cutoff = null;
+      if (drill.yearsLimit) {
+        var dd = new Date(); dd.setFullYear(dd.getFullYear() - drill.yearsLimit);
+        cutoff = dd.toISOString().slice(0,10);
+      }
+      drillList = filtered.filter(function(en) {
+        if ((en.employer||'').indexOf('정도유아이티') < 0) return false;
+        if (cutoff && en.contractDate && en.contractDate < cutoff) return false;
+        var matched = CAREER_BM_KEYWORDS.filter(function(bm){ return (en.name||'').indexOf(bm) >= 0; });
+        if (drill.bm === '기타') return matched.length === 0;
+        return matched.indexOf(drill.bm) >= 0;
+      });
+    } else if (drill.type === 'employerField') {
+      drillList = filtered.filter(function(en){ return (en.employer||'-') === drill.employer && (en.field||'-') === drill.field; });
+    } else if (drill.type === 'field') {
+      drillList = filtered.filter(function(en){ return (en.field||'-') === drill.field; });
+    } else {
+      drillList = filtered.filter(function(en){ return (en.employer||'-') === drill.employer; });
+    }
     thead.innerHTML = CAREER_PROJECT_RAW_HEAD;
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:6px"><span onclick="careerClearEmployerDrill()" style="cursor:pointer;color:var(--ac);font-size:12px">← 근무처별 목록으로 돌아가기</span> <b style="margin-left:8px">'+_careerProjectDrillEmployer+'</b></td></tr>' +
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:6px"><span onclick="careerClearDrill()" style="cursor:pointer;color:var(--ac);font-size:12px">← 목록으로 돌아가기</span> <b style="margin-left:8px">'+drill.label+'</b></td></tr>' +
       careerRenderProjectRawRows(drillList);
     return;
   }
@@ -14343,12 +14365,13 @@ function careerRenderProjectModal() {
     headCells += '<td style="padding:4px 6px">건수</td><td style="padding:4px 6px">참여일수 합계</td>';
     thead.innerHTML = '<tr style="color:var(--t3)">'+headCells+'</tr>';
 
-    // 근무처만 단독으로 그룹핑할 때는 클릭해서 드릴다운 가능
-    var canDrill = byEmployer && !byField;
     tbody.innerHTML = groupList.map(function(g, i) {
-      var row = '<tr style="border-top:1px solid var(--border)'+(canDrill?';cursor:pointer':'')+'"'+(canDrill?' onclick="careerDrillIntoEmployer(\''+g.employer+'\')"':'')+'><td style="padding:4px 6px;text-align:center;color:var(--t3)">'+(i+1)+'</td>';
-      if (byEmployer) row += '<td style="padding:4px 6px;white-space:nowrap'+(canDrill?';color:var(--ac);text-decoration:underline':'')+'">'+g.employer+'</td>';
-      if (byField) row += '<td style="padding:4px 6px;white-space:nowrap">'+g.field+'</td>';
+      var drillType = (byEmployer && byField) ? 'employerField' : (byEmployer ? 'employer' : 'field');
+      var label = byEmployer && byField ? (g.employer+' / '+g.field) : (byEmployer ? g.employer : g.field);
+      var onclickAttr = 'onclick="careerDrillInto(\''+drillType+'\',\''+(g.employer||'')+'\',\''+(g.field||'')+'\',null,null,\''+label+'\')"';
+      var row = '<tr style="border-top:1px solid var(--border);cursor:pointer" '+onclickAttr+'><td style="padding:4px 6px;text-align:center;color:var(--t3)">'+(i+1)+'</td>';
+      if (byEmployer) row += '<td style="padding:4px 6px;white-space:nowrap;color:var(--ac);text-decoration:underline">'+g.employer+'</td>';
+      if (byField) row += '<td style="padding:4px 6px;white-space:nowrap'+(!byEmployer?';color:var(--ac);text-decoration:underline':'')+'">'+g.field+'</td>';
       row += '<td style="padding:4px 6px;text-align:center">'+g.count+'건</td>';
       row += '<td style="padding:4px 6px;text-align:center;font-weight:600">'+g.days+'일</td>';
       row += '</tr>';
