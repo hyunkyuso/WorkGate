@@ -2653,6 +2653,8 @@ select.form-input{cursor:pointer}
         <span id="career-project-count" style="font-size:12px;color:var(--t3)"></span>
         <button id="career-project-group-employer-btn" class="btn btn-ghost btn-sm" onclick="careerToggleProjectGroup('employer')">🏢 근무처별</button>
         <button id="career-project-group-field-btn" class="btn btn-ghost btn-sm" onclick="careerToggleProjectGroup('field')">🗂 전문분야별</button>
+        <button id="career-project-bm-btn" class="btn btn-ghost btn-sm" onclick="careerToggleProjectBM('all')">📊 BM별(정도유아이티)</button>
+        <button id="career-project-bm3y-btn" class="btn btn-ghost btn-sm" onclick="careerToggleProjectBM('3year')">📊 최근 3년 BM별(정도유아이티)</button>
         <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="careerDownloadProjectCsv()">📥 CSV 저장</button>
       </div>
       <div id="career-project-summary" style="display:flex;gap:16px;margin-bottom:10px;padding:10px 14px;background:var(--surface);border-radius:8px;font-size:13px"></div>
@@ -13104,11 +13106,15 @@ function careerBuildGradeMatrix(assocId) {
 
   employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
     var empId = emp._docId || emp.id;
+    // 전체 합계는 분야 등급 상관없이, 협회 등록(체크) 되어있거나 사업/수동등급이 하나라도 있으면 포함
+    var hasAnyRelation = !!(emp.assocEnrolled||{})[assocId] ||
+      (((emp.assocCareer||{})[assocId]||[]).length > 0) ||
+      Object.keys(emp.careerGradeOverride||{}).some(function(f){ return fields.indexOf(f) >= 0; });
+    if (hasAnyRelation) totalPeople.add(empId);
     fields.forEach(function(field) {
       var isRegistered = careerIsFieldRegistered(emp, assocId, field);
       if (!isRegistered) return;
       var grade = careerGetEffectiveGrade(emp, field, assocId).grade;
-      totalPeople.add(empId);
       if (!fieldPeople[field]) fieldPeople[field] = new Set();
       if (!fieldPeople[field].has(empId)) {
         fieldPeople[field].add(empId);
@@ -13145,7 +13151,7 @@ function careerRenderGradeStatusDashboard() {
       if (!data.matrix[f]) return '';
       var fieldTotal = (data.fieldPeople[f] && data.fieldPeople[f].size) || 0;
       var totalCell = fieldTotal
-        ? '<td style="text-align:center"><span onclick="careerGoToPeopleFieldRegistered(\''+f+'\',\''+assoc.id+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 6px;border-radius:6px;font-weight:700">'+fieldTotal+'명</span></td>'
+        ? '<td style="text-align:center"><span onclick="careerGoToPeopleFieldRegistered(\''+f+'\',\''+assoc.id+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 6px;border-radius:6px;font-weight:700">'+fieldTotal+'</span></td>'
         : '<td style="text-align:center;color:var(--t3)">-</td>';
       return '<tr style="border-top:1px solid var(--border)"><td style="padding:6px 4px;white-space:nowrap">'+f+'</td>' + totalCell +
         cols.map(function(g) {
@@ -14144,9 +14150,31 @@ function careerOpenDocPreview(title, driveId, mimeType, driveLink, firebaseBacku
 }
 
 var _careerProjectGroupBy = { employer: false, field: false };
+var _careerProjectBMMode = null; // null | 'all' | '3year'
+var _careerProjectDrillEmployer = null; // 근무처별 그룹에서 특정 근무처 클릭시 드릴다운
+var CAREER_BM_KEYWORDS = ['기초조사','재해취약성','토지적성평가','공원녹지','UPIS','소규모','성장관리','공업지역','KRAS','GIS SW','농업생산기반'];
 
 function careerToggleProjectGroup(type) {
   _careerProjectGroupBy[type] = !_careerProjectGroupBy[type];
+  _careerProjectBMMode = null;
+  _careerProjectDrillEmployer = null;
+  careerRenderProjectModal();
+}
+
+function careerToggleProjectBM(mode) {
+  _careerProjectBMMode = (_careerProjectBMMode === mode) ? null : mode;
+  _careerProjectGroupBy = { employer: false, field: false };
+  _careerProjectDrillEmployer = null;
+  careerRenderProjectModal();
+}
+
+function careerDrillIntoEmployer(employer) {
+  _careerProjectDrillEmployer = employer;
+  careerRenderProjectModal();
+}
+
+function careerClearEmployerDrill() {
+  _careerProjectDrillEmployer = null;
   careerRenderProjectModal();
 }
 
@@ -14154,12 +14182,65 @@ function careerOpenProjectModal(empId, assocId) {
   _careerProjectModalEmpId = empId;
   _careerProjectModalAssocId = assocId || 'eng';
   _careerProjectGroupBy = { employer: false, field: false };
+  _careerProjectBMMode = null;
+  _careerProjectDrillEmployer = null;
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerProjectModalAssocId; });
   document.getElementById('career-project-modal-title').textContent = (emp?emp.name:'') + ' · 참여사업 (' + (assoc?assoc.name:'') + ')';
   document.getElementById('career-project-search').value = '';
   document.getElementById('career-project-modal').style.display = 'flex';
   careerRenderProjectModal();
+}
+
+var CAREER_PROJECT_RAW_HEAD = '<tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">계약일</td><td style="padding:4px 6px">준공일</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">비고</td></tr>';
+
+function careerRenderProjectRawRows(list) {
+  return list.map(function(en, i) {
+    return '<tr style="border-top:1px solid var(--border)">' +
+      '<td style="padding:4px 6px;text-align:center;color:var(--t3)">'+(i+1)+'</td>' +
+      '<td style="padding:4px 6px">'+(en.name||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap">'+(en.employer||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap">'+(en.client||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap">'+(en.field||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap;min-width:90px">'+(en.contractDate||'-')+'</td>' +
+      '<td style="padding:4px 6px;white-space:nowrap;min-width:90px">'+(en.completionDate||'-')+'</td>' +
+      '<td style="padding:4px 6px;text-align:center">'+(en.days||'-')+'</td>' +
+      '<td style="padding:4px 6px">'+(en.note||'')+'</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function careerComputeBMBreakdown(entries, yearsLimit) {
+  var todayStr = new Date().toISOString().slice(0,10);
+  var cutoff = null;
+  if (yearsLimit) {
+    var d = new Date();
+    d.setFullYear(d.getFullYear() - yearsLimit);
+    cutoff = d.toISOString().slice(0,10);
+  }
+  var doyuEntries = entries.filter(function(en) {
+    if ((en.employer||'').indexOf('정도유아이티') < 0) return false;
+    if (cutoff && en.contractDate && en.contractDate < cutoff) return false;
+    return true;
+  });
+  var bmTotals = {}; CAREER_BM_KEYWORDS.forEach(function(bm){ bmTotals[bm] = 0; });
+  bmTotals['기타'] = 0;
+  var overlapPairs = {}; // "A|B" -> days
+  doyuEntries.forEach(function(en) {
+    var days = careerDaysWithFallback(en);
+    var matched = CAREER_BM_KEYWORDS.filter(function(bm){ return (en.name||'').indexOf(bm) >= 0; });
+    if (!matched.length) { bmTotals['기타'] += days; return; }
+    matched.forEach(function(bm){ bmTotals[bm] += days; });
+    if (matched.length > 1) {
+      for (var i = 0; i < matched.length; i++) {
+        for (var j = i+1; j < matched.length; j++) {
+          var key = matched[i] + '|' + matched[j];
+          overlapPairs[key] = (overlapPairs[key]||0) + days;
+        }
+      }
+    }
+  });
+  return { bmTotals: bmTotals, overlapPairs: overlapPairs, entryCount: doyuEntries.length };
 }
 
 function careerRenderProjectModal() {
@@ -14181,10 +14262,16 @@ function careerRenderProjectModal() {
   // 버튼 활성 표시
   var eBtn = document.getElementById('career-project-group-employer-btn');
   var fBtn = document.getElementById('career-project-group-field-btn');
+  var bmBtn = document.getElementById('career-project-bm-btn');
+  var bm3Btn = document.getElementById('career-project-bm3y-btn');
   eBtn.style.background = _careerProjectGroupBy.employer ? 'var(--acd)' : '';
   eBtn.style.color = _careerProjectGroupBy.employer ? 'var(--ac)' : '';
   fBtn.style.background = _careerProjectGroupBy.field ? 'var(--acd)' : '';
   fBtn.style.color = _careerProjectGroupBy.field ? 'var(--ac)' : '';
+  bmBtn.style.background = _careerProjectBMMode === 'all' ? 'var(--acd)' : '';
+  bmBtn.style.color = _careerProjectBMMode === 'all' ? 'var(--ac)' : '';
+  bm3Btn.style.background = _careerProjectBMMode === '3year' ? 'var(--acd)' : '';
+  bm3Btn.style.color = _careerProjectBMMode === '3year' ? 'var(--ac)' : '';
 
   // 기본 요약: 총 참여일수 + 정도유아이티 등록가능 참여일수
   var totalDays = 0, doyuDays = 0;
@@ -14198,8 +14285,41 @@ function careerRenderProjectModal() {
     '<div>정도유아이티 등록가능 참여일수: <b>'+doyuDays+'일</b></div>';
 
   if (!filtered.length) {
-    thead.innerHTML = '<tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">계약일</td><td style="padding:4px 6px">준공일</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">비고</td></tr>';
+    thead.innerHTML = CAREER_PROJECT_RAW_HEAD;
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--t3)">등록된 참여사업이 없습니다</td></tr>';
+    return;
+  }
+
+  // BM별 분류 모드 (정도유아이티만, 우선순위 최상단)
+  if (_careerProjectBMMode) {
+    var yearsLimit = _careerProjectBMMode === '3year' ? 3 : null;
+    var bmData = careerComputeBMBreakdown(filtered, yearsLimit);
+    thead.innerHTML = '<tr style="color:var(--t3)"><td style="padding:4px 6px">BM</td><td style="padding:4px 6px">참여일수 합계</td><td style="padding:4px 6px">다른 BM과 중복</td></tr>';
+    var bmList = CAREER_BM_KEYWORDS.concat(['기타']);
+    tbody.innerHTML = bmList.map(function(bm) {
+      var days = bmData.bmTotals[bm] || 0;
+      var overlapNotes = [];
+      Object.keys(bmData.overlapPairs).forEach(function(key) {
+        var parts = key.split('|');
+        if (parts.indexOf(bm) < 0) return;
+        var other = parts[0] === bm ? parts[1] : parts[0];
+        overlapNotes.push(other + '와 ' + bmData.overlapPairs[key] + '일 중복');
+      });
+      return '<tr style="border-top:1px solid var(--border)">' +
+        '<td style="padding:4px 6px;white-space:nowrap;font-weight:'+(bm==='기타'?'400':'600')+'">'+bm+'</td>' +
+        '<td style="padding:4px 6px;text-align:center;font-weight:600">'+days+'일</td>' +
+        '<td style="padding:4px 6px;font-size:11px;color:var(--t3)">'+(overlapNotes.join(', ')||'-')+'</td>' +
+      '</tr>';
+    }).join('') + '<tr style="border-top:2px solid var(--border)"><td style="padding:6px;font-weight:700" colspan="2">정도유아이티 대상 사업 건수</td><td style="padding:6px">'+bmData.entryCount+'건</td></tr>';
+    return;
+  }
+
+  // 근무처 드릴다운 모드
+  if (_careerProjectDrillEmployer) {
+    var drillList = filtered.filter(function(en){ return (en.employer||'-') === _careerProjectDrillEmployer; });
+    thead.innerHTML = CAREER_PROJECT_RAW_HEAD;
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:6px"><span onclick="careerClearEmployerDrill()" style="cursor:pointer;color:var(--ac);font-size:12px">← 근무처별 목록으로 돌아가기</span> <b style="margin-left:8px">'+_careerProjectDrillEmployer+'</b></td></tr>' +
+      careerRenderProjectRawRows(drillList);
     return;
   }
 
@@ -14223,9 +14343,11 @@ function careerRenderProjectModal() {
     headCells += '<td style="padding:4px 6px">건수</td><td style="padding:4px 6px">참여일수 합계</td>';
     thead.innerHTML = '<tr style="color:var(--t3)">'+headCells+'</tr>';
 
+    // 근무처만 단독으로 그룹핑할 때는 클릭해서 드릴다운 가능
+    var canDrill = byEmployer && !byField;
     tbody.innerHTML = groupList.map(function(g, i) {
-      var row = '<tr style="border-top:1px solid var(--border)"><td style="padding:4px 6px;text-align:center;color:var(--t3)">'+(i+1)+'</td>';
-      if (byEmployer) row += '<td style="padding:4px 6px;white-space:nowrap">'+g.employer+'</td>';
+      var row = '<tr style="border-top:1px solid var(--border)'+(canDrill?';cursor:pointer':'')+'"'+(canDrill?' onclick="careerDrillIntoEmployer(\''+g.employer+'\')"':'')+'><td style="padding:4px 6px;text-align:center;color:var(--t3)">'+(i+1)+'</td>';
+      if (byEmployer) row += '<td style="padding:4px 6px;white-space:nowrap'+(canDrill?';color:var(--ac);text-decoration:underline':'')+'">'+g.employer+'</td>';
       if (byField) row += '<td style="padding:4px 6px;white-space:nowrap">'+g.field+'</td>';
       row += '<td style="padding:4px 6px;text-align:center">'+g.count+'건</td>';
       row += '<td style="padding:4px 6px;text-align:center;font-weight:600">'+g.days+'일</td>';
@@ -14235,20 +14357,8 @@ function careerRenderProjectModal() {
     return;
   }
 
-  thead.innerHTML = '<tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">계약일</td><td style="padding:4px 6px">준공일</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">비고</td></tr>';
-  tbody.innerHTML = filtered.map(function(en, i) {
-    return '<tr style="border-top:1px solid var(--border)">' +
-      '<td style="padding:4px 6px;text-align:center;color:var(--t3)">'+(i+1)+'</td>' +
-      '<td style="padding:4px 6px">'+(en.name||'-')+'</td>' +
-      '<td style="padding:4px 6px;white-space:nowrap">'+(en.employer||'-')+'</td>' +
-      '<td style="padding:4px 6px;white-space:nowrap">'+(en.client||'-')+'</td>' +
-      '<td style="padding:4px 6px;white-space:nowrap">'+(en.field||'-')+'</td>' +
-      '<td style="padding:4px 6px;white-space:nowrap;min-width:90px">'+(en.contractDate||'-')+'</td>' +
-      '<td style="padding:4px 6px;white-space:nowrap;min-width:90px">'+(en.completionDate||'-')+'</td>' +
-      '<td style="padding:4px 6px;text-align:center">'+(en.days||'-')+'</td>' +
-      '<td style="padding:4px 6px">'+(en.note||'')+'</td>' +
-    '</tr>';
-  }).join('');
+  thead.innerHTML = CAREER_PROJECT_RAW_HEAD;
+  tbody.innerHTML = careerRenderProjectRawRows(filtered);
 }
 
 function careerDownloadProjectCsv() {
@@ -15166,7 +15276,7 @@ function careerRenderOverviewTable() {
     var row2 = segments.filter(function(s){ return s.type==='gradeGroup'; }).map(function(seg) {
       return splitByAssoc(seg.cols).map(function(g) {
         if (g.cols.length === 1 && g.cols[0].field === null) {
-          return thSort(g.cols[0], 'font-size:11px;width:55px;top:29px').replace('<th ', '<th rowspan="2" ');
+          return thSort(g.cols[0], 'font-size:11px;width:55px;top:29px;border-right:2px solid var(--border)').replace('<th ', '<th rowspan="2" ');
         }
         return '<th colspan="'+g.cols.length+'" style="text-align:center;font-size:12px;white-space:nowrap;position:sticky;top:29px;background:#f1f5f9;z-index:5">' + assocNameMap[g.assocId] + '</th>';
       }).join('');
@@ -15309,7 +15419,9 @@ function careerRenderOverviewTable() {
       var NOWRAP_COLS = ['position','name','recentJoin','birthdate','careerTotal','school','major','degree','gradDate','license','licenseDate','licenseNo'];
       var isGroupStart = c.assocId && (colIdx === 0 || !cols[colIdx-1].assocId);
       var isNamedGroupStart = (c.key === 'school' || c.key === 'license');
+      var isRightBorder = c.assocId === 'aisw';
       var borderStyle = (isGroupStart || isNamedGroupStart) ? 'border-left:2px solid var(--border);' : '';
+      if (isRightBorder) borderStyle += 'border-right:2px solid var(--border);';
       var tdStyle;
       if (c.assocId) tdStyle = ' style="'+borderStyle+'text-align:center;font-size:12px"';
       else if (c.key === 'licenseNo') tdStyle = ' style="'+borderStyle+'white-space:nowrap;width:140px"';
