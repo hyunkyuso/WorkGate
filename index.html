@@ -912,6 +912,7 @@ select.form-input{cursor:pointer}
       <div id="page-career-dashboard" class="page">
         <div class="page-header">
           <div><div class="page-title">📊 경력관리 대시보드</div><div class="page-sub">협회별 등록 현황을 한눈에 봅니다</div></div>
+          <button class="btn btn-ghost btn-sm admin-only" onclick="careerMigrateOldDocsToFirebase()">🔄 기존 서류 파일 백업</button>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
@@ -21168,6 +21169,65 @@ async function driveEnsurePersonnelFolder() {
     _drivePersonnelFolderId = cd.id;
   }
   return _drivePersonnelFolderId;
+}
+
+// ── 기존에 이미 드라이브에만 올라간 파일들을 Firebase Storage에 백업 (일회성 마이그레이션) ──
+async function careerMigrateOldDocsToFirebase() {
+  if (!isAdmin()) { showToast('❌ 관리자만 실행할 수 있습니다'); return; }
+  if (!confirm('학력/자격증 서류 중 Firebase 백업이 없는 기존 파일들을 전부 백업합니다. 파일이 많으면 시간이 걸릴 수 있어요. 계속할까요?')) return;
+
+  var targets = []; // { emp, type, idx, driveId, mimeType, fileName }
+  employees.forEach(function(emp) {
+    ['education','license'].forEach(function(type) {
+      (emp[type]||[]).forEach(function(item, idx) {
+        if (item.driveId && item.driveLink && !item.firebaseBackupUrl) {
+          targets.push({ emp: emp, type: type, idx: idx, driveId: item.driveId, mimeType: item.mimeType, fileName: item.fileName || (type+'_'+idx) });
+        }
+      });
+    });
+  });
+
+  if (!targets.length) { showToast('✅ 백업이 필요한 파일이 없습니다 (전부 이미 백업됨)'); return; }
+
+  showToast('📤 ' + targets.length + '건 백업 시작... (콘솔에서 진행상황 확인 가능)');
+  console.log('[기존 파일 백업] 대상 ' + targets.length + '건:', targets.map(function(t){ return t.emp.name + ' - ' + t.fileName; }));
+
+  var done = 0, failed = 0;
+  var byEmp = {}; // empId -> updated education/license 배열 (한 사람당 한 번만 저장)
+
+  for (var i = 0; i < targets.length; i++) {
+    var t = targets[i];
+    try {
+      var r = await driveApiCall('https://www.googleapis.com/drive/v3/files/' + t.driveId + '?alt=media');
+      var blob = await r.blob();
+      var storageRef = firebase.storage().ref('personnel_docs_backup/migrated_' + Date.now() + '_' + i + '_' + t.fileName);
+      var snap = await storageRef.put(blob);
+      var url = await snap.ref.getDownloadURL();
+      t.emp[t.type][t.idx].firebaseBackupUrl = url;
+      var empId = t.emp._docId || t.emp.id;
+      byEmp[empId] = byEmp[empId] || { emp: t.emp, education: t.emp.education, license: t.emp.license };
+      done++;
+    } catch (err) {
+      failed++;
+      console.warn('[기존 파일 백업] 실패:', t.emp.name, t.fileName, err);
+    }
+    if ((i+1) % 5 === 0 || i === targets.length-1) {
+      showToast('📤 백업 중... ' + (i+1) + '/' + targets.length + ' (성공 ' + done + ', 실패 ' + failed + ')');
+    }
+  }
+
+  // 사람별로 한 번씩만 Firestore 저장 (건마다 저장하면 너무 많은 쓰기가 발생하므로)
+  var empIds = Object.keys(byEmp);
+  for (var j = 0; j < empIds.length; j++) {
+    var b = byEmp[empIds[j]];
+    try {
+      await db.collection('employees').doc(empIds[j]).update({ education: b.education, license: b.license });
+    } catch (err) {
+      console.warn('[기존 파일 백업] 저장 실패:', b.emp.name, err);
+    }
+  }
+
+  showToast('✅ 백업 완료: 성공 ' + done + '건, 실패 ' + failed + '건 (' + empIds.length + '명 저장됨)');
 }
 
 async function driveUploadPersonnelFile(file) {
