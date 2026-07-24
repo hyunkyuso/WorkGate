@@ -14500,7 +14500,7 @@ function careerRenderConstructionTab() {
       var d = careerDetermineConstructionGrade(emp, field);
       var override = (emp.careerGradeOverride||{})[field];
       if (override) d = Object.assign({}, d, { grade: override });
-      var days = careerSplitCompanyDays(emp);
+      var days = careerAvailableDaysAfterRegistered(emp, 'construction');
       var dProj = careerDetermineConstructionGrade(emp, field, days.doyu);
       if (override) dProj = Object.assign({}, dProj, { grade: override });
       rows.push({
@@ -14520,7 +14520,7 @@ function careerRenderConstructionTab() {
     var empId = emp._docId||emp.id;
     if (rowedEmpIds[empId]) return;
     if (!(emp.assocEnrolled||{}).construction) return;
-    var days = careerSplitCompanyDays(emp);
+    var days = careerAvailableDaysAfterRegistered(emp, 'construction');
     var d = careerDetermineConstructionGrade(emp, FALLBACK_FIELD);
     var dProj = careerDetermineConstructionGrade(emp, FALLBACK_FIELD, days.doyu);
     rows.push({
