@@ -13603,6 +13603,32 @@ function careerSplitCompanyDays(emp) {
   return { doyu: doyuDays, other: otherDays };
 }
 
+// 협회에 이미 등록한 사업만큼을 빼고 남은 "등록 가능한" 경력일수
+// 타사: (인사기록카드 영업활용 체크된 타사 경력) - (이미 이 협회에 등록된 사업 중 근무처가 정도유아이티가 아닌 것들의 참여일)
+// 정도: (입사일~오늘 근속일수) - (이미 이 협회에 등록된 사업 중 근무처가 정도유아이티인 것들의 참여일)
+function careerAvailableDaysAfterRegistered(emp, assocId) {
+  var todayStr = new Date().toISOString().slice(0,10);
+  var otherRaw = 0;
+  (emp.career||[]).forEach(function(c) {
+    if (!c.salesUse || !c.start) return;
+    if ((c.company||'').indexOf('정도유아이티') >= 0) return;
+    otherRaw += careerDaysBetween(c.start, c.end || todayStr);
+  });
+  var doyuRaw = careerDaysBetween(emp.joindate || todayStr, todayStr);
+
+  var regOther = 0, regDoyu = 0;
+  ((emp.assocCareer||{})[assocId] || []).forEach(function(c) {
+    var d = careerDaysWithFallback(c);
+    if ((c.employer||'').indexOf('정도유아이티') >= 0) regDoyu += d;
+    else regOther += d;
+  });
+
+  return {
+    other: Math.max(0, otherRaw - regOther),
+    doyu: Math.max(0, doyuRaw - regDoyu)
+  };
+}
+
 // ══════════════════════════════════════════════════
 // 등록 (협회 제출용 경력 관리)
 // emp.assocCareer[assocId + '__' + field] = [{start,end,company,note}]
@@ -14364,7 +14390,7 @@ function careerRenderEngTab() {
   var rows = people.map(function(emp) {
     var empId = emp._docId || emp.id;
     var bonbu = careerGetBonbu(emp);
-    var days = careerSplitCompanyDays(emp);
+    var days = careerAvailableDaysAfterRegistered(emp, 'eng');
     var gradeInfos = fields.map(function(field) {
       var isRegistered = careerIsFieldRegistered(emp, 'eng', field);
       if (!isRegistered) return null;
