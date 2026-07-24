@@ -14398,8 +14398,14 @@ function careerRenderEngTab() {
     });
     var gradeCells = gradeInfos.map(function(g){ return g ? g.grade : '-'; });
     var needCells = fields.map(function(field, i) {
-      if (gradeCells[i] === '-') return '-';
+      var g = gradeInfos[i];
+      if (!g || gradeCells[i] === '-') return '-';
       if (gradeCells[i] === '기술사') return '-';
+      // 수동으로 낮게 지정된 경우, 실제로는 자격/학력만으로 즉시(0년) 더 높은 등급이 가능하면 그걸 안내
+      if (g.isOverride && g.autoGrade && g.autoGrade !== g.grade) {
+        var cred = careerFindZeroYearCredential(emp, field, g.autoGrade);
+        if (cred) return cred + ' 등록시 ' + careerShortGrade(g.autoGrade);
+      }
       var need = careerDaysToNextGrade(emp, field, gradeCells[i], 'eng');
       return need ? Math.ceil(need) : '-';
     });
@@ -14433,10 +14439,7 @@ function careerRenderEngTab() {
       '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.name+'</td>' +
       r.gradeInfos.map(function(g) {
         if (!g) return '<td style="text-align:center">-</td>';
-        var note = (g.isOverride && g.autoGrade && g.autoGrade !== g.grade)
-          ? '<div style="font-size:10px;color:var(--t3);white-space:nowrap">(자동계산: '+careerShortGrade(g.autoGrade)+')</div>'
-          : '';
-        return '<td style="text-align:center">'+careerGradeBadge(g.grade)+note+'</td>';
+        return '<td style="text-align:center">'+careerGradeBadge(g.grade)+'</td>';
       }).join('') +
       r.needCells.map(function(n){ return '<td style="text-align:center">'+n+'</td>'; }).join('') +
       '<td style="text-align:center">'+(r.other||'-')+'</td>' +
@@ -14838,6 +14841,31 @@ function careerDetermineGrade(emp, field, assocId) {
 }
 
 // 다음 등급까지 필요한 일수 (현재 등급 기준으로 다음 상위 등급 요건까지 부족한 일수, 가장 유리한 경로 기준)
+// 특정 등급으로 "경력 없이 즉시(0년)" 인정받을 수 있는 자격/학력이 있는지 확인
+// (수동으로 낮게 지정해놓은 경우, "OO 등록시 X등급"이라는 안내를 만들기 위함)
+function careerFindZeroYearCredential(emp, field, grade) {
+  var crit = CAREER_GRADE_CRITERIA.find(function(c){ return c.grade === grade; });
+  if (!crit) return null;
+  var rankMap = { '기사':1, '산업기사':2 };
+  for (var i = 0; i < crit.certPaths.length; i++) {
+    var cp = crit.certPaths[i];
+    if (cp.y !== 0) continue;
+    var has = (emp.license||[]).some(function(l){
+      return careerIsRelevantLicense(l) && careerLicenseMatchesField(l, field) && careerLicenseGradeRank(l.name) === rankMap[cp.g];
+    });
+    if (has) return cp.g + ' 자격증';
+  }
+  for (var j = 0; j < crit.eduPaths.length; j++) {
+    var ep = crit.eduPaths[j];
+    if (ep.y !== 0) continue;
+    var has2 = (emp.education||[]).some(function(e){
+      return careerEduFieldsForMajor(e.major).indexOf(field) >= 0 && e.degree === ep.d;
+    });
+    if (has2) return ep.d + ' 학위';
+  }
+  return null;
+}
+
 function careerDaysToNextGrade(emp, field, currentGrade, assocId) {
   var idx = CAREER_GRADE_ORDER_LIST.indexOf(currentGrade);
   if (idx <= 0) return null; // 이미 기술사거나 목록에 없음
