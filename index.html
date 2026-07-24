@@ -14433,7 +14433,10 @@ function careerRenderEngTab() {
       '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.name+'</td>' +
       r.gradeInfos.map(function(g) {
         if (!g) return '<td style="text-align:center">-</td>';
-        return '<td style="text-align:center">'+careerGradeBadge(g.grade)+'</td>';
+        var note = (g.isOverride && g.autoGrade && g.autoGrade !== g.grade)
+          ? '<div style="font-size:10px;color:var(--t3);white-space:nowrap">(자동계산: '+careerShortGrade(g.autoGrade)+')</div>'
+          : '';
+        return '<td style="text-align:center">'+careerGradeBadge(g.grade)+note+'</td>';
       }).join('') +
       r.needCells.map(function(n){ return '<td style="text-align:center">'+n+'</td>'; }).join('') +
       '<td style="text-align:center">'+(r.other||'-')+'</td>' +
@@ -14838,7 +14841,7 @@ function careerDetermineGrade(emp, field, assocId) {
 function careerDaysToNextGrade(emp, field, currentGrade, assocId) {
   var idx = CAREER_GRADE_ORDER_LIST.indexOf(currentGrade);
   if (idx <= 0) return null; // 이미 기술사거나 목록에 없음
-  var nextCrit = CAREER_GRADE_CRITERIA[idx - 1]; // 한 단계 위 등급 기준
+  var nextCrit = CAREER_GRADE_CRITERIA[idx - 2]; // 한 단계 위 등급 기준
   if (!nextCrit) return null;
 
   var licsInField = (emp.license||[]).filter(function(l){
