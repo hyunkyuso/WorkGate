@@ -14099,6 +14099,7 @@ function careerRenderConstructionTab() {
 
   // 사람 × 등록된 분야 조합으로 행을 만든다 (한 사람이 여러 분야에 등록되어 있으면 여러 줄)
   var rows = [];
+  var rowedEmpIds = {};
   employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
     fields.forEach(function(field) {
       if (!careerIsFieldRegistered(emp, 'construction', field)) return;
@@ -14113,6 +14114,22 @@ function careerRenderConstructionTab() {
         position: emp.position||'-', name: emp.name||'-', field: field,
         cur: d, proj: dProj, other: days.other, doyu: days.doyu
       });
+      rowedEmpIds[emp._docId||emp.id] = true;
+    });
+  });
+
+  // 협회 등록은 되어있지만(체크됨) 분야를 전부 X(제외)해서 위 루프에서 한 줄도 안 생긴 사람은,
+  // 기본 정보(본부/직급/이름)만이라도 보이도록 빈 줄을 하나 만들어줌
+  var blankScore = { grade:'-', licScore:'-', eduScore:'-', careerScore:'-', eduTrainScore:'-', score:'-' };
+  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+    var empId = emp._docId||emp.id;
+    if (rowedEmpIds[empId]) return;
+    if (!(emp.assocEnrolled||{}).construction) return;
+    var days = careerSplitCompanyDays(emp);
+    rows.push({
+      emp: emp, empId: empId, bonbu: careerGetBonbu(emp),
+      position: emp.position||'-', name: emp.name||'-', field: null,
+      cur: blankScore, proj: blankScore, other: days.other, doyu: days.doyu
     });
   });
 
