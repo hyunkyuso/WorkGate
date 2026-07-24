@@ -13647,16 +13647,20 @@ async function careerSetGradeOverride(empId, field, grade) {
 }
 
 // 타회사 등록가능 경력일수 / 정도유아이티 등록가능 경력일수 (영업활용 체크 기준, 회사별 분리)
-// 정도유아이티 실제 재직기간 목록을 반환 (career[]에 정도유아이티로 여러 건 있으면 그걸 우선 사용 -> 퇴사 후 재입사 반영)
-// career[]에 정도유아이티 항목이 하나도 없으면 입사일~(퇴사일 또는 오늘)로 대체
+// 정도유아이티 실제 재직기간 목록을 반환
+// - career[]에 정도유아이티로 기록된 과거 재직 이력(재입사 전 근무 등)이 있으면 그것도 포함
+// - 현재 재직기간(입사일~퇴사일 또는 오늘)은 career[]에 기록 안 돼있는 경우가 많아서(현재 재직은 joindate/status로 관리) 항상 별도로 포함
 function careerGetDoyuPeriods(emp) {
   var todayStr = new Date().toISOString().slice(0,10);
-  var doyuCareerEntries = (emp.career||[]).filter(function(c){ return (c.company||'').indexOf('정도유아이티') >= 0 && c.start; });
-  if (doyuCareerEntries.length) {
-    return doyuCareerEntries.map(function(c){ return { start: c.start, end: c.end || todayStr }; });
-  }
+  var periods = [];
+  (emp.career||[]).forEach(function(c) {
+    if ((c.company||'').indexOf('정도유아이티') >= 0 && c.start) {
+      periods.push({ start: c.start, end: c.end || todayStr });
+    }
+  });
   var end = (emp.status === '퇴직' && emp.leavedate) ? emp.leavedate : todayStr;
-  return emp.joindate ? [{ start: emp.joindate, end: end }] : [];
+  if (emp.joindate) periods.push({ start: emp.joindate, end: end });
+  return periods;
 }
 
 // 재직기간 목록의 실제 일수 합산 (겹치는 구간은 중복 제외, union 방식)
