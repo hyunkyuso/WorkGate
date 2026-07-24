@@ -13096,6 +13096,7 @@ function careerBuildGradeMatrix(assocId) {
   var cols = careerGradeMatrixColsFor(assocId);
   var matrix = {}; // matrix[field][grade] = count
   var fieldPeople = {}; // fieldPeople[field] = Set(empId) - 분야별 중복제거 합계용
+  var fieldNames = {}; // fieldNames[field] = [이름, ...] - 합계 칸에 이름 표시용
   var totalPeople = new Set(); // 협회 전체 중복제거 합계용
 
   employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
@@ -13106,14 +13107,18 @@ function careerBuildGradeMatrix(assocId) {
       var grade = careerGetEffectiveGrade(emp, field, assocId).grade;
       totalPeople.add(empId);
       if (!fieldPeople[field]) fieldPeople[field] = new Set();
-      fieldPeople[field].add(empId);
+      if (!fieldPeople[field].has(empId)) {
+        fieldPeople[field].add(empId);
+        if (!fieldNames[field]) fieldNames[field] = [];
+        fieldNames[field].push(emp.name || '-');
+      }
       if (cols.indexOf(grade) < 0) return;
       if (!matrix[field]) matrix[field] = {};
       matrix[field][grade] = (matrix[field][grade] || 0) + 1;
     });
   });
 
-  return { fields: fields, matrix: matrix, fieldPeople: fieldPeople, totalCount: totalPeople.size };
+  return { fields: fields, matrix: matrix, fieldPeople: fieldPeople, fieldNames: fieldNames, totalCount: totalPeople.size };
 }
 
 function careerRenderGradeStatusDashboard() {
@@ -13136,8 +13141,10 @@ function careerRenderGradeStatusDashboard() {
     html += data.fields.map(function(f) {
       if (!data.matrix[f]) return '';
       var fieldTotal = (data.fieldPeople[f] && data.fieldPeople[f].size) || 0;
+      var names = (data.fieldNames[f] || []).join(', ');
       var totalCell = fieldTotal
-        ? '<td style="text-align:center"><span onclick="careerGoToPeopleFieldRegistered(\''+f+'\',\''+assoc.id+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 6px;border-radius:6px;font-weight:700">'+fieldTotal+'</span></td>'
+        ? '<td style="text-align:center"><span onclick="careerGoToPeopleFieldRegistered(\''+f+'\',\''+assoc.id+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 6px;border-radius:6px;font-weight:700">'+fieldTotal+'명</span>' +
+            '<div style="font-size:9px;color:var(--t3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px" title="'+names+'">'+names+'</div></td>'
         : '<td style="text-align:center;color:var(--t3)">-</td>';
       return '<tr style="border-top:1px solid var(--border)"><td style="padding:6px 4px;white-space:nowrap">'+f+'</td>' + totalCell +
         cols.map(function(g) {
