@@ -13647,9 +13647,40 @@ async function careerSetGradeOverride(empId, field, grade) {
 }
 
 // 타회사 등록가능 경력일수 / 정도유아이티 등록가능 경력일수 (영업활용 체크 기준, 회사별 분리)
+// 정도유아이티 실제 재직기간 목록을 반환 (career[]에 정도유아이티로 여러 건 있으면 그걸 우선 사용 -> 퇴사 후 재입사 반영)
+// career[]에 정도유아이티 항목이 하나도 없으면 입사일~(퇴사일 또는 오늘)로 대체
+function careerGetDoyuPeriods(emp) {
+  var todayStr = new Date().toISOString().slice(0,10);
+  var doyuCareerEntries = (emp.career||[]).filter(function(c){ return (c.company||'').indexOf('정도유아이티') >= 0 && c.start; });
+  if (doyuCareerEntries.length) {
+    return doyuCareerEntries.map(function(c){ return { start: c.start, end: c.end || todayStr }; });
+  }
+  var end = (emp.status === '퇴직' && emp.leavedate) ? emp.leavedate : todayStr;
+  return emp.joindate ? [{ start: emp.joindate, end: end }] : [];
+}
+
+// 재직기간 목록의 실제 일수 합산 (겹치는 구간은 중복 제외, union 방식)
+function careerSumPeriodsDays(periods) {
+  var sorted = periods.filter(function(p){ return p.start && p.end; }).sort(function(a,b){ return a.start < b.start ? -1 : (a.start > b.start ? 1 : 0); });
+  var total = 0, curEnd = null;
+  sorted.forEach(function(p) {
+    var s = p.start, e = p.end;
+    if (curEnd && s < curEnd) s = curEnd; // 이미 합산된 구간과 겹치는 부분 제외
+    if (e > s) total += careerDaysBetween(s, e);
+    if (!curEnd || e > curEnd) curEnd = e;
+  });
+  return total;
+}
+
+// 특정 날짜가 정도유아이티 실제 재직기간(들) 중 하나에 속하는지 확인 (퇴사-재입사 사이 공백기간 배제용)
+function careerDateInDoyuPeriods(dateStr, periods) {
+  if (!dateStr) return false;
+  return periods.some(function(p){ return dateStr >= p.start && dateStr <= p.end; });
+}
+
 function careerSplitCompanyDays(emp) {
   var todayStr = new Date().toISOString().slice(0,10);
-  var doyuDays = careerDaysBetween(emp.joindate || todayStr, todayStr); // 근속(정도유아이티) 기본
+  var doyuDays = careerSumPeriodsDays(careerGetDoyuPeriods(emp)); // 근속(정도유아이티) - 퇴사 후 재입사 공백기간 제외
   var otherDays = 0;
   (emp.career||[]).forEach(function(c) {
     if (!c.salesUse || !c.start) return;
@@ -13662,7 +13693,7 @@ function careerSplitCompanyDays(emp) {
 
 // 협회에 이미 등록한 사업만큼을 빼고 남은 "등록 가능한" 경력일수
 // 타사: (인사기록카드 영업활용 체크된 타사 경력) - (이미 이 협회에 등록된 사업 중 근무처가 정도유아이티가 아닌 것들의 참여일)
-// 정도: (입사일~오늘 근속일수) - (이미 이 협회에 등록된 사업 중 근무처가 정도유아이티인 것들의 참여일)
+// 정도: (실제 정도유아이티 재직기간 합계, 퇴사-재입사 공백 제외) - (이미 이 협회에 등록된 사업 중 근무처가 정도유아이티인 것들의 참여일)
 function careerAvailableDaysAfterRegistered(emp, assocId) {
   var todayStr = new Date().toISOString().slice(0,10);
   var otherRaw = 0;
@@ -13671,7 +13702,7 @@ function careerAvailableDaysAfterRegistered(emp, assocId) {
     if ((c.company||'').indexOf('정도유아이티') >= 0) return;
     otherRaw += careerDaysBetween(c.start, c.end || todayStr);
   });
-  var doyuRaw = careerDaysBetween(emp.joindate || todayStr, todayStr);
+  var doyuRaw = careerSumPeriodsDays(careerGetDoyuPeriods(emp));
 
   var regOther = 0, regDoyu = 0;
   ((emp.assocCareer||{})[assocId] || []).forEach(function(c) {
@@ -14545,9 +14576,12 @@ function careerRenderAiswTab() {
     var g = careerGetEffectiveGrade(emp, field, 'aisw');
     var need = g.grade !== '기술사' ? careerDaysToNextGrade(emp, field, g.grade, 'aisw') : null;
     var days = careerAvailableDaysAfterRegistered(emp, 'aisw');
+    var doyuPeriods = careerGetDoyuPeriods(emp);
     var regDays = 0;
     var aMinStart = null, aMaxEnd = null;
     ((emp.assocCareer||{})['aisw'] || []).forEach(function(c) {
+      // 근무처가 정도유아이티인 사업은, 실제 재직기간(퇴사-재입사 공백 제외) 안에 있을 때만 인정
+      if ((c.employer||'').indexOf('정도유아이티') >= 0 && !careerDateInDoyuPeriods(c.contractDate, doyuPeriods)) return;
       regDays += careerDaysWithFallback(c);
       if (c.contractDate && (aMinStart === null || c.contractDate < aMinStart)) aMinStart = c.contractDate;
       var endD = c.completionDate || (new Date().toISOString().slice(0,10));
