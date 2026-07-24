@@ -14514,16 +14514,19 @@ function careerRenderConstructionTab() {
 
   // 협회 등록은 되어있지만(체크됨) 분야를 전부 X(제외)해서 위 루프에서 한 줄도 안 생긴 사람은,
   // 기본 정보(본부/직급/이름)만이라도 보이도록 빈 줄을 하나 만들어줌
-  var blankScore = { grade:'-', licScore:'-', eduScore:'-', careerScore:'-', eduTrainScore:'-', score:'-' };
+  // 현재 역량지수는 분야 매칭이 안 되어도, 토목-측량및지형공간정보 기준으로 계산해서 보여줌 (등급 칸은 매칭 분야가 없으니 "-")
+  var FALLBACK_FIELD = '토목-측량및지형공간정보';
   employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
     var empId = emp._docId||emp.id;
     if (rowedEmpIds[empId]) return;
     if (!(emp.assocEnrolled||{}).construction) return;
     var days = careerSplitCompanyDays(emp);
+    var d = careerDetermineConstructionGrade(emp, FALLBACK_FIELD);
+    var dProj = careerDetermineConstructionGrade(emp, FALLBACK_FIELD, days.doyu);
     rows.push({
       emp: emp, empId: empId, bonbu: careerGetBonbu(emp),
       position: emp.position||'-', name: emp.name||'-', field: null,
-      cur: blankScore, proj: blankScore, other: days.other, doyu: days.doyu
+      cur: d, proj: dProj, other: days.other, doyu: days.doyu
     });
   });
 
