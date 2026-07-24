@@ -2616,13 +2616,15 @@ select.form-input{cursor:pointer}
 
 <!-- 모달: 졸업증명서/자격증 미리보기 -->
 <div id="career-doc-preview-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('career-doc-preview-modal')">
-  <div class="modal" style="max-width:560px;max-height:80vh;overflow-y:auto">
-    <div class="modal-header">
+  <div class="modal" style="max-width:680px;width:92vw;max-height:94vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0">
       <div class="modal-title" id="career-doc-preview-title">문서 미리보기</div>
       <button class="modal-close" onclick="closeModal('career-doc-preview-modal')">✕</button>
     </div>
-    <div id="career-doc-preview-body" style="padding:4px 0"></div>
-    <div class="modal-footer">
+    <div id="career-doc-preview-body" style="padding:4px 0;flex:1;min-height:0;display:flex"></div>
+    <div class="modal-footer" style="flex-shrink:0;flex-wrap:wrap">
+      <button id="career-doc-preview-print" onclick="careerPrintPreviewDoc()" class="btn btn-ghost" style="display:none">🖨 인쇄</button>
+      <a id="career-doc-preview-drive" href="#" target="_blank" class="btn btn-ghost" style="display:none;text-decoration:none">📁 구글드라이브에서 보기</a>
       <a id="career-doc-preview-download" href="#" download class="btn btn-ghost" style="display:none;text-decoration:none">📥 다운로드</a>
       <button class="btn btn-ghost" onclick="closeModal('career-doc-preview-modal')">닫기</button>
     </div>
@@ -13406,7 +13408,7 @@ function careerDetermineConstructionGrade(emp, field, extraDays) {
   } else {
     var totalDays = 0;
     ((emp.assocCareer||{})['construction'] || []).forEach(function(c) {
-      if (c.field === field) totalDays += careerSanitizeDays(c.days);
+      if (c.field === field) totalDays += careerDaysWithFallback(c);
     });
     totalDays += extraDays || 0;
     careerScore = careerConstructionCareerScore(totalDays);
@@ -13785,6 +13787,14 @@ function careerSanitizeDays(val) {
   return n;
 }
 
+// 참여일이 없거나 이상해도 준공일이 있으면 계약일~준공일로 계산, 둘 다 없으면 0일 (모든 협회 공통 규칙)
+function careerDaysWithFallback(c) {
+  var n = Number(c.days);
+  if (c.days !== undefined && c.days !== '' && !isNaN(n) && n >= 0 && n <= 50000) return n;
+  if (c.contractDate && c.completionDate) return careerDaysBetween(c.contractDate, c.completionDate);
+  return 0;
+}
+
 // 엑셀 "전문분야" 값이 정확한 필드명과 다르게(짧게) 적혀있는 경우를 정확한 필드명으로 정규화
 function careerRegNormalizeField(assocId, rawField) {
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === assocId; });
@@ -13942,32 +13952,58 @@ function careerDocDateCellHtml(dateText, title, item) {
   return '<span onclick="'+onclick+'" style="cursor:pointer;color:var(--ac);text-decoration:underline">'+dateText+'</span>';
 }
 
+var _careerDocPreviewCurrent = { url: null, isImg: false };
+
+function careerPrintPreviewDoc() {
+  var cur = _careerDocPreviewCurrent;
+  if (!cur || !cur.url) { showToast('❌ 인쇄할 문서가 없습니다'); return; }
+  var w = window.open('', '_blank');
+  if (!w) { showToast('❌ 팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요'); return; }
+  var content = cur.isImg
+    ? '<img src="'+cur.url+'" style="width:100%" onload="window.print()">'
+    : '<iframe src="'+cur.url+'" style="width:100%;height:100vh;border:0" onload="window.print()"></iframe>';
+  w.document.write('<html><head><title>인쇄</title></head><body style="margin:0">'+content+'</body></html>');
+  w.document.close();
+}
+
 function careerOpenDocPreview(title, driveId, mimeType, driveLink, firebaseBackupUrl) {
   document.getElementById('career-doc-preview-title').textContent = title;
   var body = document.getElementById('career-doc-preview-body');
   var dl = document.getElementById('career-doc-preview-download');
+  var driveBtn = document.getElementById('career-doc-preview-drive');
+  var printBtn = document.getElementById('career-doc-preview-print');
+  driveBtn.style.display = 'none';
+  printBtn.style.display = 'none';
+  _careerDocPreviewCurrent = { url: null, isImg: false };
   if (!driveId) {
-    body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3)">첨부된 파일이 없습니다</div>';
+    body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3);width:100%">첨부된 파일이 없습니다</div>';
     dl.style.display = 'none';
     document.getElementById('career-doc-preview-modal').style.display = 'flex';
     return;
   }
   var downloadUrl = 'https://drive.google.com/uc?id='+driveId+'&export=download';
   var viewUrl = driveLink || ('https://drive.google.com/file/d/'+driveId+'/view');
+  driveBtn.href = viewUrl;
+  driveBtn.style.display = 'inline-flex';
   if (firebaseBackupUrl && firebaseBackupUrl !== 'undefined' && firebaseBackupUrl !== 'null') {
     // Firebase Storage 백업본이 있으면 이걸로 안정적으로 화면 안 미리보기 (드라이브 프레임 제한 회피)
     var isImg = (mimeType||'').indexOf('image/') === 0;
     body.innerHTML = isImg
-      ? '<img src="'+firebaseBackupUrl+'" style="width:100%;border-radius:8px;border:1px solid var(--border)">'
-      : '<iframe src="'+firebaseBackupUrl+'#toolbar=0&navpanes=0&scrollbar=0" style="width:100%;height:500px;border:none;border-radius:8px"></iframe>';
+      ? '<img src="'+firebaseBackupUrl+'" style="width:100%;max-height:100%;object-fit:contain;border-radius:8px;margin:auto;display:block">'
+      : '<iframe src="'+firebaseBackupUrl+'#toolbar=0&navpanes=0&scrollbar=0" style="width:100%;height:100%;border:none;border-radius:8px"></iframe>';
     dl.href = firebaseBackupUrl;
+    _careerDocPreviewCurrent = { url: firebaseBackupUrl, isImg: isImg };
+    printBtn.style.display = 'inline-flex';
   } else if ((mimeType||'').indexOf('image/') === 0) {
     // 이미지는 구글 드라이브 프레임 정책과 무관하게 직접 표시 가능
-    body.innerHTML = '<img src="https://drive.google.com/uc?export=view&id='+driveId+'" style="width:100%;border-radius:8px;border:1px solid var(--border)">';
+    var imgUrl = 'https://drive.google.com/uc?export=view&id='+driveId;
+    body.innerHTML = '<img src="'+imgUrl+'" style="width:100%;max-height:100%;object-fit:contain;border-radius:8px;margin:auto;display:block">';
     dl.href = downloadUrl;
+    _careerDocPreviewCurrent = { url: imgUrl, isImg: true };
+    printBtn.style.display = 'inline-flex';
   } else {
     // 백업본 없는 기존 PDF 파일은 구글 드라이브 자체 제한으로 새 창 열기로 안내
-    body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px;text-align:center">' +
+    body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px;text-align:center;width:100%">' +
       '<div style="font-size:14px;color:var(--t2)">이 파일은 백업본이 없어 화면 안 미리보기가 지원되지 않아요 (구글 드라이브 자체 제한)</div>' +
       '<a href="'+viewUrl+'" target="_blank" class="btn btn-primary" style="text-decoration:none">🔗 새 창에서 열어보기</a>' +
     '</div>';
@@ -14166,7 +14202,7 @@ function careerRenderAiswTab() {
     var regDays = 0;
     var aMinStart = null, aMaxEnd = null;
     ((emp.assocCareer||{})['aisw'] || []).forEach(function(c) {
-      regDays += careerSanitizeDays(c.days);
+      regDays += careerDaysWithFallback(c);
       if (c.contractDate && (aMinStart === null || c.contractDate < aMinStart)) aMinStart = c.contractDate;
       var endD = c.completionDate || (new Date().toISOString().slice(0,10));
       if (endD && (aMaxEnd === null || endD > aMaxEnd)) aMaxEnd = endD;
