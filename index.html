@@ -12695,6 +12695,7 @@ async function pcAttachRowFile(type, idx, input) {
     _pcEditData[type][idx].fileName = uploaded.name;
     _pcEditData[type][idx].driveId = uploaded.driveId;
     _pcEditData[type][idx].mimeType = uploaded.mimeType;
+    _pcEditData[type][idx].firebaseBackupUrl = uploaded.firebaseBackupUrl;
     pcRenderEduForm();
     showToast('✅ 파일이 첨부되었습니다. AI가 읽게 하려면 🤖 버튼을 눌러주세요 (저장도 눌러야 최종 반영됩니다)');
   } catch (err) {
@@ -12801,6 +12802,7 @@ function pcAiScanSection(type, input) {
           item.fileName = uploaded.name;
           item.driveId = uploaded.driveId;
           item.mimeType = uploaded.mimeType;
+          item.firebaseBackupUrl = uploaded.firebaseBackupUrl;
         }
         if (summary) item.docSummary = summary;
         _pcEditData[type].push(item);
@@ -13927,11 +13929,11 @@ function careerEscJs(s) {
 }
 function careerDocDateCellHtml(dateText, title, item) {
   if (!item || !item.driveLink || !item.driveId) return dateText; // 인사기록카드와 동일하게 driveLink 존재 여부로 첨부 판단
-  var onclick = "careerOpenDocPreview('"+careerEscJs(title)+"','"+careerEscJs(item.driveId)+"','"+careerEscJs(item.mimeType)+"','"+careerEscJs(item.driveLink)+"')";
+  var onclick = "careerOpenDocPreview('"+careerEscJs(title)+"','"+careerEscJs(item.driveId)+"','"+careerEscJs(item.mimeType)+"','"+careerEscJs(item.driveLink)+"','"+careerEscJs(item.firebaseBackupUrl)+"')";
   return '<span onclick="'+onclick+'" style="cursor:pointer;color:var(--ac);text-decoration:underline">'+dateText+'</span>';
 }
 
-function careerOpenDocPreview(title, driveId, mimeType, driveLink) {
+function careerOpenDocPreview(title, driveId, mimeType, driveLink, firebaseBackupUrl) {
   document.getElementById('career-doc-preview-title').textContent = title;
   var body = document.getElementById('career-doc-preview-body');
   var dl = document.getElementById('career-doc-preview-download');
@@ -13943,19 +13945,27 @@ function careerOpenDocPreview(title, driveId, mimeType, driveLink) {
   }
   var downloadUrl = 'https://drive.google.com/uc?id='+driveId+'&export=download';
   var viewUrl = driveLink || ('https://drive.google.com/file/d/'+driveId+'/view');
-  if ((mimeType||'').indexOf('image/') === 0) {
+  if (firebaseBackupUrl && firebaseBackupUrl !== 'undefined' && firebaseBackupUrl !== 'null') {
+    // Firebase Storage 백업본이 있으면 이걸로 안정적으로 화면 안 미리보기 (드라이브 프레임 제한 회피)
+    var isImg = (mimeType||'').indexOf('image/') === 0;
+    body.innerHTML = isImg
+      ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:12px;background:#fafafa"><img src="'+firebaseBackupUrl+'" style="max-width:100%;max-height:100%;object-fit:contain"></div>'
+      : '<iframe src="'+firebaseBackupUrl+'" style="width:100%;height:100%;border:0"></iframe>';
+    dl.href = firebaseBackupUrl;
+  } else if ((mimeType||'').indexOf('image/') === 0) {
     // 이미지는 구글 드라이브 프레임 정책과 무관하게 직접 표시 가능
     body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:12px;background:#fafafa">' +
       '<img src="https://drive.google.com/uc?export=view&id='+driveId+'" style="max-width:100%;max-height:100%;object-fit:contain">' +
     '</div>';
+    dl.href = downloadUrl;
   } else {
-    // PDF 등은 구글 드라이브 쪽에서 여러 방식(뷰어 페이지, 원본 링크 모두) 화면 삽입을 막고 있어 안정적으로 새 창 열기로 안내
+    // 백업본 없는 기존 PDF 파일은 구글 드라이브 자체 제한으로 새 창 열기로 안내
     body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;padding:40px;text-align:center">' +
-      '<div style="font-size:14px;color:var(--t2)">이 파일 형식은 화면 안에서 미리보기가 지원되지 않아요 (구글 드라이브 자체 제한)</div>' +
+      '<div style="font-size:14px;color:var(--t2)">이 파일은 백업본이 없어 화면 안 미리보기가 지원되지 않아요 (구글 드라이브 자체 제한)</div>' +
       '<a href="'+viewUrl+'" target="_blank" class="btn btn-primary" style="text-decoration:none">🔗 새 창에서 열어보기</a>' +
     '</div>';
+    dl.href = downloadUrl;
   }
-  dl.href = downloadUrl;
   dl.style.display = 'inline';
   document.getElementById('career-doc-preview-modal').style.display = 'flex';
 }
@@ -21171,9 +21181,22 @@ async function driveUploadPersonnelFile(file) {
   });
   var d = await r.json();
   if (d && d.id) driveShareWithDomain(d.id); // 다른 직원도 보기/다운로드 할 수 있도록 사내 도메인 공유
+
+  // 구글 드라이브는 화면 안 미리보기(iframe)를 자체 정책으로 막아서, Firebase Storage에도 백업용으로 같이 저장
+  // (미리보기는 이 백업본으로 안정적으로 띄우고, 드라이브는 기존처럼 원본 보관/공유용으로 계속 사용)
+  var firebaseBackupUrl = null;
+  try {
+    var storageRef = firebase.storage().ref('personnel_docs_backup/' + Date.now() + '_' + file.name);
+    var snap = await storageRef.put(file);
+    firebaseBackupUrl = await snap.ref.getDownloadURL();
+  } catch (backupErr) {
+    console.warn('[인사기록카드 문서] Firebase 백업 저장 실패(드라이브 업로드는 정상 진행):', backupErr);
+  }
+
   return {
     name: d.name, driveId: d.id, driveLink: d.webViewLink,
     downloadLink: d.webContentLink || ('https://drive.google.com/uc?export=download&id='+d.id),
+    firebaseBackupUrl: firebaseBackupUrl,
     size: file.size, mimeType: file.type, uploadedAt: new Date().toISOString()
   };
 }
