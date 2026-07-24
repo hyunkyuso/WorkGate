@@ -14445,9 +14445,18 @@ function careerRenderAiswTab() {
     return pa - pb;
   });
 
-  tbody.innerHTML = rows.map(function(r) {
-    return '<tr style="border-top:1px solid var(--border)">' +
-      '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.bonbu+'</td>' +
+  var bonbuSpan = new Array(rows.length).fill(1);
+  for (var i = 0; i < rows.length; ) {
+    var j = i;
+    while (j < rows.length && rows[j].bonbu === rows[i].bonbu) j++;
+    bonbuSpan[i] = j - i;
+    for (var k = i+1; k < j; k++) bonbuSpan[k] = 0;
+    i = j;
+  }
+
+  tbody.innerHTML = rows.map(function(r, idx) {
+    var bonbuCell = bonbuSpan[idx] === 0 ? '' : '<td rowspan="'+bonbuSpan[idx]+'" style="white-space:nowrap;padding:6px;vertical-align:middle;text-align:center">'+r.bonbu+'</td>';
+    return '<tr style="border-top:1px solid var(--border)">' + bonbuCell +
       '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.position+'</td>' +
       '<td style="padding:6px;white-space:nowrap;text-align:center">'+r.name+'</td>' +
       '<td style="border-left:2px solid var(--border);text-align:center">'+careerGradeBadge(r.grade)+'</td>' +
@@ -15110,7 +15119,8 @@ function careerRenderOverviewTable() {
   function thSort(c, styleExtra) {
     var arrow = _careerOverviewSort.key === c.key ? (_careerOverviewSort.dir === 1 ? ' ▲' : ' ▼') : '';
     var extraWidth = c.key === 'licenseNo' ? 'width:140px;' : '';
-    return '<th onclick="careerSortOverviewBy(\''+c.key+'\')" style="cursor:pointer;white-space:nowrap;text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5;'+extraWidth+(styleExtra||'')+'">' + c.label + arrow + '</th>';
+    var groupBorder = (c.key === 'school' || c.key === 'license') ? 'border-left:2px solid var(--border);' : '';
+    return '<th onclick="careerSortOverviewBy(\''+c.key+'\')" style="cursor:pointer;white-space:nowrap;text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5;'+groupBorder+extraWidth+(styleExtra||'')+'">' + c.label + arrow + '</th>';
   }
 
   if (!hasGrade) {
@@ -15146,7 +15156,8 @@ function careerRenderOverviewTable() {
       if (seg.type === 'single') {
         var c = seg.col;
         var arrow = _careerOverviewSort.key===c.key ? (_careerOverviewSort.dir===1?' ▲':' ▼') : '';
-        row1 += '<th rowspan="3" style="cursor:pointer;white-space:nowrap;text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5" onclick="careerSortOverviewBy(\''+c.key+'\')">' + c.label + arrow + '</th>';
+        var groupBorder = (c.key === 'school' || c.key === 'license') ? ';border-left:2px solid var(--border)' : '';
+        row1 += '<th rowspan="3" style="cursor:pointer;white-space:nowrap;text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5'+groupBorder+'" onclick="careerSortOverviewBy(\''+c.key+'\')">' + c.label + arrow + '</th>';
       } else {
         row1 += '<th colspan="'+seg.cols.length+'" style="text-align:center;position:sticky;top:0;background:#f1f5f9;z-index:5;border-left:2px solid var(--border)">기술등급</th>';
       }
@@ -15297,12 +15308,13 @@ function careerRenderOverviewTable() {
       var val = (excluded && keepCols.indexOf(c.key) < 0) ? '' : r[c.key];
       var NOWRAP_COLS = ['position','name','recentJoin','birthdate','careerTotal','school','major','degree','gradDate','license','licenseDate','licenseNo'];
       var isGroupStart = c.assocId && (colIdx === 0 || !cols[colIdx-1].assocId);
-      var borderStyle = isGroupStart ? 'border-left:2px solid var(--border);' : '';
+      var isNamedGroupStart = (c.key === 'school' || c.key === 'license');
+      var borderStyle = (isGroupStart || isNamedGroupStart) ? 'border-left:2px solid var(--border);' : '';
       var tdStyle;
       if (c.assocId) tdStyle = ' style="'+borderStyle+'text-align:center;font-size:12px"';
-      else if (c.key === 'licenseNo') tdStyle = ' style="white-space:nowrap;width:140px"';
-      else if (NOWRAP_COLS.indexOf(c.key) >= 0) tdStyle = ' style="white-space:nowrap"';
-      else tdStyle = '';
+      else if (c.key === 'licenseNo') tdStyle = ' style="'+borderStyle+'white-space:nowrap;width:140px"';
+      else if (NOWRAP_COLS.indexOf(c.key) >= 0) tdStyle = ' style="'+borderStyle+'white-space:nowrap"';
+      else tdStyle = borderStyle ? ' style="'+borderStyle+'"' : '';
       return '<td'+tdStyle+'>'+val+'</td>';
     }).join('') + '</tr>';
   }).join('');
