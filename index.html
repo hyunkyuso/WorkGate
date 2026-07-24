@@ -912,7 +912,6 @@ select.form-input{cursor:pointer}
       <div id="page-career-dashboard" class="page">
         <div class="page-header">
           <div><div class="page-title">📊 경력관리 대시보드</div><div class="page-sub">협회별 등록 현황을 한눈에 봅니다</div></div>
-          <button class="btn btn-ghost btn-sm admin-only" onclick="careerMigrateOldDocsToFirebase()">🔄 기존 서류 파일 백업</button>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
@@ -982,6 +981,7 @@ select.form-input{cursor:pointer}
             <input id="career-overview-search" type="text" class="form-input" style="max-width:240px;font-size:13px" placeholder="이름/부서 등 검색..." oninput="careerRenderOverviewTable()">
             <button class="btn btn-ghost btn-sm" onclick="careerToggleColumnPicker()">📋 컬럼 선택</button>
             <button class="btn btn-ghost btn-sm" onclick="careerResetSort()">↺ 정렬 초기화(본부·부서순)</button>
+            <button class="btn btn-ghost btn-sm" onclick="careerExportTableToExcel('career-overview-table','총괄관리표.xlsx')">📥 엑셀 다운로드</button>
             <span id="career-multi-filter-badge" style="display:none;background:var(--acd);color:var(--ac);font-size:12px;padding:5px 10px;border-radius:8px;white-space:nowrap">복수 자격증 보유자만 보기 <span onclick="careerClearMultiFilter()" style="cursor:pointer;font-weight:700">✕</span></span>
             <div id="career-column-picker" style="display:none;position:absolute;top:38px;left:250px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.08);padding:10px;z-index:20;max-height:320px;overflow-y:auto;width:220px"></div>
           </div>
@@ -992,6 +992,9 @@ select.form-input{cursor:pointer}
         </div>
 
         <div id="career-people-tab-eng" style="display:none">
+          <div style="margin-bottom:10px">
+            <button class="btn btn-ghost btn-sm" onclick="careerExportTableToExcel('career-eng-table','한국엔지니어링협회.xlsx')">📥 엑셀 다운로드</button>
+          </div>
           <div style="overflow:auto;max-height:70vh;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)">
             <table id="career-eng-table" style="width:max-content;min-width:100%;font-size:12px">
               <thead id="career-eng-thead"></thead>
@@ -1001,6 +1004,9 @@ select.form-input{cursor:pointer}
         </div>
 
         <div id="career-people-tab-construction" style="display:none">
+          <div style="margin-bottom:10px">
+            <button class="btn btn-ghost btn-sm" onclick="careerExportTableToExcel('career-construction-table','한국건설기술인협회.xlsx')">📥 엑셀 다운로드</button>
+          </div>
           <div style="overflow:auto;max-height:70vh;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)">
             <table id="career-construction-table" style="width:max-content;min-width:100%;font-size:12px">
               <thead id="career-construction-thead"></thead>
@@ -1010,6 +1016,9 @@ select.form-input{cursor:pointer}
         </div>
 
         <div id="career-people-tab-aisw" style="display:none">
+          <div style="margin-bottom:10px">
+            <button class="btn btn-ghost btn-sm" onclick="careerExportTableToExcel('career-aisw-table','한국인공지능소프트웨어산업협회.xlsx')">📥 엑셀 다운로드</button>
+          </div>
           <div style="overflow:auto;max-height:70vh;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)">
             <table id="career-aisw-table" style="width:max-content;min-width:100%;font-size:12px">
               <thead id="career-aisw-thead"></thead>
@@ -13081,19 +13090,25 @@ function careerBuildGradeMatrix(assocId) {
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === assocId; });
   var fields = assoc.fields.length ? assoc.fields : [assoc.name];
   var matrix = {}; // matrix[field][grade] = count
+  var fieldPeople = {}; // fieldPeople[field] = Set(empId) - 분야별 중복제거 합계용
+  var totalPeople = new Set(); // 협회 전체 중복제거 합계용
 
   employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+    var empId = emp._docId || emp.id;
     fields.forEach(function(field) {
       var isRegistered = careerIsFieldRegistered(emp, assocId, field);
       if (!isRegistered) return;
       var grade = careerGetEffectiveGrade(emp, field, assocId).grade;
+      totalPeople.add(empId);
+      if (!fieldPeople[field]) fieldPeople[field] = new Set();
+      fieldPeople[field].add(empId);
       if (CAREER_GRADE_MATRIX_COLS.indexOf(grade) < 0) return;
       if (!matrix[field]) matrix[field] = {};
       matrix[field][grade] = (matrix[field][grade] || 0) + 1;
     });
   });
 
-  return { fields: fields, matrix: matrix };
+  return { fields: fields, matrix: matrix, fieldPeople: fieldPeople, totalCount: totalPeople.size };
 }
 
 function careerRenderGradeStatusDashboard() {
@@ -13101,17 +13116,24 @@ function careerRenderGradeStatusDashboard() {
   el.innerHTML = CAREER_ASSOCIATIONS.map(function(assoc) {
     var data = careerBuildGradeMatrix(assoc.id);
     var hasAny = Object.keys(data.matrix).length > 0;
-    var html = '<div style="font-size:13px;color:var(--t3);margin:14px 0 8px">' + assoc.name + '</div>';
+    var html = '<div style="display:flex;align-items:baseline;gap:8px;margin:14px 0 8px">' +
+      '<span style="font-size:13px;color:var(--t3)">' + assoc.name + '</span>' +
+      '<span style="font-size:11px;color:var(--t3)">전체 합계 <b style="color:var(--t1);font-size:13px">'+data.totalCount+'명</b> (중복인원 제외)</span>' +
+    '</div>';
     if (!hasAny) {
       return html + '<div style="padding:14px;text-align:center;color:var(--t3);font-size:13px;border:1px solid var(--border);border-radius:8px">등록된 인원이 없습니다</div>';
     }
     html += '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
-      '<thead><tr><td></td>' + CAREER_GRADE_MATRIX_COLS.map(function(g){
+      '<thead><tr><td></td><td style="text-align:center;padding:6px;color:var(--t3);font-weight:600">합계</td>' + CAREER_GRADE_MATRIX_COLS.map(function(g){
         return '<td style="text-align:center;padding:6px;color:var(--t3);font-weight:600">'+careerShortGrade(g)+'</td>';
       }).join('') + '</tr></thead><tbody>';
     html += data.fields.map(function(f) {
       if (!data.matrix[f]) return '';
-      return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px 6px;white-space:nowrap">'+f+'</td>' +
+      var fieldTotal = (data.fieldPeople[f] && data.fieldPeople[f].size) || 0;
+      var totalCell = fieldTotal
+        ? '<td style="text-align:center"><span onclick="careerGoToPeopleFieldRegistered(\''+f+'\',\''+assoc.id+'\')" style="cursor:pointer;background:var(--acd);color:var(--ac);padding:2px 10px;border-radius:8px;font-weight:700">'+fieldTotal+'</span></td>'
+        : '<td style="text-align:center;color:var(--t3)">-</td>';
+      return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px 6px;white-space:nowrap">'+f+'</td>' + totalCell +
         CAREER_GRADE_MATRIX_COLS.map(function(g) {
           var cnt = (data.matrix[f] && data.matrix[f][g]) || 0;
           if (!cnt) return '<td style="text-align:center;color:var(--t3)">-</td>';
@@ -13122,6 +13144,17 @@ function careerRenderGradeStatusDashboard() {
     return html;
   }).join('');
 }
+
+function careerGoToPeopleFieldRegistered(field, assocId) {
+  _careerPrefillSearch = '';
+  _careerPrefillMultiType = null;
+  _careerPrefillEduField = null;
+  _careerPrefillEduDegree = null;
+  _careerPrefillGradeValue = null;
+  _careerPrefillFieldOnly = { field: field, assocId: assocId };
+  showPage('career-people', document.querySelector('[onclick*="careerNavToPeople"]'));
+}
+var _careerPrefillFieldOnly = null;
 
 function careerGoToPeopleGradeFiltered(field, grade) {
   _careerPrefillSearch = '';
@@ -13250,13 +13283,13 @@ function careerRenderEduDashboard() {
 function careerGoToPeopleMultiDegree() {
   _careerPrefillSearch = '';
   _careerPrefillMultiType = 'degree-multi';
-  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null;
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null; _careerPrefillFieldOnly = null;
   showPage('career-people', document.querySelector('[onclick*="careerNavToPeople"]'));
 }
 function careerGoToPeopleAnyDegree() {
   _careerPrefillSearch = '';
   _careerPrefillMultiType = 'degree-any';
-  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null;
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null; _careerPrefillFieldOnly = null;
   showPage('career-people', document.querySelector('[onclick*="careerNavToPeople"]'));
 }
 
@@ -13282,6 +13315,8 @@ function careerGoToPeopleFieldFiltered(field, type) {
 function careerClearEduFilter() {
   _careerPrefillEduField = null;
   _careerPrefillEduDegree = null;
+  _careerPrefillGradeValue = null;
+  _careerPrefillFieldOnly = null;
   careerRenderOverviewTable();
 }
 
@@ -13291,19 +13326,19 @@ var _careerPrefillMultiType = null; // null | 'license' | 'degree'
 function careerGoToPeopleFiltered(searchTerm) {
   _careerPrefillSearch = searchTerm;
   _careerPrefillMultiType = null;
-  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null;
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null; _careerPrefillFieldOnly = null;
   showPage('career-people', document.querySelector("[onclick*=\"careerNavToPeople\"]"));
 }
 function careerGoToPeopleMultiLicense() {
   _careerPrefillSearch = '';
   _careerPrefillMultiType = 'license-multi';
-  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null;
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null; _careerPrefillFieldOnly = null;
   showPage('career-people', document.querySelector("[onclick*=\"careerNavToPeople\"]"));
 }
 function careerGoToPeopleAnyLicense() {
   _careerPrefillSearch = '';
   _careerPrefillMultiType = 'license-any';
-  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null;
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null; _careerPrefillFieldOnly = null;
   showPage('career-people', document.querySelector("[onclick*=\"careerNavToPeople\"]"));
 }
 
@@ -13311,13 +13346,15 @@ function careerClearMultiFilter() {
   _careerPrefillMultiType = null;
   _careerPrefillEduField = null;
   _careerPrefillEduDegree = null;
+  _careerPrefillGradeValue = null;
+  _careerPrefillFieldOnly = null;
   careerRenderOverviewTable();
 }
 
 function careerNavToPeople(el) {
   _careerPrefillSearch = '';
   _careerPrefillMultiType = null;
-  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null;
+  _careerPrefillEduField = null; _careerPrefillEduDegree = null; _careerPrefillGradeValue = null; _careerPrefillFieldOnly = null;
   showPage('career-people', el);
 }
 
@@ -15086,6 +15123,11 @@ function careerRenderOverviewTable() {
       });
     });
     if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = _careerPrefillEduField+' 학력 기준 충족자만 보기 '; }
+  } else if (_careerPrefillFieldOnly) {
+    rows = rows.filter(function(r) {
+      return careerIsFieldRegistered(r._emp, _careerPrefillFieldOnly.assocId, _careerPrefillFieldOnly.field);
+    });
+    if (multiBadge) { multiBadge.style.display = 'inline-block'; multiBadge.firstChild.textContent = _careerPrefillFieldOnly.field+' 등록자만 보기 '; }
   } else if (_careerPrefillGradeValue) {
     rows = rows.filter(function(r) {
       var isRegistered = careerIsFieldRegistered(r._emp, 'eng', _careerPrefillEduField);
@@ -15203,6 +15245,14 @@ function careerSortOverviewBy(key) {
     _careerOverviewSort.dir = 1;
   }
   careerRenderOverviewTable();
+}
+
+function careerExportTableToExcel(tableId, filename) {
+  var table = document.getElementById(tableId);
+  if (!table || !table.rows.length) { showToast('❌ 내보낼 데이터가 없습니다'); return; }
+  var wb = XLSX.utils.table_to_book(table, { sheet: '시트1' });
+  XLSX.writeFile(wb, filename);
+  showToast('✅ 엑셀로 저장되었습니다');
 }
 
 function careerToggleColumnPicker() {
