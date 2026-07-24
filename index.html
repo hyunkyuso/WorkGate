@@ -13691,30 +13691,61 @@ function careerSplitCompanyDays(emp) {
   return { doyu: doyuDays, other: otherDays };
 }
 
-// 협회에 이미 등록한 사업만큼을 빼고 남은 "등록 가능한" 경력일수
-// 타사: (인사기록카드 영업활용 체크된 타사 경력) - (이미 이 협회에 등록된 사업 중 근무처가 정도유아이티가 아닌 것들의 참여일)
-// 정도: (실제 정도유아이티 재직기간 합계, 퇴사-재입사 공백 제외) - (이미 이 협회에 등록된 사업 중 근무처가 정도유아이티인 것들의 참여일)
+// period(날짜범위) 안에서 ranges(등록된 사업들의 날짜범위, 서로 겹칠 수 있음)로 덮이지 않은 일수를 계산
+function careerComputeUncoveredDays(period, ranges) {
+  var clipped = ranges.map(function(r) {
+    var s = r.start < period.start ? period.start : r.start;
+    var e = r.end > period.end ? period.end : r.end;
+    return { start: s, end: e };
+  }).filter(function(r){ return r.start < r.end; });
+
+  clipped.sort(function(a,b){ return a.start < b.start ? -1 : (a.start > b.start ? 1 : 0); });
+
+  var merged = [];
+  clipped.forEach(function(r) {
+    var last = merged[merged.length-1];
+    if (last && r.start <= last.end) {
+      if (r.end > last.end) last.end = r.end;
+    } else {
+      merged.push({ start: r.start, end: r.end });
+    }
+  });
+
+  var coveredDays = 0;
+  merged.forEach(function(r) { coveredDays += careerDaysBetween(r.start, r.end); });
+  var totalPeriodDays = careerDaysBetween(period.start, period.end);
+  return Math.max(0, totalPeriodDays - coveredDays);
+}
+
+// 협회에 이미 등록한 사업의 실제 날짜범위를 빼고 남은 "등록 가능한(아직 등록 안 된)" 경력일수
+// 참여일(숫자) 합산이 아니라, 실제 계약일~준공일 날짜 범위 기준으로 겹치는 부분을 빼는 방식
+// (참여일 자체가 중복조정된 값이라 실제 근무 기간과 다를 수 있어서, 날짜 기준으로 계산해야 정확함)
+// 타사: 인사기록카드에 영업활용 체크된 타사 근무기간 중, 이미 등록된 사업이 커버 안 하는 기간
+// 정도: 정도유아이티 실제 재직기간(퇴사-재입사 공백 제외) 중, 이미 등록된 사업이 커버 안 하는 기간
 function careerAvailableDaysAfterRegistered(emp, assocId) {
   var todayStr = new Date().toISOString().slice(0,10);
-  var otherRaw = 0;
+
+  var regOtherRanges = [], regDoyuRanges = [];
+  ((emp.assocCareer||{})[assocId] || []).forEach(function(c) {
+    if (!c.contractDate) return;
+    var range = { start: c.contractDate, end: c.completionDate || todayStr };
+    if ((c.employer||'').indexOf('정도유아이티') >= 0) regDoyuRanges.push(range);
+    else regOtherRanges.push(range);
+  });
+
+  var otherGap = 0;
   (emp.career||[]).forEach(function(c) {
     if (!c.salesUse || !c.start) return;
     if ((c.company||'').indexOf('정도유아이티') >= 0) return;
-    otherRaw += careerDaysBetween(c.start, c.end || todayStr);
-  });
-  var doyuRaw = careerSumPeriodsDays(careerGetDoyuPeriods(emp));
-
-  var regOther = 0, regDoyu = 0;
-  ((emp.assocCareer||{})[assocId] || []).forEach(function(c) {
-    var d = careerDaysWithFallback(c);
-    if ((c.employer||'').indexOf('정도유아이티') >= 0) regDoyu += d;
-    else regOther += d;
+    otherGap += careerComputeUncoveredDays({ start: c.start, end: c.end || todayStr }, regOtherRanges);
   });
 
-  return {
-    other: Math.max(0, otherRaw - regOther),
-    doyu: Math.max(0, doyuRaw - regDoyu)
-  };
+  var doyuGap = 0;
+  careerGetDoyuPeriods(emp).forEach(function(period) {
+    doyuGap += careerComputeUncoveredDays(period, regDoyuRanges);
+  });
+
+  return { other: otherGap, doyu: doyuGap };
 }
 
 // ══════════════════════════════════════════════════
