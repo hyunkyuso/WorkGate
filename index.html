@@ -2616,7 +2616,7 @@ select.form-input{cursor:pointer}
 
 <!-- 모달: 졸업증명서/자격증 미리보기 -->
 <div id="career-doc-preview-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('career-doc-preview-modal')">
-  <div class="modal" style="max-width:680px;width:92vw;max-height:94vh;display:flex;flex-direction:column">
+  <div class="modal" style="max-width:680px;width:92vw;height:94vh;display:flex;flex-direction:column">
     <div class="modal-header" style="flex-shrink:0">
       <div class="modal-title" id="career-doc-preview-title">문서 미리보기</div>
       <button class="modal-close" onclick="closeModal('career-doc-preview-modal')">✕</button>
@@ -12955,6 +12955,15 @@ function careerLicenseField(name) {
   return name || '기타';
 }
 
+// 자격증 분야명이 협회 분야명이랑 문자열이 정확히 안 겹치지만 실제로는 관련 있는 경우(동의어) 매핑
+var CAREER_LICENSE_FIELD_SYNONYMS = { '사무자동화': ['정보관리'] };
+function careerLicenseMatchesField(l, field) {
+  var lf = careerLicenseField(l.name);
+  if (field.indexOf(lf) === 0) return true;
+  var syn = CAREER_LICENSE_FIELD_SYNONYMS[lf];
+  return syn ? syn.indexOf(field) >= 0 : false;
+}
+
 var CAREER_LICENSE_EXCLUDE = ['조주', '직업상담사'];
 function careerIsRelevantLicense(l) {
   var nm = l.name || '';
@@ -12990,7 +12999,7 @@ function careerIsFieldRegistered(emp, assocId, field) {
       var hasEdu3 = (emp.education||[]).length > 0;
       if (hasCert3 || hasEdu3) return true;
     } else {
-      var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && field.indexOf(careerLicenseField(l.name)) === 0; });
+      var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseMatchesField(l, field); });
       var hasEdu = (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; });
       if (hasCert || hasEdu) return true;
     }
@@ -14379,7 +14388,7 @@ function careerRenderGradeDetail() {
   var rows = [];
   employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
     fields.forEach(function(field) {
-      var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && field.indexOf(careerLicenseField(l.name)) === 0; });
+      var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseMatchesField(l, field); });
       var hasEdu = (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; });
       if (!hasCert && !hasEdu) return;
       var g = careerGetEffectiveGrade(emp, field, 'eng');
@@ -14672,7 +14681,7 @@ function careerDetermineGrade(emp, field, assocId) {
   var licsInField = (emp.license||[]).filter(function(l){
     if (!careerIsRelevantLicense(l)) return false;
     if (assocId === 'aisw') return careerAiswIsRelevantLicense(l); // 정보관리/정보처리/전자계산조직응용/사무자동화 관련만 인정
-    return field.indexOf(careerLicenseField(l.name)) === 0;
+    return careerLicenseMatchesField(l, field);
   });
   if (licsInField.some(function(l){ return careerLicenseGradeRank(l.name) === 0; })) {
     return { grade:'기술사', days:null, neededForNext:null };
@@ -14764,7 +14773,7 @@ function careerDaysToNextGrade(emp, field, currentGrade, assocId) {
   var licsInField = (emp.license||[]).filter(function(l){
     if (!careerIsRelevantLicense(l)) return false;
     if (assocId === 'aisw') return careerAiswIsRelevantLicense(l);
-    return field.indexOf(careerLicenseField(l.name)) === 0;
+    return careerLicenseMatchesField(l, field);
   });
   var byGrade = { '기사':[], '산업기사':[] };
   licsInField.forEach(function(l) {
