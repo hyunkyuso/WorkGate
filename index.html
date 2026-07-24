@@ -14290,8 +14290,8 @@ function careerRenderProjectModal() {
     return;
   }
 
-  // BM별 분류 모드 (정도유아이티만, 우선순위 최상단)
-  if (_careerProjectBMMode) {
+  // BM별 분류 모드 (정도유아이티만, 우선순위 최상단) - 드릴다운 중일 때는 건너뜀
+  if (_careerProjectBMMode && !_careerProjectDrill) {
     var yearsLimit = _careerProjectBMMode === '3year' ? 3 : null;
     var bmData = careerComputeBMBreakdown(filtered, yearsLimit);
     thead.innerHTML = '<tr style="color:var(--t3)"><td style="padding:4px 6px">BM</td><td style="padding:4px 6px">참여일수 합계</td><td style="padding:4px 6px">다른 BM과 중복</td></tr>';
