@@ -13791,7 +13791,12 @@ function careerRegNormalizeField(assocId, rawField) {
   if (!assoc) return rawField || '';
   if (!assoc.fields.length) return (rawField || '').trim() || assoc.name; // 분야 구분 없는 협회 - 입력값 그대로 유지(경력 계산은 값과 무관하게 전부 포함)
   var val = (rawField || '').trim();
-  if (!val) return assoc.fields[0];
+  var noneKeywords = ['미기재','없음','미입력','미상','해당없음','전문분야없음'];
+  if (!val || noneKeywords.indexOf(val) >= 0) {
+    // 미기재/빈값은 "전문분야없음" 카테고리가 있으면 그쪽으로, 없으면 첫 번째 분야로
+    var noneField = assoc.fields.find(function(f){ return f.indexOf('전문분야없음') >= 0; });
+    return noneField || assoc.fields[0];
+  }
   // 이미 정확히 일치하면 그대로
   if (assoc.fields.indexOf(val) >= 0) return val;
   // 각 필드명에 포함되는 키워드로 매칭 (예: "도시계획" → "도시교통-도시계획", 이건 표현만 다른 같은 분야를 맞춰주는 것)
@@ -14555,11 +14560,18 @@ function careerGetRelevantCareerPeriods(emp, assocId, field) {
     ((emp.assocCareer||{})[assocId] || []).forEach(function(c) {
       if (!c.contractDate) return;
       if (assocId !== 'aisw' && field && c.field !== field) return; // AI SW는 분야 구분 없이 전부 포함
-      periods.push({
-        start: c.contractDate,
-        end: c.completionDate || todayStr,
-        overrideDays: (function(){ var n = Number(c.days); return (c.days !== undefined && c.days !== '' && !isNaN(n) && n >= 0 && n <= 50000) ? n : null; })()
-      });
+
+      var validDays = Number(c.days);
+      var hasValidDays = (c.days !== undefined && c.days !== '' && !isNaN(validDays) && validDays >= 0 && validDays <= 50000);
+
+      if (hasValidDays) {
+        // 참여일이 있으면 그 값 그대로 사용
+        periods.push({ start: c.contractDate, end: c.completionDate || todayStr, overrideDays: validDays });
+      } else if (c.completionDate) {
+        // 참여일이 없거나 이상해도 준공일이 있으면 계약일~준공일로 계산해서 반영
+        periods.push({ start: c.contractDate, end: c.completionDate, overrideDays: null });
+      }
+      // 참여일도 없고 준공일도 없으면 반영 안 함 (아무것도 push 안 함)
     });
   }
   return periods;
