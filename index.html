@@ -14560,7 +14560,7 @@ function careerRenderAiswTab() {
     rows.push({
       emp: emp, empId: emp._docId||emp.id, bonbu: careerGetBonbu(emp), position: emp.position||'-', name: emp.name||'-',
       grade: g.grade, need: need, other: days.other, doyu: days.doyu,
-      regDays: regDays, regYears: Math.round((regDays/365)*100)/100
+      regDays: regDays, regYears: careerFmtYMD(careerDaysToYMD(regDays))
     });
   });
 
@@ -14597,7 +14597,7 @@ function careerRenderAiswTab() {
       '<td style="border-left:2px solid var(--border);text-align:center">'+(r.other||'-')+'</td>' +
       '<td style="text-align:center">'+(r.doyu||'-')+'</td>' +
       '<td style="border-left:2px solid var(--border);text-align:center">'+(r.regDays||'-')+'</td>' +
-      '<td style="text-align:center">'+(r.regYears||'-')+'</td>' +
+      '<td style="text-align:center">'+(r.regDays ? r.regYears : '-')+'</td>' +
       '<td style="border-left:2px solid var(--border);text-align:center"><span onclick="careerOpenProjectModal(\''+r.empId+'\',\'aisw\')" style="cursor:pointer;color:var(--ac);text-decoration:underline">참여사업 보기</span></td>' +
     '</tr>';
   }).join('');
