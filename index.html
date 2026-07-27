@@ -13272,8 +13272,10 @@ function careerRunDataValidation() {
       entries.forEach(function(c) {
         var label = (c.name || '(사업명 없음)') + (c.field ? ' / ' + c.field : '');
 
+        var isReversed = c.contractDate && c.completionDate && c.contractDate > c.completionDate;
+
         // 1) 계약일 > 준공일 (기간이 뒤바뀜)
-        if (c.contractDate && c.completionDate && c.contractDate > c.completionDate) {
+        if (isReversed) {
           issues.push({ emp: emp, assocName: assoc.name, type: '기간 역전', detail: label + ' — 참여기간 시작('+c.contractDate+')이 종료('+c.completionDate+')보다 늦음' });
         }
 
@@ -13294,7 +13296,8 @@ function careerRunDataValidation() {
         }
 
         // 4) 참여일(수동) vs 참여일수(계산값) 차이가 극단적인 경우 (참여일이 계산값보다 큰 경우는 논리적으로 불가능)
-        if (c.contractDate && c.completionDate && c.days !== undefined && c.days !== '') {
+        // 단, 기간이 이미 뒤바뀐 항목은 참여일수 자체가 무의미한 값이라 여기서 별도로 알리지 않음(1번 항목으로 충분)
+        if (!isReversed && c.contractDate && c.completionDate && c.days !== undefined && c.days !== '') {
           var calcDays = careerDaysBetween(c.contractDate, c.completionDate) + 1;
           var enteredDays = Number(c.days);
           if (!isNaN(enteredDays) && enteredDays > calcDays) {
