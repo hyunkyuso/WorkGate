@@ -18752,18 +18752,18 @@ function salesRenderTrainingList() {
       var sorted = files.slice().sort(function(a,b){ return (b.date||'') > (a.date||'') ? 1 : -1; });
       fileCell = sorted.map(function(f, fi) {
         var realIdx = files.indexOf(f);
-        return '<div style="white-space:nowrap">' +
-          (f.date ? '<span style="color:var(--t3)">'+f.date+'</span> ' : '') +
-          '<span onclick="salesViewAttachment('+idx+','+realIdx+')" style="cursor:pointer;color:var(--ac);text-decoration:underline">보기</span>' +
-          ' · <a href="'+f.url+'" download style="color:var(--ac);text-decoration:underline">다운로드</a>' +
-          (isAdmin() ? ' · <span onclick="salesDeleteAttachment('+idx+','+realIdx+')" style="cursor:pointer;color:var(--t3)" title="삭제">✕</span>' : '') +
+        return '<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:3px">' +
+          (f.date ? '<span style="color:var(--t3);font-size:11px">'+f.date+'</span>' : '') +
+          '<span onclick="salesViewAttachment('+idx+','+realIdx+')" title="미리보기" style="cursor:pointer;background:var(--acd);color:var(--ac);border-radius:6px;padding:2px 7px;font-size:11px">📄 보기</span>' +
+          '<a href="'+f.url+'" download title="다운로드" style="cursor:pointer;background:var(--card);color:var(--t2);border-radius:6px;padding:2px 7px;font-size:11px;text-decoration:none">⬇</a>' +
+          (isAdmin() ? '<span onclick="salesDeleteAttachment('+idx+','+realIdx+')" title="삭제" style="cursor:pointer;color:var(--t3);font-size:11px">✕</span>' : '') +
         '</div>';
       }).join('');
     } else {
-      fileCell = '-';
+      fileCell = '<span style="color:var(--t3)">-</span>';
     }
     if (isAdmin()) {
-      fileCell += '<label style="cursor:pointer;color:var(--ac);text-decoration:underline;display:block;margin-top:2px">+ 첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label>';
+      fileCell += '<label style="cursor:pointer;color:var(--ac);font-size:11px;display:inline-block;margin-top:2px">+ 첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label>';
     }
     return '<tr style="border-top:1px solid var(--border)">' +
       '<td style="padding:6px;text-align:center;white-space:nowrap">'+(row.dept||'-')+'</td>' +
@@ -18844,8 +18844,8 @@ function salesUploadTrainingDoc(input) {
     var base64 = e.target.result.split(',')[1];
     var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name||'');
     var prompt = '이 문서는 교육 이수 확인서입니다. 다음을 JSON으로만 응답하세요(다른 텍스트 없이):\n' +
-      '{"교육종료일":"YYYY-MM-DD(교육기간의 마지막 날짜)","명단":[{"소속":"...","성명":"..."}]}\n' +
-      '명단에는 소속에 "정도유아이티"가 포함된 사람만 포함하세요.';
+      '{"교육종료일":"YYYY-MM-DD(교육기간의 마지막 날짜)","명단":[{"소속":"...","성명":"...","이메일":"..."}]}\n' +
+      '명단에는 소속에 "정도유아이티"가 포함된 사람만 포함하세요. 이메일 컬럼이 있으면 반드시 같이 추출하세요(동명이인 구분용).';
     var contentArr = isPdf
       ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}}, {type:'text', text:prompt}]
       : [{type:'image', source:{type:'base64', media_type:file.type||'image/jpeg', data:base64}}, {type:'text', text:prompt}];
@@ -18868,10 +18868,21 @@ function salesUploadTrainingDoc(input) {
       var list = parsed.명단 || [];
       if (!list.length) { showToast('⚠️ 정도유아이티 소속 인원을 문서에서 찾지 못했습니다'); return; }
 
-      var matched = 0, unmatched = 0, unmatchedNames = [];
+      var matched = 0, unmatchedNames = [], ambiguousNames = [];
       list.forEach(function(item) {
-        var emp = employees.find(function(e){ return e.name === item.성명 && e.status !== '퇴직'; });
-        if (!emp) { unmatchedNames.push(item.성명); unmatched++; return; }
+        var activeEmployees = employees.filter(function(e){ return e.status !== '퇴직'; });
+        var emp = null;
+        // 1순위: 이메일로 정확히 매칭 (동명이인 구분 가능)
+        if (item.이메일) {
+          emp = activeEmployees.find(function(e){ return (e._docId||e.id||'').toLowerCase() === item.이메일.toLowerCase() || (e.email||'').toLowerCase() === item.이메일.toLowerCase(); });
+        }
+        // 2순위: 이름으로 매칭하되, 동명이인이 있으면 자동반영 하지 않고 확인 필요로 분류
+        if (!emp) {
+          var nameMatches = activeEmployees.filter(function(e){ return e.name === item.성명; });
+          if (nameMatches.length === 1) emp = nameMatches[0];
+          else if (nameMatches.length > 1) { ambiguousNames.push(item.성명); return; }
+        }
+        if (!emp) { unmatchedNames.push(item.성명); return; }
         var empId = emp._docId || emp.id;
         var row = salesTrainingList.find(function(r){ return r.empId === empId; });
         if (!row) {
@@ -18891,7 +18902,10 @@ function salesUploadTrainingDoc(input) {
 
       salesSaveTrainingList();
       salesRenderTrainingList();
-      showToast('✅ ' + matched + '명 자동 반영 완료' + (unmatchedNames.length ? (' / 매칭 안 됨: ' + unmatchedNames.join(', ')) : ''));
+      var msg = '✅ ' + matched + '명 자동 반영 완료';
+      if (ambiguousNames.length) msg += ' / ⚠️ 동명이인 있어 확인 필요(직접 추가해주세요): ' + ambiguousNames.join(', ');
+      if (unmatchedNames.length) msg += ' / 매칭 안 됨: ' + unmatchedNames.join(', ');
+      showToast(msg);
     }).catch(function(err) {
       document.getElementById('cert-ai-loading-modal').style.display = 'none';
       showToast('❌ 처리 실패: ' + err.message);
