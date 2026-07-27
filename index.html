@@ -18953,8 +18953,14 @@ function salesUploadTrainingDoc(input) {
     ]).then(function(results) {
       document.getElementById('cert-ai-loading-modal').style.display = 'none';
       var data = results[0], fileUrl = results[1];
-      var text = (data.content && data.content[0] && data.content[0].text) || '';
       console.log('[영업지원 AI 인식] 원본 응답:', data);
+      if (data.type === 'error') {
+        var errMsg = (data.error && (data.error.message || data.error.type)) || '알 수 없는 오류';
+        console.warn('[영업지원 AI 인식] API 오류:', data.error);
+        showToast('❌ AI 호출 실패: ' + errMsg);
+        return;
+      }
+      var text = (data.content && data.content[0] && data.content[0].text) || '';
       console.log('[영업지원 AI 인식] 추출된 텍스트:', text);
       var parsed;
       try {
