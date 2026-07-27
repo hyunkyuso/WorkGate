@@ -1124,11 +1124,11 @@ select.form-input{cursor:pointer}
             <div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:32px;font-weight:800;color:var(--t1)" id="sales-dash-notdone">0</span><span style="font-size:13px;color:var(--t3)">명</span></div>
           </div>
         </div>
-        <div style="overflow:auto;max-height:65vh;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)">
-          <table style="width:100%;font-size:13px;border-collapse:collapse">
-            <thead><tr style="background:#f1f5f9;position:sticky;top:0"><td style="padding:8px;text-align:center">소속</td><td style="padding:8px;text-align:center">이름</td><td style="padding:8px;text-align:center">수료일</td><td style="padding:8px;text-align:center">만료일</td><td style="padding:8px;text-align:center">상태</td><td style="padding:8px;text-align:center">비고</td></tr></thead>
-            <tbody id="sales-dash-tbody"></tbody>
-          </table>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--ac)">
+            교육 유효기간 현황
+          </div>
+          <div id="sales-dash-tbody"></div>
         </div>
       </div>
 
@@ -18823,7 +18823,9 @@ function salesRenderTrainingList() {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--t3)">등록된 인원이 없습니다. "+ 직원 추가" 버튼으로 추가해주세요</td></tr>';
     return;
   }
-  tbody.innerHTML = salesTrainingList.map(function(row, idx) {
+  var sortedList = salesTrainingList.slice().sort(function(a,b){ return (a.dept||'').localeCompare(b.dept||'') || (a.name||'').localeCompare(b.name||''); });
+  tbody.innerHTML = sortedList.map(function(row) {
+    var idx = salesTrainingList.indexOf(row);
     var files = row.files || (row.fileUrl ? [{ url: row.fileUrl, name: row.fileName, type: row.fileType, date: row.completionDate }] : []);
     var fileCell;
     if (files.length) {
@@ -18831,7 +18833,6 @@ function salesRenderTrainingList() {
       fileCell = sorted.map(function(f, fi) {
         var realIdx = files.indexOf(f);
         return '<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:4px">' +
-          (f.date ? '<span style="color:var(--t3);font-size:11px;margin-right:2px">'+f.date+'</span>' : '') +
           '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="salesViewAttachment('+idx+','+realIdx+')">👁 보기</button>' +
           '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;color:var(--gr);border-color:var(--gr)" onclick="salesDownloadAttachment('+idx+','+realIdx+')">⬇ 다운로드</button>' +
           (isAdmin() ? '<button class="btn btn-danger btn-sm" style="padding:4px 8px;font-size:12px" onclick="salesDeleteAttachment('+idx+','+realIdx+')">삭제</button>' : '') +
@@ -18841,7 +18842,7 @@ function salesRenderTrainingList() {
       fileCell = '<span style="color:var(--t3)">-</span>';
     }
     if (isAdmin()) {
-      fileCell += '<label style="cursor:pointer;color:var(--ac);font-size:11px;display:inline-block;margin-top:2px">+ 첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label>';
+      fileCell += '<label class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;cursor:pointer;display:inline-block;margin-top:2px">+ 첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label>';
     }
     return '<tr style="border-top:1px solid var(--border)">' +
       '<td style="padding:6px;text-align:center;white-space:nowrap">'+(row.dept||'-')+'</td>' +
@@ -19101,18 +19102,41 @@ function salesRenderDashboard() {
 
   var tbody = document.getElementById('sales-dash-tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--t3)">등록된 인원이 없습니다</td></tr>';
+    tbody.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:24px;text-align:center">등록된 인원이 없습니다</div>';
     return;
   }
-  tbody.innerHTML = rows.map(function(r) {
-    return '<tr style="border-top:1px solid var(--border)">' +
-      '<td style="padding:6px;text-align:center">'+(r.dept||'-')+'</td>' +
-      '<td style="padding:6px;text-align:center">'+(r.name||'-')+'</td>' +
-      '<td style="padding:6px;text-align:center">'+(r.completionDate||'-')+'</td>' +
-      '<td style="padding:6px;text-align:center">'+(r.expiry||'-')+'</td>' +
-      '<td style="padding:6px;text-align:center;color:'+r.statusColor+';font-weight:600">'+r.statusLabel+'</td>' +
-      '<td style="padding:6px;text-align:center">'+(r.note||'-')+'</td>' +
-    '</tr>';
+  // D-day(만료까지 남은 일수) 기준 정렬 - 급한 순서대로. 만료일 없는 경우(미이수 등)는 맨 뒤로
+  var withDday = rows.map(function(r) {
+    var dday = r.expiry ? careerDaysBetween(todayStr, r.expiry) : null;
+    return Object.assign({}, r, { dday: dday });
+  }).sort(function(a,b) {
+    if (a.dday === null && b.dday === null) return 0;
+    if (a.dday === null) return 1;
+    if (b.dday === null) return -1;
+    return a.dday - b.dday;
+  });
+  var maxDday = Math.max.apply(null, withDday.map(function(r){ return r.dday !== null ? Math.abs(r.dday) : 0; })) || 1;
+
+  tbody.innerHTML = withDday.map(function(r) {
+    var color, bg;
+    if (r.cat === 'expired') { color = '#ef4444'; bg = '#fef2f2'; }
+    else if (r.cat === 'soon') { color = '#f59e0b'; bg = '#fffbeb'; }
+    else if (r.cat === 'notdone') { color = 'var(--t3)'; bg = 'var(--surface)'; }
+    else { color = '#22c55e'; bg = '#f0fdf4'; }
+    var pct = r.dday !== null ? Math.max(4, Math.min(100, Math.round((Math.max(r.dday,0) / maxDday) * 100))) : 4;
+    var rightLabel = r.dday !== null ? (r.dday < 0 ? 'D+' + Math.abs(r.dday) : 'D-' + r.dday) : r.statusLabel;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (r.dept||'-') + ' · ' + (r.name||'-') + '</div>' +
+        '<div style="background:#f1f5f9;border-radius:999px;height:6px;margin-top:4px;overflow:hidden">' +
+          '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:999px"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="flex-shrink:0;text-align:right">' +
+        '<div style="background:' + bg + ';color:' + color + ';font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px">' + rightLabel + '</div>' +
+        '<div style="font-size:10px;color:var(--t3);margin-top:2px;white-space:nowrap">' + (r.expiry || r.completionDate || '-') + '</div>' +
+      '</div>' +
+    '</div>';
   }).join('');
 }
 
