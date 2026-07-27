@@ -18746,15 +18746,24 @@ function salesRenderTrainingList() {
     return;
   }
   tbody.innerHTML = salesTrainingList.map(function(row, idx) {
+    var files = row.files || (row.fileUrl ? [{ url: row.fileUrl, name: row.fileName, type: row.fileType, date: row.completionDate }] : []);
     var fileCell;
-    if (row.fileUrl) {
-      fileCell = '<span onclick="salesViewAttachment('+idx+')" style="cursor:pointer;color:var(--ac);text-decoration:underline;font-size:12px">보기</span>' +
-        ' · <a href="'+row.fileUrl+'" download style="color:var(--ac);text-decoration:underline;font-size:12px">다운로드</a>' +
-        (isAdmin() ? ' · <span onclick="salesDeleteAttachment('+idx+')" style="cursor:pointer;color:var(--t3);font-size:12px" title="첨부파일 삭제">✕</span>' : '');
+    if (files.length) {
+      var sorted = files.slice().sort(function(a,b){ return (b.date||'') > (a.date||'') ? 1 : -1; });
+      fileCell = sorted.map(function(f, fi) {
+        var realIdx = files.indexOf(f);
+        return '<div style="white-space:nowrap">' +
+          (f.date ? '<span style="color:var(--t3)">'+f.date+'</span> ' : '') +
+          '<span onclick="salesViewAttachment('+idx+','+realIdx+')" style="cursor:pointer;color:var(--ac);text-decoration:underline">보기</span>' +
+          ' · <a href="'+f.url+'" download style="color:var(--ac);text-decoration:underline">다운로드</a>' +
+          (isAdmin() ? ' · <span onclick="salesDeleteAttachment('+idx+','+realIdx+')" style="cursor:pointer;color:var(--t3)" title="삭제">✕</span>' : '') +
+        '</div>';
+      }).join('');
     } else {
-      fileCell = isAdmin()
-        ? '<label style="cursor:pointer;color:var(--ac);font-size:12px;text-decoration:underline">첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label>'
-        : '<span style="color:var(--t3);font-size:12px">-</span>';
+      fileCell = '-';
+    }
+    if (isAdmin()) {
+      fileCell += '<label style="cursor:pointer;color:var(--ac);text-decoration:underline;display:block;margin-top:2px">+ 첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label>';
     }
     return '<tr style="border-top:1px solid var(--border)">' +
       '<td style="padding:6px;text-align:center;white-space:nowrap">'+(row.dept||'-')+'</td>' +
@@ -18764,7 +18773,7 @@ function salesRenderTrainingList() {
         ['미이수','이수'].map(function(s){ return '<option value="'+s+'"'+((row.status||'미이수')===s?' selected':'')+'>'+s+'</option>'; }).join('') +
       '</select></td>' +
       '<td style="padding:6px"><input type="text" class="form-input" style="font-size:12px" value="'+(row.note||'')+'" onchange="salesUpdateField('+idx+',\'note\',this.value)"></td>' +
-      '<td style="padding:6px;text-align:center;white-space:nowrap">'+fileCell+'</td>' +
+      '<td style="padding:6px;text-align:center;font-size:12px">'+fileCell+'</td>' +
       '<td style="padding:6px;text-align:center"><span onclick="salesDeleteRow('+idx+')" style="cursor:pointer;color:var(--t3)" title="삭제">🗑</span></td>' +
     '</tr>';
   }).join('');
@@ -18776,18 +18785,22 @@ function salesUpdateField(idx, field, value) {
   salesSaveTrainingList();
 }
 
-function salesViewAttachment(idx) {
+function salesViewAttachment(idx, fileIdx) {
   var row = salesTrainingList[idx];
-  if (!row || !row.fileUrl) return;
-  careerOpenDocPreview(row.name + ' 교육이수확인서', 'x', row.fileType||'application/pdf', row.fileUrl, row.fileUrl);
+  var files = row && (row.files || (row.fileUrl ? [{ url: row.fileUrl, name: row.fileName, type: row.fileType }] : []));
+  var f = files && files[fileIdx];
+  if (!f) return;
+  careerOpenDocPreview(row.name + ' 교육이수확인서', 'x', f.type||'application/pdf', f.url, f.url);
 }
 
-function salesDeleteAttachment(idx) {
+function salesDeleteAttachment(idx, fileIdx) {
   if (!isAdmin()) { showToast('❌ 관리자만 삭제할 수 있습니다'); return; }
-  if (!confirm('첨부파일을 삭제하시겠습니까?')) return;
-  delete salesTrainingList[idx].fileUrl;
-  delete salesTrainingList[idx].fileName;
-  delete salesTrainingList[idx].fileType;
+  if (!confirm('이 첨부파일을 삭제하시겠습니까?')) return;
+  var row = salesTrainingList[idx];
+  if (!row) return;
+  if (!row.files && row.fileUrl) row.files = [{ url: row.fileUrl, name: row.fileName, type: row.fileType, date: row.completionDate }];
+  if (row.files) row.files.splice(fileIdx, 1);
+  delete row.fileUrl; delete row.fileName; delete row.fileType;
   salesSaveTrainingList();
   salesRenderTrainingList();
 }
@@ -18801,9 +18814,10 @@ function salesAttachFileToRow(idx, input) {
   storageRef.put(file).then(function(snap) {
     return snap.ref.getDownloadURL();
   }).then(function(url) {
-    salesTrainingList[idx].fileUrl = url;
-    salesTrainingList[idx].fileName = file.name;
-    salesTrainingList[idx].fileType = file.type;
+    var row = salesTrainingList[idx];
+    if (!row.files) row.files = row.fileUrl ? [{ url: row.fileUrl, name: row.fileName, type: row.fileType, date: row.completionDate }] : [];
+    row.files.push({ url: url, name: file.name, type: file.type, date: row.completionDate || '' });
+    delete row.fileUrl; delete row.fileName; delete row.fileType;
     salesSaveTrainingList();
     salesRenderTrainingList();
     showToast('✅ 첨부 완료');
@@ -18854,27 +18868,30 @@ function salesUploadTrainingDoc(input) {
       var list = parsed.명단 || [];
       if (!list.length) { showToast('⚠️ 정도유아이티 소속 인원을 문서에서 찾지 못했습니다'); return; }
 
-      var matched = 0, unmatched = [];
+      var matched = 0, unmatched = 0, unmatchedNames = [];
       list.forEach(function(item) {
         var emp = employees.find(function(e){ return e.name === item.성명 && e.status !== '퇴직'; });
-        if (!emp) { unmatched.push(item.성명); return; }
+        if (!emp) { unmatchedNames.push(item.성명); unmatched++; return; }
         var empId = emp._docId || emp.id;
         var row = salesTrainingList.find(function(r){ return r.empId === empId; });
         if (!row) {
-          row = { empId: empId, dept: emp.dept||'-', name: emp.name||'-', completionDate:'', status:'미이수', note:'' };
+          row = { empId: empId, dept: emp.dept||'-', name: emp.name||'-', completionDate:'', status:'미이수', note:'', files:[] };
           salesTrainingList.push(row);
         }
-        row.completionDate = completionDate;
+        if (!row.files) row.files = [];
+        // 첨부파일은 연도별로 누적 보관 (덮어쓰지 않음)
+        row.files.push({ url: fileUrl, name: file.name, type: file.type, date: completionDate });
+        // (최종)수료일은 기존보다 더 최신일 때만 갱신 (오래된 문서를 나중에 올려도 최종일이 뒤로 안 밀리게)
+        if (!row.completionDate || (completionDate && completionDate > row.completionDate)) {
+          row.completionDate = completionDate;
+        }
         row.status = '이수';
-        row.fileUrl = fileUrl;
-        row.fileName = file.name;
-        row.fileType = file.type;
         matched++;
       });
 
       salesSaveTrainingList();
       salesRenderTrainingList();
-      showToast('✅ ' + matched + '명 자동 반영 완료' + (unmatched.length ? (' / 매칭 안 됨: ' + unmatched.join(', ')) : ''));
+      showToast('✅ ' + matched + '명 자동 반영 완료' + (unmatchedNames.length ? (' / 매칭 안 됨: ' + unmatchedNames.join(', ')) : ''));
     }).catch(function(err) {
       document.getElementById('cert-ai-loading-modal').style.display = 'none';
       showToast('❌ 처리 실패: ' + err.message);
