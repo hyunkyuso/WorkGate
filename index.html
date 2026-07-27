@@ -18827,23 +18827,22 @@ function salesRenderTrainingList() {
   tbody.innerHTML = sortedList.map(function(row) {
     var idx = salesTrainingList.indexOf(row);
     var files = row.files || (row.fileUrl ? [{ url: row.fileUrl, name: row.fileName, type: row.fileType, date: row.completionDate }] : []);
-    var fileCell;
+    var attachBtn = isAdmin()
+      ? '<label class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap">+ 첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label>'
+      : '';
+    var fileCell = '<div style="display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:nowrap">' + attachBtn;
     if (files.length) {
       var sorted = files.slice().sort(function(a,b){ return (b.date||'') > (a.date||'') ? 1 : -1; });
-      fileCell = sorted.map(function(f, fi) {
+      fileCell += sorted.map(function(f, fi) {
         var realIdx = files.indexOf(f);
-        return '<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:4px">' +
-          '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="salesViewAttachment('+idx+','+realIdx+')">👁 보기</button>' +
+        return '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="salesViewAttachment('+idx+','+realIdx+')">👁 보기</button>' +
           '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;color:var(--gr);border-color:var(--gr)" onclick="salesDownloadAttachment('+idx+','+realIdx+')">⬇ 다운로드</button>' +
-          (isAdmin() ? '<button class="btn btn-danger btn-sm" style="padding:4px 8px;font-size:12px" onclick="salesDeleteAttachment('+idx+','+realIdx+')">삭제</button>' : '') +
-        '</div>';
+          (isAdmin() ? '<button class="btn btn-danger btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="salesDeleteAttachment('+idx+','+realIdx+')">삭제</button>' : '');
       }).join('');
-    } else {
-      fileCell = '<span style="color:var(--t3)">-</span>';
+    } else if (!attachBtn) {
+      fileCell += '<span style="color:var(--t3)">-</span>';
     }
-    if (isAdmin()) {
-      fileCell += '<label class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;cursor:pointer;display:inline-block;margin-top:2px">+ 첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label>';
-    }
+    fileCell += '</div>';
     return '<tr style="border-top:1px solid var(--border)">' +
       '<td style="padding:6px;text-align:center;white-space:nowrap">'+(row.dept||'-')+'</td>' +
       '<td style="padding:6px;text-align:center;white-space:nowrap">'+(row.name||'-')+'</td>' +
