@@ -18954,9 +18954,16 @@ function salesUploadTrainingDoc(input) {
       document.getElementById('cert-ai-loading-modal').style.display = 'none';
       var data = results[0], fileUrl = results[1];
       var text = (data.content && data.content[0] && data.content[0].text) || '';
+      console.log('[영업지원 AI 인식] 원본 응답:', data);
+      console.log('[영업지원 AI 인식] 추출된 텍스트:', text);
       var parsed;
-      try { parsed = JSON.parse(text.replace(/```json|```/g,'').trim()); } catch(err) {
-        showToast('❌ AI 인식 실패 - 직접 입력해주세요'); return;
+      try {
+        var cleaned = text.replace(/```json|```/g,'').trim();
+        var jsonMatch = cleaned.match(/\{[\s\S]*\}/); // 앞뒤에 다른 텍스트가 섞여 있어도 JSON 부분만 추출
+        parsed = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
+      } catch(err) {
+        console.warn('[영업지원 AI 인식] JSON 파싱 실패:', err, text);
+        showToast('❌ AI 인식 실패 - 직접 입력해주세요 (콘솔에 원본 응답 남겨뒀습니다)'); return;
       }
       var completionDate = parsed.교육종료일 || '';
       var list = parsed.명단 || [];
