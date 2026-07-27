@@ -2766,7 +2766,7 @@ select.form-input{cursor:pointer}
       <div id="career-project-summary" style="display:flex;gap:16px;margin-bottom:10px;padding:10px 14px;background:var(--surface);border-radius:8px;font-size:13px"></div>
       <div class="table-wrap" style="overflow-x:auto">
         <table id="career-project-table" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px">
-          <thead id="career-project-thead"><tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">참여기간(시작)</td><td style="padding:4px 6px">참여기간(종료)</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">참여일수</td><td style="padding:4px 6px">비고</td></tr></thead>
+          <thead id="career-project-thead"><tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">참여기간(시작)</td><td style="padding:4px 6px">참여기간(종료)</td><td style="padding:4px 6px">참여일<br><span style="font-size:9px;font-weight:400">(경력증명서기준)</span></td><td style="padding:4px 6px">참여일수</td><td style="padding:4px 6px">비고</td></tr></thead>
           <tbody id="career-project-tbody"></tbody>
         </table>
       </div>
@@ -13988,7 +13988,7 @@ function careerRegRenderDetail() {
     eduTrainHtml +
     gradeInitHtml +
     '<div class="table-wrap" style="overflow-x:auto;margin-bottom:10px"><table style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px">' +
-    '<thead><tr style="color:var(--t3)"><td style="padding:4px 6px">구분</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">참여기간(시작)</td><td style="padding:4px 6px">참여기간(종료)</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">참여일수</td><td style="padding:4px 6px">비고</td><td></td></tr></thead><tbody id="career-reg-rows">' +
+    '<thead><tr style="color:var(--t3)"><td style="padding:4px 6px">구분</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">참여기간(시작)</td><td style="padding:4px 6px">참여기간(종료)</td><td style="padding:4px 6px">참여일<br><span style="font-size:9px;font-weight:400">(경력증명서기준)</span></td><td style="padding:4px 6px">참여일수</td><td style="padding:4px 6px">비고</td><td></td></tr></thead><tbody id="career-reg-rows">' +
     entries.map(function(en, i) {
       return '<tr>' +
         '<td style="text-align:center;color:var(--t3)">'+(i+1)+'</td>' +
@@ -14325,6 +14325,23 @@ function careerOpenDocPreview(title, driveId, mimeType, driveLink, firebaseBacku
 var _careerProjectGroupBy = { employer: false, field: false };
 var _careerProjectBMMode = null; // null | 'all' | '3year'
 var _careerProjectDrill = null; // { type:'employer'|'field'|'employerField'|'bm', employer, field, bm, yearsLimit, label }
+var _careerBmExcludedEntries = new Set(); // BM 드릴다운에서 "중복기간 제외" 체크한 사업들의 키 목록
+var _careerBmShowExcludeUI = false;
+
+function careerBmEntryKey(en) {
+  return (en.name||'') + '|' + (en.contractDate||'') + '|' + (en.employer||'');
+}
+
+function careerToggleBmExcludeUI() {
+  _careerBmShowExcludeUI = !_careerBmShowExcludeUI;
+  careerRenderProjectModal();
+}
+
+function careerToggleBmEntryExclude(key) {
+  if (_careerBmExcludedEntries.has(key)) _careerBmExcludedEntries.delete(key);
+  else _careerBmExcludedEntries.add(key);
+  careerRenderProjectModal();
+}
 var CAREER_BM_KEYWORDS = ['기초조사','재해취약성','토지적성평가','공원녹지','UPIS','소규모','성장관리','공업지역','KRAS','GIS SW','농업생산기반'];
 
 function careerToggleProjectGroup(type) {
@@ -14357,6 +14374,8 @@ function careerOpenProjectModal(empId, assocId) {
   _careerProjectGroupBy = { employer: false, field: false };
   _careerProjectBMMode = null;
   _careerProjectDrill = null;
+  _careerBmExcludedEntries = new Set();
+  _careerBmShowExcludeUI = false;
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerProjectModalAssocId; });
   document.getElementById('career-project-modal-title').textContent = (emp?emp.name:'') + ' · 참여사업 (' + (assoc?assoc.name:'') + ')';
@@ -14365,7 +14384,7 @@ function careerOpenProjectModal(empId, assocId) {
   careerRenderProjectModal();
 }
 
-var CAREER_PROJECT_RAW_HEAD = '<tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">참여기간(시작)</td><td style="padding:4px 6px">참여기간(종료)</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">참여일수</td><td style="padding:4px 6px">비고</td></tr>';
+var CAREER_PROJECT_RAW_HEAD = '<tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">참여기간(시작)</td><td style="padding:4px 6px">참여기간(종료)</td><td style="padding:4px 6px">참여일<br><span style="font-size:9px;font-weight:400">(경력증명서기준)</span></td><td style="padding:4px 6px">참여일수</td><td style="padding:4px 6px">비고</td></tr>';
 
 function careerRenderProjectRawRows(list) {
   return list.map(function(en, i) {
@@ -14465,7 +14484,7 @@ function careerRenderProjectModal() {
     totalDays += d;
     if ((en.employer||'').indexOf('정도유아이티') >= 0) doyuDays += d;
   });
-  var dayModeLabel = (document.getElementById('career-project-use-calc-days')||{}).checked ? '(참여일수 기준)' : '(참여일 기준)';
+  var dayModeLabel = (document.getElementById('career-project-use-calc-days')||{}).checked ? '(참여일수 기준)' : '(참여일 기준·경력증명서기준)';
   summaryEl.innerHTML =
     '<div>총 전문분야 참여일수 ' + dayModeLabel + ': <b>'+totalDays+'일</b></div>' +
     '<div>정도유아이티 등록가능 참여일수 ' + dayModeLabel + ': <b>'+doyuDays+'일</b></div>';
@@ -14523,6 +14542,45 @@ function careerRenderProjectModal() {
         if (drill.bm === '기타') return matched.length === 0;
         return matched.indexOf(drill.bm) >= 0;
       });
+
+      // 이 BM 화면 전용 요약 (참여일수/건수) - 중복기간 제외 체크한 항목은 빼고 계산
+      var bmDrillTotal = 0, bmDrillCount = 0;
+      drillList.forEach(function(en) {
+        var key = careerBmEntryKey(en);
+        if (_careerBmExcludedEntries.has(key)) return;
+        bmDrillTotal += careerGetProjectDayValue(en);
+        bmDrillCount++;
+      });
+      summaryEl.innerHTML =
+        '<div>"' + drill.bm + '" 참여일수: <b>' + bmDrillTotal + '일</b></div>' +
+        '<div>"' + drill.bm + '" 건수: <b>' + bmDrillCount + '건</b></div>' +
+        (_careerBmExcludedEntries.size ? '<div style="color:#b45309">제외된 항목 ' + _careerBmExcludedEntries.size + '건</div>' : '');
+
+      thead.innerHTML = '<tr style="padding:6px"><td colspan="10" style="padding:6px">' +
+        '<span onclick="careerClearDrill()" style="cursor:pointer;color:var(--ac);font-size:12px">← 목록으로 돌아가기</span> ' +
+        '<b style="margin-left:8px">' + drill.label + '</b> ' +
+        '<button class="btn btn-ghost btn-sm" style="margin-left:12px;padding:3px 10px;font-size:11px" onclick="careerToggleBmExcludeUI()">' + (_careerBmShowExcludeUI ? '중복기간 제외 끄기' : '⚠️ 중복기간 제외') + '</button>' +
+      '</td></tr>' + CAREER_PROJECT_RAW_HEAD.replace('<td', '<td style="width:26px"></td><td', 1);
+      // 위 replace는 첫 <td>(No) 앞에 체크박스용 빈 헤더 칸 하나 추가
+
+      tbody.innerHTML = drillList.map(function(en, i) {
+        var key = careerBmEntryKey(en);
+        var matchedBms = CAREER_BM_KEYWORDS.filter(function(bm){ return (en.name||'').indexOf(bm) >= 0; });
+        var isOverlap = matchedBms.length > 1;
+        var excluded = _careerBmExcludedEntries.has(key);
+        var checkboxCell = _careerBmShowExcludeUI
+          ? '<td style="text-align:center">' + (isOverlap ? '<input type="checkbox" '+(excluded?'checked':'')+' onchange="careerToggleBmEntryExclude(\''+key.replace(/'/g,"\\'")+'\')" title="중복기간이라 이 BM 계산에서 제외">' : '') + '</td>'
+          : '';
+        var rowHtml = careerRenderProjectRawRows([en]);
+        // 겹치는 사업은 배경색으로 표시, 제외 체크된 건 흐리게
+        if (isOverlap) {
+          var styleTag = excluded ? 'opacity:0.4;background:#fef3c7' : 'background:#fffbeb';
+          rowHtml = rowHtml.replace('<tr style="border-top:1px solid var(--border)">', '<tr style="border-top:1px solid var(--border);'+styleTag+'">');
+        }
+        if (checkboxCell) rowHtml = rowHtml.replace(/(<tr[^>]*>)/, '$1' + checkboxCell);
+        return rowHtml;
+      }).join('');
+      return;
     } else if (drill.type === 'employerField') {
       drillList = filtered.filter(function(en){ return (en.employer||'-') === drill.employer && (en.field||'-') === drill.field; });
     } else if (drill.type === 'field') {
