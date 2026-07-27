@@ -1136,11 +1136,14 @@ select.form-input{cursor:pointer}
       <div id="page-sales-training" class="page">
         <div class="page-header">
           <div><div class="page-title">🎓 도시기후변화 재해취약성분석 교육 이수 명단</div><div class="page-sub">교육 이수 대상자를 관리합니다</div></div>
-          <button class="btn btn-primary btn-sm admin-only" onclick="salesOpenAddEmpModal()">+ 직원 추가</button>
+          <div style="display:flex;gap:8px" class="admin-only">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">📎 이수확인서 업로드(자동인식)<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesUploadTrainingDoc(this)"></label>
+            <button class="btn btn-primary btn-sm" onclick="salesOpenAddEmpModal()">+ 직원 추가</button>
+          </div>
         </div>
         <div style="overflow:auto;max-height:70vh;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)">
           <table style="width:100%;font-size:13px;border-collapse:collapse">
-            <thead><tr style="background:#f1f5f9;position:sticky;top:0"><td style="padding:8px;text-align:center">소속</td><td style="padding:8px;text-align:center">이름</td><td style="padding:8px;text-align:center">(최종)수료일</td><td style="padding:8px;text-align:center">수료여부</td><td style="padding:8px;text-align:center">비고</td><td style="padding:8px;text-align:center;width:50px"></td></tr></thead>
+            <thead><tr style="background:#f1f5f9;position:sticky;top:0"><td style="padding:8px;text-align:center">소속</td><td style="padding:8px;text-align:center">이름</td><td style="padding:8px;text-align:center">(최종)수료일</td><td style="padding:8px;text-align:center">수료여부</td><td style="padding:8px;text-align:center">비고</td><td style="padding:8px;text-align:center">첨부파일</td><td style="padding:8px;text-align:center;width:50px"></td></tr></thead>
             <tbody id="sales-training-tbody"></tbody>
           </table>
         </div>
@@ -18734,15 +18737,25 @@ function salesRenderTrainingList() {
   var tbody = document.getElementById('sales-training-tbody');
   if (!tbody) return;
   if (!_salesTrainingLoaded) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--t3)">불러오는 중...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--t3)">불러오는 중...</td></tr>';
     salesLoadTrainingList().then(salesRenderTrainingList);
     return;
   }
   if (!salesTrainingList.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--t3)">등록된 인원이 없습니다. "+ 직원 추가" 버튼으로 추가해주세요</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--t3)">등록된 인원이 없습니다. "+ 직원 추가" 버튼으로 추가해주세요</td></tr>';
     return;
   }
   tbody.innerHTML = salesTrainingList.map(function(row, idx) {
+    var fileCell;
+    if (row.fileUrl) {
+      fileCell = '<span onclick="salesViewAttachment('+idx+')" style="cursor:pointer;color:var(--ac);text-decoration:underline;font-size:12px">보기</span>' +
+        ' · <a href="'+row.fileUrl+'" download style="color:var(--ac);text-decoration:underline;font-size:12px">다운로드</a>' +
+        (isAdmin() ? ' · <span onclick="salesDeleteAttachment('+idx+')" style="cursor:pointer;color:var(--t3);font-size:12px" title="첨부파일 삭제">✕</span>' : '');
+    } else {
+      fileCell = isAdmin()
+        ? '<label style="cursor:pointer;color:var(--ac);font-size:12px;text-decoration:underline">첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label>'
+        : '<span style="color:var(--t3);font-size:12px">-</span>';
+    }
     return '<tr style="border-top:1px solid var(--border)">' +
       '<td style="padding:6px;text-align:center;white-space:nowrap">'+(row.dept||'-')+'</td>' +
       '<td style="padding:6px;text-align:center;white-space:nowrap">'+(row.name||'-')+'</td>' +
@@ -18751,6 +18764,7 @@ function salesRenderTrainingList() {
         ['미이수','이수'].map(function(s){ return '<option value="'+s+'"'+((row.status||'미이수')===s?' selected':'')+'>'+s+'</option>'; }).join('') +
       '</select></td>' +
       '<td style="padding:6px"><input type="text" class="form-input" style="font-size:12px" value="'+(row.note||'')+'" onchange="salesUpdateField('+idx+',\'note\',this.value)"></td>' +
+      '<td style="padding:6px;text-align:center;white-space:nowrap">'+fileCell+'</td>' +
       '<td style="padding:6px;text-align:center"><span onclick="salesDeleteRow('+idx+')" style="cursor:pointer;color:var(--t3)" title="삭제">🗑</span></td>' +
     '</tr>';
   }).join('');
@@ -18760,6 +18774,113 @@ function salesUpdateField(idx, field, value) {
   if (!salesTrainingList[idx]) return;
   salesTrainingList[idx][field] = value;
   salesSaveTrainingList();
+}
+
+function salesViewAttachment(idx) {
+  var row = salesTrainingList[idx];
+  if (!row || !row.fileUrl) return;
+  careerOpenDocPreview(row.name + ' 교육이수확인서', 'x', row.fileType||'application/pdf', row.fileUrl, row.fileUrl);
+}
+
+function salesDeleteAttachment(idx) {
+  if (!isAdmin()) { showToast('❌ 관리자만 삭제할 수 있습니다'); return; }
+  if (!confirm('첨부파일을 삭제하시겠습니까?')) return;
+  delete salesTrainingList[idx].fileUrl;
+  delete salesTrainingList[idx].fileName;
+  delete salesTrainingList[idx].fileType;
+  salesSaveTrainingList();
+  salesRenderTrainingList();
+}
+
+function salesAttachFileToRow(idx, input) {
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  showToast('📤 파일 업로드 중...');
+  var storageRef = firebase.storage().ref('sales_support_docs/' + Date.now() + '_' + file.name);
+  storageRef.put(file).then(function(snap) {
+    return snap.ref.getDownloadURL();
+  }).then(function(url) {
+    salesTrainingList[idx].fileUrl = url;
+    salesTrainingList[idx].fileName = file.name;
+    salesTrainingList[idx].fileType = file.type;
+    salesSaveTrainingList();
+    salesRenderTrainingList();
+    showToast('✅ 첨부 완료');
+  }).catch(function(err) {
+    showToast('❌ 업로드 실패: ' + err.message);
+  });
+}
+
+// 이수확인서(PDF/이미지) 업로드 -> AI로 정도유아이티 소속 명단+교육종료일 추출 -> 자동 매칭/기재 + 파일 첨부
+function salesUploadTrainingDoc(input) {
+  if (!isAdmin()) { showToast('❌ 관리자만 업로드할 수 있습니다'); return; }
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  document.getElementById('cert-ai-loading-msg').textContent = '문서에서 명단을 읽고 있습니다...';
+  document.getElementById('cert-ai-loading-modal').style.display = 'flex';
+
+  // 파일은 먼저 Firebase Storage에 업로드해서 URL 확보 (매칭된 사람들 전부에게 같은 파일 첨부용)
+  var storageRef = firebase.storage().ref('sales_support_docs/' + Date.now() + '_' + file.name);
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result.split(',')[1];
+    var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name||'');
+    var prompt = '이 문서는 교육 이수 확인서입니다. 다음을 JSON으로만 응답하세요(다른 텍스트 없이):\n' +
+      '{"교육종료일":"YYYY-MM-DD(교육기간의 마지막 날짜)","명단":[{"소속":"...","성명":"..."}]}\n' +
+      '명단에는 소속에 "정도유아이티"가 포함된 사람만 포함하세요.';
+    var contentArr = isPdf
+      ? [{type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}}, {type:'text', text:prompt}]
+      : [{type:'image', source:{type:'base64', media_type:file.type||'image/jpeg', data:base64}}, {type:'text', text:prompt}];
+
+    Promise.all([
+      fetch('https://twilight-dew-b966.hyunkyu-so.workers.dev', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:1500, messages:[{role:'user', content:contentArr}]})
+      }).then(function(r){ return r.json(); }),
+      storageRef.put(file).then(function(snap){ return snap.ref.getDownloadURL(); })
+    ]).then(function(results) {
+      document.getElementById('cert-ai-loading-modal').style.display = 'none';
+      var data = results[0], fileUrl = results[1];
+      var text = (data.content && data.content[0] && data.content[0].text) || '';
+      var parsed;
+      try { parsed = JSON.parse(text.replace(/```json|```/g,'').trim()); } catch(err) {
+        showToast('❌ AI 인식 실패 - 직접 입력해주세요'); return;
+      }
+      var completionDate = parsed.교육종료일 || '';
+      var list = parsed.명단 || [];
+      if (!list.length) { showToast('⚠️ 정도유아이티 소속 인원을 문서에서 찾지 못했습니다'); return; }
+
+      var matched = 0, unmatched = [];
+      list.forEach(function(item) {
+        var emp = employees.find(function(e){ return e.name === item.성명 && e.status !== '퇴직'; });
+        if (!emp) { unmatched.push(item.성명); return; }
+        var empId = emp._docId || emp.id;
+        var row = salesTrainingList.find(function(r){ return r.empId === empId; });
+        if (!row) {
+          row = { empId: empId, dept: emp.dept||'-', name: emp.name||'-', completionDate:'', status:'미이수', note:'' };
+          salesTrainingList.push(row);
+        }
+        row.completionDate = completionDate;
+        row.status = '이수';
+        row.fileUrl = fileUrl;
+        row.fileName = file.name;
+        row.fileType = file.type;
+        matched++;
+      });
+
+      salesSaveTrainingList();
+      salesRenderTrainingList();
+      showToast('✅ ' + matched + '명 자동 반영 완료' + (unmatched.length ? (' / 매칭 안 됨: ' + unmatched.join(', ')) : ''));
+    }).catch(function(err) {
+      document.getElementById('cert-ai-loading-modal').style.display = 'none';
+      showToast('❌ 처리 실패: ' + err.message);
+    });
+  };
+  reader.readAsDataURL(file);
 }
 
 function salesDeleteRow(idx) {
