@@ -18180,13 +18180,15 @@ function certRender(type) {
     tbody.innerHTML = '<tr><td colspan="' + (schema.keys.length+2) + '" style="text-align:center;padding:32px;color:var(--t3)">등록된 데이터가 없습니다. 엑셀 업로드 또는 + 추가 버튼을 이용하세요.</td></tr>';
     return;
   }
-  var admin = isAdmin() || (typeof myMenuAccessLevel === 'function' && myMenuAccessLevel('cert-' + type) === 'full');
+  var accessLevel = isAdmin() ? 'full' : (typeof myMenuAccessLevel === 'function' ? myMenuAccessLevel('cert-' + type) : null);
+  var canView = accessLevel === 'full' || accessLevel === 'readonly';
+  var admin = accessLevel === 'full';
   tbody.innerHTML = data.map(function(row, i) {
     var hasFile = certGetFiles(row).length > 0;
-    var viewBtn = (hasFile && admin)
+    var viewBtn = (hasFile && canView)
       ? '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="certOpenView(\'' + type + '\'' + ',' + i + ')">👁 보기</button>'
       : (hasFile ? '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;opacity:0.35;cursor:default">👁 보기</button>' : '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;opacity:0.35;cursor:default">👁 보기</button>');
-    var dlBtn = (hasFile && admin)
+    var dlBtn = (hasFile && canView)
       ? '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;color:var(--gr);border-color:var(--gr)" onclick="certDownload(\'' + type + '\'' + ',' + i + ')">⬇ 다운로드</button>'
       : '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;opacity:0.35;cursor:default">⬇ 다운로드</button>';
     var editBtns = admin
