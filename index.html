@@ -13317,43 +13317,21 @@ function careerRunDataValidation() {
 
   var el = document.getElementById('career-validation-body');
   var countEl = document.getElementById('career-validation-count');
-  countEl.textContent = issues.length ? ('총 ' + issues.length + '건 발견 — 아래에서 바로 수정 가능') : '';
+  countEl.textContent = issues.length ? ('총 ' + issues.length + '건 발견') : '';
   if (!issues.length) {
     el.innerHTML = '<div style="color:var(--t3);padding:12px;text-align:center">✅ 발견된 이상 데이터가 없습니다</div>';
     return;
   }
   var typeColor = { '기간 역전':'#ef4444', '미래 날짜':'#f59e0b', '참여일 값 이상':'#ef4444', '참여일 > 참여일수':'#ef4444', '경력 미반영':'var(--t3)' };
-  el.innerHTML = '<table style="width:100%;border-collapse:collapse"><thead><tr style="color:var(--t3)"><td style="padding:4px 6px">협회</td><td style="padding:4px 6px">이름</td><td style="padding:4px 6px">유형</td><td style="padding:4px 6px">내용</td><td style="padding:4px 6px">계약일</td><td style="padding:4px 6px">준공일</td><td style="padding:4px 6px">참여일</td></tr></thead><tbody>' +
-    issues.map(function(i, ii) {
-      var emp = employees.find(function(e){ return (e._docId||e.id) === i.empId; });
-      var entry = emp && (emp.assocCareer||{})[i.assocId] && (emp.assocCareer||{})[i.assocId][i.entryIndex];
-      if (!entry) return '';
+  el.innerHTML = '<table style="width:100%;border-collapse:collapse"><thead><tr style="color:var(--t3)"><td style="padding:4px 6px">협회</td><td style="padding:4px 6px">이름</td><td style="padding:4px 6px">유형</td><td style="padding:4px 6px">내용</td></tr></thead><tbody>' +
+    issues.map(function(i) {
       return '<tr style="border-top:1px solid var(--border)">' +
         '<td style="padding:4px 6px;white-space:nowrap">'+i.assocName+'</td>' +
-        '<td style="padding:4px 6px;white-space:nowrap;cursor:pointer;color:var(--ac);text-decoration:underline" onclick="careerGoToRegisterPage(\''+i.empId+'\',\''+i.assocId+'\')" title="등록페이지에서 전체 보기">'+(i.empName||'-')+'</td>' +
+        '<td style="padding:4px 6px;white-space:nowrap;cursor:pointer;color:var(--ac);text-decoration:underline" onclick="careerGoToRegisterPage(\''+i.empId+'\',\''+i.assocId+'\')" title="등록 페이지에서 수정하기">'+(i.empName||'-')+'</td>' +
         '<td style="padding:4px 6px;white-space:nowrap;font-weight:600;color:'+(typeColor[i.type]||'var(--t2)')+'">'+i.type+'</td>' +
         '<td style="padding:4px 6px">'+i.detail+'</td>' +
-        '<td style="padding:4px 6px"><input type="date" class="form-input" style="font-size:11px;width:120px" value="'+(entry.contractDate||'')+'" onchange="careerFixValidationEntry(\''+i.empId+'\',\''+i.assocId+'\','+i.entryIndex+',\'contractDate\',this.value)"></td>' +
-        '<td style="padding:4px 6px"><input type="date" class="form-input" style="font-size:11px;width:120px" value="'+(entry.completionDate||'')+'" onchange="careerFixValidationEntry(\''+i.empId+'\',\''+i.assocId+'\','+i.entryIndex+',\'completionDate\',this.value)"></td>' +
-        '<td style="padding:4px 6px"><input type="number" class="form-input" style="font-size:11px;width:70px" value="'+(entry.days||'')+'" onchange="careerFixValidationEntry(\''+i.empId+'\',\''+i.assocId+'\','+i.entryIndex+',\'days\',this.value)"></td>' +
       '</tr>';
     }).join('') + '</tbody></table>';
-}
-
-async function careerFixValidationEntry(empId, assocId, entryIndex, field, value) {
-  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
-  if (!emp || !emp.assocCareer || !emp.assocCareer[assocId] || !emp.assocCareer[assocId][entryIndex]) return;
-  var entry = emp.assocCareer[assocId][entryIndex];
-  var oldValue = entry[field];
-  entry[field] = value;
-  try {
-    await db.collection('employees').doc(empId).update({ assocCareer: emp.assocCareer });
-    showToast('✅ 수정되었습니다');
-    careerLogAudit('검증 목록에서 데이터 수정', empId, emp.name, assocId + ' / ' + (entry.name||'') + ' — ' + field + ': ' + (oldValue||'-') + ' → ' + (value||'-'));
-    careerRunDataValidation(); // 재검사해서 목록 갱신 (고쳐진 항목은 목록에서 사라짐)
-  } catch (err) {
-    showToast('❌ 저장 실패: ' + err.message);
-  }
 }
 
 function careerRenderGradeStatusDashboard() {
