@@ -2752,10 +2752,15 @@ select.form-input{cursor:pointer}
       <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
         <input id="career-project-search" type="text" class="form-input" style="max-width:220px;font-size:13px" placeholder="사업명/근무처/발주처 검색..." oninput="careerRenderProjectModal()">
         <span id="career-project-count" style="font-size:12px;color:var(--t3)"></span>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--t2);cursor:pointer;padding:0 4px">
+          <input type="checkbox" id="career-project-use-calc-days" onchange="careerRenderProjectModal()"> 참여일수로 보기
+        </label>
         <button id="career-project-group-employer-btn" class="btn btn-ghost btn-sm" onclick="careerToggleProjectGroup('employer')">🏢 근무처별</button>
         <button id="career-project-group-field-btn" class="btn btn-ghost btn-sm" onclick="careerToggleProjectGroup('field')">🗂 전문분야별</button>
         <button id="career-project-bm-btn" class="btn btn-ghost btn-sm" onclick="careerToggleProjectBM('all')">📊 BM별(정도유아이티)</button>
-        <button id="career-project-bm3y-btn" class="btn btn-ghost btn-sm" onclick="careerToggleProjectBM('3year')">📊 최근 3년 BM별(정도유아이티)</button>
+        <button id="career-project-bm3y-btn" class="btn btn-ghost btn-sm" onclick="careerToggleProjectBM('3year')">📊 최근 3년 BM별</button>
+        <button id="career-project-bm5y-btn" class="btn btn-ghost btn-sm" onclick="careerToggleProjectBM('5year')">📊 최근 5년 BM별</button>
+        <button id="career-project-bm10y-btn" class="btn btn-ghost btn-sm" onclick="careerToggleProjectBM('10year')">📊 최근 10년 BM별</button>
         <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="careerDownloadProjectCsv()">📥 CSV 저장</button>
       </div>
       <div id="career-project-summary" style="display:flex;gap:16px;margin-bottom:10px;padding:10px 14px;background:var(--surface);border-radius:8px;font-size:13px"></div>
@@ -14379,6 +14384,15 @@ function careerRenderProjectRawRows(list) {
   }).join('');
 }
 
+// 참여일(수동입력) 또는 참여일수(참여기간 종료-시작+1, 계산값) 중 토글 상태에 따라 값 선택
+function careerGetProjectDayValue(en) {
+  var useCalc = document.getElementById('career-project-use-calc-days');
+  if (useCalc && useCalc.checked && en.contractDate && en.completionDate) {
+    return careerDaysBetween(en.contractDate, en.completionDate) + 1;
+  }
+  return careerDaysWithFallback(en);
+}
+
 function careerComputeBMBreakdown(entries, yearsLimit) {
   var todayStr = new Date().toISOString().slice(0,10);
   var cutoff = null;
@@ -14395,12 +14409,14 @@ function careerComputeBMBreakdown(entries, yearsLimit) {
   var bmTotals = {}; CAREER_BM_KEYWORDS.forEach(function(bm){ bmTotals[bm] = 0; });
   bmTotals['기타'] = 0;
   var overlapPairs = {}; // "A|B" -> days
+  var overlapTotalByBm = {}; // bm -> 이 BM이 다른 BM과 겹치는 총 일수 (색상 표기용)
   doyuEntries.forEach(function(en) {
-    var days = careerDaysWithFallback(en);
+    var days = careerGetProjectDayValue(en);
     var matched = CAREER_BM_KEYWORDS.filter(function(bm){ return (en.name||'').indexOf(bm) >= 0; });
     if (!matched.length) { bmTotals['기타'] += days; return; }
     matched.forEach(function(bm){ bmTotals[bm] += days; });
     if (matched.length > 1) {
+      matched.forEach(function(bm){ overlapTotalByBm[bm] = (overlapTotalByBm[bm]||0) + days; });
       for (var i = 0; i < matched.length; i++) {
         for (var j = i+1; j < matched.length; j++) {
           var key = matched[i] + '|' + matched[j];
@@ -14409,7 +14425,7 @@ function careerComputeBMBreakdown(entries, yearsLimit) {
       }
     }
   });
-  return { bmTotals: bmTotals, overlapPairs: overlapPairs, entryCount: doyuEntries.length };
+  return { bmTotals: bmTotals, overlapPairs: overlapPairs, overlapTotalByBm: overlapTotalByBm, entryCount: doyuEntries.length };
 }
 
 function careerRenderProjectModal() {
@@ -14431,27 +14447,28 @@ function careerRenderProjectModal() {
   // 버튼 활성 표시
   var eBtn = document.getElementById('career-project-group-employer-btn');
   var fBtn = document.getElementById('career-project-group-field-btn');
-  var bmBtn = document.getElementById('career-project-bm-btn');
-  var bm3Btn = document.getElementById('career-project-bm3y-btn');
   eBtn.style.background = _careerProjectGroupBy.employer ? 'var(--acd)' : '';
   eBtn.style.color = _careerProjectGroupBy.employer ? 'var(--ac)' : '';
   fBtn.style.background = _careerProjectGroupBy.field ? 'var(--acd)' : '';
   fBtn.style.color = _careerProjectGroupBy.field ? 'var(--ac)' : '';
-  bmBtn.style.background = _careerProjectBMMode === 'all' ? 'var(--acd)' : '';
-  bmBtn.style.color = _careerProjectBMMode === 'all' ? 'var(--ac)' : '';
-  bm3Btn.style.background = _careerProjectBMMode === '3year' ? 'var(--acd)' : '';
-  bm3Btn.style.color = _careerProjectBMMode === '3year' ? 'var(--ac)' : '';
+  [['all','career-project-bm-btn'],['3year','career-project-bm3y-btn'],['5year','career-project-bm5y-btn'],['10year','career-project-bm10y-btn']].forEach(function(pair) {
+    var btn = document.getElementById(pair[1]);
+    if (!btn) return;
+    btn.style.background = _careerProjectBMMode === pair[0] ? 'var(--acd)' : '';
+    btn.style.color = _careerProjectBMMode === pair[0] ? 'var(--ac)' : '';
+  });
 
   // 기본 요약: 총 참여일수 + 정도유아이티 등록가능 참여일수
   var totalDays = 0, doyuDays = 0;
   filtered.forEach(function(en) {
-    var d = careerDaysWithFallback(en);
+    var d = careerGetProjectDayValue(en);
     totalDays += d;
     if ((en.employer||'').indexOf('정도유아이티') >= 0) doyuDays += d;
   });
+  var dayModeLabel = (document.getElementById('career-project-use-calc-days')||{}).checked ? '(참여일수 기준)' : '(참여일 기준)';
   summaryEl.innerHTML =
-    '<div>총 전문분야 참여일수: <b>'+totalDays+'일</b></div>' +
-    '<div>정도유아이티 등록가능 참여일수: <b>'+doyuDays+'일</b></div>';
+    '<div>총 전문분야 참여일수 ' + dayModeLabel + ': <b>'+totalDays+'일</b></div>' +
+    '<div>정도유아이티 등록가능 참여일수 ' + dayModeLabel + ': <b>'+doyuDays+'일</b></div>';
 
   if (!filtered.length) {
     thead.innerHTML = CAREER_PROJECT_RAW_HEAD;
@@ -14461,26 +14478,31 @@ function careerRenderProjectModal() {
 
   // BM별 분류 모드 (정도유아이티만, 우선순위 최상단) - 드릴다운 중일 때는 건너뜀
   if (_careerProjectBMMode && !_careerProjectDrill) {
-    var yearsLimit = _careerProjectBMMode === '3year' ? 3 : null;
+    var yearsLimitMap = { '3year':3, '5year':5, '10year':10 };
+    var yearsLimit = yearsLimitMap[_careerProjectBMMode] || null;
+    var periodLabel = yearsLimit ? ('최근 ' + yearsLimit + '년') : '전체 기간';
     var bmData = careerComputeBMBreakdown(filtered, yearsLimit);
-    thead.innerHTML = '<tr style="color:var(--t3)"><td style="padding:4px 6px">BM</td><td style="padding:4px 6px">참여일수 합계</td><td style="padding:4px 6px">다른 BM과 중복</td></tr>';
+    thead.innerHTML = '<tr style="color:var(--t3)"><td style="padding:4px 6px">BM</td><td style="padding:4px 6px">참여일수 합계 (' + periodLabel + ')</td><td style="padding:4px 6px">다른 BM과 중복</td></tr>';
     var bmList = CAREER_BM_KEYWORDS.concat(['기타']);
     tbody.innerHTML = bmList.map(function(bm) {
       var days = bmData.bmTotals[bm] || 0;
+      var overlapDays = bmData.overlapTotalByBm[bm] || 0;
       var overlapNotes = [];
       Object.keys(bmData.overlapPairs).forEach(function(key) {
         var parts = key.split('|');
         if (parts.indexOf(bm) < 0) return;
         var other = parts[0] === bm ? parts[1] : parts[0];
-        overlapNotes.push(other + '와 ' + bmData.overlapPairs[key] + '일 중복');
+        overlapNotes.push('<span style="background:#fef3c7;color:#b45309;padding:1px 6px;border-radius:5px;font-weight:600">'+other + '와 ' + bmData.overlapPairs[key] + '일 중복</span>');
       });
-      var yl = yearsLimit || '';
-      return '<tr style="border-top:1px solid var(--border);cursor:pointer" onclick="careerDrillInto(\'bm\',null,null,\''+bm+'\','+(yearsLimit||'null')+',\''+bm+'\')">' +
+      // 겹치는 일수가 있으면 합계 숫자 자체도 다른 색으로 표기
+      var daysStyle = overlapDays > 0 ? 'color:#b45309' : '';
+      var yl = yearsLimit || 'null';
+      return '<tr style="border-top:1px solid var(--border);cursor:pointer" onclick="careerDrillInto(\'bm\',null,null,\''+bm+'\','+yl+',\''+bm+'\')">' +
         '<td style="padding:4px 6px;white-space:nowrap;font-weight:'+(bm==='기타'?'400':'600')+';color:var(--ac);text-decoration:underline">'+bm+'</td>' +
-        '<td style="padding:4px 6px;text-align:center;font-weight:600">'+days+'일</td>' +
-        '<td style="padding:4px 6px;font-size:11px;color:var(--t3)">'+(overlapNotes.join(', ')||'-')+'</td>' +
+        '<td style="padding:4px 6px;text-align:center;font-weight:600;'+daysStyle+'">'+days+'일'+(overlapDays>0?' <span style="font-size:10px;font-weight:400">(중복 '+overlapDays+'일 포함)</span>':'')+'</td>' +
+        '<td style="padding:4px 6px;font-size:11px;color:var(--t3)">'+(overlapNotes.join(' ')||'-')+'</td>' +
       '</tr>';
-    }).join('') + '<tr style="border-top:2px solid var(--border)"><td style="padding:6px;font-weight:700" colspan="2">정도유아이티 대상 사업 건수</td><td style="padding:6px">'+bmData.entryCount+'건</td></tr>';
+    }).join('') + '<tr style="border-top:2px solid var(--border)"><td style="padding:6px;font-weight:700" colspan="2">정도유아이티 대상 사업 건수 (' + periodLabel + ')</td><td style="padding:6px">'+bmData.entryCount+'건</td></tr>';
     return;
   }
 
@@ -14523,7 +14545,7 @@ function careerRenderProjectModal() {
       var fieldKey = byField ? (en.field||'-') : null;
       var key = (empKey!==null?empKey:'') + '␟' + (fieldKey!==null?fieldKey:'');
       if (!groups[key]) groups[key] = { employer: empKey, field: fieldKey, days: 0, count: 0 };
-      groups[key].days += careerDaysWithFallback(en);
+      groups[key].days += careerGetProjectDayValue(en);
       groups[key].count++;
     });
     var groupList = Object.keys(groups).map(function(k){ return groups[k]; }).sort(function(a,b){ return b.days - a.days; });
