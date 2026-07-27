@@ -360,7 +360,7 @@ select.form-input{cursor:pointer}
         </div>
         <div id="career-menu-items" class="collapsed">
           <div class="nav-item admin-only" onclick="showPage('career-dashboard',this)"><span class="nav-icon">📊</span> 대시보드</div>
-          <div class="nav-item admin-only" onclick="careerNavToPeople(this)"><span class="nav-icon">👥</span> 인력 및 등급관리</div>
+          <div class="nav-item admin-only" data-menu-id="career-people" onclick="careerNavToPeople(this)"><span class="nav-icon">👥</span> 인력 및 등급관리</div>
           <div class="nav-item admin-only" onclick="showPage('career-register',this)"><span class="nav-icon">📝</span> 등록</div>
           <div class="nav-item admin-only" onclick="showPage('career-audit',this)"><span class="nav-icon">🕘</span> 변경이력</div>
         </div>
@@ -4141,6 +4141,11 @@ function isAdmin() {
   return state.myRole === '관리자' || state.myRole === 'HR담당';
 }
 
+// 관리자이거나, 권한관리에서 해당 메뉴에 "전체 권한"을 개별로 부여받은 경우 true
+function hasFullAccess(pageId) {
+  return isAdmin() || (typeof _myMenuGrants !== 'undefined' && _myMenuGrants && _myMenuGrants[pageId] === 'full');
+}
+
 function applyRoleUI() {
   const admin = isAdmin();
   document.querySelectorAll('.admin-only').forEach(el => {
@@ -4148,8 +4153,12 @@ function applyRoleUI() {
     var granted = false;
     if (!admin) {
       if (isNavItem) {
-        var m = (el.getAttribute('onclick')||'').match(/showPage\('([^']+)'/);
-        if (m && _myMenuGrants[m[1]]) granted = true;
+        var menuId = el.getAttribute('data-menu-id');
+        if (!menuId) {
+          var m = (el.getAttribute('onclick')||'').match(/showPage\('([^']+)'/);
+          menuId = m ? m[1] : null;
+        }
+        if (menuId && _myMenuGrants[menuId]) granted = true;
       } else {
         var pageEl = el.closest('[id^="page-"]');
         if (pageEl) {
@@ -19098,7 +19107,7 @@ function salesRenderTrainingList() {
   tbody.innerHTML = sortedList.map(function(row) {
     var idx = salesTrainingList.indexOf(row);
     var files = row.files || (row.fileUrl ? [{ url: row.fileUrl, name: row.fileName, type: row.fileType, date: row.completionDate }] : []);
-    var attachBtn = isAdmin()
+    var attachBtn = hasFullAccess('sales-training')
       ? '<div style="display:flex;justify-content:center;margin-bottom:3px"><label class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap">+ 첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label></div>'
       : '';
     var fileCell = attachBtn;
@@ -19109,7 +19118,7 @@ function salesRenderTrainingList() {
         return '<div style="display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:nowrap;margin-bottom:3px">' +
           '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="salesViewAttachment('+idx+','+realIdx+')">👁 보기</button>' +
           '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;color:var(--gr);border-color:var(--gr)" onclick="salesDownloadAttachment('+idx+','+realIdx+')">⬇ 다운로드</button>' +
-          (isAdmin() ? '<button class="btn btn-danger btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="salesDeleteAttachment('+idx+','+realIdx+')">삭제</button>' : '') +
+          (hasFullAccess('sales-training') ? '<button class="btn btn-danger btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="salesDeleteAttachment('+idx+','+realIdx+')">삭제</button>' : '') +
         '</div>';
       }).join('');
     } else if (!attachBtn) {
@@ -19159,7 +19168,7 @@ function salesDownloadAttachment(idx, fileIdx) {
 }
 
 function salesDeleteAttachment(idx, fileIdx) {
-  if (!isAdmin()) { showToast('❌ 관리자만 삭제할 수 있습니다'); return; }
+  if (!hasFullAccess('sales-training')) { showToast('❌ 권한이 없습니다'); return; }
   if (!confirm('이 첨부파일을 삭제하시겠습니까?')) return;
   var row = salesTrainingList[idx];
   if (!row) return;
@@ -19193,7 +19202,7 @@ function salesAttachFileToRow(idx, input) {
 
 // 이수확인서(PDF/이미지) 업로드 -> AI로 정도유아이티 소속 명단+교육종료일 추출 -> 자동 매칭/기재 + 파일 첨부
 function salesUploadTrainingDoc(input) {
-  if (!isAdmin()) { showToast('❌ 관리자만 업로드할 수 있습니다'); return; }
+  if (!hasFullAccess('sales-training')) { showToast('❌ 권한이 없습니다'); return; }
   var file = input.files[0];
   if (!file) return;
   input.value = '';
@@ -19307,7 +19316,7 @@ function salesDeleteRow(idx) {
 }
 
 function salesOpenAddEmpModal() {
-  if (!isAdmin()) { showToast('❌ 관리자만 추가할 수 있습니다'); return; }
+  if (!hasFullAccess('sales-training')) { showToast('❌ 권한이 없습니다'); return; }
   document.getElementById('sales-add-emp-search').value = '';
   var deptSel = document.getElementById('sales-add-emp-dept');
   var depts = Array.from(new Set(employees.filter(function(e){ return e.status !== '퇴직'; }).map(function(e){ return e.dept; }).filter(Boolean))).sort();
