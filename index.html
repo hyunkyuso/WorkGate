@@ -2630,6 +2630,10 @@ select.form-input{cursor:pointer}
               <div class="pm-role-menu-group" data-group="career"></div>
             </div>
             <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">영업지원</div>
+              <div class="pm-role-menu-group" data-group="sales"></div>
+            </div>
+            <div>
               <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">시스템</div>
               <div class="pm-role-menu-group" data-group="system"></div>
             </div>
@@ -2668,6 +2672,8 @@ select.form-input{cursor:pointer}
             <div class="pm-menu-group" data-group="affairs" style="margin-bottom:10px"></div>
             <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">경력관리</div>
             <div class="pm-menu-group" data-group="career" style="margin-bottom:10px"></div>
+            <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">영업지원</div>
+            <div class="pm-menu-group" data-group="sales" style="margin-bottom:10px"></div>
             <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">시스템</div>
             <div class="pm-menu-group" data-group="system"></div>
             <button class="btn btn-primary btn-sm" style="margin-top:14px;width:100%" onclick="pmSaveGrants()">선택한 직원들에게 이 설정으로 저장 (덮어쓰기)</button>
@@ -18828,21 +18834,22 @@ function salesRenderTrainingList() {
     var idx = salesTrainingList.indexOf(row);
     var files = row.files || (row.fileUrl ? [{ url: row.fileUrl, name: row.fileName, type: row.fileType, date: row.completionDate }] : []);
     var attachBtn = isAdmin()
-      ? '<label class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap">+ 첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label>'
+      ? '<div style="display:flex;justify-content:center;margin-bottom:3px"><label class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap">+ 첨부<input type="file" accept=".pdf,image/*" style="display:none" onchange="salesAttachFileToRow('+idx+',this)"></label></div>'
       : '';
-    var fileCell = '<div style="display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:nowrap">' + attachBtn;
+    var fileCell = attachBtn;
     if (files.length) {
       var sorted = files.slice().sort(function(a,b){ return (b.date||'') > (a.date||'') ? 1 : -1; });
       fileCell += sorted.map(function(f, fi) {
         var realIdx = files.indexOf(f);
-        return '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="salesViewAttachment('+idx+','+realIdx+')">👁 보기</button>' +
+        return '<div style="display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:nowrap;margin-bottom:3px">' +
+          '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="salesViewAttachment('+idx+','+realIdx+')">👁 보기</button>' +
           '<button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap;color:var(--gr);border-color:var(--gr)" onclick="salesDownloadAttachment('+idx+','+realIdx+')">⬇ 다운로드</button>' +
-          (isAdmin() ? '<button class="btn btn-danger btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="salesDeleteAttachment('+idx+','+realIdx+')">삭제</button>' : '');
+          (isAdmin() ? '<button class="btn btn-danger btn-sm" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="salesDeleteAttachment('+idx+','+realIdx+')">삭제</button>' : '') +
+        '</div>';
       }).join('');
     } else if (!attachBtn) {
-      fileCell += '<span style="color:var(--t3)">-</span>';
+      fileCell = '<span style="color:var(--t3)">-</span>';
     }
-    fileCell += '</div>';
     return '<tr style="border-top:1px solid var(--border)">' +
       '<td style="padding:6px;text-align:center;white-space:nowrap">'+(row.dept||'-')+'</td>' +
       '<td style="padding:6px;text-align:center;white-space:nowrap">'+(row.name||'-')+'</td>' +
@@ -23736,7 +23743,7 @@ function pmRoleLoadDefaults() {
 }
 
 function pmRoleRenderMenuTree() {
-  ['hr','docs','affairs','career','system'].forEach(function(group) {
+  ['hr','docs','affairs','career','sales','system'].forEach(function(group) {
     var el = document.querySelector('.pm-role-menu-group[data-group="'+group+'"]');
     if (!el) return;
     el.innerHTML = PM_MENU_LIST[group].map(function(m) {
@@ -23810,6 +23817,10 @@ var PM_MENU_LIST = {
     {id:'career-dashboard', label:'경력관리 대시보드'},
     {id:'career-people', label:'인력 및 등급관리'},
     {id:'career-register', label:'경력관리 등록'}
+  ],
+  sales: [
+    {id:'sales-dashboard', label:'영업지원 대시보드'},
+    {id:'sales-training', label:'교육 이수 명단'}
   ],
   system: [
     {id:'codemanage', label:'코드 관리'},
@@ -23955,7 +23966,7 @@ function pmSyncLevelsWithSelection() {
 }
 
 function pmRenderMenuTree() {
-  ['hr','docs','affairs','career','system'].forEach(function(group) {
+  ['hr','docs','affairs','career','sales','system'].forEach(function(group) {
     var el = document.querySelector('.pm-menu-group[data-group="'+group+'"]');
     if (!el) return;
     el.innerHTML = PM_MENU_LIST[group].map(function(m) {
