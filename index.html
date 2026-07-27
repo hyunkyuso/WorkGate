@@ -2761,7 +2761,7 @@ select.form-input{cursor:pointer}
       <div id="career-project-summary" style="display:flex;gap:16px;margin-bottom:10px;padding:10px 14px;background:var(--surface);border-radius:8px;font-size:13px"></div>
       <div class="table-wrap" style="overflow-x:auto">
         <table id="career-project-table" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px">
-          <thead id="career-project-thead"><tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">계약일</td><td style="padding:4px 6px">준공일</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">비고</td></tr></thead>
+          <thead id="career-project-thead"><tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">참여기간(시작)</td><td style="padding:4px 6px">참여기간(종료)</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">참여일수</td><td style="padding:4px 6px">비고</td></tr></thead>
           <tbody id="career-project-tbody"></tbody>
         </table>
       </div>
@@ -13983,7 +13983,7 @@ function careerRegRenderDetail() {
     eduTrainHtml +
     gradeInitHtml +
     '<div class="table-wrap" style="overflow-x:auto;margin-bottom:10px"><table style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px">' +
-    '<thead><tr style="color:var(--t3)"><td style="padding:4px 6px">구분</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">계약일</td><td style="padding:4px 6px">준공일</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">비고</td><td></td></tr></thead><tbody id="career-reg-rows">' +
+    '<thead><tr style="color:var(--t3)"><td style="padding:4px 6px">구분</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">참여기간(시작)</td><td style="padding:4px 6px">참여기간(종료)</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">참여일수</td><td style="padding:4px 6px">비고</td><td></td></tr></thead><tbody id="career-reg-rows">' +
     entries.map(function(en, i) {
       return '<tr>' +
         '<td style="text-align:center;color:var(--t3)">'+(i+1)+'</td>' +
@@ -13999,6 +13999,7 @@ function careerRegRenderDetail() {
         '<td><input type="date" class="form-input" style="font-size:12px" value="'+(en.contractDate||'')+'" onchange="careerRegUpdateRow('+i+',\'contractDate\',this.value)"></td>' +
         '<td><input type="date" class="form-input" style="font-size:12px" value="'+(en.completionDate||'')+'" onchange="careerRegUpdateRow('+i+',\'completionDate\',this.value)"></td>' +
         '<td><input type="number" class="form-input" style="font-size:12px;width:70px" value="'+(en.days||'')+'" onchange="careerRegUpdateRow('+i+',\'days\',this.value)" title="중복기간 조정 후 실제 참여일수"></td>' +
+        '<td style="text-align:center;color:var(--t3);font-size:12px">'+((en.contractDate && en.completionDate) ? (careerDaysBetween(en.contractDate, en.completionDate) + 1) : '-')+'</td>' +
         '<td><input type="text" class="form-input" style="font-size:12px;width:120px" value="'+(en.note||'')+'" onchange="careerRegUpdateRow('+i+',\'note\',this.value)"></td>' +
         '<td><span onclick="careerRegRemoveRow('+i+')" style="cursor:pointer;color:var(--t3)">✕</span></td>' +
       '</tr>';
@@ -14007,7 +14008,7 @@ function careerRegRenderDetail() {
     '<button class="btn btn-ghost btn-sm" onclick="careerRegAddRow()">+ 사업 추가</button> ' +
     '<button class="btn btn-primary btn-sm" onclick="careerRegSave()">저장</button> ' +
     (entries.length ? '<button class="btn btn-danger btn-sm" onclick="careerRegClearAll()">🗑 전체 삭제 ('+entries.length+'건)</button>' : '') +
-    '<div style="font-size:11px;color:var(--t3);margin-top:8px">참여일은 여러 사업이 겹치는 기간을 감안해 직접 조정한 값을 입력하세요 (계약일~준공일 그대로 계산하지 않음)</div>';
+    '<div style="font-size:11px;color:var(--t3);margin-top:8px">참여일은 여러 사업이 겹치는 기간을 감안해 직접 조정한 값을 입력하세요 (참여기간 그대로 계산하지 않음). 참여일수는 참여기간(종료-시작+1)을 참고용으로 자동 계산한 값입니다.</div>';
 
   el.innerHTML = html;
 }
@@ -14359,7 +14360,7 @@ function careerOpenProjectModal(empId, assocId) {
   careerRenderProjectModal();
 }
 
-var CAREER_PROJECT_RAW_HEAD = '<tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">계약일</td><td style="padding:4px 6px">준공일</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">비고</td></tr>';
+var CAREER_PROJECT_RAW_HEAD = '<tr style="color:var(--t3)"><td style="padding:4px 6px">No</td><td style="padding:4px 6px">사업명</td><td style="padding:4px 6px">근무처</td><td style="padding:4px 6px">발주처</td><td style="padding:4px 6px">전문분야</td><td style="padding:4px 6px">참여기간(시작)</td><td style="padding:4px 6px">참여기간(종료)</td><td style="padding:4px 6px">참여일</td><td style="padding:4px 6px">참여일수</td><td style="padding:4px 6px">비고</td></tr>';
 
 function careerRenderProjectRawRows(list) {
   return list.map(function(en, i) {
@@ -14372,6 +14373,7 @@ function careerRenderProjectRawRows(list) {
       '<td style="padding:4px 6px;white-space:nowrap;min-width:90px">'+(en.contractDate||'-')+'</td>' +
       '<td style="padding:4px 6px;white-space:nowrap;min-width:90px">'+(en.completionDate||'-')+'</td>' +
       '<td style="padding:4px 6px;text-align:center">'+(en.days||'-')+'</td>' +
+      '<td style="padding:4px 6px;text-align:center;color:var(--t3)">'+((en.contractDate && en.completionDate) ? (careerDaysBetween(en.contractDate, en.completionDate) + 1) : '-')+'</td>' +
       '<td style="padding:4px 6px">'+(en.note||'')+'</td>' +
     '</tr>';
   }).join('');
