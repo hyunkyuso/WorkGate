@@ -13322,7 +13322,7 @@ function careerRunDataValidation() {
     issues.map(function(i) {
       return '<tr style="border-top:1px solid var(--border)">' +
         '<td style="padding:4px 6px;white-space:nowrap">'+i.assocName+'</td>' +
-        '<td style="padding:4px 6px;white-space:nowrap;cursor:pointer;color:var(--ac);text-decoration:underline" onclick="careerOpenProjectModal(\''+(i.emp._docId||i.emp.id)+'\',\''+CAREER_ASSOCIATIONS.find(function(a){return a.name===i.assocName;}).id+'\')">'+(i.emp.name||'-')+'</td>' +
+        '<td style="padding:4px 6px;white-space:nowrap;cursor:pointer;color:var(--ac);text-decoration:underline" onclick="careerGoToRegisterPage(\''+(i.emp._docId||i.emp.id)+'\',\''+CAREER_ASSOCIATIONS.find(function(a){return a.name===i.assocName;}).id+'\')" title="수정하러 가기">'+(i.emp.name||'-')+'</td>' +
         '<td style="padding:4px 6px;white-space:nowrap;font-weight:600;color:'+(typeColor[i.type]||'var(--t2)')+'">'+i.type+'</td>' +
         '<td style="padding:4px 6px">'+i.detail+'</td>' +
       '</tr>';
@@ -14031,6 +14031,15 @@ function careerRegRenderEmpList() {
 
 function careerRegSelectEmp(id) {
   _careerRegSelectedEmp = id;
+  careerRegRenderEmpList();
+  careerRegRenderDetail();
+}
+
+// 검증/알림 등에서 "바로 수정하러 가기" 용도로 등록 페이지로 이동 (직원+협회탭까지 지정)
+function careerGoToRegisterPage(empId, assocId) {
+  _careerRegSelectedEmp = empId;
+  if (assocId) _careerRegSelectedAssoc = assocId;
+  showPage('career-register', document.querySelector('[onclick*="showPage(\'career-register\'"]'));
   careerRegRenderEmpList();
   careerRegRenderDetail();
 }
