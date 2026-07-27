@@ -178,9 +178,9 @@ select.form-input{cursor:pointer}
 .readonly-banner{display:flex;align-items:center;gap:8px;background:#FFF7E6;border:1px solid #F0C674;color:#8B5E00;font-size:12px;font-weight:600;padding:8px 14px;border-radius:8px;margin-bottom:14px}
 #cert-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
 #cert-menu-items.collapsed{max-height:0;opacity:0}
-#work-menu-items,#hr-menu-items,#doc-menu-items,#system-menu-items,#career-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
+#work-menu-items,#hr-menu-items,#doc-menu-items,#system-menu-items,#career-menu-items,#sales-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
 #career-overview-table th,#career-overview-table td{padding:5px 8px}
-#work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed,#career-menu-items.collapsed{max-height:0;opacity:0}
+#work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed,#career-menu-items.collapsed,#sales-menu-items.collapsed{max-height:0;opacity:0}
 
 /* ── DRIVE STATUS ── */
 .drive-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;border-radius:8px;margin-bottom:14px}
@@ -361,6 +361,18 @@ select.form-input{cursor:pointer}
           <div class="nav-item admin-only" onclick="showPage('career-dashboard',this)"><span class="nav-icon">📊</span> 대시보드</div>
           <div class="nav-item admin-only" onclick="careerNavToPeople(this)"><span class="nav-icon">👥</span> 인력 및 등급관리</div>
           <div class="nav-item admin-only" onclick="showPage('career-register',this)"><span class="nav-icon">📝</span> 등록</div>
+        </div>
+      </div>
+
+      <!-- 영업지원 -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-label" onclick="toggleSideSection('sales-menu-items','sales-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>영업지원</span>
+          <span id="sales-arrow" style="font-size:9px;color:var(--t3);transform:rotate(-90deg);transition:transform .2s;display:inline-block">▼</span>
+        </div>
+        <div id="sales-menu-items" class="collapsed">
+          <div class="nav-item admin-only" onclick="showPage('sales-dashboard',this)"><span class="nav-icon">📊</span> 대시보드</div>
+          <div class="nav-item admin-only" onclick="showPage('sales-training',this)"><span class="nav-icon">🎓</span> 도시기후변화 재해취약성분석 교육 이수 명단</div>
         </div>
       </div>
 
@@ -1082,6 +1094,55 @@ select.form-input{cursor:pointer}
           <div id="orgview-canvas" style="position:absolute;transform-origin:0 0;transform:scale(1) translate(0px,0px)">
             <div id="orgview-chart"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- 영업지원 대시보드 -->
+      <div id="page-sales-dashboard" class="page">
+        <div class="page-header">
+          <div><div class="page-title">📊 영업지원 대시보드</div><div class="page-sub">도시기후변화 재해취약성분석 교육 이수 현황을 한눈에 봅니다 (수료일로부터 3년 유효)</div></div>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:20px">
+          <div style="background:linear-gradient(135deg,var(--ac),#6366f1);border-radius:12px;padding:18px 28px;color:#fff;flex:1">
+            <div style="font-size:11px;font-weight:600;opacity:0.8;margin-bottom:4px">전체 등록 인원</div>
+            <div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:32px;font-weight:800" id="sales-dash-total">0</span><span style="font-size:13px;opacity:0.8">명</span></div>
+          </div>
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:18px 28px;flex:1">
+            <div style="font-size:11px;font-weight:600;color:#ef4444;margin-bottom:4px">⚠️ 만료됨(재이수 필요)</div>
+            <div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:32px;font-weight:800;color:#ef4444" id="sales-dash-expired">0</span><span style="font-size:13px;color:#ef4444">명</span></div>
+          </div>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:18px 28px;flex:1">
+            <div style="font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:4px">📋 90일 이내 만료</div>
+            <div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:32px;font-weight:800;color:#f59e0b" id="sales-dash-soon">0</span><span style="font-size:13px;color:#f59e0b">명</span></div>
+          </div>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px 28px;flex:1">
+            <div style="font-size:11px;font-weight:600;color:#22c55e;margin-bottom:4px">✅ 유효기간 여유</div>
+            <div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:32px;font-weight:800;color:#22c55e" id="sales-dash-ok">0</span><span style="font-size:13px;color:#22c55e">명</span></div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 28px;flex:1">
+            <div style="font-size:11px;font-weight:600;color:var(--t3);margin-bottom:4px">📝 미이수</div>
+            <div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:32px;font-weight:800;color:var(--t1)" id="sales-dash-notdone">0</span><span style="font-size:13px;color:var(--t3)">명</span></div>
+          </div>
+        </div>
+        <div style="overflow:auto;max-height:65vh;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)">
+          <table style="width:100%;font-size:13px;border-collapse:collapse">
+            <thead><tr style="background:#f1f5f9;position:sticky;top:0"><td style="padding:8px;text-align:center">소속</td><td style="padding:8px;text-align:center">이름</td><td style="padding:8px;text-align:center">수료일</td><td style="padding:8px;text-align:center">만료일</td><td style="padding:8px;text-align:center">상태</td><td style="padding:8px;text-align:center">비고</td></tr></thead>
+            <tbody id="sales-dash-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 영업지원: 교육 이수 명단 -->
+      <div id="page-sales-training" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🎓 도시기후변화 재해취약성분석 교육 이수 명단</div><div class="page-sub">교육 이수 대상자를 관리합니다</div></div>
+          <button class="btn btn-primary btn-sm admin-only" onclick="salesOpenAddEmpModal()">+ 직원 추가</button>
+        </div>
+        <div style="overflow:auto;max-height:70vh;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)">
+          <table style="width:100%;font-size:13px;border-collapse:collapse">
+            <thead><tr style="background:#f1f5f9;position:sticky;top:0"><td style="padding:8px;text-align:center">소속</td><td style="padding:8px;text-align:center">이름</td><td style="padding:8px;text-align:center">(최종)수료일</td><td style="padding:8px;text-align:center">수료여부</td><td style="padding:8px;text-align:center">비고</td><td style="padding:8px;text-align:center;width:50px"></td></tr></thead>
+            <tbody id="sales-training-tbody"></tbody>
+          </table>
         </div>
       </div>
 
@@ -2622,6 +2683,18 @@ select.form-input{cursor:pointer}
 </div>
 
 <!-- 모달: 새 업무 -->
+
+<!-- 모달: 영업지원 교육이수명단 직원추가 -->
+<div id="sales-add-emp-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('sales-add-emp-modal')">
+  <div class="modal" style="max-width:420px;max-height:80vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">직원 추가</div>
+      <button class="modal-close" onclick="closeModal('sales-add-emp-modal')">✕</button>
+    </div>
+    <input id="sales-add-emp-search" type="text" class="form-input" style="margin-bottom:10px" placeholder="이름 검색..." oninput="salesRenderAddEmpList()">
+    <div id="sales-add-emp-list" style="max-height:400px;overflow-y:auto"></div>
+  </div>
+</div>
 
 <!-- 모달: 졸업증명서/자격증 미리보기 -->
 <div id="career-doc-preview-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal('career-doc-preview-modal')">
@@ -17343,6 +17416,8 @@ function showPage(id, el) {
   if(id === 'permission-manage') { pmPopulateEmpSelect(); }
   if(id === 'personnel-card') { pcPopulateEmpSelect(); }
   if(id === 'career-dashboard') { careerRenderGradeStatusDashboard(); careerRenderLicenseDashboard(); careerRenderEduDashboard(); }
+  if(id === 'sales-dashboard') salesRenderDashboard();
+  if(id === 'sales-training') salesRenderTrainingList();
   if(id === 'career-people') {
     careerPeopleSwitchTab('overview', document.querySelector('.career-people-tab-btn'));
     if (_careerPrefillSearch !== null) {
@@ -18628,6 +18703,155 @@ function certKpiGo(type) {
   closeModal('cert-kpi-modal');
   var navEl = document.querySelector('[onclick*="cert-' + type + '"]');
   showPage('cert-' + type, navEl);
+}
+
+// ══════════════════════════════════════════════════
+// 영업지원 - 도시기후변화 재해취약성분석 교육 이수 명단
+// ══════════════════════════════════════════════════
+var salesTrainingList = [];
+var _salesTrainingLoaded = false;
+
+async function salesLoadTrainingList() {
+  try {
+    var snap = await db.collection('salesSupport').doc('training').get();
+    salesTrainingList = (snap.exists && snap.data().entries) || [];
+  } catch (err) {
+    console.warn('[영업지원] 로드 실패:', err);
+    salesTrainingList = [];
+  }
+  _salesTrainingLoaded = true;
+}
+
+async function salesSaveTrainingList() {
+  try {
+    await db.collection('salesSupport').doc('training').set({ entries: salesTrainingList });
+  } catch (err) {
+    showToast('❌ 저장 실패: ' + err.message);
+  }
+}
+
+function salesRenderTrainingList() {
+  var tbody = document.getElementById('sales-training-tbody');
+  if (!tbody) return;
+  if (!_salesTrainingLoaded) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--t3)">불러오는 중...</td></tr>';
+    salesLoadTrainingList().then(salesRenderTrainingList);
+    return;
+  }
+  if (!salesTrainingList.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--t3)">등록된 인원이 없습니다. "+ 직원 추가" 버튼으로 추가해주세요</td></tr>';
+    return;
+  }
+  tbody.innerHTML = salesTrainingList.map(function(row, idx) {
+    return '<tr style="border-top:1px solid var(--border)">' +
+      '<td style="padding:6px;text-align:center;white-space:nowrap">'+(row.dept||'-')+'</td>' +
+      '<td style="padding:6px;text-align:center;white-space:nowrap">'+(row.name||'-')+'</td>' +
+      '<td style="padding:6px;text-align:center"><input type="date" class="form-input" style="font-size:12px" value="'+(row.completionDate||'')+'" onchange="salesUpdateField('+idx+',\'completionDate\',this.value)"></td>' +
+      '<td style="padding:6px;text-align:center"><select class="form-input" style="font-size:12px" onchange="salesUpdateField('+idx+',\'status\',this.value)">' +
+        ['미이수','이수'].map(function(s){ return '<option value="'+s+'"'+((row.status||'미이수')===s?' selected':'')+'>'+s+'</option>'; }).join('') +
+      '</select></td>' +
+      '<td style="padding:6px"><input type="text" class="form-input" style="font-size:12px" value="'+(row.note||'')+'" onchange="salesUpdateField('+idx+',\'note\',this.value)"></td>' +
+      '<td style="padding:6px;text-align:center"><span onclick="salesDeleteRow('+idx+')" style="cursor:pointer;color:var(--t3)" title="삭제">🗑</span></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function salesUpdateField(idx, field, value) {
+  if (!salesTrainingList[idx]) return;
+  salesTrainingList[idx][field] = value;
+  salesSaveTrainingList();
+}
+
+function salesDeleteRow(idx) {
+  if (!confirm('이 인원을 명단에서 삭제하시겠습니까?')) return;
+  salesTrainingList.splice(idx, 1);
+  salesSaveTrainingList();
+  salesRenderTrainingList();
+}
+
+function salesOpenAddEmpModal() {
+  if (!isAdmin()) { showToast('❌ 관리자만 추가할 수 있습니다'); return; }
+  document.getElementById('sales-add-emp-search').value = '';
+  document.getElementById('sales-add-emp-modal').style.display = 'flex';
+  salesRenderAddEmpList();
+}
+
+function salesRenderAddEmpList() {
+  var keyword = (document.getElementById('sales-add-emp-search').value||'').trim();
+  var list = employees.filter(function(e){ return e.status !== '퇴직'; });
+  if (keyword) list = list.filter(function(e){ return (e.name||'').indexOf(keyword) >= 0; });
+  var existingIds = salesTrainingList.map(function(r){ return r.empId; });
+  var el = document.getElementById('sales-add-emp-list');
+  el.innerHTML = list.map(function(e) {
+    var empId = e._docId || e.id;
+    var already = existingIds.indexOf(empId) >= 0;
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:1px solid var(--border)' + (already?';opacity:0.4' : '') + '">' +
+      '<span style="font-size:13px">'+(e.dept||'-')+' · '+e.name+'</span>' +
+      (already ? '<span style="font-size:11px;color:var(--t3)">이미 등록됨</span>' : '<button class="btn btn-ghost btn-sm" onclick="salesAddEmp(\''+empId+'\')">추가</button>') +
+    '</div>';
+  }).join('') || '<div style="text-align:center;padding:20px;color:var(--t3)">검색 결과 없음</div>';
+}
+
+function salesAddEmp(empId) {
+  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+  if (!emp) return;
+  salesTrainingList.push({ empId: empId, dept: emp.dept||'-', name: emp.name||'-', completionDate: '', status: '미이수', note: '' });
+  salesSaveTrainingList();
+  salesRenderAddEmpList();
+  salesRenderTrainingList();
+}
+
+function salesRenderDashboard() {
+  if (!_salesTrainingLoaded) {
+    salesLoadTrainingList().then(salesRenderDashboard);
+    return;
+  }
+  var todayStr = new Date().toISOString().slice(0,10);
+  var total = salesTrainingList.length;
+  var expired = 0, soon = 0, ok = 0, notdone = 0;
+  var rows = salesTrainingList.map(function(row) {
+    var expiry = null;
+    if (row.completionDate && row.status === '이수') {
+      var d = new Date(row.completionDate);
+      d.setFullYear(d.getFullYear() + 3);
+      expiry = d.toISOString().slice(0,10);
+    }
+    var statusLabel, statusColor;
+    if (row.status !== '이수') {
+      statusLabel = '미이수'; statusColor = 'var(--t3)'; notdone++;
+    } else if (!expiry) {
+      statusLabel = '-'; statusColor = 'var(--t3)';
+    } else if (expiry < todayStr) {
+      statusLabel = '만료됨'; statusColor = '#ef4444'; expired++;
+    } else {
+      var daysLeft = careerDaysBetween(todayStr, expiry);
+      if (daysLeft <= 90) { statusLabel = 'D-'+daysLeft; statusColor = '#f59e0b'; soon++; }
+      else { statusLabel = '유효'; statusColor = '#22c55e'; ok++; }
+    }
+    return { dept: row.dept, name: row.name, completionDate: row.completionDate, expiry: expiry, statusLabel: statusLabel, statusColor: statusColor, note: row.note };
+  });
+
+  document.getElementById('sales-dash-total').textContent = total;
+  document.getElementById('sales-dash-expired').textContent = expired;
+  document.getElementById('sales-dash-soon').textContent = soon;
+  document.getElementById('sales-dash-ok').textContent = ok;
+  document.getElementById('sales-dash-notdone').textContent = notdone;
+
+  var tbody = document.getElementById('sales-dash-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--t3)">등록된 인원이 없습니다</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function(r) {
+    return '<tr style="border-top:1px solid var(--border)">' +
+      '<td style="padding:6px;text-align:center">'+(r.dept||'-')+'</td>' +
+      '<td style="padding:6px;text-align:center">'+(r.name||'-')+'</td>' +
+      '<td style="padding:6px;text-align:center">'+(r.completionDate||'-')+'</td>' +
+      '<td style="padding:6px;text-align:center">'+(r.expiry||'-')+'</td>' +
+      '<td style="padding:6px;text-align:center;color:'+r.statusColor+';font-weight:600">'+r.statusLabel+'</td>' +
+      '<td style="padding:6px;text-align:center">'+(r.note||'-')+'</td>' +
+    '</tr>';
+  }).join('');
 }
 
 function toggleSideSection(menuId, arrowId) {
