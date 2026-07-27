@@ -976,14 +976,6 @@ select.form-input{cursor:pointer}
           </div>
 
         </div>
-
-        <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div style="font-weight:600;font-size:13px">⚠️ 데이터 검증 <span id="career-validation-count" style="font-weight:400;color:var(--t3);font-size:12px"></span></div>
-            <button class="btn btn-ghost btn-sm" onclick="careerRunDataValidation()">🔍 다시 검사</button>
-          </div>
-          <div id="career-validation-body" style="font-size:12px;max-height:400px;overflow-y:auto"></div>
-        </div>
       </div>
 
       <div id="page-career-people" class="page">
@@ -13271,79 +13263,6 @@ function careerBuildGradeMatrix(assocId) {
   return { fields: fields, matrix: matrix, fieldPeople: fieldPeople, fieldNames: fieldNames, totalCount: totalPeople.size };
 }
 
-// ── 경력관리 데이터 검증: 등록된 경력 전체를 훑어서 이상 데이터 자동 스캔 ──
-function careerRunDataValidation() {
-  var todayStr = new Date().toISOString().slice(0,10);
-  var issues = []; // { empId, empName, assocId, assocName, entryIndex, type, detail }
-
-  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
-    var empId = emp._docId || emp.id;
-    CAREER_ASSOCIATIONS.forEach(function(assoc) {
-      var entries = (emp.assocCareer||{})[assoc.id] || [];
-      entries.forEach(function(c, idx) {
-        var label = (c.name || '(사업명 없음)') + (c.field ? ' / ' + c.field : '');
-        var base = { empId: empId, empName: emp.name, assocId: assoc.id, assocName: assoc.name, entryIndex: idx };
-
-        var isReversed = c.contractDate && c.completionDate && c.contractDate > c.completionDate;
-
-        // 1) 계약일 > 준공일 (기간이 뒤바뀜)
-        if (isReversed) {
-          issues.push(Object.assign({}, base, { type: '기간 역전', detail: label + ' — 참여기간 시작('+c.contractDate+')이 종료('+c.completionDate+')보다 늦음' }));
-        }
-
-        // 2) 미래 날짜 (계약일 또는 준공일이 오늘 이후)
-        if (c.contractDate && c.contractDate > todayStr) {
-          issues.push(Object.assign({}, base, { type: '미래 날짜', detail: label + ' — 참여기간 시작이 미래('+c.contractDate+')' }));
-        }
-        if (c.completionDate && c.completionDate > todayStr) {
-          issues.push(Object.assign({}, base, { type: '미래 날짜', detail: label + ' — 참여기간 종료가 미래('+c.completionDate+')' }));
-        }
-
-        // 3) 참여일 값이 숫자가 아니거나 상식 범위(0~50,000일)를 벗어남
-        if (c.days !== undefined && c.days !== '') {
-          var n = Number(c.days);
-          if (isNaN(n) || n < 0 || n > 50000) {
-            issues.push(Object.assign({}, base, { type: '참여일 값 이상', detail: label + ' — 참여일 값이 이상함(' + c.days + '), 계산에서 자동 제외되고 있음' }));
-          }
-        }
-
-        // 4) 참여일(수동) vs 참여일수(계산값) 차이가 극단적인 경우 (참여일이 계산값보다 큰 경우는 논리적으로 불가능)
-        // 단, 기간이 이미 뒤바뀐 항목은 참여일수 자체가 무의미한 값이라 여기서 별도로 알리지 않음(1번 항목으로 충분)
-        if (!isReversed && c.contractDate && c.completionDate && c.days !== undefined && c.days !== '') {
-          var calcDays = careerDaysBetween(c.contractDate, c.completionDate) + 1;
-          var enteredDays = Number(c.days);
-          if (!isNaN(enteredDays) && enteredDays > calcDays) {
-            issues.push(Object.assign({}, base, { type: '참여일 > 참여일수', detail: label + ' — 참여일('+enteredDays+'일)이 참여기간 계산값('+calcDays+'일)보다 큼(논리적으로 불가능)' }));
-          }
-        }
-
-        // 5) 참여일도 없고 준공일도 없음 (계산에서 완전히 제외되는 항목이라 방치되고 있을 수 있음)
-        if ((c.days === undefined || c.days === '') && !c.completionDate && c.contractDate) {
-          issues.push(Object.assign({}, base, { type: '경력 미반영', detail: label + ' — 참여일도 준공일도 없어 경력 계산에서 빠지고 있음' }));
-        }
-      });
-    });
-  });
-
-  var el = document.getElementById('career-validation-body');
-  var countEl = document.getElementById('career-validation-count');
-  countEl.textContent = issues.length ? ('총 ' + issues.length + '건 발견') : '';
-  if (!issues.length) {
-    el.innerHTML = '<div style="color:var(--t3);padding:12px;text-align:center">✅ 발견된 이상 데이터가 없습니다</div>';
-    return;
-  }
-  var typeColor = { '기간 역전':'#ef4444', '미래 날짜':'#f59e0b', '참여일 값 이상':'#ef4444', '참여일 > 참여일수':'#ef4444', '경력 미반영':'var(--t3)' };
-  el.innerHTML = '<table style="width:100%;border-collapse:collapse"><thead><tr style="color:var(--t3)"><td style="padding:4px 6px">협회</td><td style="padding:4px 6px">이름</td><td style="padding:4px 6px">유형</td><td style="padding:4px 6px">내용</td></tr></thead><tbody>' +
-    issues.map(function(i) {
-      return '<tr style="border-top:1px solid var(--border)">' +
-        '<td style="padding:4px 6px;white-space:nowrap">'+i.assocName+'</td>' +
-        '<td style="padding:4px 6px;white-space:nowrap;cursor:pointer;color:var(--ac);text-decoration:underline" onclick="careerGoToRegisterPage(\''+i.empId+'\',\''+i.assocId+'\')" title="등록 페이지에서 수정하기">'+(i.empName||'-')+'</td>' +
-        '<td style="padding:4px 6px;white-space:nowrap;font-weight:600;color:'+(typeColor[i.type]||'var(--t2)')+'">'+i.type+'</td>' +
-        '<td style="padding:4px 6px">'+i.detail+'</td>' +
-      '</tr>';
-    }).join('') + '</tbody></table>';
-}
-
 function careerRenderGradeStatusDashboard() {
   var el = document.getElementById('career-grade-status-body');
   el.innerHTML = CAREER_ASSOCIATIONS.map(function(assoc) {
@@ -17719,7 +17638,7 @@ function showPage(id, el) {
   if(id === 'settings') { svAdminPopulateEmpSelect(); }
   if(id === 'permission-manage') { pmPopulateEmpSelect(); }
   if(id === 'personnel-card') { pcPopulateEmpSelect(); }
-  if(id === 'career-dashboard') { careerRenderGradeStatusDashboard(); careerRenderLicenseDashboard(); careerRenderEduDashboard(); careerRunDataValidation(); }
+  if(id === 'career-dashboard') { careerRenderGradeStatusDashboard(); careerRenderLicenseDashboard(); careerRenderEduDashboard(); }
   if(id === 'career-audit') careerRenderAuditLog();
   if(id === 'sales-dashboard') salesRenderDashboard();
   if(id === 'sales-training') salesRenderTrainingList();
