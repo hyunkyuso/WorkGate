@@ -14489,8 +14489,7 @@ function careerOpenDocPreview(title, driveId, mimeType, driveLink, firebaseBacku
 var _careerProjectGroupBy = { employer: false, field: false };
 var _careerProjectBMMode = null; // null | 'all' | '3year'
 var _careerProjectDrill = null; // { type:'employer'|'field'|'employerField'|'bm', employer, field, bm, yearsLimit, label }
-var _careerBmExcludedEntries = new Set(); // BM 드릴다운에서 "중복기간 제외" 체크한 사업들의 키 목록
-var _careerBmShowExcludeUI = false;
+var _careerBmShowExcludeUI = false; // 중복 BM 배정 드롭다운 표시 여부
 
 function careerBmEntryKey(en) {
   return (en.name||'') + '|' + (en.contractDate||'') + '|' + (en.employer||'');
@@ -14501,10 +14500,18 @@ function careerToggleBmExcludeUI() {
   careerRenderProjectModal();
 }
 
-function careerToggleBmEntryExclude(key) {
-  if (_careerBmExcludedEntries.has(key)) _careerBmExcludedEntries.delete(key);
-  else _careerBmExcludedEntries.add(key);
-  careerRenderProjectModal();
+async function careerSetBmOverride(empId, assocId, entryIndex, bm) {
+  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+  if (!emp || !emp.assocCareer || !emp.assocCareer[assocId] || !emp.assocCareer[assocId][entryIndex]) return;
+  var entry = emp.assocCareer[assocId][entryIndex];
+  if (bm) entry.bmOverride = bm; else delete entry.bmOverride;
+  try {
+    await db.collection('employees').doc(empId).update({ assocCareer: emp.assocCareer });
+    careerLogAudit('BM 배정 변경', empId, emp.name, (entry.name||'') + ' → ' + (bm || '둘 다 포함'));
+    careerRenderProjectModal();
+  } catch (err) {
+    showToast('❌ 저장 실패: ' + err.message);
+  }
 }
 var CAREER_BM_KEYWORDS = ['기초조사','재해취약성','토지적성평가','공원녹지','UPIS','소규모','성장관리','공업지역','KRAS','GIS SW','농업생산기반'];
 
@@ -14538,7 +14545,6 @@ function careerOpenProjectModal(empId, assocId) {
   _careerProjectGroupBy = { employer: false, field: false };
   _careerProjectBMMode = null;
   _careerProjectDrill = null;
-  _careerBmExcludedEntries = new Set();
   _careerBmShowExcludeUI = false;
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerProjectModalAssocId; });
@@ -14597,6 +14603,11 @@ function careerComputeBMBreakdown(entries, yearsLimit) {
     var days = careerGetProjectDayValue(en);
     var matched = CAREER_BM_KEYWORDS.filter(function(bm){ return (en.name||'').indexOf(bm) >= 0; });
     if (!matched.length) { bmTotals['기타'] += days; return; }
+    // 관리자가 겹치는 BM 중 하나로 직접 배정해둔 경우, 그 BM으로만 카운트(중복 처리 안 함)
+    if (en.bmOverride && matched.indexOf(en.bmOverride) >= 0) {
+      bmTotals[en.bmOverride] += days;
+      return;
+    }
     matched.forEach(function(bm){ bmTotals[bm] += days; });
     if (matched.length > 1) {
       matched.forEach(function(bm){ overlapTotalByBm[bm] = (overlapTotalByBm[bm]||0) + days; });
@@ -14704,26 +14715,26 @@ function careerRenderProjectModal() {
         if (cutoff && en.contractDate && en.contractDate < cutoff) return false;
         var matched = CAREER_BM_KEYWORDS.filter(function(bm){ return (en.name||'').indexOf(bm) >= 0; });
         if (drill.bm === '기타') return matched.length === 0;
-        return matched.indexOf(drill.bm) >= 0;
+        if (matched.indexOf(drill.bm) < 0) return false;
+        // 다른 BM으로 배정되어 있으면 이 BM 목록에서는 제외
+        if (en.bmOverride && en.bmOverride !== drill.bm) return false;
+        return true;
       });
 
-      // 이 BM 화면 전용 요약 (참여일수/건수) - 중복기간 제외 체크한 항목은 빼고 계산
+      // 이 BM 화면 전용 요약 (참여일수/건수)
       var bmDrillTotal = 0, bmDrillCount = 0;
       drillList.forEach(function(en) {
-        var key = careerBmEntryKey(en);
-        if (_careerBmExcludedEntries.has(key)) return;
         bmDrillTotal += careerGetProjectDayValue(en);
         bmDrillCount++;
       });
       summaryEl.innerHTML =
         '<div>"' + drill.bm + '" 참여일수: <b>' + bmDrillTotal + '일</b></div>' +
-        '<div>"' + drill.bm + '" 건수: <b>' + bmDrillCount + '건</b></div>' +
-        (_careerBmExcludedEntries.size ? '<div style="color:#b45309">제외된 항목 ' + _careerBmExcludedEntries.size + '건</div>' : '');
+        '<div>"' + drill.bm + '" 건수: <b>' + bmDrillCount + '건</b></div>';
 
       thead.innerHTML = '<tr style="padding:6px"><td colspan="10" style="padding:6px">' +
         '<span onclick="careerClearDrill()" style="cursor:pointer;color:var(--ac);font-size:12px">← 목록으로 돌아가기</span> ' +
         '<b style="margin-left:8px">' + drill.label + '</b> ' +
-        '<button class="btn btn-ghost btn-sm" style="margin-left:12px;padding:3px 10px;font-size:11px" onclick="careerToggleBmExcludeUI()">' + (_careerBmShowExcludeUI ? '중복기간 제외 끄기' : '⚠️ 중복기간 제외') + '</button>' +
+        '<button class="btn btn-ghost btn-sm" style="margin-left:12px;padding:3px 10px;font-size:11px" onclick="careerToggleBmExcludeUI()">' + (_careerBmShowExcludeUI ? '중복 BM 배정 끄기' : '⚠️ 중복되는 BM 배정하기') + '</button>' +
       '</td></tr>' + CAREER_PROJECT_RAW_HEAD.replace('<td', '<td style="width:26px"></td><td', 1);
       // 위 replace는 첫 <td>(No) 앞에 체크박스용 빈 헤더 칸 하나 추가
 
@@ -14731,14 +14742,21 @@ function careerRenderProjectModal() {
         var key = careerBmEntryKey(en);
         var matchedBms = CAREER_BM_KEYWORDS.filter(function(bm){ return (en.name||'').indexOf(bm) >= 0; });
         var isOverlap = matchedBms.length > 1;
-        var excluded = _careerBmExcludedEntries.has(key);
+        var currentOverride = en.bmOverride || '';
+        var entryIdx = drillList.indexOf(en); // 원본 배열에서의 인덱스가 필요하므로 아래에서 실제 인덱스로 다시 찾음
+        var realIdx = ((emp && (emp.assocCareer||{})[_careerProjectModalAssocId]) || []).indexOf(en);
         var checkboxCell = _careerBmShowExcludeUI
-          ? '<td style="text-align:center">' + (isOverlap ? '<input type="checkbox" '+(excluded?'checked':'')+' onchange="careerToggleBmEntryExclude(\''+key.replace(/'/g,"\\'")+'\')" title="중복기간이라 이 BM 계산에서 제외">' : '') + '</td>'
+          ? '<td style="text-align:center">' + (isOverlap
+              ? '<select class="form-input" style="font-size:10px;padding:1px 2px" onchange="careerSetBmOverride(\''+_careerProjectModalEmpId+'\',\''+_careerProjectModalAssocId+'\','+realIdx+',this.value)">' +
+                  '<option value="">둘 다 포함</option>' +
+                  matchedBms.map(function(bm){ return '<option value="'+bm+'"'+(currentOverride===bm?' selected':'')+'>'+bm+'만</option>'; }).join('') +
+                '</select>'
+              : '') + '</td>'
           : '';
         var rowHtml = careerRenderProjectRawRows([en]);
-        // 겹치는 사업은 배경색으로 표시, 제외 체크된 건 흐리게
+        // 겹치는 사업은 배경색으로 표시, 다른 BM으로 배정된 건 흐리게
         if (isOverlap) {
-          var styleTag = excluded ? 'opacity:0.4;background:#fef3c7' : 'background:#fffbeb';
+          var styleTag = currentOverride ? 'opacity:0.5;background:#fef3c7' : 'background:#fffbeb';
           rowHtml = rowHtml.replace('<tr style="border-top:1px solid var(--border)">', '<tr style="border-top:1px solid var(--border);'+styleTag+'">');
         }
         if (checkboxCell) rowHtml = rowHtml.replace(/(<tr[^>]*>)/, '$1' + checkboxCell);
