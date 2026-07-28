@@ -10297,6 +10297,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               const titleTagT2=nd.title?'<span style="color:#3b82f6;font-weight:500"> ('+nd.title+')</span>':'';
               objs.push({display:nd.name+titleTagT2+actTag, isEmp:false, name:nd.name, nd});
             });
+            // 팀장은 어디서 추가됐든(직원 목록/이름칸 추가 인원) 항상 맨 앞으로
+            const isLeaderObj = o => (o.nd&&o.nd.title==='팀장') || (o.name && (employees.find(e=>e.name===o.name)||{}).title==='팀장' && o.isEmp);
+            objs.sort((a,b)=>(isLeaderObj(b)?1:0)-(isLeaderObj(a)?1:0));
             return objs;
           });
 
