@@ -14419,6 +14419,7 @@ var _careerProjectBMMode = null; // null | 'all' | '3year'
 var _careerProjectDrill = null; // { type:'employer'|'field'|'employerField'|'bm', employer, field, bm, yearsLimit, label }
 var _careerBmShowExcludeUI = false; // 중복 BM 배정 드롭다운 표시 여부
 var _careerDateOverlapExcluded = new Set(); // 날짜 겹침 확인용 임시 제외 목록(저장 안 됨, 화면 확인용)
+var _careerDateOverlapShowUI = false; // 날짜 겹침 체크 UI 표시 여부
 function careerToggleDateOverlapExclude(key) {
   if (_careerDateOverlapExcluded.has(key)) _careerDateOverlapExcluded.delete(key);
   else _careerDateOverlapExcluded.add(key);
@@ -14431,6 +14432,11 @@ function careerBmEntryKey(en) {
 
 function careerToggleBmExcludeUI() {
   _careerBmShowExcludeUI = !_careerBmShowExcludeUI;
+  careerRenderProjectModal();
+}
+
+function careerToggleDateOverlapUI() {
+  _careerDateOverlapShowUI = !_careerDateOverlapShowUI;
   careerRenderProjectModal();
 }
 
@@ -14509,6 +14515,7 @@ function careerOpenProjectModal(empId, assocId) {
   _careerProjectDrill = null;
   _careerBmShowExcludeUI = false;
   _careerDateOverlapExcluded = new Set();
+  _careerDateOverlapShowUI = false;
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   var assoc = CAREER_ASSOCIATIONS.find(function(a){ return a.id === _careerProjectModalAssocId; });
   document.getElementById('career-project-modal-title').textContent = (emp?emp.name:'') + ' · 참여사업 (' + (assoc?assoc.name:'') + ')';
@@ -14703,6 +14710,18 @@ function careerRenderProjectModal() {
         return true;
       });
 
+      // 이 BM 화면 전용 요약 (참여일수/건수) - 날짜 겹침 제외 체크(토글 켰을 때만)한 항목은 빼고 계산
+      var bmDrillTotal = 0, bmDrillCount = 0;
+      drillList.forEach(function(en) {
+        if (_careerDateOverlapShowUI && _careerDateOverlapExcluded.has(careerBmEntryKey(en))) return;
+        bmDrillTotal += careerGetProjectDayValue(en);
+        bmDrillCount++;
+      });
+      summaryEl.innerHTML =
+        '<div>"' + drill.bm + '" 참여일수: <b>' + bmDrillTotal + '일</b></div>' +
+        '<div>"' + drill.bm + '" 건수: <b>' + bmDrillCount + '건</b></div>' +
+        (_careerDateOverlapShowUI && _careerDateOverlapExcluded.size ? '<div style="color:#b45309">날짜 겹침으로 제외 체크한 항목 ' + _careerDateOverlapExcluded.size + '건 (확인용, 실제 저장 안 됨)</div>' : '');
+
       // 이 목록 안에서 날짜(계약일~준공일)가 서로 겹치는 사업들을 찾아서 표시 (확인용, 실제 데이터는 안 건드림)
       var overlappedKeys = {};
       var dateOverlaps = careerFindDateOverlaps(drillList);
@@ -14711,25 +14730,13 @@ function careerRenderProjectModal() {
         overlappedKeys[careerBmEntryKey(p.b)] = true;
       });
 
-      // 이 BM 화면 전용 요약 (참여일수/건수) - 날짜 겹침 제외 체크한 항목은 빼고 계산
-      var bmDrillTotal = 0, bmDrillCount = 0;
-      drillList.forEach(function(en) {
-        if (_careerDateOverlapExcluded.has(careerBmEntryKey(en))) return;
-        bmDrillTotal += careerGetProjectDayValue(en);
-        bmDrillCount++;
-      });
-      summaryEl.innerHTML =
-        '<div>"' + drill.bm + '" 참여일수: <b>' + bmDrillTotal + '일</b></div>' +
-        '<div>"' + drill.bm + '" 건수: <b>' + bmDrillCount + '건</b></div>' +
-        (_careerDateOverlapExcluded.size ? '<div style="color:#b45309">날짜 겹침으로 제외 체크한 항목 ' + _careerDateOverlapExcluded.size + '건 (확인용, 실제 저장 안 됨)</div>' : '');
-
+      var extraCols = (_careerBmShowExcludeUI ? 1 : 0) + (_careerDateOverlapShowUI ? 1 : 0);
       thead.innerHTML = '<tr style="padding:6px"><td colspan="11" style="padding:6px">' +
         '<span onclick="careerClearDrill()" style="cursor:pointer;color:var(--ac);font-size:12px">← 목록으로 돌아가기</span> ' +
         '<b style="margin-left:8px">' + drill.label + '</b> ' +
         '<button class="btn btn-ghost btn-sm" style="margin-left:12px;padding:3px 10px;font-size:11px" onclick="careerToggleBmExcludeUI()">' + (_careerBmShowExcludeUI ? '중복 BM 배정 끄기' : '⚠️ 중복되는 BM 배정하기') + '</button>' +
-        (dateOverlaps.length ? '<span style="margin-left:10px;font-size:11px;color:#b45309">📅 날짜 겹치는 사업 ' + dateOverlaps.length + '쌍 있음 — 노란 배경 항목, 체크하면 제외하고 참여일수 확인 가능</span>' : '') +
-      '</td></tr>' + CAREER_PROJECT_RAW_HEAD.replace('<td', '<td style="width:26px"></td><td style="width:26px"></td><td', 1);
-      // 위 replace는 첫 <td>(No) 앞에 "BM배정" 체크칸 + "날짜겹침제외" 체크칸 두 개를 추가
+        '<button class="btn btn-ghost btn-sm" style="margin-left:6px;padding:3px 10px;font-size:11px" onclick="careerToggleDateOverlapUI()">' + (_careerDateOverlapShowUI ? '날짜 겹침 확인 끄기' : '📅 날짜 겹침 확인' + (dateOverlaps.length ? ' (' + dateOverlaps.length + '쌍)' : '')) + '</button>' +
+      '</td></tr>' + (extraCols ? CAREER_PROJECT_RAW_HEAD.replace('<td', new Array(extraCols+1).join('<td style="width:26px"></td>') + '<td', 1) : CAREER_PROJECT_RAW_HEAD);
 
       tbody.innerHTML = drillList.map(function(en, i) {
         var key = careerBmEntryKey(en);
@@ -14737,25 +14744,28 @@ function careerRenderProjectModal() {
         var isOverlap = matchedBms.length > 1;
         var currentOverride = en.bmOverride || '';
         var realIdx = ((emp && (emp.assocCareer||{})[_careerProjectModalAssocId]) || []).indexOf(en);
-        var bmAssignCell = _careerBmShowExcludeUI
-          ? '<td style="text-align:center">' + (isOverlap
+        var extraCells = '';
+        if (_careerBmShowExcludeUI) {
+          extraCells += '<td style="text-align:center">' + (isOverlap
               ? '<select class="form-input" style="font-size:10px;padding:1px 2px" onchange="careerSetBmOverride(\''+_careerProjectModalEmpId+'\',\''+_careerProjectModalAssocId+'\','+realIdx+',this.value)">' +
                   '<option value="">둘 다 포함</option>' +
                   matchedBms.map(function(bm){ return '<option value="'+bm+'"'+(currentOverride===bm?' selected':'')+'>'+bm+'만</option>'; }).join('') +
                 '</select>'
-              : '') + '</td>'
-          : '';
+              : '') + '</td>';
+        }
         var isDateOverlap = !!overlappedKeys[key];
-        var dateOverlapCell = '<td style="text-align:center">' + (isDateOverlap
-          ? '<input type="checkbox" '+(_careerDateOverlapExcluded.has(key)?'checked':'')+' onchange="careerToggleDateOverlapExclude(\''+key.replace(/'/g,"\\'")+'\')" title="날짜 겹치는 사업 - 체크하면 이 BM 참여일수 계산에서 제외(확인용)">'
-          : '') + '</td>';
+        if (_careerDateOverlapShowUI) {
+          extraCells += '<td style="text-align:center">' + (isDateOverlap
+            ? '<input type="checkbox" '+(_careerDateOverlapExcluded.has(key)?'checked':'')+' onchange="careerToggleDateOverlapExclude(\''+key.replace(/'/g,"\\'")+'\')" title="날짜 겹치는 사업 - 체크하면 이 BM 참여일수 계산에서 제외(확인용)">'
+            : '') + '</td>';
+        }
         var rowHtml = careerRenderProjectRawRows([en]);
         // 겹치는 사업은 배경색으로 표시 (BM 중복=주황, 날짜 중복=노랑), 제외 체크된 건 흐리게
         var styleTag = '';
-        if (isOverlap) styleTag = currentOverride ? 'opacity:0.5;background:#fef3c7' : 'background:#fffbeb';
-        if (isDateOverlap) styleTag += (_careerDateOverlapExcluded.has(key) ? ';opacity:0.4;background:#fef9c3' : ';background:#fef9c3');
+        if (_careerBmShowExcludeUI && isOverlap) styleTag = currentOverride ? 'opacity:0.5;background:#fef3c7' : 'background:#fffbeb';
+        if (_careerDateOverlapShowUI && isDateOverlap) styleTag += (_careerDateOverlapExcluded.has(key) ? ';opacity:0.4;background:#fef9c3' : ';background:#fef9c3');
         if (styleTag) rowHtml = rowHtml.replace('<tr style="border-top:1px solid var(--border)">', '<tr style="border-top:1px solid var(--border);'+styleTag+'">');
-        rowHtml = rowHtml.replace(/(<tr[^>]*>)/, '$1' + bmAssignCell + dateOverlapCell);
+        if (extraCells) rowHtml = rowHtml.replace(/(<tr[^>]*>)/, '$1' + extraCells);
         return rowHtml;
       }).join('');
       return;
