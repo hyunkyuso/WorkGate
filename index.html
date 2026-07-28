@@ -8929,7 +8929,9 @@ async function saveDeptFundSettings() {
   try {
     const year = parseInt(document.getElementById('deptfund-year')?.value || new Date().getFullYear());
     const key = getDeptFundSettingsKey(year);
-    await db.collection('settings').doc(key).set(deptFundSettings);
+    // undefined 값이 섞여있으면 Firestore가 저장 자체를 거부하므로, JSON 왕복으로 자동 제거(안전장치)
+    const clean = JSON.parse(JSON.stringify(deptFundSettings));
+    await db.collection('settings').doc(key).set(clean);
   } catch(e) { console.error(e); }
 }
 
@@ -11163,7 +11165,7 @@ function openNameCell(cell) {
       }
     } else if (nd && ndIdx >= 0) {
       // nameData 직원 수정
-      if (name) ndArr[ndIdx] = {qi, name, memo, acting, title, insertBefore: nd.insertBefore};
+      if (name) ndArr[ndIdx] = {qi, name, memo, acting, title, insertBefore: nd.insertBefore || ''};
     } else if (name) {
       // 신규 추가 - hidden 항목이 있으면 먼저 제거 (삭제 후 재추가 케이스)
       const hiddenIdx = ndArr.findIndex(d=>d.qi===qi&&d.name===name&&d.hidden);
