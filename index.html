@@ -5755,9 +5755,10 @@ function renderOrgView() {
 
   roots.forEach(function(root){
     const z2kids=gkZ2(root.id);
-    // 좌측: 번호 작은 것(좌1)이 spine에 가장 가까움 → 배치 배열은 역순[좌N...좌1]
-    const z2left=z2kids.filter(d=>d.position.includes('left')).sort((a,b)=>(parseInt(a.position.split('-').pop())||1)-(parseInt(b.position.split('-').pop())||1));
-    const z2right=z2kids.filter(d=>d.position.includes('right')).sort((a,b)=>(parseInt(a.position.split('-').pop())||1)-(parseInt(b.position.split('-').pop())||1));
+    // 좌우 모두 "번호" 그대로 줄(행)을 맞춰야 하므로, 번호-1을 배열 인덱스로 써서 배치
+    // (번호를 건너뛴 자리는 그 줄에 짝이 없는 것으로 비워둠 - sort로 압축하면 줄이 안 맞게 됨)
+    const z2left=[]; z2kids.filter(d=>d.position.includes('left')).forEach(function(d){ const n=parseInt(d.position.split('-').pop())||1; z2left[n-1]=d; });
+    const z2right=[]; z2kids.filter(d=>d.position.includes('right')).forEach(function(d){ const n=parseInt(d.position.split('-').pop())||1; z2right[n-1]=d; });
     const z3kids=gkBot(root.id);
 
     // 3구역 너비
