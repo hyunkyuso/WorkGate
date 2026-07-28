@@ -6107,7 +6107,7 @@ function renderOrgView() {
     }
 
     const dept=departments.find(d=>d.id===id);if(!dept)return;
-    const color=(dept.name==='TF팀')?bg(3):bg(p.lv);
+    const color=dept.orgLevel?bg(dept.orgLevel):bg(p.lv);
     const headName=dept.head||'';
     const es=getEmps(dept);
     const x=p.cx-CW/2, y=p.absY;
@@ -6129,12 +6129,19 @@ function renderOrgView() {
     const isLeaderPos=function(e){
       const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장';
     };
+    const leaderBorderColor=function(e){
+      const t=e.title||'';
+      if(t==='본부장') return bg(1);
+      if(t==='부서장') return bg(2);
+      if(t==='팀장') return bg(3);
+      return color;
+    };
     const empBubble=function(e,isH){
       const ini=(e.name||'?').charAt(0);
       const ec=['#3730a3','#6d28d9','#0e7490','#047857','#b45309'];
       const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
       const isL=isH||isLeaderPos(e);
-      const avatarBorder=isL?'2px solid '+color:'1.5px solid #94a3b8';
+      const avatarBorder=isL?'2px solid '+(isH?color:leaderBorderColor(e)):'1.5px solid #94a3b8';
       const BW=e.isConcurrent?96:76;
       const boxStyle=e.isConcurrent
         ?'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
