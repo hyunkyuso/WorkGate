@@ -9638,7 +9638,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const isTypeBuseojang = (setting.type||'').includes('부서장');
       const isTypeTeamjang = (setting.type||'').includes('팀장');
       const hasSubTeams = deptHasSubTeams[dept] || false;
-      const subTeamEmps = hasSubTeams ? deptNames.filter(d=>departments.some(dep=>dep.name===d&&dep.parent===(departments.find(dep2=>dep2.name===dept)||{}).id)).flatMap(subDept=>depts[subDept]||[]).filter(e=>!empList.find(e2=>e2.uid===e.uid)) : [];
+      const subTeamEmps = hasSubTeams ? deptNames.filter(d=>d==='연구1팀'/*8/3자 TF팀 개편으로 조직도상엔 없지만 기존 기록 보존을 위해 AI GIS 연구부 하위로 계속 인식*/||departments.some(dep=>dep.name===d&&dep.parent===(departments.find(dep2=>dep2.name===dept)||{}).id)).flatMap(subDept=>depts[subDept]||[]).filter(e=>!empList.find(e2=>e2.uid===e.uid)) : [];
       const teamMembers = empList.filter(e=>e.uid !== (deptHead?.uid));
 
       // 추가 인원 (extra)
@@ -9987,7 +9987,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
           countedNames.add(deptHead.name); t += 50000;
         }
         // 해당 부서(+하위팀) 이름칸 _lastQNames 합산
-        const deptAndSubs = [dept, ...subTeamEmps.map(e=>e.dept).filter((d,i,a)=>a.indexOf(d)===i)];
+        const deptAndSubs = [dept, ...(dept==='AI GIS 연구부'&&!subTeamEmps.some(e=>e.dept==='연구1팀')?['연구1팀']:[]), ...subTeamEmps.map(e=>e.dept).filter((d,i,a)=>a.indexOf(d)===i)];
         deptAndSubs.forEach(dk => {
           const dkDq = (deptFundSettings[dk]||{}).disabledQi||[];
           if (dkDq.includes(qi)) return;
@@ -10194,7 +10194,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         }
         let t = 0;
         const dateDataList = (deptFundSettings[dept]||{}).dateData||[];
-        const deptAndSubs = [dept, ...subTeamEmps.map(e=>e.dept).filter((d,i,a)=>a.indexOf(d)===i)];
+        const deptAndSubs = [dept, ...(dept==='AI GIS 연구부'&&!subTeamEmps.some(e=>e.dept==='연구1팀')?['연구1팀']:[]), ...subTeamEmps.map(e=>e.dept).filter((d,i,a)=>a.indexOf(d)===i)];
         const countedNames = new Set();
         // 부서장칸 포함 (팀장 비고일 때)
         if (deptHead && !countedNames.has(deptHead.name)) {
