@@ -5795,14 +5795,16 @@ function renderOrgView() {
     pos[root.id]={cx:spineX, absY:Z1_Y, lv:0};
 
     // 2구역 배치
-    let curY=Z2_START;
+    let seqY=Z2_START; // 줄 진행은 이 값으로만 누적 (정렬 보정이 다음 줄까지 밀리지 않게)
     let prevRowStartY=null, prevLNode=null, prevRNode=null;
     for(let i=0;i<maxNum;i++){
       const lNode=z2left[i]||null;
       const rNode=z2right[i]||null;
       const rowH=rowHeights[i];
+      let curY=seqY;
 
       // 짝이 없는 줄(한쪽만 있는 경우)은, 바로 앞줄 반대편의 마지막 하위조직 높이에 정확히 맞춰서 위로 당김
+      // (이 보정은 이번 줄 렌더링에만 적용되고, 다음 줄들의 위치는 원래 순서(seqY) 그대로 유지됨)
       if(i>0 && prevRowStartY!==null){
         if(lNode && !rNode){
           const oppBots=prevRNode?gkBot(prevRNode.id):[];
@@ -5971,7 +5973,7 @@ function renderOrgView() {
         svg+='<line x1="'+spineX+'" y1="'+lineY+'" x2="'+(parentCX-CW/2)+'" y2="'+lineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
       }
 
-      curY+=rowH+2;
+      seqY+=rowH+2;
     }
 
     // 3구역 배치: 레벨별 Y 먼저 계산
