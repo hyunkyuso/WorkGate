@@ -10282,18 +10282,20 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               if(obj){obj.display+='<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>';obj.isActing=true;obj.nd=nd;}
             });
             objs.sort((a,b)=>(b.isActing?1:0)-(a.isActing?1:0));
-            // insertBefore: Firebase 직원 앞에 끼워넣기
-            nameDataList.filter(d=>d.qi===qi&&d.insertBefore&&d.name).forEach(nd=>{
+            // insertBefore: Firebase 직원 앞에 끼워넣기 (자기 자신을 가리키는 잘못된 값은 무시)
+            nameDataList.filter(d=>d.qi===qi&&d.insertBefore&&d.name&&d.insertBefore!==d.name).forEach(nd=>{
               const idx2=objs.findIndex(o=>o.name===nd.insertBefore);
               const actTag=nd.acting?'<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>':'';
-              const newObj={display:nd.name+actTag, isEmp:false, name:nd.name, nd};
+              const titleTagT1=nd.title?'<span style="color:#3b82f6;font-weight:500"> ('+nd.title+')</span>':'';
+              const newObj={display:nd.name+titleTagT1+actTag, isEmp:false, name:nd.name, nd};
               if(idx2>=0) objs.splice(idx2,0,newObj);
               else objs.push(newObj);
             });
             // 일반 추가 인원 (insertBefore 없고 Firebase 직원 아닌 것)
             nameDataList.filter(d=>d.qi===qi&&d.name&&!d.insertBefore&&!d.acting&&!empNameSetT.has(d.name)).forEach(nd=>{
               const actTag=nd.acting?'<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>':'';
-              objs.push({display:nd.name+actTag, isEmp:false, name:nd.name, nd});
+              const titleTagT2=nd.title?'<span style="color:#3b82f6;font-weight:500"> ('+nd.title+')</span>':'';
+              objs.push({display:nd.name+titleTagT2+actTag, isEmp:false, name:nd.name, nd});
             });
             return objs;
           });
