@@ -9699,7 +9699,10 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         // 일반 추가 인원 (insertBefore 없고 Firebase 직원 아닌 것 또는 hidden된 Firebase 직원 이름)
         nameDataList.filter(d=>d.qi===qi&&d.name&&!d.insertBefore&&!d.acting&&!d.hidden&&!empNameSet.has(d.name)&&!allEmpNameSet.has(d.name)).forEach(nd => {
           const actTag = nd.acting ? '<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>' : '';
-          const titleTag = nd.title ? '<span style="color:#3b82f6;font-weight:500"> ('+nd.title+')</span>' : '';
+          // 다른 부서로 옮겨져서 이름칸으로만 남아있어도, 그 사람 실제 회사 직책(팀장/부서장/본부장)이 있으면 그대로 표시
+          const realTitle = (employees.find(e=>e.name===nd.name)||{}).title;
+          const effTitle = nd.title || (['팀장','부서장','본부장'].includes(realTitle) ? realTitle : '');
+          const titleTag = effTitle ? '<span style="color:#3b82f6;font-weight:500"> ('+effTitle+')</span>' : '';
           nameObjs.push({display:nd.name+titleTag+actTag, isEmp:false, name:nd.name, nd});
         });
         return nameObjs;
@@ -10457,7 +10460,9 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
             const empNameSet2=new Set(baseEmps.map(e=>e.name));
             ndList2.filter(d=>d.qi===qi2&&d.name&&!d.insertBefore&&!d.acting&&!d.hidden&&!empNameSet2.has(d.name)).forEach(nd=>{
               const actTag=nd.acting?'<span style="color:#3b82f6;font-size:10px"> ('+nd.acting+')</span>':'';
-              const titleTag=nd.title?'<span style="color:#3b82f6;font-weight:500"> ('+nd.title+')</span>':'';
+              const realTitle2=(employees.find(e=>e.name===nd.name)||{}).title;
+              const effTitle2=nd.title || (['팀장','부서장','본부장'].includes(realTitle2) ? realTitle2 : '');
+              const titleTag=effTitle2?'<span style="color:#3b82f6;font-weight:500"> ('+effTitle2+')</span>':'';
               nameObjs.push({display:nd.name+titleTag+actTag,isEmp:false,name:nd.name,nd});
             });
             return nameObjs;
