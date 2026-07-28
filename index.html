@@ -8177,6 +8177,38 @@ function lunarToSolar(lunarMonth, lunarDay, year) {
   return { month: entry[0], day: entry[1] };
 }
 
+// 음력 11~12월 생일은, 양력 한 해 안에 실제로 두 번 들어올 수 있음
+// (그 해 음력달의 끝자락이 다음 양력해 초반으로 넘어가는 경우 + 그 전 음력해의 11~12월이 이 양력해 초반으로 넘어온 경우)
+// year(양력 기준 년도)에 실제로 해당하는 날짜를 전부 찾아서 배열로 반환 (보통 1개, 음력 11~12월생은 2개일 수 있음)
+function lunarToSolarAll(lunarMonth, lunarDay, year) {
+  var results = [];
+
+  function tryTable(tblYear, isPrevTableLookup) {
+    var tbl = LUNAR_SOLAR_TABLES[tblYear];
+    if (!tbl || !tbl[lunarMonth]) return;
+    var entry = tbl[lunarMonth][lunarDay - 1];
+    if (!entry) return;
+    // LUNAR_SOLAR_TABLES[tblYear]는 "tblYear년에 시작하는 음력해" 기준 매핑.
+    // 음력 10~12월의 날짜가 entry[0]<=2(1~2월)로 나오면 그 결과는 실제로 tblYear+1년에 속함
+    var actualSolarYear = (lunarMonth >= 10 && entry[0] <= 2) ? tblYear + 1 : tblYear;
+    if (actualSolarYear === year) {
+      results.push({ month: entry[0], day: entry[1] });
+    }
+  }
+
+  tryTable(year, false); // 이 양력해에 시작하는 음력해 기준 (그 해 후반부 달이 다음해 초로 넘어가는 경우 포함)
+  if (lunarMonth >= 10) {
+    tryTable(year - 1, true); // 전년도에 시작한 음력해의 후반부 달이 이 양력해 초반으로 넘어온 경우
+  }
+
+  // 혹시 같은 날짜가 중복 계산됐으면 하나로 합침
+  var uniq = [];
+  results.forEach(function(r) {
+    if (!uniq.some(function(u){ return u.month === r.month && u.day === r.day; })) uniq.push(r);
+  });
+  return uniq;
+}
+
 function getBonbu(emp) {
   if (!emp.dept) return '';
   const dept = emp.dept || '';
@@ -8257,17 +8289,25 @@ async function exportBirthdayExcel() {
     if (birthdayAmt > 0) {
       const bm = parseInt(e.birthMonth||'0'), bd = parseInt(e.birthDay||'0');
       if (bm && bd) {
-        let sm = bm, sd = bd;
-        if ((e.birthType||'양력') === '음력') { const s=lunarToSolar(bm,bd,yearF); sm=s.month; sd=s.day; }
-        if (!monthF || sm === monthF) {
-          const joinYearExcel = parseInt((wd.startDate||e.joindate||'').slice(0,4)||'0');
-          if (joinYearExcel && yearF < joinYearExcel) return;
-          const skipKey = `bd_${yearF}_${e.uid}`;
-          if (skipData[skipKey]) return; // 제외된 항목
-          const customDate = customDateData[skipKey] || '';
-          const displayDate = customDate ? customDate.replace(/(\d+)-(\d+)-(\d+)/, (_,y,m,d)=>`${parseInt(m)}월 ${parseInt(d)}일`) : `${sm}월 ${sd}일`;
-          rows.push({ bonbu, name:e.name||'', date:displayDate, month:sm, day:sd, amt:birthdayAmt, note:e.workplace||'' });
+        let occurrences;
+        if ((e.birthType||'양력') === '음력') {
+          occurrences = lunarToSolarAll(bm, bd, yearF);
+          if (!occurrences.length) occurrences = [{ month: bm, day: bd }];
+        } else {
+          occurrences = [{ month: bm, day: bd }];
         }
+        occurrences.forEach((occ, occIdx) => {
+          let sm = occ.month, sd = occ.day;
+          if (!monthF || sm === monthF) {
+            const joinYearExcel = parseInt((wd.startDate||e.joindate||'').slice(0,4)||'0');
+            if (joinYearExcel && yearF < joinYearExcel) return;
+            const skipKey = occIdx === 0 ? `bd_${yearF}_${e.uid}` : `bd_${yearF}_${e.uid}_${occIdx}`;
+            if (skipData[skipKey]) return; // 제외된 항목
+            const customDate = customDateData[skipKey] || '';
+            const displayDate = customDate ? customDate.replace(/(\d+)-(\d+)-(\d+)/, (_,y,m,d)=>`${parseInt(m)}월 ${parseInt(d)}일`) : `${sm}월 ${sd}일`;
+            rows.push({ bonbu, name:e.name||'', date:displayDate, month:sm, day:sd, amt:birthdayAmt, note:e.workplace||'' });
+          }
+        });
       }
     }
   });
@@ -8433,13 +8473,22 @@ function _renderPbTable(yearF, monthF) {
       // 입사연도 이전이면 제외
       const joinYearPb = parseInt((wd.startDate||e.joindate||'').slice(0,4)||'0');
       if (joinYearPb && yearF < joinYearPb) return;
-      let sm = pm, sd = pd;
+
+      // 음력 11~12월생은 그 해 안에 실제로 두 번(1월쪽/12월쪽) 생신이 올 수 있어서 전부 반환받음
+      // 그 외(양력이거나 음력 1~10월)는 항상 결과가 1개
+      let occurrences;
       if ((p.birthType||'양력') === '음력') {
-        const sol = lunarToSolar(pm, pd, yearF);
-        sm = sol.month; sd = sol.day;
+        occurrences = lunarToSolarAll(pm, pd, yearF);
+        if (!occurrences.length) occurrences = [{ month: pm, day: pd }]; // 혹시 못 찾으면 기존처럼 안전하게 폴백
+      } else {
+        occurrences = [{ month: pm, day: pd }];
       }
+
+      occurrences.forEach((occ, occIdx) => {
+      let sm = occ.month, sd = occ.day;
       if (monthF && sm !== parseInt(monthF)) return;
-      const sendKey = `${e.uid}_${pi}_${yearF}`;
+      // 두 번째 이후 발생분은 sendKey에 occIdx를 붙여서 별개 항목으로 취급(스킵/메모/발송일 상태 독립적으로 관리)
+      const sendKey = occIdx === 0 ? `${e.uid}_${pi}_${yearF}` : `${e.uid}_${pi}_${yearF}_${occIdx}`;
       const skipped = pbSkips[sendKey] || false;
       const customDate = pbCustomDates[sendKey] || '';
       const origDate = `${sm}월 ${sd}일`;
@@ -8458,6 +8507,7 @@ function _renderPbTable(yearF, monthF) {
         mobile: p.tel||'',
         note: pbNotes[sendKey] || '',
         sendKey, skipped
+      });
       });
     });
   });
@@ -8538,10 +8588,17 @@ async function exportParentBirthdayExcel() {
       if (!pLabel) return;
       const pm = parseInt(p.birthMonth||'0'), pd = parseInt(p.birthDay||'0');
       if (!pm || !pd) return;
-      let sm = pm, sd = pd;
-      if ((p.birthType||'양력') === '음력') { const sol = lunarToSolar(pm, pd, yearF); sm=sol.month; sd=sol.day; }
+      let occurrences;
+      if ((p.birthType||'양력') === '음력') {
+        occurrences = lunarToSolarAll(pm, pd, yearF);
+        if (!occurrences.length) occurrences = [{ month: pm, day: pd }];
+      } else {
+        occurrences = [{ month: pm, day: pd }];
+      }
+      occurrences.forEach((occ, occIdx) => {
+      let sm = occ.month, sd = occ.day;
       if (monthF && sm !== monthF) return;
-      const sendKey = `${e.uid}_${pi}_${yearF}`;
+      const sendKey = occIdx === 0 ? `${e.uid}_${pi}_${yearF}` : `${e.uid}_${pi}_${yearF}_${occIdx}`;
       const joinYearPbEx = parseInt((wd.startDate||e.joindate||'').slice(0,4)||'0');
       if (joinYearPbEx && yearF < joinYearPbEx) return;
       if (skipsDl[sendKey]) return;
@@ -8555,6 +8612,7 @@ async function exportParentBirthdayExcel() {
         else sendDateFmt = rawSend;
       }
       rows.push({ date:dateDl, month:sm, day:sd, sendDate:sendDateFmt, empName:e.name||'', parentName:p.name||'', addr:p.addr||'', mobile:p.tel||'', note:notes[sendKey]||'' });
+      });
     });
   });
   rows.sort((a,b) => a.month-b.month || a.day-b.day);
@@ -12187,15 +12245,23 @@ function _renderBirthdayTable() {
         // 입사연도 이전이면 제외
         const joinYear = parseInt((wd.startDate||e.joindate||'').slice(0,4)||'0');
         if (joinYear && yearFilter < joinYear) return;
-        let sm = bm, sd = bd;
-        if ((e.birthType||'양력') === '음력') { const s=lunarToSolar(bm,bd,yearFilter); sm=s.month; sd=s.day; }
-        if (!monthFilter || sm === parseInt(monthFilter)) {
-          const skipKey = `bd_${yearFilter}_${e.uid}`;
-          const isSkipped = bdSkips[skipKey] || false;
-          const customDate = bdCustomDates[skipKey] || '';
-          const displayDate = customDate || `${sm}월 ${sd}일`;
-          rows.push({ type:'본인', bonbu, name, date:displayDate, origDate:`${sm}월 ${sd}일`, month:customDate?parseInt(customDate):sm, day:sd, amt:isSkipped?0:birthdayAmt, note:workplace, skipKey, uid:e.uid, isSkipped, customDate });
+        let occurrences;
+        if ((e.birthType||'양력') === '음력') {
+          occurrences = lunarToSolarAll(bm, bd, yearFilter);
+          if (!occurrences.length) occurrences = [{ month: bm, day: bd }];
+        } else {
+          occurrences = [{ month: bm, day: bd }];
         }
+        occurrences.forEach((occ, occIdx) => {
+          let sm = occ.month, sd = occ.day;
+          if (!monthFilter || sm === parseInt(monthFilter)) {
+            const skipKey = occIdx === 0 ? `bd_${yearFilter}_${e.uid}` : `bd_${yearFilter}_${e.uid}_${occIdx}`;
+            const isSkipped = bdSkips[skipKey] || false;
+            const customDate = bdCustomDates[skipKey] || '';
+            const displayDate = customDate || `${sm}월 ${sd}일`;
+            rows.push({ type:'본인', bonbu, name, date:displayDate, origDate:`${sm}월 ${sd}일`, month:customDate?parseInt(customDate):sm, day:sd, amt:isSkipped?0:birthdayAmt, note:workplace, skipKey, uid:e.uid, isSkipped, customDate });
+          }
+        });
       }
     }
 
