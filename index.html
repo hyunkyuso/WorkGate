@@ -5796,21 +5796,25 @@ function renderOrgView() {
 
     // 2구역 배치
     let curY=Z2_START;
+    let prevRowStartY=null, prevLNode=null, prevRNode=null;
     for(let i=0;i<maxNum;i++){
       const lNode=z2left[i]||null;
       const rNode=z2right[i]||null;
       const rowH=rowHeights[i];
 
-      // 짝이 없는 줄(한쪽만 있는 경우)은, 바로 앞줄에서 반대편이 안 쓴 남는 공간만큼 위로 당겨서 붙임
-      if(i>0){
+      // 짝이 없는 줄(한쪽만 있는 경우)은, 바로 앞줄 반대편의 마지막 하위조직 높이에 정확히 맞춰서 위로 당김
+      if(i>0 && prevRowStartY!==null){
         if(lNode && !rNode){
-          const prevUnused=Math.max(0, rowRH[i-1]-rowLH[i-1]);
-          curY-=Math.min(prevUnused, rowH);
+          const oppBots=prevRNode?gkBot(prevRNode.id):[];
+          if(oppBots.length>1) curY=prevRowStartY+(oppBots.length-1)*(CH+VGAP);
+          else { const prevUnused=Math.max(0, rowRH[i-1]-rowLH[i-1]); curY-=Math.min(prevUnused, rowH); }
         } else if(rNode && !lNode){
-          const prevUnused=Math.max(0, rowLH[i-1]-rowRH[i-1]);
-          curY-=Math.min(prevUnused, rowH);
+          const oppBots=prevLNode?gkBot(prevLNode.id):[];
+          if(oppBots.length>1) curY=prevRowStartY+(oppBots.length-1)*(CH+VGAP);
+          else { const prevUnused=Math.max(0, rowLH[i-1]-rowRH[i-1]); curY-=Math.min(prevUnused, rowH); }
         }
       }
+      prevRowStartY=curY; prevLNode=lNode; prevRNode=rNode;
 
       // 위 좌측: 상위조직은 spine 왼쪽, 하위는 상위 왼쪽으로
       if(lNode){
