@@ -10244,11 +10244,20 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
               if (!obj||!obj.name||countedNames.has(obj.name)) return;
               countedNames.add(obj.name);
               const emp = employees.find(e=>e.name===obj.name);
+              // 날짜칸(dateData)에 이 사람의 부서이동 날짜가 있으면 반영 (예: "8/1부터"면 그 이전 달은 0원)
+              const dd = (dateDataList||[]).find(d=>d.name===obj.name&&d.qi===qi&&d.fullDate);
+              const ddDate = dd ? new Date(dd.fullDate) : null;
               // 월별 금액
               const monthAmts = {};
               for(let mo=qi*3+1;mo<=qi*3+3;mo++){
                 const m = emp ? getEmpMonthsInQuarter(emp,year,mo-1,mo-1) : 1;
-                monthAmts[mo] = m*40000;
+                let inRange = true;
+                if (ddDate) {
+                  const ddMonth = ddDate.getMonth()+1; // 1-based
+                  if (dd.type==='to' && mo > ddMonth) inRange = false;
+                  if (dd.type==='from' && mo < ddMonth) inRange = false;
+                }
+                monthAmts[mo] = (inRange ? m : 0)*40000;
               }
               members.push({name:obj.name, monthAmts});
             });
