@@ -13740,9 +13740,9 @@ function careerConstructionEduBaseScore(degree) {
   return 10;
 }
 
-// 경력지수 (40점 만점): (log10(N)/log10(40))×100×0.4, N=총 인정일/365 (365일 미만이면 N=1)
+// 경력지수 (40점 만점): (log10(N)/log10(40))×100×0.4, N=총 인정일/365 (365일 미만이면 배점 자체를 1점으로 고정)
 function careerConstructionCareerScore(totalDays) {
-  if (totalDays < 365) return 0;
+  if (totalDays < 365) return 1;
   var N = totalDays / 365;
   var score = (Math.log(N) / Math.log(40)) * 100 * 0.4;
   return Math.round(Math.min(40, score) * 100) / 100;
