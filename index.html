@@ -9619,8 +9619,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
       const deptObj = departments.find(d=>d.name===dept);
       const parentDept = deptObj ? departments.find(d=>d.id===deptObj.parent) : null;
       if (parentDept && ['SW지원부','GIS SW영업부'].includes(parentDept.name)) return;
-      // 부서명이 본부명과 같으면 (본부장 행에서 이미 처리) 제외
-      if (dept === bonbu) return;
+      // 부서명이 본부명과 같으면 (본부장 행에서 이미 처리) 제외 - 단, TF팀은 자기 자신이 팀 단위 조직이라 예외
+      if (dept === bonbu && dept !== 'TF팀') return;
       const empList = depts[dept];
       const setting = deptFundSettings[dept] || { buseojang:true, teamjang:true, type:'팀장' };
       // 부서장: 주소속이 이 dept이거나, 겸직으로 이 dept의 부서장인 경우
