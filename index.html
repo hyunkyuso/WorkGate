@@ -11470,9 +11470,14 @@ function openDeptMenu(dept, event) {
   const rect = btn.getBoundingClientRect();
   const popup = document.createElement('div');
   popup.className = 'dept-menu-popup';
-  popup.style.cssText = 'position:fixed;z-index:9999;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.18);padding:12px;min-width:200px;';
-  popup.style.top = (rect.bottom + 4) + 'px';
-  popup.style.left = rect.left + 'px';
+  popup.style.cssText = 'position:fixed;z-index:9999;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.18);padding:12px;min-width:200px;max-height:80vh;overflow-y:auto;';
+  // 화면 아래로 넘치면 버튼 위쪽에 띄우고, 그래도 안 맞으면 화면 안에 들어오도록 위치를 조정
+  const estHeight = 260; // 대략적인 팝업 높이(줄추가+미사용4개+삭제버튼)
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const top = spaceBelow < estHeight ? Math.max(8, rect.top - estHeight - 4) : rect.bottom + 4;
+  popup.style.top = top + 'px';
+  const left = Math.min(rect.left, window.innerWidth - 220);
+  popup.style.left = Math.max(8, left) + 'px';
   const extraRi = btn.dataset.extraRi;
   const isExtra = extraRi !== undefined;
   const extraRiNum = isExtra ? parseInt(extraRi) : -1;
