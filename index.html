@@ -17502,13 +17502,24 @@ function getMypageFundMembers(org, year, mode) {
       // 본부장 타입: 본부 산하 모든 부서/팀 (3단계까지 재귀 수집)
       const childDepts = getAllChildDepts(dept);
 
+      // 이 조직(dept/bonbu)의 dateData에서, 특정 사람이 이 분기(qi) 중 실제로 몇 개월 있었는지 계산 (날짜칸 반영)
+      const getDeptMonthsForName = (name, qi) => {
+        const dd = (s.dateData||[]).find(d => d.name===name && d.qi===qi);
+        if (!dd || !dd.fullDate) return 3; // 날짜 지정 없으면 분기 전체(3개월)로 간주
+        const d = new Date(dd.fullDate);
+        const monthInQuarter = d.getMonth() - qs; // 0,1,2 (분기 내 몇 번째 달인지)
+        if (dd.type === 'to') return Math.max(0, Math.min(3, monthInQuarter + 1)); // 그 달까지 포함
+        if (dd.type === 'from') return Math.max(0, Math.min(3, 3 - monthInQuarter)); // 그 달부터 포함
+        return 3;
+      };
       const addMember = (name) => {
         if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
         if (countedNames.has(name)) return;
         countedNames.add(name);
         const emp = employees.find(e => e.name===name);
         const m = emp ? getEmpMonthsInQuarter(emp, year, qs, qe) : 3;
-        if (m > 0) memberMap[name][qi] = 50000;
+        const deptMonths = getDeptMonthsForName(name, qi);
+        if (m > 0 && deptMonths > 0) memberMap[name][qi] = Math.round(50000 * (deptMonths/3));
       };
 
       const addMemberForce = (name) => {
@@ -17516,7 +17527,8 @@ function getMypageFundMembers(org, year, mode) {
         if (!memberMap[name]) memberMap[name] = {0:0,1:0,2:0,3:0};
         const emp = employees.find(e => e.name===name);
         const m = emp ? getEmpMonthsInQuarter(emp, year, qs, qe) : 3;
-        if (m > 0) memberMap[name][qi] = 50000;
+        const deptMonths = getDeptMonthsForName(name, qi);
+        if (m > 0 && deptMonths > 0) memberMap[name][qi] = Math.round(50000 * (deptMonths/3));
       };
 
       if (childDepts.length > 0) {
