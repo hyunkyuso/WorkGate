@@ -14017,6 +14017,16 @@ function careerSumPeriodsDays(periods) {
   return total;
 }
 
+// periods(재직기간 목록)를 [rangeStart, rangeEnd] 구간으로 잘라내서 합산 (공백기간 자동 배제됨)
+function careerSumPeriodsDaysInRange(periods, rangeStart, rangeEnd) {
+  var clipped = periods.map(function(p) {
+    var s = p.start < rangeStart ? rangeStart : p.start;
+    var e = p.end > rangeEnd ? rangeEnd : p.end;
+    return { start: s, end: e };
+  }).filter(function(p){ return p.start && p.end && p.start <= p.end; });
+  return careerSumPeriodsDays(clipped);
+}
+
 // 특정 날짜가 정도유아이티 실제 재직기간(들) 중 하나에 속하는지 확인 (퇴사-재입사 사이 공백기간 배제용)
 function careerDateInDoyuPeriods(dateStr, periods) {
   if (!dateStr) return false;
@@ -15158,7 +15168,7 @@ function careerRenderAiswTab() {
       if (endD && (aMaxEnd === null || endD > aMaxEnd)) aMaxEnd = endD;
     });
     if (aMinStart && aMaxEnd) {
-      var aMaxPossible = careerDaysBetween(aMinStart, aMaxEnd);
+      var aMaxPossible = careerSumPeriodsDaysInRange(doyuPeriods, aMinStart, aMaxEnd);
       if (regDays > aMaxPossible) regDays = aMaxPossible;
     }
     rows.push({
