@@ -9428,7 +9428,8 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
     const qAmts = [null, null, null, null];
     const bonbuTotal = qAmts.reduce((s,v)=>s+(v||0),0);
 
-    // ── 본부장 테이블 ──
+    // ── 본부장 테이블 ── (TF팀처럼 팀 자체가 본부 취급인 경우엔 아래 부서별 테이블에서 이미 상세히 보여주므로 중복 방지 위해 생략)
+    if (bonbu !== 'TF팀') {
     const bonbuTypeLabel = bonbuIsNone ? '' : ((deptFundSettings[bonbu]||{}).type || '본부장');    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:0;font-size:11px;table-layout:fixed">
       <thead>${headerRow()}</thead><tbody>
       <tr style="background:${BG_BONBU}">
@@ -9610,6 +9611,7 @@ const FIXED_DEPT_ORDER = ["경영관리본부", "인사총무부", "재무회계
         })(bonbuRowOrgNames, bonbuRowTeamOrgNames, bonbuRowNdList, bonbuRowDdList, bonbuRowIsTeamjang, bonbuRowIsBuseojang, bonbuRowDisabledQi, row.headNames||['','','',''], row.cols||[]);
       });
     }
+    } // if (bonbu !== 'TF팀') 끝
 
     // ── 부서별 테이블 ──
     deptNames.forEach(dept => {
