@@ -17222,13 +17222,15 @@ function getMypageFundMembers(org, year, mode) {
     const deptObj = departments.find(d => d.name===deptName);
     if (!deptObj) return [];
     const result = [];
-    const collect = (parentId) => {
+    const collect = (parentId, parentNameForSpecialCase) => {
+      // 8/3자 TF팀 개편으로 조직도상엔 없지만, 기존 예산 기록 보존을 위해 AI GIS 연구부 하위로 계속 인식
+      if (parentNameForSpecialCase === 'AI GIS 연구부' && !result.includes('연구1팀')) result.push('연구1팀');
       departments.filter(d => d.parent===parentId).forEach(d => {
         result.push(d.name);
-        collect(d.id); // 재귀: 팀의 하위도 수집
+        collect(d.id, d.name); // 재귀: 팀의 하위도 수집
       });
     };
-    collect(deptObj.id);
+    collect(deptObj.id, deptObj.name);
     return result;
   };
 
