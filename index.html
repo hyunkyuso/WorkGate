@@ -15158,17 +15158,18 @@ function careerRenderAiswTab() {
     var days = careerAvailableDaysAfterRegistered(emp, 'aisw');
     var doyuPeriods = careerGetDoyuPeriods(emp);
     var regDays = 0;
-    var aMinStart = null, aMaxEnd = null;
+    var projectRanges = [];
     ((emp.assocCareer||{})['aisw'] || []).forEach(function(c) {
       // 근무처가 정도유아이티인 사업은, 실제 재직기간(퇴사-재입사 공백 제외) 안에 있을 때만 인정
       if ((c.employer||'').indexOf('정도유아이티') >= 0 && !careerDateInDoyuPeriods(c.contractDate, doyuPeriods)) return;
       regDays += careerDaysWithFallback(c);
-      if (c.contractDate && (aMinStart === null || c.contractDate < aMinStart)) aMinStart = c.contractDate;
       var endD = c.completionDate || (new Date().toISOString().slice(0,10));
-      if (endD && (aMaxEnd === null || endD > aMaxEnd)) aMaxEnd = endD;
+      if (c.contractDate && endD) projectRanges.push({ start: c.contractDate, end: endD });
     });
-    if (aMinStart && aMaxEnd) {
-      var aMaxPossible = careerSumPeriodsDaysInRange(doyuPeriods, aMinStart, aMaxEnd);
+    if (projectRanges.length) {
+      // 상한선: 등록된 사업들의 기간을 합쳐서(겹치는 부분은 하나로) 나온 합계
+      // - 등록 안 된 공백기간은 자연히 빠지고, 등록된 타사 경력은 그대로 포함됨
+      var aMaxPossible = careerSumPeriodsDays(projectRanges);
       if (regDays > aMaxPossible) regDays = aMaxPossible;
     }
     rows.push({
