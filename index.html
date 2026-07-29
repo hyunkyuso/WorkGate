@@ -16982,7 +16982,7 @@ function renderMypageFundTable(org, year, usageData, key) {
           const amt = m.monthAmts[mo] || 0;
           const isUnused = !active || !amt;
           return `<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;${isUnused?'background:#f1f5f9;color:#cbd5e1':''}">
-            ${active ? (amt ? amt.toLocaleString() : '-') : ''}
+            ${!isUnused ? amt.toLocaleString() : ''}
           </td>`;
         }).join('')}
         <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right;font-weight:700;background:#fafafa">
@@ -17043,7 +17043,8 @@ function renderMypageFundTable(org, year, usageData, key) {
           ${monthTotals.map((v,i)=>{
             const qi=Math.floor(i/3);
             const active=activeQis.includes(qi);
-            return `<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;${!active?'background:#f1f5f9;color:#cbd5e1':''}">${active?(v?v.toLocaleString():'-'):''}</td>`;
+            const isUnused = !active || !v;
+            return `<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;${isUnused?'background:#f1f5f9;color:#cbd5e1':''}">${!isUnused?v.toLocaleString():''}</td>`;
           }).join('')}
           <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right">${grandTotal.toLocaleString()}</td>
         </tr>
@@ -17053,7 +17054,8 @@ function renderMypageFundTable(org, year, usageData, key) {
           ${monthBalances.map((v,i)=>{
             const qi=Math.floor(i/3);
             const active=activeQis.includes(qi);
-            return `<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;font-weight:600;${!active?'background:#f1f5f9;color:#cbd5e1':'color:'+(v<0?'#ef4444':'#374151')}">${active?v.toLocaleString():''}</td>`;
+            const isUnused = !active || !monthTotals[i];
+            return `<td style="border:1px solid #e2e8f0;padding:5px 6px;font-size:11px;text-align:right;font-weight:600;${isUnused?'background:#f1f5f9;color:#cbd5e1':'color:'+(v<0?'#ef4444':'#374151')}">${!isUnused?v.toLocaleString():''}</td>`;
           }).join('')}
           <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right;font-weight:700;color:${monthBalances.reduce((s,v)=>s+v,0)<0?'#ef4444':'#374151'}">${monthBalances.reduce((s,v)=>s+v,0).toLocaleString()}</td>
         </tr>
@@ -17073,8 +17075,9 @@ function renderMypageFundTable(org, year, usageData, key) {
         ${[0,1,2,3].map(qi => {
           const amt = m.qiAmts[qi] || 0;
           const active = org.activeQis.includes(qi);
-          return `<td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right;${!active?'background:#f1f5f9;color:#cbd5e1':''}">
-            ${active && amt ? amt.toLocaleString() : '-'}
+          const isUnused = !active || !amt;
+          return `<td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right;${isUnused?'background:#f1f5f9;color:#cbd5e1':''}">
+            ${!isUnused ? amt.toLocaleString() : ''}
           </td>`;
         }).join('')}
         <td style="border:1px solid #e2e8f0;padding:5px 8px;font-size:11px;text-align:right;font-weight:700;background:#fafafa">${m.total.toLocaleString()}</td>
@@ -17131,13 +17134,13 @@ function renderMypageFundTable(org, year, usageData, key) {
         ${memberRows}
         <tr style="background:#e0f2fe;font-weight:700">
           <td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px">합계</td>
-          ${qiTotals.map((v,qi)=>`<td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;text-align:right;${!org.activeQis.includes(qi)?'background:#f1f5f9;color:#cbd5e1':''}">${org.activeQis.includes(qi)&&v?v.toLocaleString():'-'}</td>`).join('')}
+          ${qiTotals.map((v,qi)=>{ const isUnused=!org.activeQis.includes(qi)||!v; return `<td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;text-align:right;${isUnused?'background:#f1f5f9;color:#cbd5e1':''}">${!isUnused?v.toLocaleString():''}</td>`; }).join('')}
           <td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;text-align:right">${grandTotal.toLocaleString()}</td>
         </tr>
         ${usageRows}
         <tr style="background:#fff7ed">
           <td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;font-weight:700">잔액</td>
-          ${qiBalances.map((v,qi)=>`<td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;text-align:right;font-weight:600;${!org.activeQis.includes(qi)?'background:#f1f5f9;color:#cbd5e1':''};color:${v<0?'#ef4444':'#374151'}">${org.activeQis.includes(qi)?v.toLocaleString():'-'}</td>`).join('')}
+          ${qiBalances.map((v,qi)=>{ const isUnused=!org.activeQis.includes(qi)||!qiTotals[qi]; return `<td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;text-align:right;font-weight:600;${isUnused?'background:#f1f5f9;color:#cbd5e1':'color:'+(v<0?'#ef4444':'#374151')}">${!isUnused?v.toLocaleString():''}</td>`; }).join('')}
           <td style="border:1px solid #e2e8f0;padding:5px 10px;font-size:11px;text-align:right;font-weight:700;color:${qiBalances.reduce((s,v)=>s+v,0)<0?'#ef4444':'#374151'}">${qiBalances.reduce((s,v)=>s+v,0).toLocaleString()}</td>
         </tr>
       </tbody>
