@@ -15096,12 +15096,16 @@ function careerRenderConstructionTab() {
       var b = i === 0 ? 'border-left:2px solid var(--border);' : '';
       return '<td style="'+b+'text-align:center">'+(f === r.field ? careerGradeBadge(r.cur.grade) : '-')+'</td>';
     }).join('');
+    var isTopGrade = r.cur.grade === '특급';
+    var projGroupCells = isTopGrade
+      ? cell('-', true) + cell('-') + cell('-') + cell('-') + cell('-') + '<td style="text-align:center">-</td>'
+      : (cell(r.proj.licScore, true) + cell(r.proj.eduScore) + cell(r.proj.careerScore) + cell(r.proj.eduTrainScore) + cell(r.proj.score) + '<td style="text-align:center">'+careerGradeBadge(r.proj.grade)+'</td>');
+    var otherDoyuCells = isTopGrade ? (cell('-', true) + cell('-')) : (cell(r.other||'-', true) + cell(r.doyu||'-'));
     return '<tr style="border-top:1px solid var(--border)">' + bonbuCell + positionCell + nameCell +
       gradeCells +
       cell(r.cur.licScore, true) + cell(r.cur.eduScore) + cell(r.cur.careerScore) + cell(r.cur.eduTrainScore) + cell(r.cur.score) +
-      cell(r.proj.licScore, true) + cell(r.proj.eduScore) + cell(r.proj.careerScore) + cell(r.proj.eduTrainScore) + cell(r.proj.score) +
-      '<td style="text-align:center">'+careerGradeBadge(r.proj.grade)+'</td>' +
-      cell(r.other||'-', true) + cell(r.doyu||'-') +
+      projGroupCells +
+      otherDoyuCells +
       projectCell +
     '</tr>';
   }).join('');
