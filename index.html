@@ -16793,9 +16793,11 @@ async function renderMypageDeptFundYear(empName, empId) {
   const findHeadForDept = (dept, s) => {
     const nd = (s[dept]?.nameData||[]).find(d => d.acting && d.name);
     if (nd) return nd.name;
-    // nameData에 해당 직원이 있고 현재 소속이 이 부서인 경우만 대표자로 인정
+    // nameData에 해당 직원이 있고, 현재 소속이 이 부서이거나 / 이름칸 자체에 팀장·부서장·본부장으로 직접 지정되어 있으면 대표자로 인정
+    // (조직개편으로 부서명이 바뀌어도, 과거 기록 보존용으로 남겨둔 부서는 현재 소속이 달라도 이름칸의 title로 인정)
     const inNameData = (s[dept]?.nameData||[]).find(d => d.name === empName && !d.hidden);
     if (inNameData) {
+      if (['팀장','부서장','본부장'].includes(inNameData.title)) return empName;
       const empObj = employees.find(e => e.name === empName);
       if (empObj && (empObj.dept === dept || (empObj.concurrent||[]).some(c=>c.dept===dept))) return empName;
     }
