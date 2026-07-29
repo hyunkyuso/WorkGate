@@ -17442,53 +17442,49 @@ function getMypageFundMembers(org, year, mode) {
         const emp = employees.find(e => e.name===o.name);
         for (let mo=qi*3+1; mo<=qi*3+3; mo++) {
           let m;
-          if (emp) {
-            m = getEmpMonthsInQuarter(emp, year, mo-1, mo-1);
-          } else {
-            // name으로 먼저 찾기
-            let dd = (o.dateData||[]).find(d => d.name===o.name && d.qi===qi);
+          // 1) 재직 여부 기준 (입사/퇴사/휴직)
+          const empM = emp ? getEmpMonthsInQuarter(emp, year, mo-1, mo-1) : 1;
+          // 2) 이 부서 소속 여부 기준 (날짜칸/dateData) - 재직 중인 실제 직원이어도, 부서를 옮긴 경우가 있으므로 항상 확인
+          let dd = (o.dateData||[]).find(d => d.name===o.name && d.qi===qi);
+          if (!dd) {
+            // name 없는 dateData: col로 매칭 (같은 qi의 인원 순서로)
+            const oIdx = allObjs.indexOf(o);
+            dd = (o.dateData||[]).find(d => d.col===oIdx && d.qi===qi);
             if (!dd) {
-              // name 없는 dateData: col로 매칭 (같은 qi의 인원 순서로)
-              const qiObjs = allObjs.filter((oo,idx) => {
-                // 같은 qi에서 이 인원의 인덱스 찾기
-                return oo.name === o.name;
-              });
-              const oIdx = allObjs.indexOf(o);
-              dd = (o.dateData||[]).find(d => d.col===oIdx && d.qi===qi);
+              // col이 nameData 순서와 매칭
+              const qiNames = (window._lastQNames?.[dept]?.[qi] || []).map(x=>x.name);
+              const nameIdx = qiNames.indexOf(o.name);
+              if (nameIdx >= 0) {
+                dd = (o.dateData||[]).find(d => d.col===nameIdx && d.qi===qi);
+              }
+              // 산하 팀에서도 찾기
               if (!dd) {
-                // col이 nameData 순서와 매칭
-                const qiNames = (window._lastQNames?.[dept]?.[qi] || []).map(x=>x.name);
-                const nameIdx = qiNames.indexOf(o.name);
-                if (nameIdx >= 0) {
-                  dd = (o.dateData||[]).find(d => d.col===nameIdx && d.qi===qi);
-                }
-                // 산하 팀에서도 찾기
-                if (!dd) {
-                  getAllChildDepts(dept).forEach(cd => {
-                    if (dd) return;
-                    const cdQiNames = (window._lastQNames?.[cd]?.[qi] || []).map(x=>x.name);
-                    const cdIdx = cdQiNames.indexOf(o.name);
-                    if (cdIdx >= 0) {
-                      dd = (allSettings[cd]?.dateData||[]).find(d => d.col===cdIdx && d.qi===qi);
-                    }
-                  });
-                }
+                getAllChildDepts(dept).forEach(cd => {
+                  if (dd) return;
+                  const cdQiNames = (window._lastQNames?.[cd]?.[qi] || []).map(x=>x.name);
+                  const cdIdx = cdQiNames.indexOf(o.name);
+                  if (cdIdx >= 0) {
+                    dd = (allSettings[cd]?.dateData||[]).find(d => d.col===cdIdx && d.qi===qi);
+                  }
+                });
               }
-            }
-            if (dd) {
-              const fullDate = dd.fullDate ? new Date(dd.fullDate) : null;
-              const moDate = fullDate ? fullDate.getMonth()+1 : null;
-              if (dd.type === 'leave' || dd.type === 'to') {
-                m = moDate && mo <= moDate ? 1 : 0;
-              } else if (dd.type === 'join') {
-                m = moDate && mo >= moDate ? 1 : 0;
-              } else {
-                m = 1;
-              }
-            } else {
-              m = 1;
             }
           }
+          let deptM;
+          if (dd) {
+            const fullDate = dd.fullDate ? new Date(dd.fullDate) : null;
+            const moDate = fullDate ? fullDate.getMonth()+1 : null;
+            if (dd.type === 'leave' || dd.type === 'to') {
+              deptM = moDate && mo <= moDate ? 1 : 0;
+            } else if (dd.type === 'join' || dd.type === 'from') {
+              deptM = moDate && mo >= moDate ? 1 : 0;
+            } else {
+              deptM = 1;
+            }
+          } else {
+            deptM = 1;
+          }
+          m = Math.min(empM, deptM);
           if (m > 0) memberMap[o.name][mo] = m * 40000;
         }
       });
