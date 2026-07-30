@@ -1187,13 +1187,13 @@ select.form-input{cursor:pointer}
         <div class="page-header" style="margin-bottom:10px">
           <div><div class="page-title">📋 현황</div><div class="page-sub">사업분야별 인력 충족 현황을 한눈에 확인합니다</div></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start">
           <div>
-            <div id="license-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px"></div>
-            <div id="license-status-cards" style="display:flex;flex-direction:column;gap:6px"></div>
+            <div id="license-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-bottom:6px"></div>
+            <div id="license-status-cards" style="display:flex;flex-direction:column;gap:4px"></div>
           </div>
           <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
               <div style="font-weight:700;font-size:13px">한국엔지니어링협회 제출용 집계표</div>
               <div style="display:flex;gap:6px">
                 <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" onclick="licensePrintEngSummary()">🖨 인쇄</button>
@@ -1203,7 +1203,7 @@ select.form-input{cursor:pointer}
             <div id="license-eng-summary-table"></div>
           </div>
         </div>
-        <div style="margin-top:14px">
+        <div style="margin-top:8px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
             <div style="font-weight:700;font-size:13px">기업부설연구소 월별 참여 현황 (<span id="license-status-institute-year"></span>년)</div>
             <div style="display:flex;gap:6px">
@@ -19667,46 +19667,46 @@ function licenseRenderEngSummaryTable() {
   var grandTotal = {};
   cols.forEach(function(c){ grandTotal[c] = engSubtotal[c] + data.mgmt.counts[c] + data.etc.counts[c]; });
 
-  function td(v) { return '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:'+(v?'var(--ac)':'var(--t3)')+'">'+(v||'-')+'</td>'; }
+  function td(v) { return '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center;color:'+(v?'var(--ac)':'var(--t3)')+'">'+(v||'-')+'</td>'; }
 
   var engRows = data.rows.map(function(r, i){
     return '<tr>' +
-      (i===0 ? '<td rowspan="'+(data.rows.length+1)+'" style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600;background:var(--surface)">엔지니어링<br>인력</td>' : '') +
-      '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+r.label+'</td>' +
+      (i===0 ? '<td rowspan="'+(data.rows.length+1)+'" style="padding:3px 6px;border:1px solid var(--border);text-align:center;font-weight:600;background:var(--surface)">엔지니어링<br>인력</td>' : '') +
+      '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center">'+r.label+'</td>' +
       cols.map(function(c){ return td(r.counts[c]); }).join('') +
-      '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">'+rowTotal(r.counts)+'</td>' +
+      '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center;font-weight:600">'+rowTotal(r.counts)+'</td>' +
     '</tr>';
   }).join('');
 
   var subtotalRow = '<tr style="font-weight:600;background:var(--surface)">' +
-    '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">소계</td>' +
+    '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center">소계</td>' +
     cols.map(function(c){ return td(engSubtotal[c]); }).join('') +
-    '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+rowTotal(engSubtotal)+'</td>' +
+    '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center">'+rowTotal(engSubtotal)+'</td>' +
   '</tr>';
 
   var mgmtRow = '<tr>' +
-    '<td colspan="2" style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600;background:var(--surface)">관리인력</td>' +
+    '<td colspan="2" style="padding:3px 6px;border:1px solid var(--border);text-align:center;font-weight:600;background:var(--surface)">관리인력</td>' +
     cols.map(function(c){ return td(data.mgmt.counts[c]); }).join('') +
-    '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">'+rowTotal(data.mgmt.counts)+'</td>' +
+    '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center;font-weight:600">'+rowTotal(data.mgmt.counts)+'</td>' +
   '</tr>';
 
   var etcRow = '<tr>' +
-    '<td colspan="2" style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600;background:var(--surface)">기타인력</td>' +
+    '<td colspan="2" style="padding:3px 6px;border:1px solid var(--border);text-align:center;font-weight:600;background:var(--surface)">기타인력</td>' +
     cols.map(function(c){ return td(data.etc.counts[c]); }).join('') +
-    '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">'+rowTotal(data.etc.counts)+'</td>' +
+    '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center;font-weight:600">'+rowTotal(data.etc.counts)+'</td>' +
   '</tr>';
 
   var totalRow = '<tr style="font-weight:700;background:#1e3a5f;color:#fff">' +
-    '<td colspan="2" style="padding:6px 8px;border:1px solid var(--border);text-align:center">계</td>' +
-    cols.map(function(c){ return '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+(grandTotal[c]||'-')+'</td>'; }).join('') +
-    '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+rowTotal(grandTotal)+'</td>' +
+    '<td colspan="2" style="padding:3px 6px;border:1px solid var(--border);text-align:center">계</td>' +
+    cols.map(function(c){ return '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center">'+(grandTotal[c]||'-')+'</td>'; }).join('') +
+    '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center">'+rowTotal(grandTotal)+'</td>' +
   '</tr>';
 
   document.getElementById('license-eng-summary-table').innerHTML =
     '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--surface)">' +
-      '<td colspan="2" style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">구분</td>' +
-      cols.map(function(c){ return '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">'+c+'</td>'; }).join('') +
-      '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">계</td>' +
+      '<td colspan="2" style="padding:3px 6px;border:1px solid var(--border);text-align:center;font-weight:600">구분</td>' +
+      cols.map(function(c){ return '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center;font-weight:600">'+c+'</td>'; }).join('') +
+      '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center;font-weight:600">계</td>' +
     '</tr></thead><tbody>' +
       engRows + subtotalRow + mgmtRow + etcRow + totalRow +
     '</tbody></table>' +
@@ -20035,8 +20035,8 @@ async function licenseRenderStatus() {
       hasIssue = personnel.some(function(p){ return p.invalid; });
       subText = personnel.length+'명 등록';
     }
-    return '<div style="background:var(--white);border:1px solid '+(hasIssue?'#fca5a5':'var(--border)')+';border-radius:8px;padding:7px 12px;display:flex;justify-content:space-between;align-items:center">' +
-      '<div><span style="font-weight:600;font-size:14px">'+f.name+'</span><div style="font-size:12px;color:var(--t3);margin-top:2px">'+subText+'</div></div>' +
+    return '<div style="background:var(--white);border:1px solid '+(hasIssue?'#fca5a5':'var(--border)')+';border-radius:6px;padding:4px 10px;display:flex;justify-content:space-between;align-items:center">' +
+      '<div><span style="font-weight:600;font-size:12px">'+f.name+'</span> <span style="font-size:11px;color:var(--t3)">'+subText+'</span></div>' +
       (hasIssue
         ? '<span style="background:#fee2e2;color:#dc2626;font-size:12px;padding:3px 10px;border-radius:6px">확인 필요</span>'
         : '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:3px 10px;border-radius:6px">정상</span>') +
@@ -20355,26 +20355,26 @@ function licenseRenderStatusInstituteTable() {
     var act = licenseGetMonthlyActivity(e, year);
     var pos = e.instituteDirector ? '연구소장' : '전담요원';
     var monthTds = act.months.map(function(mo){
-      if (mo.label) return '<td style="width:6%;padding:5px 2px;border:1px solid var(--border);text-align:center;background:#fef08a;font-size:9px;overflow:hidden;white-space:nowrap">'+mo.label+'</td>';
-      if (mo.active) return '<td style="width:6%;padding:5px 2px;border:1px solid var(--border);background:#fef08a"></td>';
-      return '<td style="width:6%;padding:5px 2px;border:1px solid var(--border);background:#9ca3af"></td>';
+      if (mo.label) return '<td style="width:6%;padding:3px 1px;border:1px solid var(--border);text-align:center;background:#fef08a;font-size:9px;overflow:hidden;white-space:nowrap">'+mo.label+'</td>';
+      if (mo.active) return '<td style="width:6%;padding:3px 1px;border:1px solid var(--border);background:#fef08a"></td>';
+      return '<td style="width:6%;padding:3px 1px;border:1px solid var(--border);background:#9ca3af"></td>';
     }).join('');
     return '<tr>' +
-      '<td style="width:4%;padding:5px 6px;border:1px solid var(--border);text-align:center">'+(i+1)+'</td>' +
-      '<td style="width:8%;padding:5px 6px;border:1px solid var(--border);text-align:center;color:#2563eb">'+pos+'</td>' +
-      '<td style="width:8%;padding:5px 6px;border:1px solid var(--border);text-align:center;color:#2563eb">'+e.name+'</td>' +
+      '<td style="width:4%;padding:3px 5px;border:1px solid var(--border);text-align:center">'+(i+1)+'</td>' +
+      '<td style="width:8%;padding:3px 5px;border:1px solid var(--border);text-align:center;color:#2563eb">'+pos+'</td>' +
+      '<td style="width:8%;padding:3px 5px;border:1px solid var(--border);text-align:center;color:#2563eb">'+e.name+'</td>' +
       monthTds +
-      '<td style="width:8%;padding:5px 6px;border:1px solid var(--border);text-align:center;font-weight:600">'+act.count+'개월</td>' +
+      '<td style="width:8%;padding:3px 5px;border:1px solid var(--border);text-align:center;font-weight:600">'+act.count+'개월</td>' +
     '</tr>';
   }).join('') || '<tr><td colspan="15" style="padding:14px;border:1px solid var(--border);text-align:center;color:var(--t3)">'+year+'년에 해당하는 인원이 없습니다</td></tr>';
 
   document.getElementById('license-status-institute-table').innerHTML =
-    '<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px"><thead><tr style="background:#dbeafe">' +
-      '<td style="width:4%;padding:5px 6px;border:1px solid var(--border);text-align:center;font-weight:600">연번</td>' +
-      '<td style="width:8%;padding:5px 6px;border:1px solid var(--border);text-align:center;font-weight:600">구분</td>' +
-      '<td style="width:8%;padding:5px 6px;border:1px solid var(--border);text-align:center;font-weight:600">성명</td>' +
-      Array.from({length:12},function(_,i){ return '<td style="width:6%;padding:5px 2px;border:1px solid var(--border);text-align:center;font-weight:600">'+(i+1)+'월</td>'; }).join('') +
-      '<td style="width:8%;padding:5px 6px;border:1px solid var(--border);text-align:center;font-weight:600">비고</td>' +
+    '<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px"><thead><tr style="background:#dbeafe">' +
+      '<td style="width:4%;padding:3px 5px;border:1px solid var(--border);text-align:center;font-weight:600">연번</td>' +
+      '<td style="width:8%;padding:3px 5px;border:1px solid var(--border);text-align:center;font-weight:600">구분</td>' +
+      '<td style="width:8%;padding:3px 5px;border:1px solid var(--border);text-align:center;font-weight:600">성명</td>' +
+      Array.from({length:12},function(_,i){ return '<td style="width:6%;padding:3px 1px;border:1px solid var(--border);text-align:center;font-weight:600">'+(i+1)+'월</td>'; }).join('') +
+      '<td style="width:8%;padding:3px 5px;border:1px solid var(--border);text-align:center;font-weight:600">비고</td>' +
     '</tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
