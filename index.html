@@ -19617,9 +19617,21 @@ async function loadLicenseFields(force) {
 }
 
 var LICENSE_AUTO_FIELDS = [
-  { name: '영상처리업', keywords: ['도화','지도제작'] },
-  { name: '수치지도', keywords: ['도화','지도제작'] },
-  { name: '지도제작', keywords: ['지도제작'] }
+  { name: '영상처리업', slots: [
+    { label: '고급 이상 (측량및지형공간정보·지적)', type: 'construction-grade', minGrade: '고급' },
+    { label: '중급 이상 (측량및지형공간정보·지적)', type: 'construction-grade', minGrade: '중급' },
+    { label: '초급 이상 (측량및지형공간정보·지적)', type: 'construction-grade', minGrade: '초급' },
+    { label: '도화 또는 지도제작 기능사', type: 'license', keywords: ['도화','지도제작'] },
+    { label: '정보처리산업기사 이상', type: 'license', keywords: ['정보처리산업기사','정보처리기사'] }
+  ]},
+  { name: '수치지도', slots: [
+    { label: '고급 이상 (측량및지형공간정보·지적)', type: 'construction-grade', minGrade: '고급' },
+    { label: '도화 또는 지도제작 기능사', type: 'license', keywords: ['도화','지도제작'] },
+    { label: '정보처리기사 이상', type: 'license', keywords: ['정보처리기사'] }
+  ]},
+  { name: '지도제작', slots: [
+    { label: '지도제작 기능사', type: 'license', keywords: ['지도제작'] }
+  ]}
 ];
 
 async function licenseEnsureAutoFields() {
@@ -19627,9 +19639,28 @@ async function licenseEnsureAutoFields() {
   var missing = LICENSE_AUTO_FIELDS.filter(function(af){ return existingNames.indexOf(af.name) < 0; });
   if (!missing.length) return;
   for (var i=0; i<missing.length; i++) {
-    await db.collection('licenseFields').add({ name: missing[i].name, auto:true, reqType:'license', keywords: missing[i].keywords, personnel:[], equipment:[] });
+    await db.collection('licenseFields').add({ name: missing[i].name, auto:true, selections:{}, equipment:[] });
   }
   await loadLicenseFields(true);
+}
+
+// 슬롯 조건에 맞는 후보 목록 (건설협회 등급 또는 자격증 키워드 기준)
+function licenseGetCandidatesForSlot(slot) {
+  if (slot.type === 'construction-grade') return licenseGetEligibleByConstructionGrade(slot.minGrade);
+  if (slot.type === 'license') return licenseGetEligibleByLicenseKeyword(slot.keywords);
+  return [];
+}
+
+async function licenseSetSlotSelection(fieldId, slotIdx, empName) {
+  var f = licenseFields.find(function(x){ return x.id === fieldId; });
+  if (!f) return;
+  if (!f.selections) f.selections = {};
+  if (empName) f.selections[slotIdx] = empName; else delete f.selections[slotIdx];
+  try {
+    await db.collection('licenseFields').doc(fieldId).set(f);
+    await loadLicenseFields(true);
+    licenseRenderStatus();
+  } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
 }
 
 async function licenseRenderStatus() {
@@ -19639,28 +19670,25 @@ async function licenseRenderStatus() {
   var addBtn = document.getElementById('license-add-field-btn');
   if (addBtn) addBtn.style.display = canEdit ? '' : 'none';
 
-  // auto 필드는 저장된 인력 대신, 자격증 데이터에서 실시간으로 대상자를 찾아서 채움
-  licenseFields.forEach(function(f){
-    if (f.auto && f.reqType === 'license') {
-      f.personnel = licenseGetEligibleByLicenseKeyword(f.keywords || []).map(function(c){
-        return { name: c.name, grade: c.grade, invalid: false };
-      });
-      if (!f.personnel.length) f.personnel = [{ name: '(대상자 없음)', grade: '', invalid: true }];
-    }
-  });
-
   var q = (document.getElementById('license-search')||{}).value || '';
   q = q.trim().toLowerCase();
   var fields = licenseFields.filter(function(f){
     if (!q) return true;
     if ((f.name||'').toLowerCase().indexOf(q) >= 0) return true;
+    if (f.auto) return false;
     return (f.personnel||[]).some(function(p){ return (p.name||'').toLowerCase().indexOf(q) >= 0; });
   });
 
   var issueCount = 0, calibSoonCount = 0;
   var todayStr = new Date().toISOString().slice(0,10);
   fields.forEach(function(f){
-    if ((f.personnel||[]).some(function(p){ return p.invalid; })) issueCount++;
+    if (f.auto) {
+      var conf = LICENSE_AUTO_FIELDS.find(function(af){ return af.name === f.name; });
+      if (conf) {
+        var unmet = conf.slots.some(function(s, idx){ return !((f.selections||{})[idx]); });
+        if (unmet) issueCount++;
+      }
+    } else if ((f.personnel||[]).some(function(p){ return p.invalid; })) issueCount++;
     (f.equipment||[]).forEach(function(eq){
       if (eq.date) {
         var diff = Math.ceil((new Date(eq.date) - new Date(todayStr)) / 86400000);
@@ -19680,6 +19708,55 @@ async function licenseRenderStatus() {
   }
 
   document.getElementById('license-fields-list').innerHTML = fields.map(function(f){
+    var conf = f.auto ? LICENSE_AUTO_FIELDS.find(function(af){ return af.name === f.name; }) : null;
+
+    if (conf) {
+      // ── 자동 슬롯 기반 사업분야 ──
+      var selections = f.selections || {};
+      var filledCount = conf.slots.filter(function(s, idx){ return !!selections[idx]; }).length;
+      var hasIssue = filledCount < conf.slots.length;
+      var badge = hasIssue
+        ? '<span style="background:#fee2e2;color:#dc2626;font-size:12px;padding:3px 10px;border-radius:6px">미충족 '+(conf.slots.length-filledCount)+'건</span>'
+        : '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:3px 10px;border-radius:6px">충족</span>';
+
+      var slotRows = conf.slots.map(function(slot, idx){
+        var candidates = licenseGetCandidatesForSlot(slot);
+        var selected = selections[idx] || '';
+        var stillEligible = candidates.some(function(c){ return c.name === selected; });
+        var optionsHtml = '<option value="">선택 안 함</option>' + candidates.map(function(c){
+          return '<option value="'+c.name+'"'+(c.name===selected?' selected':'')+'>'+c.name+(c.grade?' ('+c.grade+')':'')+'</option>';
+        }).join('');
+        if (selected && !stillEligible) optionsHtml += '<option value="'+selected+'" selected>'+selected+' (조건 이탈)</option>';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;'+(idx?'border-top:1px solid var(--border)':'')+'">' +
+          '<span style="font-size:13px;'+(selected&&!stillEligible?'color:#dc2626':'')+'">'+slot.label+(!selected?' <span style="color:#dc2626;font-size:11px">(미지정)</span>':(!stillEligible?' <span style="color:#dc2626;font-size:11px">(자격 이탈)</span>':''))+'</span>' +
+          (canEdit
+            ? '<select class="form-input" style="width:220px;font-size:12px" onchange="licenseSetSlotSelection(\''+f.id+'\','+idx+',this.value)">'+optionsHtml+'</select>'
+            : '<span style="font-size:13px;color:var(--t2)">'+(selected||'-')+'</span>') +
+        '</div>';
+      }).join('');
+
+      var eqChips = (f.equipment||[]).map(function(eq){
+        var dday = '';
+        if (eq.date) {
+          var diff = Math.ceil((new Date(eq.date) - new Date(todayStr)) / 86400000);
+          var color = diff <= 30 ? '#b45309' : 'var(--t3)';
+          dday = '<span style="font-size:11px;color:'+color+'">'+eq.date+'</span>';
+        }
+        return '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border-radius:6px;padding:4px 10px;margin:0 6px 6px 0">' +
+          '<span style="font-size:12px">'+(eq.name||'')+(eq.maker?' ('+eq.maker+' '+(eq.spec||'')+')':'')+'</span>' + dday +
+        '</div>';
+      }).join('');
+
+      return '<div style="background:var(--white);border:1px solid '+(hasIssue?'#fca5a5':'var(--border)')+';border-radius:12px;padding:16px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+          '<span style="font-weight:600;font-size:15px">'+f.name+'</span>' + badge +
+        '</div>' +
+        slotRows +
+        (eqChips ? '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">'+eqChips+'</div>' : '') +
+      '</div>';
+    }
+
+    // ── 자유입력 사업분야 (기존 방식) ──
     var personnel = f.personnel || [];
     var equipment = f.equipment || [];
     var hasIssue = personnel.some(function(p){ return p.invalid; });
@@ -19695,7 +19772,7 @@ async function licenseRenderStatus() {
     var rows = '';
     for (var i=0; i<personnel.length; i+=2) {
       var p1 = personnel[i], p2 = personnel[i+1];
-      var canEditRow = canEdit; // 상위 스코프의 canEdit 재사용
+      var canEditRow = canEdit;
       rows += '<tr style="'+(i/2%2?'background:var(--surface)':'')+'">' +
         '<td style="padding:6px 8px;'+(p1.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p1.name||'')+(p1.invalid&&canEditRow?' <button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:10px;text-decoration:none;color:#dc2626;border-color:#fca5a5" onclick="licenseOpenReplaceModal(\''+f.id+'\','+i+')">교체</button>':'')+'</td>' +
         '<td style="padding:6px 8px;'+(p1.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p1.grade||'')+'</td>' +
@@ -19704,7 +19781,7 @@ async function licenseRenderStatus() {
       '</tr>';
     }
 
-    var eqChips = equipment.map(function(eq){
+    var eqChips2 = equipment.map(function(eq){
       var dday = '';
       if (eq.date) {
         var diff = Math.ceil((new Date(eq.date) - new Date(todayStr)) / 86400000);
@@ -19720,12 +19797,12 @@ async function licenseRenderStatus() {
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
         '<span style="font-weight:600;font-size:15px">'+f.name+'</span>' +
         '<div style="display:flex;gap:8px;align-items:center">' + badge +
-          (canEdit && !f.auto ? '<button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:11px" onclick="licenseOpenFieldModal(\''+f.id+'\')">수정</button>' : '') +
+          (canEdit ? '<button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:11px" onclick="licenseOpenFieldModal(\''+f.id+'\')">수정</button>' : '') +
         '</div>' +
       '</div>' +
       (rows ? '<table style="width:100%;font-size:13px;border-collapse:collapse">'+rows+'</table>' : '') +
       (hasIssue ? '<div style="font-size:12px;color:#dc2626;margin-top:8px">퇴사 또는 등급 미달로 인력 보완이 필요합니다</div>' : '') +
-      (eqChips ? '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">'+eqChips+'</div>' : '') +
+      (eqChips2 ? '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">'+eqChips2+'</div>' : '') +
     '</div>';
   }).join('');
 }
