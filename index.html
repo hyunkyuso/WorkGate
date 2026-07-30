@@ -19667,6 +19667,8 @@ function licenseGetEngAssignedElsewhere(exceptFieldId) {
   return used;
 }
 
+var LICENSE_FIELD_ORDER = ['영상처리업', '수치지도제작업', '지도제작업', '엔지니어링활동주체신고-도시계획', '엔지니어링활동주체신고-정보관리', '엔지니어링활동주체신고-교통', '엔지니어링활동주체신고-조경'];
+
 var LICENSE_AUTO_FIELDS = [
   { name: '영상처리업', slots: [
     { label: '고급 이상 (측량및지형공간정보·지적)', type: 'construction-grade', minGrade: '고급' },
@@ -19758,7 +19760,12 @@ async function licenseRenderStatus() {
     '<div style="background:var(--surface);border-radius:8px;padding:16px"><div style="font-size:13px;color:var(--t3);margin-bottom:4px">미충족/이상 발견</div><div style="font-size:24px;font-weight:600;color:'+(issueCount?'#dc2626':'inherit')+'">'+issueCount+'건</div></div>' +
     '<div style="background:var(--surface);border-radius:8px;padding:16px"><div style="font-size:13px;color:var(--t3);margin-bottom:4px">장비 검교정 임박(30일)</div><div style="font-size:24px;font-weight:600;color:'+(calibSoonCount?'#b45309':'inherit')+'">'+calibSoonCount+'건</div></div>';
 
-  document.getElementById('license-status-cards').innerHTML = licenseFields.map(function(f){
+  var orderedFields2 = licenseFields.slice().sort(function(a,b){
+    var ai = LICENSE_FIELD_ORDER.indexOf(a.name); if (ai<0) ai = 999;
+    var bi = LICENSE_FIELD_ORDER.indexOf(b.name); if (bi<0) bi = 999;
+    return ai - bi;
+  });
+  document.getElementById('license-status-cards').innerHTML = orderedFields2.map(function(f){
     var conf = f.auto ? LICENSE_AUTO_FIELDS.find(function(af){ return af.name === f.name; }) : null;
     var hasIssue, subText;
     if (f.engAuto) {
@@ -19835,8 +19842,13 @@ async function licenseRenderMaster() {
     editBtn.textContent = _licenseEditMode ? '입력란 비활성화' : '입력란 활성화';
   }
   var todayStr = new Date().toISOString().slice(0,10);
+  var orderedFields = licenseFields.slice().sort(function(a,b){
+    var ai = LICENSE_FIELD_ORDER.indexOf(a.name); if (ai<0) ai = 999;
+    var bi = LICENSE_FIELD_ORDER.indexOf(b.name); if (bi<0) bi = 999;
+    return ai - bi;
+  });
 
-  document.getElementById('license-master-table').innerHTML = licenseFields.map(function(f){
+  document.getElementById('license-master-table').innerHTML = orderedFields.map(function(f){
     if (f.engAuto) {
       var leadGrade = f.leadGrade || '특급';
       var slots = [
