@@ -181,7 +181,7 @@ select.form-input{cursor:pointer}
 #cert-menu-items.collapsed{max-height:0;opacity:0}
 #work-menu-items,#hr-menu-items,#doc-menu-items,#system-menu-items,#career-menu-items,#sales-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
 #career-overview-table th,#career-overview-table td{padding:5px 8px}
-#work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed,#career-menu-items.collapsed,#sales-menu-items.collapsed{max-height:0;opacity:0}
+#work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed,#career-menu-items.collapsed,#sales-menu-items.collapsed,#license-menu-items.collapsed{max-height:0;opacity:0}
 
 /* ── DRIVE STATUS ── */
 .drive-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;border-radius:8px;margin-bottom:14px}
@@ -2749,6 +2749,10 @@ select.form-input{cursor:pointer}
               <div class="pm-role-menu-group" data-group="sales"></div>
             </div>
             <div>
+              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">면허관리</div>
+              <div class="pm-role-menu-group" data-group="license"></div>
+            </div>
+            <div>
               <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">시스템</div>
               <div class="pm-role-menu-group" data-group="system"></div>
             </div>
@@ -2789,6 +2793,8 @@ select.form-input{cursor:pointer}
             <div class="pm-menu-group" data-group="career" style="margin-bottom:10px"></div>
             <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">영업지원</div>
             <div class="pm-menu-group" data-group="sales" style="margin-bottom:10px"></div>
+            <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">면허관리</div>
+            <div class="pm-menu-group" data-group="license" style="margin-bottom:10px"></div>
             <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">시스템</div>
             <div class="pm-menu-group" data-group="system"></div>
             <button class="btn btn-primary btn-sm" style="margin-top:14px;width:100%" onclick="pmSaveGrants()">선택한 직원들에게 이 설정으로 저장 (덮어쓰기)</button>
@@ -20281,23 +20287,28 @@ function licenseGetHighestEduEntry(emp) {
 }
 
 function licenseRenderInstitute() {
-  var members = employees.filter(function(e){ return e.isResearchInstitute; }).sort(function(a,b){
-    if (a.instituteDirector && !b.instituteDirector) return -1;
-    if (!a.instituteDirector && b.instituteDirector) return 1;
-    return (a.name||'').localeCompare(b.name||'');
-  });
   var todayParts = new Date().toISOString().slice(0,10).split('-');
   var todayStr = todayParts[0]+'년 '+parseInt(todayParts[1])+'월 '+parseInt(todayParts[2])+'일';
 
-  var historyRows = members.map(function(e, i){
+  var members = employees.filter(function(e){ return e.isResearchInstitute; }).map(function(e){
     var edu = licenseGetHighestEduEntry(e);
-    var eduLine1 = edu ? edu.school+' '+edu.degree : '-';
-    var eduLine2 = edu ? (edu.major||'') : '';
-    var years = '-';
+    var yearsNum = -1;
     if (edu && edu.date) {
       var diffDays = (new Date() - new Date(edu.date)) / 86400000;
-      years = Math.floor(diffDays/365) + '년';
+      yearsNum = Math.floor(diffDays/365);
     }
+    return { emp: e, edu: edu, yearsNum: yearsNum };
+  }).sort(function(a,b){
+    if (a.emp.instituteDirector && !b.emp.instituteDirector) return -1;
+    if (!a.emp.instituteDirector && b.emp.instituteDirector) return 1;
+    return b.yearsNum - a.yearsNum;
+  });
+
+  var historyRows = members.map(function(item, i){
+    var e = item.emp, edu = item.edu;
+    var eduLine1 = edu ? edu.school+' '+edu.degree : '-';
+    var eduLine2 = edu ? (edu.major||'') : '';
+    var years = item.yearsNum >= 0 ? item.yearsNum+'년' : '-';
     var pos = e.instituteDirector ? '연구소장' : '연구원';
     return '<tr>' +
       '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+(i+1)+'</td>' +
@@ -20369,10 +20380,9 @@ function licensePrintInstitute() {
   var win = window.open('', '_blank');
   win.document.write('<html><head><title>기업부설연구소 인력현황</title><style>' +
     ':root{--border:#e2e5ef;--border2:#d0d4e8;--surface:#f0f2f8;--t1:#1a1d2e;--t2:#5a5f7a;--t3:#9ca0b8;--ac:#4f6ef7}' +
-    'body{font-family:"Malgun Gothic",sans-serif;margin:8mm;zoom:0.55;color:var(--t1)}' +
+    'body{font-family:"Malgun Gothic",sans-serif;margin:10mm;color:var(--t1)}' +
     'table{width:100%;border-collapse:collapse;margin-bottom:8px}' +
-    '@page{size:A4 landscape;margin:6mm}' +
-    '@media print{body{zoom:0.5}}' +
+    '@page{size:A4 portrait;margin:10mm}' +
   '</style></head><body><h2 style="font-size:16px;margin-bottom:10px">기업부설연구소 인력현황</h2>'+content+'</body></html>');
   win.document.close();
   win.onload = function(){ win.print(); };
@@ -25490,7 +25500,7 @@ function pmRoleLoadDefaults() {
 }
 
 function pmRoleRenderMenuTree() {
-  ['hr','docs','affairs','career','sales','system'].forEach(function(group) {
+  ['hr','docs','affairs','career','sales','license','system'].forEach(function(group) {
     var el = document.querySelector('.pm-role-menu-group[data-group="'+group+'"]');
     if (!el) return;
     el.innerHTML = PM_MENU_LIST[group].map(function(m) {
@@ -25720,7 +25730,7 @@ function pmSyncLevelsWithSelection() {
 }
 
 function pmRenderMenuTree() {
-  ['hr','docs','affairs','career','sales','system'].forEach(function(group) {
+  ['hr','docs','affairs','career','sales','license','system'].forEach(function(group) {
     var el = document.querySelector('.pm-menu-group[data-group="'+group+'"]');
     if (!el) return;
     el.innerHTML = PM_MENU_LIST[group].map(function(m) {
