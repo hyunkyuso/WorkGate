@@ -19883,21 +19883,39 @@ async function licenseToggleEngPotential(fieldId) {
 
 var _licenseEditMode = false;
 function licensePrintMaster() {
-  var content = document.getElementById('license-master-table').innerHTML;
-  var ciso = document.querySelector('#page-license-master > div:last-child').outerHTML;
+  var temp = document.createElement('div');
+  temp.innerHTML = document.getElementById('license-master-table').innerHTML;
+
+  // select(드롭다운)는 인쇄에 안 어울리니, 선택된 값의 텍스트로 교체
+  temp.querySelectorAll('select').forEach(function(sel){
+    var opt = sel.options[sel.selectedIndex];
+    var span = document.createElement('span');
+    span.textContent = opt ? opt.textContent : '-';
+    if (sel.title) span.title = sel.title;
+    sel.replaceWith(span);
+  });
+
+  // 버튼(수정/미등록 후보 보기 등)은 인쇄에서 제외
+  temp.querySelectorAll('button').forEach(function(btn){ btn.remove(); });
+
+  // "충족" 배지(정확히 이 글자인 것)만 제거 (미충족은 유지)
+  temp.querySelectorAll('span').forEach(function(sp){
+    if (sp.textContent.trim() === '충족') sp.remove();
+  });
+
+  var ciso = document.querySelector('#page-license-master > div:last-child').cloneNode(true);
+
   var win = window.open('', '_blank');
   win.document.write(
     '<html><head><title>기술인력·장비 등록 총괄관리표</title>' +
     '<style>' +
-      'body{font-family:"Malgun Gothic",sans-serif;font-size:10px;margin:12px}' +
-      'table{width:100%;border-collapse:collapse;margin-bottom:8px}' +
-      'td{border:1px solid #999;padding:3px 5px}' +
-      'select{border:none;background:transparent;font-size:10px;-webkit-appearance:none;appearance:none;pointer-events:none}' +
-      'button{display:none}' +
-      '@page{size:A4 landscape;margin:10mm}' +
+      'body{font-family:"Malgun Gothic",sans-serif;margin:8mm;zoom:0.7}' +
+      'table{width:100%;border-collapse:collapse;margin-bottom:6px}' +
+      '@page{size:A4 landscape;margin:6mm}' +
+      '@media print{body{zoom:0.65}}' +
     '</style></head><body>' +
-    '<h2 style="font-size:14px;margin-bottom:10px">기술인력·장비 등록 총괄관리표</h2>' +
-    content + ciso +
+    '<h2 style="font-size:14px;margin-bottom:8px">기술인력·장비 등록 총괄관리표</h2>' +
+    temp.innerHTML + ciso.outerHTML +
     '</body></html>'
   );
   win.document.close();
@@ -19970,12 +19988,12 @@ async function licenseRenderMaster() {
         if (isManual) optionsHtml += '<option value="'+selected+'" selected>'+selected+' (직접 입력)</option>';
         optionsHtml += '<option value="__manual__">+ 직접 입력...</option>';
         var manualReason = (f.engManualReasons||{})[idx] || '';
-        var reasonTip = isManual && manualReason ? ' title="직접 입력 사유: '+manualReason.replace(/"/g,'&quot;')+'" style="cursor:help;text-decoration:underline dotted"' : '';
+        var reasonTip = manualReason ? ' title="직접 입력 사유: '+manualReason.replace(/"/g,'&quot;')+'" style="cursor:help;text-decoration:underline dotted"' : '';
         return {
           gradeLabel: slot.label,
           nameHtml: canEdit
             ? '<select class="form-input" style="font-size:12px;padding:2px 4px"'+reasonTip+' onchange="licenseSetEngSelection(\''+f.id+'\','+idx+',this.value)">'+optionsHtml+'</select>'
-            : '<span'+reasonTip+'>'+(selected||'-')+(isManual&&manualReason?' 🛈':'')+'</span>'
+            : '<span'+reasonTip+'>'+(selected||'-')+(manualReason?' 🛈':'')+'</span>'
         };
       });
 
