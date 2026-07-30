@@ -19783,9 +19783,8 @@ async function licenseRenderStatus() {
     var conf = f.auto ? LICENSE_AUTO_FIELDS.find(function(af){ return af.name === f.name; }) : null;
     if (f.engAuto) {
       var engSel = f.engSelections || {};
-      var sc1 = f.slotCount || 3;
-      var filled3 = 0; for (var si1=0; si1<sc1; si1++) if (engSel[si1]) filled3++;
-      if (filled3 < sc1) issueCount++;
+      var filled3 = 0; for (var si1=0; si1<3; si1++) if (engSel[si1]) filled3++;
+      if (filled3 < 3) issueCount++;
     } else if (conf) {
       var selections = f.selections || {};
       if (conf.slots.some(function(s, idx){ return !selections[idx]; })) issueCount++;
@@ -19816,8 +19815,9 @@ async function licenseRenderStatus() {
       var engSel = f.engSelections || {};
       var sc2 = f.slotCount || 3;
       var filled4 = 0; for (var si2=0; si2<sc2; si2++) if (engSel[si2]) filled4++;
-      hasIssue = filled4 < sc2;
-      subText = filled4+' / '+sc2+'건 지정됨';
+      var filledReq4 = 0; for (var si2b=0; si2b<3; si2b++) if (engSel[si2b]) filledReq4++;
+      hasIssue = filledReq4 < 3;
+      subText = filled4+' / '+sc2+'건 지정됨 (필수 3건 중 '+filledReq4+'건)';
     } else if (conf) {
       var selections = f.selections || {};
       var filled = conf.slots.filter(function(s,idx){ return !!selections[idx]; }).length;
@@ -19936,11 +19936,15 @@ async function licenseRenderMaster() {
       var selections = f.engSelections || {};
       var usedElsewhere = licenseGetEngAssignedElsewhere(f.id);
       var usedInThisField = Object.keys(selections).map(function(k){ return selections[k]; }).filter(Boolean);
+      var requiredCount = 3; // 규정상 필수 인원(리더1+초급2)은 항상 3명, 그 이상은 여유(백업)용
       var filledCount = slots.filter(function(s, idx){ return !!selections[idx]; }).length;
-      var hasIssue = filledCount < slots.length;
+      var filledRequired = slots.slice(0, requiredCount).filter(function(s, idx){ return !!selections[idx]; }).length;
+      var hasIssue = filledRequired < requiredCount;
+      var extraMissing = Math.max(0, (slots.length - requiredCount) - (filledCount - filledRequired));
       var badge = hasIssue
-        ? '<span style="background:#fee2e2;color:#dc2626;font-size:12px;padding:3px 10px;border-radius:6px">미충족 '+(slots.length-filledCount)+'건</span>'
-        : '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:3px 10px;border-radius:6px">충족</span>';
+        ? '<span style="background:#fee2e2;color:#dc2626;font-size:12px;padding:3px 10px;border-radius:6px">미충족 '+(requiredCount-filledRequired)+'건</span>'
+        : '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:3px 10px;border-radius:6px">충족</span>' +
+          (extraMissing > 0 ? ' <span style="background:var(--surface);color:var(--t3);font-size:11px;padding:3px 10px;border-radius:6px">여유인원 '+extraMissing+'명 빠짐(필수 아님)</span>' : '');
 
       var leadSelector = f.section
         ? ' <select class="form-input" style="font-size:11px;padding:2px 4px;width:auto;display:inline-block" onchange="licenseSetEngLeadGrade(\''+f.id+'\',this.value)">' +
