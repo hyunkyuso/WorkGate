@@ -388,6 +388,7 @@ select.form-input{cursor:pointer}
         <div id="license-menu-items" class="collapsed">
           <div class="nav-item admin-only" onclick="showPage('license-status',this)"><span class="nav-icon">📋</span> 현황</div>
           <div class="nav-item admin-only" onclick="showPage('license-master',this)"><span class="nav-icon">📊</span> 총괄관리표</div>
+          <div class="nav-item admin-only" onclick="showPage('license-category',this)"><span class="nav-icon">🏷️</span> 인력 분류</div>
         </div>
       </div>
 
@@ -1207,6 +1208,29 @@ select.form-input{cursor:pointer}
           </tr></thead><tbody>
             <tr><td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">박윤희</td><td style="padding:6px 8px;border:1px solid var(--border);text-align:center">20.07.10</td></tr>
           </tbody></table>
+        </div>
+      </div>
+
+      <!-- 면허관리: 인력 분류 -->
+      <div id="page-license-category" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🏷️ 인력 분류</div><div class="page-sub">엔지니어링협회 제출용 집계표 산정을 위한 인력 분류입니다</div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+          <input type="text" class="form-input" id="license-category-search" placeholder="이름 또는 부서 검색" style="max-width:220px" oninput="licenseRenderCategory()">
+        </div>
+        <div style="overflow:auto;max-height:70vh;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow)">
+          <table style="width:100%;font-size:13px;border-collapse:collapse">
+            <thead><tr style="background:#f1f5f9;position:sticky;top:0">
+              <td style="padding:8px;text-align:center">이름</td>
+              <td style="padding:8px;text-align:center">부서</td>
+              <td style="padding:8px;text-align:center">엔지니어링인력</td>
+              <td style="padding:8px;text-align:center">관리인력</td>
+              <td style="padding:8px;text-align:center">기타인력</td>
+              <td style="padding:8px;text-align:center;border-left:2px solid var(--border)">기업부설연구소</td>
+            </tr></thead>
+            <tbody id="license-category-tbody"></tbody>
+          </table>
         </div>
       </div>
 
@@ -17952,6 +17976,7 @@ function showPage(id, el) {
   if(id === 'sales-training') salesRenderTrainingList();
   if(id === 'license-status') licenseRenderStatus();
   if(id === 'license-master') licenseRenderMaster();
+  if(id === 'license-category') licenseRenderCategory();
   if(id === 'career-people') {
     careerPeopleSwitchTab('overview', document.querySelector('.career-people-tab-btn'));
     if (_careerPrefillSearch !== null) {
@@ -19920,6 +19945,51 @@ function licensePrintMaster() {
   );
   win.document.close();
   win.onload = function(){ win.print(); };
+}
+
+function licenseRenderCategory() {
+  var q = (document.getElementById('license-category-search')||{}).value || '';
+  q = q.trim().toLowerCase();
+  var list = employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
+    if (!q) return true;
+    return (e.name||'').toLowerCase().indexOf(q) >= 0 || (e.dept||'').toLowerCase().indexOf(q) >= 0;
+  }).sort(function(a,b){ return (a.dept||'').localeCompare(b.dept||'') || (a.name||'').localeCompare(b.name||''); });
+
+  document.getElementById('license-category-tbody').innerHTML = list.map(function(e){
+    var empId = e._docId || e.id;
+    var cat = e.licenseCategory || '';
+    function radio(val, label) {
+      return '<label style="cursor:pointer"><input type="radio" name="license-cat-'+empId+'" value="'+val+'" '+(cat===val?'checked':'')+' onchange="licenseSetCategory(\''+empId+'\',\''+val+'\')"></label>';
+    }
+    return '<tr style="border-top:1px solid var(--border)">' +
+      '<td style="padding:6px 8px;font-weight:600">'+e.name+'</td>' +
+      '<td style="padding:6px 8px;color:var(--t2)">'+(e.dept||'-')+'</td>' +
+      '<td style="padding:6px 8px;text-align:center">'+radio('엔지니어링','엔지니어링')+'</td>' +
+      '<td style="padding:6px 8px;text-align:center">'+radio('관리','관리')+'</td>' +
+      '<td style="padding:6px 8px;text-align:center">'+radio('기타','기타')+'</td>' +
+      '<td style="padding:6px 8px;text-align:center;border-left:2px solid var(--border)"><input type="checkbox" '+(e.isResearchInstitute?'checked':'')+' onchange="licenseSetResearchInstitute(\''+empId+'\',this.checked)"></td>' +
+    '</tr>';
+  }).join('');
+}
+
+async function licenseSetCategory(empId, category) {
+  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+  if (!emp) return;
+  emp.licenseCategory = category;
+  try {
+    await db.collection('employees').doc(empId).update({ licenseCategory: category });
+    showToast('✅ 저장되었습니다');
+  } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
+}
+
+async function licenseSetResearchInstitute(empId, checked) {
+  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+  if (!emp) return;
+  emp.isResearchInstitute = checked;
+  try {
+    await db.collection('employees').doc(empId).update({ isResearchInstitute: checked });
+    showToast('✅ 저장되었습니다');
+  } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
 }
 
 function licenseToggleEditMode() {
@@ -25096,7 +25166,8 @@ var PM_MENU_LIST = {
   ],
   license: [
     {id:'license-status', label:'면허관리 현황'},
-    {id:'license-master', label:'면허관리 총괄관리표'}
+    {id:'license-master', label:'면허관리 총괄관리표'},
+    {id:'license-category', label:'면허관리 인력 분류'}
   ],
   system: [
     {id:'codemanage', label:'코드 관리'},
