@@ -19624,10 +19624,10 @@ async function loadLicenseFields(force) {
 }
 
 var LICENSE_ENG_FIELDS = [
-  { name: '엔지니어링활동주체신고-도시계획', engField: '도시계획', section: '건설부문', defaultLead: '특급' },
-  { name: '엔지니어링활동주체신고-교통', engField: '교통', section: '건설부문', defaultLead: '고급' },
-  { name: '엔지니어링활동주체신고-조경', engField: '조경', section: '건설부문', defaultLead: '고급' },
-  { name: '엔지니어링활동주체신고-정보관리', engField: '정보관리', section: null, defaultLead: '특급' }
+  { name: '엔지니어링활동주체신고-도시계획', engField: '도시계획', section: '건설부문', defaultLead: '특급', slotCount: 5 },
+  { name: '엔지니어링활동주체신고-교통', engField: '교통', section: '건설부문', defaultLead: '고급', slotCount: 3 },
+  { name: '엔지니어링활동주체신고-조경', engField: '조경', section: '건설부문', defaultLead: '고급', slotCount: 3 },
+  { name: '엔지니어링활동주체신고-정보관리', engField: '정보관리', section: null, defaultLead: '특급', slotCount: 5 }
 ];
 
 // 협회(eng)에 실제 등록되어 인정되는 인원 목록 (등급 필터 옵션 포함)
@@ -19706,7 +19706,15 @@ async function licenseEnsureAutoFields() {
   }
   var missingEng = LICENSE_ENG_FIELDS.filter(function(ef){ return existingNames.indexOf(ef.name) < 0; });
   for (var j=0; j<missingEng.length; j++) {
-    await db.collection('licenseFields').add({ name: missingEng[j].name, engAuto:true, engField: missingEng[j].engField, section: missingEng[j].section, leadGrade: missingEng[j].defaultLead, engSelections:{}, showPotential:false });
+    await db.collection('licenseFields').add({ name: missingEng[j].name, engAuto:true, engField: missingEng[j].engField, section: missingEng[j].section, leadGrade: missingEng[j].defaultLead, slotCount: missingEng[j].slotCount || 3, engSelections:{}, showPotential:false });
+  }
+  // 이미 있는 필드인데 슬롯 수가 기존(3) 그대로거나 안 맞으면 최신 기준으로 갱신
+  for (var k=0; k<licenseFields.length; k++) {
+    var ef2 = LICENSE_ENG_FIELDS.find(function(x){ return x.name === licenseFields[k].name; });
+    if (ef2 && licenseFields[k].slotCount !== ef2.slotCount) {
+      await db.collection('licenseFields').doc(licenseFields[k].id).update({ slotCount: ef2.slotCount });
+      licenseFields[k].slotCount = ef2.slotCount;
+    }
   }
   if (missing.length || missingEng.length) await loadLicenseFields(true);
 }
@@ -19740,8 +19748,9 @@ async function licenseRenderStatus() {
     var conf = f.auto ? LICENSE_AUTO_FIELDS.find(function(af){ return af.name === f.name; }) : null;
     if (f.engAuto) {
       var engSel = f.engSelections || {};
-      var filled3 = [0,1,2].filter(function(idx){ return !!engSel[idx]; }).length;
-      if (filled3 < 3) issueCount++;
+      var sc1 = f.slotCount || 3;
+      var filled3 = 0; for (var si1=0; si1<sc1; si1++) if (engSel[si1]) filled3++;
+      if (filled3 < sc1) issueCount++;
     } else if (conf) {
       var selections = f.selections || {};
       if (conf.slots.some(function(s, idx){ return !selections[idx]; })) issueCount++;
@@ -19770,9 +19779,10 @@ async function licenseRenderStatus() {
     var hasIssue, subText;
     if (f.engAuto) {
       var engSel = f.engSelections || {};
-      var filled4 = [0,1,2].filter(function(idx){ return !!engSel[idx]; }).length;
-      hasIssue = filled4 < 3;
-      subText = filled4+' / 3건 지정됨';
+      var sc2 = f.slotCount || 3;
+      var filled4 = 0; for (var si2=0; si2<sc2; si2++) if (engSel[si2]) filled4++;
+      hasIssue = filled4 < sc2;
+      subText = filled4+' / '+sc2+'건 지정됨';
     } else if (conf) {
       var selections = f.selections || {};
       var filled = conf.slots.filter(function(s,idx){ return !!selections[idx]; }).length;
@@ -19851,11 +19861,9 @@ async function licenseRenderMaster() {
   document.getElementById('license-master-table').innerHTML = orderedFields.map(function(f){
     if (f.engAuto) {
       var leadGrade = f.leadGrade || '특급';
-      var slots = [
-        { label: leadGrade+' 이상', minGrade: leadGrade },
-        { label: '초급 이상', minGrade: '초급' },
-        { label: '초급 이상', minGrade: '초급' }
-      ];
+      var slotCount = f.slotCount || 3;
+      var slots = [{ label: leadGrade+' 이상', minGrade: leadGrade }];
+      for (var si=1; si<slotCount; si++) slots.push({ label: '초급 이상', minGrade: '초급' });
       var selections = f.engSelections || {};
       var usedElsewhere = licenseGetEngAssignedElsewhere(f.id);
       var usedInThisField = Object.keys(selections).map(function(k){ return selections[k]; }).filter(Boolean);
