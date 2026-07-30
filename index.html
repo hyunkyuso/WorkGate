@@ -19624,31 +19624,47 @@ async function loadLicenseFields(force) {
 }
 
 var LICENSE_ENG_FIELDS = [
-  { name: '엔지니어링활동주체신고-도시계획', engField: '도시계획' },
-  { name: '엔지니어링활동주체신고-정보관리', engField: '정보관리' },
-  { name: '엔지니어링활동주체신고-교통', engField: '교통' },
-  { name: '엔지니어링활동주체신고-조경', engField: '조경' }
+  { name: '엔지니어링활동주체신고-도시계획', engField: '도시계획', section: '건설부문', defaultLead: '특급' },
+  { name: '엔지니어링활동주체신고-교통', engField: '교통', section: '건설부문', defaultLead: '고급' },
+  { name: '엔지니어링활동주체신고-조경', engField: '조경', section: '건설부문', defaultLead: '고급' },
+  { name: '엔지니어링활동주체신고-정보관리', engField: '정보관리', section: null, defaultLead: '특급' }
 ];
 
-// 협회(eng)에 실제 등록되어 인정되는 인원 목록 (기본으로 보여줄 인원)
-function licenseGetEngRegistered(field) {
+// 협회(eng)에 실제 등록되어 인정되는 인원 목록 (등급 필터 옵션 포함)
+function licenseGetEngRegistered(field, minGrade) {
+  var minRank = minGrade ? licenseGradeRank(minGrade+'기술자') : 0;
   return employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
-    return careerIsFieldRegistered(e, 'eng', field);
+    if (!careerIsFieldRegistered(e, 'eng', field)) return false;
+    if (!minGrade) return true;
+    return licenseGradeRank(careerGetEffectiveGrade(e, field, 'eng').grade) >= minRank;
   }).map(function(e){
     return { name: e.name, grade: careerGetEffectiveGrade(e, field, 'eng').grade };
   });
 }
 
 // 협회에 등록은 안 했지만, 자격증/전공이 해당 분야에 해당되는 인원 (버튼 눌렀을 때만 보여줄 후보)
-function licenseGetEngPotential(field) {
+function licenseGetEngPotential(field, minGrade) {
+  var minRank = minGrade ? licenseGradeRank(minGrade+'기술자') : 0;
   return employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
     if (careerIsFieldRegistered(e, 'eng', field)) return false; // 이미 등록된 사람은 제외(중복 방지)
     var hasCert = (e.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseMatchesField(l, field); });
     var hasEdu = (e.education||[]).some(function(ed){ return careerEduFieldsForMajor(ed.major).indexOf(field) >= 0; });
-    return hasCert || hasEdu;
+    if (!hasCert && !hasEdu) return false;
+    if (!minGrade) return true;
+    return licenseGradeRank(careerGetEffectiveGrade(e, field, 'eng').grade) >= minRank;
   }).map(function(e){
     return { name: e.name, grade: careerGetEffectiveGrade(e, field, 'eng').grade };
   });
+}
+
+// 엔지니어링활동주체신고 4개 분야 전체에서, 이미 다른 분야(슬롯)에 배정된 이름 목록(중복 배정 방지용)
+function licenseGetEngAssignedElsewhere(exceptFieldId) {
+  var used = [];
+  licenseFields.filter(function(f){ return f.engAuto; }).forEach(function(f){
+    if (f.id === exceptFieldId) return;
+    Object.values(f.engSelections||{}).forEach(function(n){ if (n) used.push(n); });
+  });
+  return used;
 }
 
 var LICENSE_AUTO_FIELDS = [
@@ -19688,7 +19704,7 @@ async function licenseEnsureAutoFields() {
   }
   var missingEng = LICENSE_ENG_FIELDS.filter(function(ef){ return existingNames.indexOf(ef.name) < 0; });
   for (var j=0; j<missingEng.length; j++) {
-    await db.collection('licenseFields').add({ name: missingEng[j].name, engAuto:true, engField: missingEng[j].engField, showPotential:false });
+    await db.collection('licenseFields').add({ name: missingEng[j].name, engAuto:true, engField: missingEng[j].engField, section: missingEng[j].section, leadGrade: missingEng[j].defaultLead, engSelections:{}, showPotential:false });
   }
   if (missing.length || missingEng.length) await loadLicenseFields(true);
 }
@@ -19721,9 +19737,9 @@ async function licenseRenderStatus() {
   licenseFields.forEach(function(f){
     var conf = f.auto ? LICENSE_AUTO_FIELDS.find(function(af){ return af.name === f.name; }) : null;
     if (f.engAuto) {
-      var reg = licenseGetEngRegistered(f.engField);
-      var ok = reg.length >= 3 && reg.some(function(p){ return p.grade === '특급기술자'; });
-      if (!ok) issueCount++;
+      var engSel = f.engSelections || {};
+      var filled3 = [0,1,2].filter(function(idx){ return !!engSel[idx]; }).length;
+      if (filled3 < 3) issueCount++;
     } else if (conf) {
       var selections = f.selections || {};
       if (conf.slots.some(function(s, idx){ return !selections[idx]; })) issueCount++;
@@ -19746,10 +19762,10 @@ async function licenseRenderStatus() {
     var conf = f.auto ? LICENSE_AUTO_FIELDS.find(function(af){ return af.name === f.name; }) : null;
     var hasIssue, subText;
     if (f.engAuto) {
-      var reg = licenseGetEngRegistered(f.engField);
-      var hasTeukgeup = reg.some(function(p){ return p.grade === '특급기술자'; });
-      hasIssue = !hasTeukgeup || reg.length < 3;
-      subText = '등록 인원 '+reg.length+'명(특급 '+(hasTeukgeup?'O':'X')+')';
+      var engSel = f.engSelections || {};
+      var filled4 = [0,1,2].filter(function(idx){ return !!engSel[idx]; }).length;
+      hasIssue = filled4 < 3;
+      subText = filled4+' / 3건 지정됨';
     } else if (conf) {
       var selections = f.selections || {};
       var filled = conf.slots.filter(function(s,idx){ return !!selections[idx]; }).length;
@@ -19767,6 +19783,29 @@ async function licenseRenderStatus() {
         : '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:3px 10px;border-radius:6px">정상</span>') +
     '</div>';
   }).join('') || '<div style="text-align:center;padding:40px;color:var(--t3)">등록된 사업분야가 없습니다. "총괄관리표"에서 추가하세요.</div>';
+}
+
+async function licenseSetEngSelection(fieldId, slotIdx, empName) {
+  var f = licenseFields.find(function(x){ return x.id === fieldId; });
+  if (!f) return;
+  if (!f.engSelections) f.engSelections = {};
+  if (empName) f.engSelections[slotIdx] = empName; else delete f.engSelections[slotIdx];
+  try {
+    await db.collection('licenseFields').doc(fieldId).set(f);
+    await loadLicenseFields(true);
+    licenseRenderMaster();
+  } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
+}
+
+async function licenseSetEngLeadGrade(fieldId, grade) {
+  var f = licenseFields.find(function(x){ return x.id === fieldId; });
+  if (!f) return;
+  f.leadGrade = grade;
+  try {
+    await db.collection('licenseFields').doc(fieldId).update({ leadGrade: grade });
+    await loadLicenseFields(true);
+    licenseRenderMaster();
+  } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
 }
 
 async function licenseToggleEngPotential(fieldId) {
@@ -19799,35 +19838,63 @@ async function licenseRenderMaster() {
 
   document.getElementById('license-master-table').innerHTML = licenseFields.map(function(f){
     if (f.engAuto) {
-      var registered = licenseGetEngRegistered(f.engField);
-      var hasTeukgeup = registered.some(function(p){ return p.grade === '특급기술자'; });
-      var meetsCount = registered.length >= 3;
-      var hasIssue = !hasTeukgeup || !meetsCount;
+      var leadGrade = f.leadGrade || '특급';
+      var slots = [
+        { label: leadGrade+' 이상', minGrade: leadGrade },
+        { label: '초급 이상', minGrade: '초급' },
+        { label: '초급 이상', minGrade: '초급' }
+      ];
+      var selections = f.engSelections || {};
+      var usedElsewhere = licenseGetEngAssignedElsewhere(f.id);
+      var usedInThisField = Object.keys(selections).map(function(k){ return selections[k]; }).filter(Boolean);
+      var filledCount = slots.filter(function(s, idx){ return !!selections[idx]; }).length;
+      var hasIssue = filledCount < slots.length;
       var badge = hasIssue
-        ? '<span style="background:#fee2e2;color:#dc2626;font-size:12px;padding:3px 10px;border-radius:6px">미충족(특급 '+(hasTeukgeup?'O':'X')+', 총 '+registered.length+'명)</span>'
-        : '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:3px 10px;border-radius:6px">충족(총 '+registered.length+'명)</span>';
+        ? '<span style="background:#fee2e2;color:#dc2626;font-size:12px;padding:3px 10px;border-radius:6px">미충족 '+(slots.length-filledCount)+'건</span>'
+        : '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:3px 10px;border-radius:6px">충족</span>';
 
-      var displayList = registered.map(function(p){ return {name:p.name, grade:p.grade, potential:false}; });
-      if (f.showPotential) {
-        var potential = licenseGetEngPotential(f.engField);
-        displayList = displayList.concat(potential.map(function(p){ return {name:p.name, grade:p.grade, potential:true}; }));
-      }
+      var leadSelector = f.section
+        ? ' <select class="form-input" style="font-size:11px;padding:2px 4px;width:auto;display:inline-block" onchange="licenseSetEngLeadGrade(\''+f.id+'\',this.value)">' +
+            '<option value="특급"'+(leadGrade==='특급'?' selected':'')+'>리더:특급</option>' +
+            '<option value="고급"'+(leadGrade==='고급'?' selected':'')+'>리더:고급</option>' +
+          '</select>'
+        : '';
+
+      var slotPairs = slots.map(function(slot, idx){
+        var candidates = licenseGetEngRegistered(f.engField, slot.minGrade);
+        if (f.showPotential) candidates = candidates.concat(licenseGetEngPotential(f.engField, slot.minGrade).map(function(c){ return {name:c.name, grade:c.grade, potential:true}; }));
+        var selected = selections[idx] || '';
+        candidates = candidates.filter(function(c){
+          if (c.name === selected) return true;
+          if (usedInThisField.indexOf(c.name) >= 0) return false; // 같은 분야 다른 슬롯에 이미 배정
+          if (usedElsewhere.indexOf(c.name) >= 0) return false; // 다른 분야에 이미 배정(협회 내 중복 방지)
+          return true;
+        });
+        var optionsHtml = '<option value="">미지정</option>' + candidates.map(function(c){
+          return '<option value="'+c.name+'"'+(c.name===selected?' selected':'')+'>'+c.name+(c.potential?'(미등록)':'')+' - '+(c.grade||'-')+'</option>';
+        }).join('');
+        return {
+          gradeLabel: slot.label,
+          nameHtml: canEdit
+            ? '<select class="form-input" style="font-size:12px;padding:2px 4px" onchange="licenseSetEngSelection(\''+f.id+'\','+idx+',this.value)">'+optionsHtml+'</select>'
+            : '<span>'+(selected||'-')+'</span>'
+        };
+      });
 
       var engRows = '';
-      for (var ei=0; ei<displayList.length; ei+=2) {
-        var e1 = displayList[ei], e2 = displayList[ei+1];
+      for (var ei=0; ei<slotPairs.length; ei+=2) {
+        var e1 = slotPairs[ei], e2 = slotPairs[ei+1];
         engRows += '<tr>' +
-          '<td style="padding:6px 8px;border:1px solid var(--border);font-weight:600;text-align:center'+(e1.potential?';opacity:.6':'')+'">'+e1.name+(e1.potential?' <span style="font-size:10px;color:var(--t3)">(미등록)</span>':'')+'</td>' +
-          '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center'+(e1.potential?';opacity:.6':'')+'">'+(e1.grade||'-')+'</td>' +
-          '<td style="padding:6px 8px;border:1px solid var(--border);font-weight:600;text-align:center'+(e2&&e2.potential?';opacity:.6':'')+'">'+(e2?e2.name+(e2.potential?' <span style="font-size:10px;color:var(--t3)">(미등록)</span>':''):'')+'</td>' +
-          '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center'+(e2&&e2.potential?';opacity:.6':'')+'">'+(e2?(e2.grade||'-'):'')+'</td>' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);font-weight:600;text-align:center">'+e1.nameHtml+'</td>' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+e1.gradeLabel+'</td>' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);font-weight:600;text-align:center">'+(e2?e2.nameHtml:'')+'</td>' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+(e2?e2.gradeLabel:'')+'</td>' +
         '</tr>';
       }
-      if (!engRows) engRows = '<tr><td colspan="4" style="padding:12px;border:1px solid var(--border);text-align:center;color:var(--t3)">등록된 인원이 없습니다</td></tr>';
 
       return '<div style="margin-bottom:24px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
-          '<span style="font-weight:700;font-size:14px">■ '+f.name+'</span>' + badge +
+          '<span style="font-weight:700;font-size:14px">■ '+f.name+leadSelector+'</span>' + badge +
         '</div>' +
         '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr style="background:var(--surface)">' +
           '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">기술자명</td>' +
