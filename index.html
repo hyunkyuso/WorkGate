@@ -19807,33 +19807,35 @@ async function licenseRenderMaster() {
         ? '<span style="background:#fee2e2;color:#dc2626;font-size:12px;padding:3px 10px;border-radius:6px">미충족(특급 '+(hasTeukgeup?'O':'X')+', 총 '+registered.length+'명)</span>'
         : '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:3px 10px;border-radius:6px">충족(총 '+registered.length+'명)</span>';
 
-      var regRows = registered.map(function(p){
-        return '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border-radius:6px;padding:4px 10px;margin:0 6px 6px 0">' +
-          '<span style="font-size:13px;font-weight:600">'+p.name+'</span>' +
-          '<span style="font-size:12px;color:'+(p.grade==='특급기술자'?'#16a34a':'var(--t3)')+'">'+(p.grade||'-')+'</span>' +
-        '</div>';
-      }).join('') || '<div style="font-size:13px;color:var(--t3)">협회에 등록된 인원이 없습니다</div>';
-
-      var potentialHtml = '';
+      var displayList = registered.map(function(p){ return {name:p.name, grade:p.grade, potential:false}; });
       if (f.showPotential) {
         var potential = licenseGetEngPotential(f.engField);
-        potentialHtml = '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">' +
-          '<div style="font-size:12px;color:var(--t3);margin-bottom:6px">협회 미등록이지만 자격증·전공상 해당 분야에 해당되는 인원</div>' +
-          (potential.map(function(p){
-            return '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border-radius:6px;padding:4px 10px;margin:0 6px 6px 0;opacity:.75">' +
-              '<span style="font-size:13px">'+p.name+'</span><span style="font-size:12px;color:var(--t3)">'+(p.grade||'-')+'</span>' +
-            '</div>';
-          }).join('') || '<div style="font-size:13px;color:var(--t3)">해당 인원이 없습니다</div>') +
-        '</div>';
+        displayList = displayList.concat(potential.map(function(p){ return {name:p.name, grade:p.grade, potential:true}; }));
       }
 
-      return '<div style="background:var(--white);border:1px solid '+(hasIssue?'#fca5a5':'var(--border)')+';border-radius:12px;padding:16px;margin-bottom:16px">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
-          '<span style="font-weight:600;font-size:15px">'+f.name+'</span>' + badge +
+      var engRows = '';
+      for (var ei=0; ei<displayList.length; ei+=2) {
+        var e1 = displayList[ei], e2 = displayList[ei+1];
+        engRows += '<tr>' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);font-weight:600;text-align:center'+(e1.potential?';opacity:.6':'')+'">'+e1.name+(e1.potential?' <span style="font-size:10px;color:var(--t3)">(미등록)</span>':'')+'</td>' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center'+(e1.potential?';opacity:.6':'')+'">'+(e1.grade||'-')+'</td>' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);font-weight:600;text-align:center'+(e2&&e2.potential?';opacity:.6':'')+'">'+(e2?e2.name+(e2.potential?' <span style="font-size:10px;color:var(--t3)">(미등록)</span>':''):'')+'</td>' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center'+(e2&&e2.potential?';opacity:.6':'')+'">'+(e2?(e2.grade||'-'):'')+'</td>' +
+        '</tr>';
+      }
+      if (!engRows) engRows = '<tr><td colspan="4" style="padding:12px;border:1px solid var(--border);text-align:center;color:var(--t3)">등록된 인원이 없습니다</td></tr>';
+
+      return '<div style="margin-bottom:24px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+          '<span style="font-weight:700;font-size:14px">■ '+f.name+'</span>' + badge +
         '</div>' +
-        '<div>'+regRows+'</div>' +
-        potentialHtml +
-        '<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="licenseToggleEngPotential(\''+f.id+'\')">'+(f.showPotential?'미등록 후보 숨기기':'미등록 후보 보기')+'</button>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr style="background:var(--surface)">' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">기술자명</td>' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">기술등급</td>' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">기술자명</td>' +
+          '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">기술등급</td>' +
+        '</tr></thead><tbody>'+engRows+'</tbody></table>' +
+        '<button class="btn btn-ghost btn-sm" onclick="licenseToggleEngPotential(\''+f.id+'\')">'+(f.showPotential?'미등록 후보 숨기기':'미등록 후보 보기')+'</button>' +
       '</div>';
     }
 
