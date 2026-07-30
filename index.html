@@ -19526,6 +19526,84 @@ function salesUploadTrainingDoc(input) {
 }
 
 // ══════════════════ 면허관리 ══════════════════
+var LICENSE_GRADE_RANK = {'특급기술자':4,'고급기술자':3,'중급기술자':2,'초급기술자':1};
+function licenseGradeRank(g) { return LICENSE_GRADE_RANK[g] || 0; }
+
+// 건설기술인협회 "토목-측량및지형공간정보" 분야에서, minGrade(특급/고급/중급/초급) 이상인 등록 인원 목록
+function licenseGetEligibleByConstructionGrade(minGrade) {
+  var minRank = licenseGradeRank(minGrade === '특급' ? '특급기술자' : minGrade+'기술자');
+  var field = '토목-측량및지형공간정보';
+  return employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
+    if (!careerIsFieldRegistered(e, 'construction', field)) return false;
+    var g = careerGetEffectiveGrade(e, field, 'construction').grade;
+    return licenseGradeRank(g) >= minRank;
+  }).map(function(e){
+    return { name: e.name, grade: careerGetEffectiveGrade(e, field, 'construction').grade };
+  });
+}
+
+// 자격증(license) 정보 중 특정 키워드(예: "도화", "지도제작")가 이름에 포함된 자격을 보유한 직원 목록
+function licenseGetEligibleByLicenseKeyword(keywords) {
+  return employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
+    return (e.license||[]).some(function(l){
+      return keywords.some(function(k){ return (l.name||'').indexOf(k) >= 0; });
+    });
+  }).map(function(e){
+    var matched = (e.license||[]).find(function(l){ return keywords.some(function(k){ return (l.name||'').indexOf(k) >= 0; }); });
+    return { name: e.name, grade: matched ? matched.name : '' };
+  });
+}
+
+function licenseOpenReplaceModal(fieldId, personnelIdx) {
+  var f = licenseFields.find(function(x){ return x.id === fieldId; });
+  if (!f) return;
+  var p = (f.personnel||[])[personnelIdx];
+  if (!p) return;
+  var candidates = [];
+  if (p.reqType === 'construction-grade') {
+    candidates = licenseGetEligibleByConstructionGrade(p.minGrade || '초급');
+  } else if (p.reqType === 'license') {
+    candidates = licenseGetEligibleByLicenseKeyword(p.keywords || []);
+  } else {
+    // 기준 정보 없으면 전체 재직자에서 검색
+    candidates = employees.filter(function(e){ return e.status !== '퇴직'; }).map(function(e){ return {name:e.name, grade:''}; });
+  }
+
+  var existing = document.getElementById('license-replace-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'license-replace-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:10000;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:#fff;border-radius:12px;padding:20px;width:380px;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2)">' +
+      '<div style="font-size:14px;font-weight:700;margin-bottom:6px">교체 대상 선택</div>' +
+      '<div style="font-size:12px;color:var(--t3);margin-bottom:12px">현재: '+(p.name||'미지정')+' ('+(p.grade||'')+')</div>' +
+      (candidates.length ? candidates.map(function(c){
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer" onmouseover="this.style.background=\'var(--bg2, #f1f5f9)\'" onmouseout="this.style.background=\'\'" onclick="licenseApplyReplace(\''+fieldId+'\','+personnelIdx+',\''+c.name+'\',\''+(c.grade||'').replace(/'/g,"\\'")+'\')">' +
+          '<span style="font-size:13px">'+c.name+'</span><span style="font-size:12px;color:var(--t3)">'+(c.grade||'')+'</span>' +
+        '</div>';
+      }).join('') : '<div style="text-align:center;padding:24px;color:var(--t3);font-size:13px">해당 조건에 맞는 후보가 없습니다</div>') +
+      '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px" onclick="document.getElementById(\'license-replace-modal\').remove()">취소</button>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+}
+
+async function licenseApplyReplace(fieldId, personnelIdx, newName, newGrade) {
+  var f = licenseFields.find(function(x){ return x.id === fieldId; });
+  if (!f) return;
+  f.personnel[personnelIdx].name = newName;
+  f.personnel[personnelIdx].grade = newGrade;
+  f.personnel[personnelIdx].invalid = false;
+  try {
+    await db.collection('licenseFields').doc(fieldId).set(f);
+    document.getElementById('license-replace-modal').remove();
+    await loadLicenseFields(true);
+    licenseRenderStatus();
+    showToast('✅ 교체되었습니다');
+  } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
+}
+
 var licenseFields = []; // [{id, name, personnel:[{name,grade,invalid,note}], equipment:[{name,maker,spec,cycle,date}]}]
 var licenseFieldsLoaded = false;
 
@@ -19589,10 +19667,11 @@ async function licenseRenderStatus() {
     var rows = '';
     for (var i=0; i<personnel.length; i+=2) {
       var p1 = personnel[i], p2 = personnel[i+1];
+      var canEditRow = canEdit; // 상위 스코프의 canEdit 재사용
       rows += '<tr style="'+(i/2%2?'background:var(--surface)':'')+'">' +
-        '<td style="padding:6px 8px;'+(p1.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p1.name||'')+'</td>' +
+        '<td style="padding:6px 8px;'+(p1.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p1.name||'')+(p1.invalid&&canEditRow?' <button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:10px;text-decoration:none;color:#dc2626;border-color:#fca5a5" onclick="licenseOpenReplaceModal(\''+f.id+'\','+i+')">교체</button>':'')+'</td>' +
         '<td style="padding:6px 8px;'+(p1.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p1.grade||'')+'</td>' +
-        '<td style="padding:6px 8px;'+(p2&&p2.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p2?p2.name||'':'')+'</td>' +
+        '<td style="padding:6px 8px;'+(p2&&p2.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p2?p2.name||'':'')+(p2&&p2.invalid&&canEditRow?' <button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:10px;text-decoration:none;color:#dc2626;border-color:#fca5a5" onclick="licenseOpenReplaceModal(\''+f.id+'\','+(i+1)+')">교체</button>':'')+'</td>' +
         '<td style="padding:6px 8px;'+(p2&&p2.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p2?p2.grade||'':'')+'</td>' +
       '</tr>';
     }
@@ -19666,12 +19745,36 @@ function licenseOpenFieldModal(fieldId) {
 
 function licensePersonnelRowHtml(i, p) {
   p = p || {};
-  return '<div style="display:flex;gap:6px;align-items:center" data-p-row="'+i+'">' +
-    '<input class="form-input" placeholder="이름" value="'+(p.name?p.name.replace(/"/g,'&quot;'):'')+'" style="flex:1" data-p-name>' +
-    '<input class="form-input" placeholder="등급 (예: (특급)지적기사)" value="'+(p.grade?p.grade.replace(/"/g,'&quot;'):'')+'" style="flex:1.4" data-p-grade>' +
-    '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#dc2626;white-space:nowrap"><input type="checkbox" '+(p.invalid?'checked':'')+' data-p-invalid> 이상</label>' +
-    '<button class="btn btn-ghost btn-sm" style="padding:4px 8px" onclick="this.parentElement.remove()">✕</button>' +
+  var reqType = p.reqType || 'free';
+  return '<div style="display:flex;flex-direction:column;gap:4px;padding:6px;border:1px solid var(--border);border-radius:6px" data-p-row="'+i+'">' +
+    '<div style="display:flex;gap:6px;align-items:center">' +
+      '<input class="form-input" placeholder="이름" value="'+(p.name?p.name.replace(/"/g,'&quot;'):'')+'" style="flex:1" data-p-name>' +
+      '<input class="form-input" placeholder="등급 (예: (특급)지적기사)" value="'+(p.grade?p.grade.replace(/"/g,'&quot;'):'')+'" style="flex:1.4" data-p-grade>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#dc2626;white-space:nowrap"><input type="checkbox" '+(p.invalid?'checked':'')+' data-p-invalid> 이상</label>' +
+      '<button class="btn btn-ghost btn-sm" style="padding:4px 8px" onclick="this.parentElement.parentElement.remove()">✕</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:6px;align-items:center">' +
+      '<select class="form-input" style="flex:1;font-size:11px" data-p-reqtype onchange="licenseToggleReqFields(this)">' +
+        '<option value="free"'+(reqType==='free'?' selected':'')+'>기준 없음(자유입력)</option>' +
+        '<option value="construction-grade"'+(reqType==='construction-grade'?' selected':'')+'>건설기술인협회 등급(측량및지형공간정보)</option>' +
+        '<option value="license"'+(reqType==='license'?' selected':'')+'>자격증 키워드</option>' +
+      '</select>' +
+      '<select class="form-input" style="flex:0.8;font-size:11px;display:'+(reqType==='construction-grade'?'':'none')+'" data-p-mingrade>' +
+        '<option value="특급"'+(p.minGrade==='특급'?' selected':'')+'>특급 이상</option>' +
+        '<option value="고급"'+(p.minGrade==='고급'?' selected':'')+'>고급 이상</option>' +
+        '<option value="중급"'+(p.minGrade==='중급'?' selected':'')+'>중급 이상</option>' +
+        '<option value="초급"'+(p.minGrade==='초급'?' selected':'')+'>초급 이상</option>' +
+      '</select>' +
+      '<input class="form-input" placeholder="키워드(쉼표구분, 예: 도화,지도제작)" value="'+((p.keywords||[]).join(',').replace(/"/g,'&quot;'))+'" style="flex:1.2;font-size:11px;display:'+(reqType==='license'?'':'none')+'" data-p-keywords>' +
+    '</div>' +
   '</div>';
+}
+function licenseToggleReqFields(sel) {
+  var row = sel.closest('[data-p-row]');
+  var gradeSel = row.querySelector('[data-p-mingrade]');
+  var kwInput = row.querySelector('[data-p-keywords]');
+  gradeSel.style.display = sel.value === 'construction-grade' ? '' : 'none';
+  kwInput.style.display = sel.value === 'license' ? '' : 'none';
 }
 function licenseEquipRowHtml(i, eq) {
   eq = eq || {};
@@ -19694,11 +19797,16 @@ async function licenseSaveField() {
   var name = document.getElementById('license-field-name').value.trim();
   if (!name) { alert('사업분야명을 입력하세요'); return; }
   var personnel = Array.from(document.querySelectorAll('#license-personnel-rows [data-p-row]')).map(function(row){
-    return {
+    var reqType = row.querySelector('[data-p-reqtype]').value;
+    var entry = {
       name: row.querySelector('[data-p-name]').value.trim(),
       grade: row.querySelector('[data-p-grade]').value.trim(),
-      invalid: row.querySelector('[data-p-invalid]').checked
+      invalid: row.querySelector('[data-p-invalid]').checked,
+      reqType: reqType
     };
+    if (reqType === 'construction-grade') entry.minGrade = row.querySelector('[data-p-mingrade]').value;
+    if (reqType === 'license') entry.keywords = row.querySelector('[data-p-keywords]').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
+    return entry;
   }).filter(function(p){ return p.name; });
   var equipment = Array.from(document.querySelectorAll('#license-equip-rows [data-eq-row]')).map(function(row){
     return {
