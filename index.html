@@ -19623,6 +19623,34 @@ async function loadLicenseFields(force) {
   } catch(e) { console.error(e); }
 }
 
+var LICENSE_ENG_FIELDS = [
+  { name: '엔지니어링활동주체신고-도시계획', engField: '도시계획' },
+  { name: '엔지니어링활동주체신고-정보관리', engField: '정보관리' },
+  { name: '엔지니어링활동주체신고-교통', engField: '교통' },
+  { name: '엔지니어링활동주체신고-조경', engField: '조경' }
+];
+
+// 협회(eng)에 실제 등록되어 인정되는 인원 목록 (기본으로 보여줄 인원)
+function licenseGetEngRegistered(field) {
+  return employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
+    return careerIsFieldRegistered(e, 'eng', field);
+  }).map(function(e){
+    return { name: e.name, grade: careerGetEffectiveGrade(e, field, 'eng').grade };
+  });
+}
+
+// 협회에 등록은 안 했지만, 자격증/전공이 해당 분야에 해당되는 인원 (버튼 눌렀을 때만 보여줄 후보)
+function licenseGetEngPotential(field) {
+  return employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
+    if (careerIsFieldRegistered(e, 'eng', field)) return false; // 이미 등록된 사람은 제외(중복 방지)
+    var hasCert = (e.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseMatchesField(l, field); });
+    var hasEdu = (e.education||[]).some(function(ed){ return careerEduFieldsForMajor(ed.major).indexOf(field) >= 0; });
+    return hasCert || hasEdu;
+  }).map(function(e){
+    return { name: e.name, grade: careerGetEffectiveGrade(e, field, 'eng').grade };
+  });
+}
+
 var LICENSE_AUTO_FIELDS = [
   { name: '영상처리업', slots: [
     { label: '고급 이상 (측량및지형공간정보·지적)', type: 'construction-grade', minGrade: '고급' },
@@ -19655,11 +19683,14 @@ async function licenseEnsureAutoFields() {
   }
   var existingNames = licenseFields.map(function(f){ return f.name; });
   var missing = LICENSE_AUTO_FIELDS.filter(function(af){ return existingNames.indexOf(af.name) < 0; });
-  if (!missing.length) return;
   for (var i=0; i<missing.length; i++) {
     await db.collection('licenseFields').add({ name: missing[i].name, auto:true, selections:{}, equipment:[] });
   }
-  await loadLicenseFields(true);
+  var missingEng = LICENSE_ENG_FIELDS.filter(function(ef){ return existingNames.indexOf(ef.name) < 0; });
+  for (var j=0; j<missingEng.length; j++) {
+    await db.collection('licenseFields').add({ name: missingEng[j].name, engAuto:true, engField: missingEng[j].engField, showPotential:false });
+  }
+  if (missing.length || missingEng.length) await loadLicenseFields(true);
 }
 
 // 슬롯 조건에 맞는 후보 목록 (건설협회 등급 또는 자격증 키워드 기준)
@@ -19689,7 +19720,11 @@ async function licenseRenderStatus() {
   var todayStr = new Date().toISOString().slice(0,10);
   licenseFields.forEach(function(f){
     var conf = f.auto ? LICENSE_AUTO_FIELDS.find(function(af){ return af.name === f.name; }) : null;
-    if (conf) {
+    if (f.engAuto) {
+      var reg = licenseGetEngRegistered(f.engField);
+      var ok = reg.length >= 3 && reg.some(function(p){ return p.grade === '특급기술자'; });
+      if (!ok) issueCount++;
+    } else if (conf) {
       var selections = f.selections || {};
       if (conf.slots.some(function(s, idx){ return !selections[idx]; })) issueCount++;
     } else if ((f.personnel||[]).some(function(p){ return p.invalid; })) issueCount++;
@@ -19710,7 +19745,12 @@ async function licenseRenderStatus() {
   document.getElementById('license-status-cards').innerHTML = licenseFields.map(function(f){
     var conf = f.auto ? LICENSE_AUTO_FIELDS.find(function(af){ return af.name === f.name; }) : null;
     var hasIssue, subText;
-    if (conf) {
+    if (f.engAuto) {
+      var reg = licenseGetEngRegistered(f.engField);
+      var hasTeukgeup = reg.some(function(p){ return p.grade === '특급기술자'; });
+      hasIssue = !hasTeukgeup || reg.length < 3;
+      subText = '등록 인원 '+reg.length+'명(특급 '+(hasTeukgeup?'O':'X')+')';
+    } else if (conf) {
       var selections = f.selections || {};
       var filled = conf.slots.filter(function(s,idx){ return !!selections[idx]; }).length;
       hasIssue = filled < conf.slots.length;
@@ -19727,6 +19767,16 @@ async function licenseRenderStatus() {
         : '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:3px 10px;border-radius:6px">정상</span>') +
     '</div>';
   }).join('') || '<div style="text-align:center;padding:40px;color:var(--t3)">등록된 사업분야가 없습니다. "총괄관리표"에서 추가하세요.</div>';
+}
+
+async function licenseToggleEngPotential(fieldId) {
+  var f = licenseFields.find(function(x){ return x.id === fieldId; });
+  if (!f) return;
+  f.showPotential = !f.showPotential;
+  try {
+    await db.collection('licenseFields').doc(fieldId).update({ showPotential: f.showPotential });
+    licenseRenderMaster();
+  } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
 }
 
 var _licenseEditMode = false;
@@ -19748,6 +19798,45 @@ async function licenseRenderMaster() {
   var todayStr = new Date().toISOString().slice(0,10);
 
   document.getElementById('license-master-table').innerHTML = licenseFields.map(function(f){
+    if (f.engAuto) {
+      var registered = licenseGetEngRegistered(f.engField);
+      var hasTeukgeup = registered.some(function(p){ return p.grade === '특급기술자'; });
+      var meetsCount = registered.length >= 3;
+      var hasIssue = !hasTeukgeup || !meetsCount;
+      var badge = hasIssue
+        ? '<span style="background:#fee2e2;color:#dc2626;font-size:12px;padding:3px 10px;border-radius:6px">미충족(특급 '+(hasTeukgeup?'O':'X')+', 총 '+registered.length+'명)</span>'
+        : '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:3px 10px;border-radius:6px">충족(총 '+registered.length+'명)</span>';
+
+      var regRows = registered.map(function(p){
+        return '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border-radius:6px;padding:4px 10px;margin:0 6px 6px 0">' +
+          '<span style="font-size:13px;font-weight:600">'+p.name+'</span>' +
+          '<span style="font-size:12px;color:'+(p.grade==='특급기술자'?'#16a34a':'var(--t3)')+'">'+(p.grade||'-')+'</span>' +
+        '</div>';
+      }).join('') || '<div style="font-size:13px;color:var(--t3)">협회에 등록된 인원이 없습니다</div>';
+
+      var potentialHtml = '';
+      if (f.showPotential) {
+        var potential = licenseGetEngPotential(f.engField);
+        potentialHtml = '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">' +
+          '<div style="font-size:12px;color:var(--t3);margin-bottom:6px">협회 미등록이지만 자격증·전공상 해당 분야에 해당되는 인원</div>' +
+          (potential.map(function(p){
+            return '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border-radius:6px;padding:4px 10px;margin:0 6px 6px 0;opacity:.75">' +
+              '<span style="font-size:13px">'+p.name+'</span><span style="font-size:12px;color:var(--t3)">'+(p.grade||'-')+'</span>' +
+            '</div>';
+          }).join('') || '<div style="font-size:13px;color:var(--t3)">해당 인원이 없습니다</div>') +
+        '</div>';
+      }
+
+      return '<div style="background:var(--white);border:1px solid '+(hasIssue?'#fca5a5':'var(--border)')+';border-radius:12px;padding:16px;margin-bottom:16px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+          '<span style="font-weight:600;font-size:15px">'+f.name+'</span>' + badge +
+        '</div>' +
+        '<div>'+regRows+'</div>' +
+        potentialHtml +
+        '<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="licenseToggleEngPotential(\''+f.id+'\')">'+(f.showPotential?'미등록 후보 숨기기':'미등록 후보 보기')+'</button>' +
+      '</div>';
+    }
+
     var conf = f.auto ? LICENSE_AUTO_FIELDS.find(function(af){ return af.name === f.name; }) : null;
     var selections = f.selections || {};
 
