@@ -379,6 +379,17 @@ select.form-input{cursor:pointer}
         </div>
       </div>
 
+      <!-- 면허관리 -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-label" onclick="toggleSideSection('license-menu-items','license-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+          <span>면허관리</span>
+          <span id="license-arrow" style="font-size:9px;color:var(--t3);transform:rotate(-90deg);transition:transform .2s;display:inline-block">▼</span>
+        </div>
+        <div id="license-menu-items" class="collapsed">
+          <div class="nav-item admin-only" onclick="showPage('license-status',this)"><span class="nav-icon">📋</span> 현황</div>
+        </div>
+      </div>
+
       <!-- 문서관리 -->
       <div class="sidebar-section">
         <div class="sidebar-section-label" onclick="toggleSideSection('doc-menu-items','doc-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
@@ -1166,6 +1177,21 @@ select.form-input{cursor:pointer}
             <tbody id="sales-training-tbody"></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- 면허관리: 현황 -->
+      <div id="page-license-status" class="page">
+        <div class="page-header">
+          <div><div class="page-title">📋 면허관리 현황</div><div class="page-sub">사업분야별 등록 인력·장비 현황과 대체 가능 여부를 관리합니다</div></div>
+          <div style="display:flex;gap:8px">
+            <button id="license-add-field-btn" class="btn btn-primary btn-sm" onclick="licenseOpenFieldModal(null)">+ 사업분야 추가</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+          <input type="text" class="form-input" id="license-search" placeholder="사업분야 또는 이름 검색" style="max-width:220px" oninput="licenseRenderStatus()">
+        </div>
+        <div id="license-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px"></div>
+        <div id="license-fields-list" style="display:flex;flex-direction:column;gap:10px"></div>
       </div>
 
       <!-- 직원 관리 -->
@@ -17908,6 +17934,7 @@ function showPage(id, el) {
   if(id === 'career-audit') careerRenderAuditLog();
   if(id === 'sales-dashboard') salesRenderDashboard();
   if(id === 'sales-training') salesRenderTrainingList();
+  if(id === 'license-status') licenseRenderStatus();
   if(id === 'career-people') {
     careerPeopleSwitchTab('overview', document.querySelector('.career-people-tab-btn'));
     if (_careerPrefillSearch !== null) {
@@ -19496,6 +19523,215 @@ function salesUploadTrainingDoc(input) {
     });
   };
   reader.readAsDataURL(file);
+}
+
+// ══════════════════ 면허관리 ══════════════════
+var licenseFields = []; // [{id, name, personnel:[{name,grade,invalid,note}], equipment:[{name,maker,spec,cycle,date}]}]
+var licenseFieldsLoaded = false;
+
+async function loadLicenseFields(force) {
+  if (licenseFieldsLoaded && !force) return;
+  try {
+    var snap = await db.collection('licenseFields').get();
+    licenseFields = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    licenseFieldsLoaded = true;
+  } catch(e) { console.error(e); }
+}
+
+async function licenseRenderStatus() {
+  await loadLicenseFields();
+  var canEdit = hasFullAccess('license-status');
+  var addBtn = document.getElementById('license-add-field-btn');
+  if (addBtn) addBtn.style.display = canEdit ? '' : 'none';
+  var q = (document.getElementById('license-search')||{}).value || '';
+  q = q.trim().toLowerCase();
+  var fields = licenseFields.filter(function(f){
+    if (!q) return true;
+    if ((f.name||'').toLowerCase().indexOf(q) >= 0) return true;
+    return (f.personnel||[]).some(function(p){ return (p.name||'').toLowerCase().indexOf(q) >= 0; });
+  });
+
+  var issueCount = 0, calibSoonCount = 0;
+  var todayStr = new Date().toISOString().slice(0,10);
+  fields.forEach(function(f){
+    if ((f.personnel||[]).some(function(p){ return p.invalid; })) issueCount++;
+    (f.equipment||[]).forEach(function(eq){
+      if (eq.date) {
+        var diff = Math.ceil((new Date(eq.date) - new Date(todayStr)) / 86400000);
+        if (diff >= 0 && diff <= 30) calibSoonCount++;
+      }
+    });
+  });
+
+  document.getElementById('license-summary').innerHTML =
+    '<div style="background:var(--surface);border-radius:8px;padding:16px"><div style="font-size:13px;color:var(--t3);margin-bottom:4px">등록 사업분야</div><div style="font-size:24px;font-weight:600">'+fields.length+'건</div></div>' +
+    '<div style="background:var(--surface);border-radius:8px;padding:16px"><div style="font-size:13px;color:var(--t3);margin-bottom:4px">이상 발견</div><div style="font-size:24px;font-weight:600;color:'+(issueCount?'#dc2626':'inherit')+'">'+issueCount+'건</div></div>' +
+    '<div style="background:var(--surface);border-radius:8px;padding:16px"><div style="font-size:13px;color:var(--t3);margin-bottom:4px">장비 검교정 임박(30일)</div><div style="font-size:24px;font-weight:600;color:'+(calibSoonCount?'#b45309':'inherit')+'">'+calibSoonCount+'건</div></div>';
+
+  if (!fields.length) {
+    document.getElementById('license-fields-list').innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">등록된 사업분야가 없습니다. "+ 사업분야 추가"로 시작하세요.</div>';
+    return;
+  }
+
+  document.getElementById('license-fields-list').innerHTML = fields.map(function(f){
+    var personnel = f.personnel || [];
+    var equipment = f.equipment || [];
+    var hasIssue = personnel.some(function(p){ return p.invalid; });
+    var validCount = personnel.filter(function(p){ return !p.invalid; }).length;
+    var invalidCount = personnel.length - validCount;
+
+    var badge = hasIssue
+      ? '<span style="background:#fee2e2;color:#dc2626;font-size:12px;padding:3px 10px;border-radius:6px">보완 필요 '+invalidCount+'명</span>'
+      : (validCount <= 1
+        ? '<span style="background:#fef3c7;color:#b45309;font-size:12px;padding:3px 10px;border-radius:6px">대체자 없음</span>'
+        : '<span style="background:#dcfce7;color:#16a34a;font-size:12px;padding:3px 10px;border-radius:6px">정상</span>');
+
+    var rows = '';
+    for (var i=0; i<personnel.length; i+=2) {
+      var p1 = personnel[i], p2 = personnel[i+1];
+      rows += '<tr style="'+(i/2%2?'background:var(--surface)':'')+'">' +
+        '<td style="padding:6px 8px;'+(p1.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p1.name||'')+'</td>' +
+        '<td style="padding:6px 8px;'+(p1.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p1.grade||'')+'</td>' +
+        '<td style="padding:6px 8px;'+(p2&&p2.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p2?p2.name||'':'')+'</td>' +
+        '<td style="padding:6px 8px;'+(p2&&p2.invalid?'color:#dc2626;text-decoration:line-through':'')+'">'+(p2?p2.grade||'':'')+'</td>' +
+      '</tr>';
+    }
+
+    var eqChips = equipment.map(function(eq){
+      var dday = '';
+      if (eq.date) {
+        var diff = Math.ceil((new Date(eq.date) - new Date(todayStr)) / 86400000);
+        var color = diff <= 30 ? '#b45309' : 'var(--t3)';
+        dday = '<span style="font-size:11px;color:'+color+'">'+eq.date+'</span>';
+      }
+      return '<div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border-radius:6px;padding:4px 10px;margin:0 6px 6px 0">' +
+        '<span style="font-size:12px">'+(eq.name||'')+(eq.maker?' ('+eq.maker+' '+(eq.spec||'')+')':'')+'</span>' + dday +
+      '</div>';
+    }).join('');
+
+    return '<div style="background:var(--white);border:1px solid '+(hasIssue?'#fca5a5':'var(--border)')+';border-radius:12px;padding:16px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<span style="font-weight:600;font-size:15px">'+f.name+'</span>' +
+        '<div style="display:flex;gap:8px;align-items:center">' + badge +
+          (canEdit ? '<button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:11px" onclick="licenseOpenFieldModal(\''+f.id+'\')">수정</button>' : '') +
+        '</div>' +
+      '</div>' +
+      (rows ? '<table style="width:100%;font-size:13px;border-collapse:collapse">'+rows+'</table>' : '') +
+      (hasIssue ? '<div style="font-size:12px;color:#dc2626;margin-top:8px">퇴사 또는 등급 미달로 인력 보완이 필요합니다</div>' : '') +
+      (eqChips ? '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">'+eqChips+'</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+var _licenseModalPersonnelIdx = 0, _licenseModalEquipIdx = 0, _licenseEditingId = null;
+
+function licenseOpenFieldModal(fieldId) {
+  _licenseEditingId = fieldId;
+  var f = fieldId ? licenseFields.find(function(x){ return x.id === fieldId; }) : null;
+  var personnel = f ? (f.personnel||[]) : [];
+  var equipment = f ? (f.equipment||[]) : [];
+  _licenseModalPersonnelIdx = personnel.length;
+  _licenseModalEquipIdx = equipment.length;
+
+  var existing = document.getElementById('license-field-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'license-field-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:#fff;border-radius:12px;padding:20px;width:560px;max-height:82vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2)">' +
+      '<div style="font-size:15px;font-weight:700;margin-bottom:14px">사업분야 '+(f?'수정':'추가')+'</div>' +
+      '<input id="license-field-name" class="form-input" placeholder="사업분야명 (예: 엔지니어링활동주체신고 - 측량지적)" value="'+(f?f.name.replace(/"/g,'&quot;'):'')+'" style="margin-bottom:14px">' +
+      '<div style="font-size:12px;color:var(--t3);margin-bottom:6px">등록 인력 (이름 / 등급)</div>' +
+      '<div id="license-personnel-rows" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">' +
+        personnel.map(function(p,i){ return licensePersonnelRowHtml(i, p); }).join('') +
+      '</div>' +
+      '<button class="btn btn-ghost btn-sm" style="margin-bottom:14px" onclick="licenseAddPersonnelRow()">+ 인력 추가</button>' +
+      '<div style="font-size:12px;color:var(--t3);margin-bottom:6px">등록 장비 (장비명 / 제조사 / 규격 / 검교정 만료일)</div>' +
+      '<div id="license-equip-rows" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">' +
+        equipment.map(function(eq,i){ return licenseEquipRowHtml(i, eq); }).join('') +
+      '</div>' +
+      '<button class="btn btn-ghost btn-sm" style="margin-bottom:16px" onclick="licenseAddEquipRow()">+ 장비 추가</button>' +
+      '<div style="display:flex;gap:8px;justify-content:space-between">' +
+        (f ? '<button class="btn btn-danger btn-sm" onclick="licenseDeleteField(\''+f.id+'\')">삭제</button>' : '<span></span>') +
+        '<div style="display:flex;gap:8px">' +
+          '<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'license-field-modal\').remove()">취소</button>' +
+          '<button class="btn btn-primary btn-sm" onclick="licenseSaveField()">저장</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+}
+
+function licensePersonnelRowHtml(i, p) {
+  p = p || {};
+  return '<div style="display:flex;gap:6px;align-items:center" data-p-row="'+i+'">' +
+    '<input class="form-input" placeholder="이름" value="'+(p.name?p.name.replace(/"/g,'&quot;'):'')+'" style="flex:1" data-p-name>' +
+    '<input class="form-input" placeholder="등급 (예: (특급)지적기사)" value="'+(p.grade?p.grade.replace(/"/g,'&quot;'):'')+'" style="flex:1.4" data-p-grade>' +
+    '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#dc2626;white-space:nowrap"><input type="checkbox" '+(p.invalid?'checked':'')+' data-p-invalid> 이상</label>' +
+    '<button class="btn btn-ghost btn-sm" style="padding:4px 8px" onclick="this.parentElement.remove()">✕</button>' +
+  '</div>';
+}
+function licenseEquipRowHtml(i, eq) {
+  eq = eq || {};
+  return '<div style="display:flex;gap:6px;align-items:center" data-eq-row="'+i+'">' +
+    '<input class="form-input" placeholder="장비명" value="'+(eq.name?eq.name.replace(/"/g,'&quot;'):'')+'" style="flex:1" data-eq-name>' +
+    '<input class="form-input" placeholder="제조사" value="'+(eq.maker?eq.maker.replace(/"/g,'&quot;'):'')+'" style="flex:0.8" data-eq-maker>' +
+    '<input class="form-input" placeholder="규격" value="'+(eq.spec?eq.spec.replace(/"/g,'&quot;'):'')+'" style="flex:0.8" data-eq-spec>' +
+    '<input type="date" class="form-input" value="'+(eq.date||'')+'" style="flex:0.9" data-eq-date>' +
+    '<button class="btn btn-ghost btn-sm" style="padding:4px 8px" onclick="this.parentElement.remove()">✕</button>' +
+  '</div>';
+}
+function licenseAddPersonnelRow() {
+  document.getElementById('license-personnel-rows').insertAdjacentHTML('beforeend', licensePersonnelRowHtml(_licenseModalPersonnelIdx++, null));
+}
+function licenseAddEquipRow() {
+  document.getElementById('license-equip-rows').insertAdjacentHTML('beforeend', licenseEquipRowHtml(_licenseModalEquipIdx++, null));
+}
+
+async function licenseSaveField() {
+  var name = document.getElementById('license-field-name').value.trim();
+  if (!name) { alert('사업분야명을 입력하세요'); return; }
+  var personnel = Array.from(document.querySelectorAll('#license-personnel-rows [data-p-row]')).map(function(row){
+    return {
+      name: row.querySelector('[data-p-name]').value.trim(),
+      grade: row.querySelector('[data-p-grade]').value.trim(),
+      invalid: row.querySelector('[data-p-invalid]').checked
+    };
+  }).filter(function(p){ return p.name; });
+  var equipment = Array.from(document.querySelectorAll('#license-equip-rows [data-eq-row]')).map(function(row){
+    return {
+      name: row.querySelector('[data-eq-name]').value.trim(),
+      maker: row.querySelector('[data-eq-maker]').value.trim(),
+      spec: row.querySelector('[data-eq-spec]').value.trim(),
+      date: row.querySelector('[data-eq-date]').value
+    };
+  }).filter(function(eq){ return eq.name; });
+
+  var data = { name: name, personnel: personnel, equipment: equipment };
+  try {
+    if (_licenseEditingId) {
+      await db.collection('licenseFields').doc(_licenseEditingId).set(data);
+    } else {
+      await db.collection('licenseFields').add(data);
+    }
+    document.getElementById('license-field-modal').remove();
+    await loadLicenseFields(true);
+    licenseRenderStatus();
+    showToast('✅ 저장되었습니다');
+  } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
+}
+
+async function licenseDeleteField(fieldId) {
+  if (!confirm('이 사업분야를 삭제하시겠습니까?')) return;
+  try {
+    await db.collection('licenseFields').doc(fieldId).delete();
+    document.getElementById('license-field-modal').remove();
+    await loadLicenseFields(true);
+    licenseRenderStatus();
+    showToast('✅ 삭제되었습니다');
+  } catch(e) { console.error(e); showToast('❌ 삭제 실패'); }
 }
 
 function salesDeleteRow(idx) {
@@ -24286,6 +24522,9 @@ var PM_MENU_LIST = {
   sales: [
     {id:'sales-dashboard', label:'영업지원 대시보드'},
     {id:'sales-training', label:'교육 이수 명단'}
+  ],
+  license: [
+    {id:'license-status', label:'면허관리 현황'}
   ],
   system: [
     {id:'codemanage', label:'코드 관리'},
