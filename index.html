@@ -19810,6 +19810,12 @@ async function licenseRenderStatus() {
 async function licenseSetEngSelection(fieldId, slotIdx, empName) {
   var f = licenseFields.find(function(x){ return x.id === fieldId; });
   if (!f) return;
+  if (empName === '__manual__') {
+    var typed = prompt('경력관리 등급 조건과 무관하게, 이 자리에 직접 넣을 사람 이름을 입력하세요\n(예: 조건상 후보로 안 뜨지만 실제로 신고에 포함된 인원)');
+    if (typed === null) { licenseRenderMaster(); return; } // 취소하면 원래 화면으로 되돌림
+    empName = typed.trim();
+    if (!empName) { licenseRenderMaster(); return; }
+  }
   if (!f.engSelections) f.engSelections = {};
   if (empName) f.engSelections[slotIdx] = empName; else delete f.engSelections[slotIdx];
   try {
@@ -19896,9 +19902,12 @@ async function licenseRenderMaster() {
           if (usedElsewhere.indexOf(c.name) >= 0) return false; // 다른 분야에 이미 배정(협회 내 중복 방지)
           return true;
         });
+        var isManual = selected && !candidates.some(function(c){ return c.name === selected; });
         var optionsHtml = '<option value="">미지정</option>' + candidates.map(function(c){
           return '<option value="'+c.name+'"'+(c.name===selected?' selected':'')+'>'+c.name+(c.potential?'(미등록)':'')+' - '+(c.grade||'-')+'</option>';
         }).join('');
+        if (isManual) optionsHtml += '<option value="'+selected+'" selected>'+selected+' (직접 입력)</option>';
+        optionsHtml += '<option value="__manual__">+ 직접 입력...</option>';
         return {
           gradeLabel: slot.label,
           nameHtml: canEdit
@@ -27705,4 +27714,3 @@ function taskDeleteFromDetail() {
 </body>
 </html>
  
-ss
