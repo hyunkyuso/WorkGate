@@ -1184,27 +1184,33 @@ select.form-input{cursor:pointer}
 
       <!-- 면허관리: 현황 -->
       <div id="page-license-status" class="page">
-        <div class="page-header">
+        <div class="page-header" style="margin-bottom:10px">
           <div><div class="page-title">📋 현황</div><div class="page-sub">사업분야별 인력 충족 현황을 한눈에 확인합니다</div></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
           <div>
-            <div id="license-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px"></div>
-            <div id="license-status-cards" style="display:flex;flex-direction:column;gap:10px"></div>
+            <div id="license-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px"></div>
+            <div id="license-status-cards" style="display:flex;flex-direction:column;gap:6px"></div>
           </div>
           <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-              <div style="font-weight:700;font-size:14px">한국엔지니어링협회 제출용 집계표</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <div style="font-weight:700;font-size:13px">한국엔지니어링협회 제출용 집계표</div>
               <div style="display:flex;gap:6px">
-                <button class="btn btn-ghost btn-sm" onclick="licensePrintEngSummary()">🖨 인쇄</button>
-                <button class="btn btn-ghost btn-sm" onclick="licenseExportEngSummaryExcel()">📥 엑셀</button>
+                <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" onclick="licensePrintEngSummary()">🖨 인쇄</button>
+                <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" onclick="licenseExportEngSummaryExcel()">📥 엑셀</button>
               </div>
             </div>
             <div id="license-eng-summary-table"></div>
           </div>
         </div>
-        <div style="margin-top:24px">
-          <div style="font-weight:700;font-size:14px;margin-bottom:10px">기업부설연구소 월별 참여 현황 (<span id="license-status-institute-year"></span>년)</div>
+        <div style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div style="font-weight:700;font-size:13px">기업부설연구소 월별 참여 현황 (<span id="license-status-institute-year"></span>년)</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" onclick="licensePrintStatusInstitute()">🖨 인쇄</button>
+              <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" onclick="licenseExportStatusInstituteExcel()">📥 엑셀</button>
+            </div>
+          </div>
           <div id="license-status-institute-table"></div>
         </div>
       </div>
@@ -20373,6 +20379,42 @@ function licenseRenderStatusInstituteTable() {
       Array.from({length:12},function(_,i){ return '<td style="padding:5px 3px;border:1px solid var(--border);text-align:center;font-weight:600">'+(i+1)+'월</td>'; }).join('') +
       '<td style="padding:5px 6px;border:1px solid var(--border);text-align:center;font-weight:600">비고</td>' +
     '</tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function licensePrintStatusInstitute() {
+  var year = new Date().getFullYear();
+  var content = document.getElementById('license-status-institute-table').innerHTML;
+  var win = window.open('', '_blank');
+  win.document.write('<html><head><title>기업부설연구소 월별 참여 현황</title><style>' +
+    ':root{--border:#e2e5ef;--border2:#d0d4e8;--surface:#f0f2f8;--t1:#1a1d2e;--t2:#5a5f7a;--t3:#9ca0b8;--ac:#4f6ef7}' +
+    'body{font-family:"Malgun Gothic",sans-serif;margin:8mm;color:var(--t1)}' +
+    'table{width:100%;border-collapse:collapse}' +
+    '@page{size:A4 landscape;margin:8mm}' +
+  '</style></head><body><h2 style="font-size:15px;margin-bottom:10px">기업부설연구소 월별 참여 현황 ('+year+'년)</h2>'+content+'</body></html>');
+  win.document.close();
+  win.onload = function(){ win.print(); };
+}
+
+function licenseExportStatusInstituteExcel() {
+  var year = new Date().getFullYear();
+  var members = licenseGetInstituteMembers(year).sort(function(a,b){
+    if (a.instituteDirector && !b.instituteDirector) return -1;
+    if (!a.instituteDirector && b.instituteDirector) return 1;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+  var aoa = [['연번','구분','성명','1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월','비고']];
+  members.forEach(function(e, i){
+    var act = licenseGetMonthlyActivity(e, year);
+    var pos = e.instituteDirector ? '연구소장' : '전담요원';
+    var row = [i+1, pos, e.name];
+    act.months.forEach(function(mo){ row.push(mo.label || (mo.active ? 'O' : '')); });
+    row.push(act.count+'개월');
+    aoa.push(row);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '월별참여현황');
+  XLSX.writeFile(wb, '기업부설연구소_월별참여현황_'+year+'.xlsx');
 }
 
 function licensePrintInstitute() {
