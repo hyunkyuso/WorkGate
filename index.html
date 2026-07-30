@@ -19616,11 +19616,39 @@ async function loadLicenseFields(force) {
   } catch(e) { console.error(e); }
 }
 
+var LICENSE_AUTO_FIELDS = [
+  { name: '영상처리업', keywords: ['도화','지도제작'] },
+  { name: '수치지도', keywords: ['도화','지도제작'] },
+  { name: '지도제작', keywords: ['지도제작'] }
+];
+
+async function licenseEnsureAutoFields() {
+  var existingNames = licenseFields.map(function(f){ return f.name; });
+  var missing = LICENSE_AUTO_FIELDS.filter(function(af){ return existingNames.indexOf(af.name) < 0; });
+  if (!missing.length) return;
+  for (var i=0; i<missing.length; i++) {
+    await db.collection('licenseFields').add({ name: missing[i].name, auto:true, reqType:'license', keywords: missing[i].keywords, personnel:[], equipment:[] });
+  }
+  await loadLicenseFields(true);
+}
+
 async function licenseRenderStatus() {
   await loadLicenseFields();
+  await licenseEnsureAutoFields();
   var canEdit = hasFullAccess('license-status');
   var addBtn = document.getElementById('license-add-field-btn');
   if (addBtn) addBtn.style.display = canEdit ? '' : 'none';
+
+  // auto 필드는 저장된 인력 대신, 자격증 데이터에서 실시간으로 대상자를 찾아서 채움
+  licenseFields.forEach(function(f){
+    if (f.auto && f.reqType === 'license') {
+      f.personnel = licenseGetEligibleByLicenseKeyword(f.keywords || []).map(function(c){
+        return { name: c.name, grade: c.grade, invalid: false };
+      });
+      if (!f.personnel.length) f.personnel = [{ name: '(대상자 없음)', grade: '', invalid: true }];
+    }
+  });
+
   var q = (document.getElementById('license-search')||{}).value || '';
   q = q.trim().toLowerCase();
   var fields = licenseFields.filter(function(f){
@@ -19692,7 +19720,7 @@ async function licenseRenderStatus() {
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
         '<span style="font-weight:600;font-size:15px">'+f.name+'</span>' +
         '<div style="display:flex;gap:8px;align-items:center">' + badge +
-          (canEdit ? '<button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:11px" onclick="licenseOpenFieldModal(\''+f.id+'\')">수정</button>' : '') +
+          (canEdit && !f.auto ? '<button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:11px" onclick="licenseOpenFieldModal(\''+f.id+'\')">수정</button>' : '') +
         '</div>' +
       '</div>' +
       (rows ? '<table style="width:100%;font-size:13px;border-collapse:collapse">'+rows+'</table>' : '') +
