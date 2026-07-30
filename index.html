@@ -19683,8 +19683,9 @@ async function licenseRenderStatus() {
       if (conf.slots.some(function(s, idx){ return !selections[idx]; })) issueCount++;
     } else if ((f.personnel||[]).some(function(p){ return p.invalid; })) issueCount++;
     (f.equipment||[]).forEach(function(eq){
-      if (eq.date) {
-        var diff = Math.ceil((new Date(eq.date) - new Date(todayStr)) / 86400000);
+      var nextDate = licenseComputeNextInspection(eq.cycle, eq.lastDate) || eq.date;
+      if (nextDate) {
+        var diff = Math.ceil((new Date(nextDate) - new Date(todayStr)) / 86400000);
         if (diff >= 0 && diff <= 30) calibSoonCount++;
       }
     });
@@ -19766,21 +19767,33 @@ async function licenseRenderMaster() {
 
     var equipment = f.equipment || [];
     var eqRows = equipment.map(function(eq, idx){
+      var nextDate = licenseComputeNextInspection(eq.cycle, eq.lastDate);
+      var note = '';
       var dday = '';
-      if (eq.date) {
-        var diff = Math.ceil((new Date(eq.date) - new Date(todayStr)) / 86400000);
-        if (diff <= 30) dday = ' <span style="color:#b45309;font-size:11px">(검사주기 D'+(diff>=0?'-'+diff:'+'+(-diff))+')</span>';
+      if (eq.cycle || eq.lastDate) {
+        note = '검사주기 '+(eq.cycle||'-')+(nextDate?'('+nextDate.replace(/-/g,'.')+')':'');
+        if (nextDate) {
+          var diff = Math.ceil((new Date(nextDate) - new Date(todayStr)) / 86400000);
+          if (diff <= 30) dday = ' <span style="color:#b45309;font-size:11px">(D'+(diff>=0?'-'+diff:'+'+(-diff))+')</span>';
+        }
       }
       return '<tr>' +
         (canEdit
           ? '<td style="padding:4px 6px;border:1px solid var(--border)"><input class="form-input" style="font-size:12px;padding:3px 6px" value="'+(eq.name||'').replace(/"/g,'&quot;')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'name\',this.value)"></td>' +
             '<td style="padding:4px 6px;border:1px solid var(--border)"><input class="form-input" style="font-size:12px;padding:3px 6px" value="'+(eq.maker||'').replace(/"/g,'&quot;')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'maker\',this.value)"></td>' +
             '<td style="padding:4px 6px;border:1px solid var(--border)"><input class="form-input" style="font-size:12px;padding:3px 6px" value="'+(eq.spec||'').replace(/"/g,'&quot;')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'spec\',this.value)"></td>' +
-            '<td style="padding:4px 6px;border:1px solid var(--border)"><input type="date" class="form-input" style="font-size:12px;padding:3px 6px" value="'+(eq.date||'')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'date\',this.value)">'+dday+' <button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:10px" onclick="licenseDeleteEquip(\''+f.id+'\','+idx+')">✕</button></td>'
+            '<td style="padding:4px 6px;border:1px solid var(--border)">' +
+              '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">' +
+                '<input class="form-input" placeholder="주기(예: 3년)" style="font-size:11px;padding:3px 6px;width:70px" value="'+(eq.cycle||'').replace(/"/g,'&quot;')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'cycle\',this.value)">' +
+                '<input type="date" class="form-input" style="font-size:11px;padding:3px 6px" value="'+(eq.lastDate||'')+'" title="최근 검사일" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'lastDate\',this.value)">' +
+                '<span style="font-size:11px;color:var(--t3)">'+note+dday+'</span>' +
+                '<button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:10px" onclick="licenseDeleteEquip(\''+f.id+'\','+idx+')">✕</button>' +
+              '</div>' +
+            '</td>'
           : '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+(eq.name||'')+'</td>' +
             '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+(eq.maker||'')+'</td>' +
             '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+(eq.spec||'')+'</td>' +
-            '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+(eq.date||'')+dday+'</td>') +
+            '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+note+dday+'</td>') +
       '</tr>';
     }).join('');
 
@@ -19803,11 +19816,23 @@ async function licenseRenderMaster() {
   }).join('') || '<div style="text-align:center;padding:40px;color:var(--t3)">등록된 사업분야가 없습니다. "+ 사업분야 추가"로 시작하세요.</div>';
 }
 
+// "3년" 같은 검사주기 문자열 + 최근검사일 → 다음 검사(만료)일 자동 계산
+function licenseComputeNextInspection(cycle, lastDate) {
+  if (!cycle || !lastDate) return '';
+  var m = String(cycle).match(/(\d+)/);
+  if (!m) return '';
+  var years = parseInt(m[1]);
+  var d = new Date(lastDate);
+  if (isNaN(d.getTime())) return '';
+  d.setFullYear(d.getFullYear() + years);
+  return d.toISOString().slice(0,10);
+}
+
 async function licenseAddEquipToField(fieldId) {
   var f = licenseFields.find(function(x){ return x.id === fieldId; });
   if (!f) return;
   if (!f.equipment) f.equipment = [];
-  f.equipment.push({ name:'', maker:'', spec:'', date:'' });
+  f.equipment.push({ name:'', maker:'', spec:'', cycle:'', lastDate:'' });
   try {
     await db.collection('licenseFields').doc(fieldId).set(f);
     await loadLicenseFields(true);
@@ -19917,7 +19942,8 @@ function licenseEquipRowHtml(i, eq) {
     '<input class="form-input" placeholder="장비명" value="'+(eq.name?eq.name.replace(/"/g,'&quot;'):'')+'" style="flex:1" data-eq-name>' +
     '<input class="form-input" placeholder="제조사" value="'+(eq.maker?eq.maker.replace(/"/g,'&quot;'):'')+'" style="flex:0.8" data-eq-maker>' +
     '<input class="form-input" placeholder="규격" value="'+(eq.spec?eq.spec.replace(/"/g,'&quot;'):'')+'" style="flex:0.8" data-eq-spec>' +
-    '<input type="date" class="form-input" value="'+(eq.date||'')+'" style="flex:0.9" data-eq-date>' +
+    '<input class="form-input" placeholder="주기(예: 3년)" value="'+(eq.cycle?eq.cycle.replace(/"/g,'&quot;'):'')+'" style="flex:0.6" data-eq-cycle>' +
+    '<input type="date" class="form-input" title="최근 검사일" value="'+(eq.lastDate||'')+'" style="flex:0.9" data-eq-lastdate>' +
     '<button class="btn btn-ghost btn-sm" style="padding:4px 8px" onclick="this.parentElement.remove()">✕</button>' +
   '</div>';
 }
@@ -19948,7 +19974,8 @@ async function licenseSaveField() {
       name: row.querySelector('[data-eq-name]').value.trim(),
       maker: row.querySelector('[data-eq-maker]').value.trim(),
       spec: row.querySelector('[data-eq-spec]').value.trim(),
-      date: row.querySelector('[data-eq-date]').value
+      cycle: row.querySelector('[data-eq-cycle]').value.trim(),
+      lastDate: row.querySelector('[data-eq-lastdate]').value
     };
   }).filter(function(eq){ return eq.name; });
 
