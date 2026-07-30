@@ -1194,7 +1194,7 @@ select.form-input{cursor:pointer}
         <div class="page-header">
           <div><div class="page-title">📊 기술인력·장비 등록 총괄관리표</div><div class="page-sub">사업분야별 등록 인력과 장비를 관리합니다</div></div>
           <div style="display:flex;gap:8px">
-            <button id="license-add-field-btn" class="btn btn-primary btn-sm" onclick="licenseOpenFieldModal(null)">+ 사업분야 추가</button>
+            <button id="license-editmode-btn" class="btn btn-ghost btn-sm" onclick="licenseToggleEditMode()">입력란 활성화</button>
           </div>
         </div>
         <div id="license-master-table"></div>
@@ -19631,17 +19631,28 @@ var LICENSE_AUTO_FIELDS = [
     { label: '도화 또는 지도제작 기능사', type: 'license', keywords: ['도화','지도제작'] },
     { label: '정보처리산업기사 이상', type: 'license', keywords: ['정보처리산업기사','정보처리기사'] }
   ]},
-  { name: '수치지도', slots: [
+  { name: '수치지도제작업', slots: [
     { label: '고급 이상 (측량및지형공간정보·지적)', type: 'construction-grade', minGrade: '고급' },
     { label: '도화 또는 지도제작 기능사', type: 'license', keywords: ['도화','지도제작'] },
     { label: '정보처리기사 이상', type: 'license', keywords: ['정보처리기사'] }
   ]},
-  { name: '지도제작', slots: [
+  { name: '지도제작업', slots: [
     { label: '지도제작 기능사', type: 'license', keywords: ['지도제작'] }
   ]}
 ];
+var LICENSE_NAME_MIGRATIONS = { '수치지도': '수치지도제작업', '지도제작': '지도제작업' };
 
 async function licenseEnsureAutoFields() {
+  // 예전 이름(수치지도/지도제작)으로 저장된 문서가 있으면 새 이름으로 변경(데이터는 그대로 유지)
+  var needsMigration = licenseFields.filter(function(f){ return LICENSE_NAME_MIGRATIONS[f.name]; });
+  if (needsMigration.length) {
+    for (var m=0; m<needsMigration.length; m++) {
+      var f = needsMigration[m];
+      f.name = LICENSE_NAME_MIGRATIONS[f.name];
+      await db.collection('licenseFields').doc(f.id).update({ name: f.name });
+    }
+    await loadLicenseFields(true);
+  }
   var existingNames = licenseFields.map(function(f){ return f.name; });
   var missing = LICENSE_AUTO_FIELDS.filter(function(af){ return existingNames.indexOf(af.name) < 0; });
   if (!missing.length) return;
@@ -19718,12 +19729,22 @@ async function licenseRenderStatus() {
   }).join('') || '<div style="text-align:center;padding:40px;color:var(--t3)">등록된 사업분야가 없습니다. "총괄관리표"에서 추가하세요.</div>';
 }
 
+var _licenseEditMode = false;
+function licenseToggleEditMode() {
+  _licenseEditMode = !_licenseEditMode;
+  licenseRenderMaster();
+}
+
 async function licenseRenderMaster() {
   await loadLicenseFields();
   await licenseEnsureAutoFields();
-  var canEdit = hasFullAccess('license-master');
-  var addBtn = document.getElementById('license-add-field-btn');
-  if (addBtn) addBtn.style.display = canEdit ? '' : 'none';
+  var hasPerm = hasFullAccess('license-master');
+  var canEdit = hasPerm && _licenseEditMode;
+  var editBtn = document.getElementById('license-editmode-btn');
+  if (editBtn) {
+    editBtn.style.display = hasPerm ? '' : 'none';
+    editBtn.textContent = _licenseEditMode ? '입력란 비활성화' : '입력란 활성화';
+  }
   var todayStr = new Date().toISOString().slice(0,10);
 
   document.getElementById('license-master-table').innerHTML = licenseFields.map(function(f){
