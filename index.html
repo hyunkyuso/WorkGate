@@ -19721,7 +19721,7 @@ async function licenseRenderStatus() {
 async function licenseRenderMaster() {
   await loadLicenseFields();
   await licenseEnsureAutoFields();
-  var canEdit = hasFullAccess('license-status');
+  var canEdit = hasFullAccess('license-master');
   var addBtn = document.getElementById('license-add-field-btn');
   if (addBtn) addBtn.style.display = canEdit ? '' : 'none';
   var todayStr = new Date().toISOString().slice(0,10);
@@ -19768,32 +19768,37 @@ async function licenseRenderMaster() {
     var equipment = f.equipment || [];
     var eqRows = equipment.map(function(eq, idx){
       var nextDate = licenseComputeNextInspection(eq.cycle, eq.lastDate);
-      var note = '';
+      var autoNote = '';
       var dday = '';
       if (eq.cycle || eq.lastDate) {
-        note = '검사주기 '+(eq.cycle||'-')+(nextDate?'('+nextDate.replace(/-/g,'.')+')':'');
+        autoNote = '검사주기 '+(eq.cycle||'-')+(nextDate?'('+nextDate.replace(/-/g,'.')+')':'');
         if (nextDate) {
           var diff = Math.ceil((new Date(nextDate) - new Date(todayStr)) / 86400000);
-          if (diff <= 30) dday = ' <span style="color:#b45309;font-size:11px">(D'+(diff>=0?'-'+diff:'+'+(-diff))+')</span>';
+          if (diff <= 30) dday = ' (D'+(diff>=0?'-'+diff:'+'+(-diff))+')';
         }
       }
+      var displayNote = (eq.note !== undefined && eq.note !== null && eq.note !== '') ? eq.note : (autoNote+dday);
       return '<tr>' +
         (canEdit
           ? '<td style="padding:4px 6px;border:1px solid var(--border)"><input class="form-input" style="font-size:12px;padding:3px 6px" value="'+(eq.name||'').replace(/"/g,'&quot;')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'name\',this.value)"></td>' +
             '<td style="padding:4px 6px;border:1px solid var(--border)"><input class="form-input" style="font-size:12px;padding:3px 6px" value="'+(eq.maker||'').replace(/"/g,'&quot;')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'maker\',this.value)"></td>' +
             '<td style="padding:4px 6px;border:1px solid var(--border)"><input class="form-input" style="font-size:12px;padding:3px 6px" value="'+(eq.spec||'').replace(/"/g,'&quot;')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'spec\',this.value)"></td>' +
             '<td style="padding:4px 6px;border:1px solid var(--border)">' +
-              '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">' +
-                '<input class="form-input" placeholder="주기(예: 3년)" style="font-size:11px;padding:3px 6px;width:70px" value="'+(eq.cycle||'').replace(/"/g,'&quot;')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'cycle\',this.value)">' +
-                '<input type="date" class="form-input" style="font-size:11px;padding:3px 6px" value="'+(eq.lastDate||'')+'" title="최근 검사일" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'lastDate\',this.value)">' +
-                '<span style="font-size:11px;color:var(--t3)">'+note+dday+'</span>' +
-                '<button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:10px" onclick="licenseDeleteEquip(\''+f.id+'\','+idx+')">✕</button>' +
+              '<div style="display:flex;flex-direction:column;gap:4px">' +
+                '<input class="form-input" style="font-size:12px;padding:3px 6px" placeholder="비고(직접 입력 가능)" value="'+displayNote.replace(/"/g,'&quot;')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'note\',this.value)">' +
+                '<div style="display:flex;gap:4px;align-items:center">' +
+                  '<span style="font-size:10px;color:var(--t3);white-space:nowrap">주기</span>' +
+                  '<input class="form-input" placeholder="예: 3년" style="font-size:11px;padding:2px 6px;width:60px" value="'+(eq.cycle||'').replace(/"/g,'&quot;')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'cycle\',this.value)">' +
+                  '<span style="font-size:10px;color:var(--t3);white-space:nowrap">최근검사일</span>' +
+                  '<input type="date" class="form-input" style="font-size:11px;padding:2px 6px" value="'+(eq.lastDate||'')+'" onchange="licenseUpdateEquip(\''+f.id+'\','+idx+',\'lastDate\',this.value)">' +
+                  '<button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:10px" onclick="licenseDeleteEquip(\''+f.id+'\','+idx+')">✕</button>' +
+                '</div>' +
               '</div>' +
             '</td>'
           : '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+(eq.name||'')+'</td>' +
             '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+(eq.maker||'')+'</td>' +
             '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+(eq.spec||'')+'</td>' +
-            '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+note+dday+'</td>') +
+            '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+displayNote+'</td>') +
       '</tr>';
     }).join('');
 
@@ -19809,7 +19814,7 @@ async function licenseRenderMaster() {
         '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">장비명</td>' +
         '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">제조회사</td>' +
         '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">규격</td>' +
-        '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">비고(검교정일)</td>' +
+        '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">비고</td>' +
       '</tr></thead><tbody>'+eqRows+'</tbody></table>' +
       (canEdit ? '<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="licenseAddEquipToField(\''+f.id+'\')">+ 장비 추가</button>' : '') +
     '</div>';
@@ -24794,7 +24799,8 @@ var PM_MENU_LIST = {
     {id:'sales-training', label:'교육 이수 명단'}
   ],
   license: [
-    {id:'license-status', label:'면허관리 현황'}
+    {id:'license-status', label:'면허관리 현황'},
+    {id:'license-master', label:'면허관리 총괄관리표'}
   ],
   system: [
     {id:'codemanage', label:'코드 관리'},
