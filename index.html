@@ -1194,10 +1194,20 @@ select.form-input{cursor:pointer}
         <div class="page-header">
           <div><div class="page-title">📊 기술인력·장비 등록 총괄관리표</div><div class="page-sub">사업분야별 등록 인력과 장비를 관리합니다</div></div>
           <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="licensePrintMaster()">🖨 출력</button>
             <button id="license-editmode-btn" class="btn btn-ghost btn-sm" onclick="licenseToggleEditMode()">입력란 활성화</button>
           </div>
         </div>
         <div id="license-master-table"></div>
+        <div style="margin-top:24px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:6px">■ 정보보호 최고책임자 신고</div>
+          <table style="width:100%;border-collapse:collapse"><thead><tr style="background:var(--surface)">
+            <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">책임자명</td>
+            <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">신고일</td>
+          </tr></thead><tbody>
+            <tr><td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">박윤희</td><td style="padding:6px 8px;border:1px solid var(--border);text-align:center">20.07.10</td></tr>
+          </tbody></table>
+        </div>
       </div>
 
       <!-- 직원 관리 -->
@@ -19722,6 +19732,26 @@ async function licenseEnsureAutoFields() {
     }
   }
   if (missing.length || missingEng.length) await loadLicenseFields(true);
+
+  // 퇴사자가 발생하면(퇴사일 다음날부터) 배정된 슬롯을 자동으로 미지정 처리
+  var todayStr2 = new Date().toISOString().slice(0,10);
+  for (var ri=0; ri<licenseFields.length; ri++) {
+    var rf = licenseFields[ri];
+    if (!rf.engAuto || !rf.engSelections) continue;
+    var changed = false;
+    Object.keys(rf.engSelections).forEach(function(idx){
+      var name = rf.engSelections[idx];
+      var emp = employees.find(function(e){ return e.name === name; });
+      if (emp && emp.status === '퇴직' && emp.leavedate && emp.leavedate < todayStr2) {
+        delete rf.engSelections[idx];
+        if (rf.engManualReasons) delete rf.engManualReasons[idx];
+        changed = true;
+      }
+    });
+    if (changed) {
+      await db.collection('licenseFields').doc(rf.id).set(rf);
+    }
+  }
 }
 
 // 슬롯 조건에 맞는 후보 목록 (건설협회 등급 또는 자격증 키워드 기준)
@@ -19812,9 +19842,14 @@ async function licenseSetEngSelection(fieldId, slotIdx, empName) {
   if (!f) return;
   if (empName === '__manual__') {
     var typed = prompt('경력관리 등급 조건과 무관하게, 이 자리에 직접 넣을 사람 이름을 입력하세요\n(예: 조건상 후보로 안 뜨지만 실제로 신고에 포함된 인원)');
-    if (typed === null) { licenseRenderMaster(); return; } // 취소하면 원래 화면으로 되돌림
+    if (typed === null) { licenseRenderMaster(); return; }
     empName = typed.trim();
     if (!empName) { licenseRenderMaster(); return; }
+    var reason = prompt('직접 입력한 사유를 남겨주세요 (마우스 올리면 표시됩니다)');
+    if (!f.engManualReasons) f.engManualReasons = {};
+    f.engManualReasons[slotIdx] = reason || '';
+  } else if (f.engManualReasons) {
+    delete f.engManualReasons[slotIdx]; // 일반 후보로 다시 선택하면 사유는 제거
   }
   if (!f.engSelections) f.engSelections = {};
   if (empName) f.engSelections[slotIdx] = empName; else delete f.engSelections[slotIdx];
@@ -19847,6 +19882,28 @@ async function licenseToggleEngPotential(fieldId) {
 }
 
 var _licenseEditMode = false;
+function licensePrintMaster() {
+  var content = document.getElementById('license-master-table').innerHTML;
+  var ciso = document.querySelector('#page-license-master > div:last-child').outerHTML;
+  var win = window.open('', '_blank');
+  win.document.write(
+    '<html><head><title>기술인력·장비 등록 총괄관리표</title>' +
+    '<style>' +
+      'body{font-family:"Malgun Gothic",sans-serif;font-size:10px;margin:12px}' +
+      'table{width:100%;border-collapse:collapse;margin-bottom:8px}' +
+      'td{border:1px solid #999;padding:3px 5px}' +
+      'select{border:none;background:transparent;font-size:10px;-webkit-appearance:none;appearance:none;pointer-events:none}' +
+      'button{display:none}' +
+      '@page{size:A4 landscape;margin:10mm}' +
+    '</style></head><body>' +
+    '<h2 style="font-size:14px;margin-bottom:10px">기술인력·장비 등록 총괄관리표</h2>' +
+    content + ciso +
+    '</body></html>'
+  );
+  win.document.close();
+  win.onload = function(){ win.print(); };
+}
+
 function licenseToggleEditMode() {
   _licenseEditMode = !_licenseEditMode;
   licenseRenderMaster();
@@ -19908,11 +19965,13 @@ async function licenseRenderMaster() {
         }).join('');
         if (isManual) optionsHtml += '<option value="'+selected+'" selected>'+selected+' (직접 입력)</option>';
         optionsHtml += '<option value="__manual__">+ 직접 입력...</option>';
+        var manualReason = (f.engManualReasons||{})[idx] || '';
+        var reasonTip = isManual && manualReason ? ' title="직접 입력 사유: '+manualReason.replace(/"/g,'&quot;')+'" style="cursor:help;text-decoration:underline dotted"' : '';
         return {
           gradeLabel: slot.label,
           nameHtml: canEdit
-            ? '<select class="form-input" style="font-size:12px;padding:2px 4px" onchange="licenseSetEngSelection(\''+f.id+'\','+idx+',this.value)">'+optionsHtml+'</select>'
-            : '<span>'+(selected||'-')+'</span>'
+            ? '<select class="form-input" style="font-size:12px;padding:2px 4px"'+reasonTip+' onchange="licenseSetEngSelection(\''+f.id+'\','+idx+',this.value)">'+optionsHtml+'</select>'
+            : '<span'+reasonTip+'>'+(selected||'-')+(isManual&&manualReason?' 🛈':'')+'</span>'
         };
       });
 
@@ -19931,6 +19990,7 @@ async function licenseRenderMaster() {
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
           '<span style="font-weight:700;font-size:14px">■ '+f.name+leadSelector+'</span>' + badge +
         '</div>' +
+        (hasIssue ? '<div style="font-size:12px;color:#dc2626;margin-bottom:6px">미지정된 자리가 있습니다. 30일 이내에 인력을 변경(재배정)해주세요.</div>' : '') +
         '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr style="background:var(--surface)">' +
           '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">기술자명</td>' +
           '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">기술등급</td>' +
