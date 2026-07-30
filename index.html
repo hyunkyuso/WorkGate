@@ -19715,6 +19715,11 @@ async function licenseEnsureAutoFields() {
       await db.collection('licenseFields').doc(licenseFields[k].id).update({ slotCount: ef2.slotCount });
       licenseFields[k].slotCount = ef2.slotCount;
     }
+    // leadGrade가 아예 설정 안 되어있으면(예전에 만들어진 문서) 기본값으로 채워줌
+    if (ef2 && !licenseFields[k].leadGrade) {
+      await db.collection('licenseFields').doc(licenseFields[k].id).update({ leadGrade: ef2.defaultLead });
+      licenseFields[k].leadGrade = ef2.defaultLead;
+    }
   }
   if (missing.length || missingEng.length) await loadLicenseFields(true);
 }
@@ -19860,7 +19865,8 @@ async function licenseRenderMaster() {
 
   document.getElementById('license-master-table').innerHTML = orderedFields.map(function(f){
     if (f.engAuto) {
-      var leadGrade = f.leadGrade || '특급';
+      var engConf = LICENSE_ENG_FIELDS.find(function(ef){ return ef.name === f.name; });
+      var leadGrade = f.leadGrade || (engConf ? engConf.defaultLead : '특급');
       var slotCount = f.slotCount || 3;
       var slots = [{ label: leadGrade+' 이상', minGrade: leadGrade }];
       for (var si=1; si<slotCount; si++) slots.push({ label: '초급 이상', minGrade: '초급' });
