@@ -1234,9 +1234,8 @@ select.form-input{cursor:pointer}
       <!-- 면허관리: 기업부설연구소 인력현황 -->
       <div id="page-license-institute" class="page">
         <div class="page-header">
-          <div><div class="page-title">🔬 기업부설연구소 인력현황</div><div class="page-sub">기업부설연구소 소속 기술인력 이력 및 월별 참여 현황입니다</div></div>
+          <div><div class="page-title">🔬 기업부설연구소 인력현황</div><div class="page-sub">기업부설연구소 소속 기술인력 이력사항입니다</div></div>
           <div style="display:flex;gap:8px">
-            <input type="number" class="form-input" id="license-institute-year" value="2026" style="width:90px" onchange="licenseRenderInstitute()">
             <button class="btn btn-ghost btn-sm" onclick="licensePrintInstitute()">🖨 출력</button>
           </div>
         </div>
@@ -20147,14 +20146,30 @@ function licenseRenderCategory() {
       '<td style="padding:6px 8px;text-align:center">'+radio('관리','관리')+'</td>' +
       '<td style="padding:6px 8px;text-align:center">'+radio('기타','기타')+'</td>' +
       '<td style="padding:6px 8px;border-left:2px solid var(--border)">' +
-        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px">' +
-          periodChips +
-          '<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px" onclick="licenseOpenResearchPeriodModal(\''+empId+'\')">+ 추가</button>' +
-          '<label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--t2);margin-left:6px"><input type="checkbox" '+(e.instituteDirector?'checked':'')+' onchange="licenseSetInstituteDirector(\''+empId+'\',this.checked)"> 연구소장</label>' +
+        '<div style="display:flex;flex-direction:column;gap:4px">' +
+          '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600"><input type="checkbox" '+(e.isResearchInstitute?'checked':'')+' onchange="licenseSetResearchInstituteFlag(\''+empId+'\',this.checked)"> 기업부설연구소</label>' +
+          (e.isResearchInstitute ? (
+            '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding-left:4px">' +
+              periodChips +
+              '<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px" onclick="licenseOpenResearchPeriodModal(\''+empId+'\')">+ 기간 추가</button>' +
+              '<label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--t2);margin-left:6px" title="기술인력 이력사항에서 직위(연구소장/연구원) 표기용"><input type="checkbox" '+(e.instituteDirector?'checked':'')+' onchange="licenseSetInstituteDirector(\''+empId+'\',this.checked)"> 연구소장</label>' +
+            '</div>'
+          ) : '') +
         '</div>' +
       '</td>' +
     '</tr>';
   }).join('');
+}
+
+async function licenseSetResearchInstituteFlag(empId, checked) {
+  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+  if (!emp) return;
+  emp.isResearchInstitute = checked;
+  try {
+    await db.collection('employees').doc(empId).update({ isResearchInstitute: checked });
+    licenseRenderCategory();
+    showToast('✅ 저장되었습니다');
+  } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
 }
 
 function licenseOpenResearchPeriodModal(empId) {
@@ -20222,6 +20237,7 @@ async function licenseSetInstituteDirector(empId, checked) {
 function licenseGetInstituteMembers(year) {
   var yearStart = year+'-01-01', yearEnd = year+'-12-31';
   return employees.filter(function(e){
+    if (!e.isResearchInstitute) return false;
     var periods = e.researchInstitutePeriods || [];
     return periods.some(function(p){
       var s = p.start || '0000-01-01';
@@ -20265,8 +20281,7 @@ function licenseGetHighestEduEntry(emp) {
 }
 
 function licenseRenderInstitute() {
-  var year = parseInt((document.getElementById('license-institute-year')||{}).value) || new Date().getFullYear();
-  var members = licenseGetInstituteMembers(year).sort(function(a,b){
+  var members = employees.filter(function(e){ return e.isResearchInstitute; }).sort(function(a,b){
     if (a.instituteDirector && !b.instituteDirector) return -1;
     if (!a.instituteDirector && b.instituteDirector) return 1;
     return (a.name||'').localeCompare(b.name||'');
@@ -20293,27 +20308,10 @@ function licenseRenderInstitute() {
       '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+eduLine1+'<br>'+eduLine2+'</td>' +
       '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+years+'</td>' +
     '</tr>';
-  }).join('') || '<tr><td colspan="7" style="padding:16px;border:1px solid var(--border);text-align:center;color:var(--t3)">'+year+'년에 해당하는 인원이 없습니다</td></tr>';
-
-  var monthRows = members.map(function(e, i){
-    var act = licenseGetMonthlyActivity(e, year);
-    var pos = e.instituteDirector ? '연구소장' : '전담요원';
-    var monthTds = act.months.map(function(mo){
-      if (mo.label) return '<td style="padding:6px 4px;border:1px solid var(--border);text-align:center;background:#fef08a;font-size:11px">'+mo.label+'</td>';
-      if (mo.active) return '<td style="padding:6px 4px;border:1px solid var(--border);background:#fef08a"></td>';
-      return '<td style="padding:6px 4px;border:1px solid var(--border);background:#9ca3af"></td>';
-    }).join('');
-    return '<tr>' +
-      '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center">'+(i+1)+'</td>' +
-      '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:#2563eb">'+pos+'</td>' +
-      '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;color:#2563eb">'+e.name+'</td>' +
-      monthTds +
-      '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">'+act.count+'개월</td>' +
-    '</tr>';
-  }).join('') || '<tr><td colspan="15" style="padding:16px;border:1px solid var(--border);text-align:center;color:var(--t3)">'+year+'년에 해당하는 인원이 없습니다</td></tr>';
+  }).join('') || '<tr><td colspan="7" style="padding:16px;border:1px solid var(--border);text-align:center;color:var(--t3)">기업부설연구소로 체크된 인원이 없습니다</td></tr>';
 
   document.getElementById('license-institute-content').innerHTML =
-    '<div style="margin-bottom:28px">' +
+    '<div>' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
         '<div style="font-weight:700;font-size:15px">기술인력 이력사항</div>' +
         '<div style="font-size:12px;color:var(--t3)">기준일 : '+todayStr+'</div>' +
@@ -20327,16 +20325,6 @@ function licenseRenderInstitute() {
         '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">최종학교 및 전공</td>' +
         '<td style="padding:6px 8px;border:1px solid var(--border);text-align:center;font-weight:600">최종학력 후<br>동업계 종사년수</td>' +
       '</tr></thead><tbody>'+historyRows+'</tbody></table>' +
-    '</div>' +
-    '<div>' +
-      '<div style="font-weight:700;font-size:15px;margin-bottom:8px">월별 참여 현황 ('+year+'년)</div>' +
-      '<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#dbeafe">' +
-        '<td style="padding:6px 6px;border:1px solid var(--border);text-align:center;font-weight:600">연번</td>' +
-        '<td style="padding:6px 6px;border:1px solid var(--border);text-align:center;font-weight:600">구분</td>' +
-        '<td style="padding:6px 6px;border:1px solid var(--border);text-align:center;font-weight:600">성명</td>' +
-        Array.from({length:12},function(_,i){ return '<td style="padding:6px 4px;border:1px solid var(--border);text-align:center;font-weight:600">'+(i+1)+'월</td>'; }).join('') +
-        '<td style="padding:6px 6px;border:1px solid var(--border);text-align:center;font-weight:600">비고</td>' +
-      '</tr></thead><tbody>'+monthRows+'</tbody></table>' +
     '</div>';
 }
 
