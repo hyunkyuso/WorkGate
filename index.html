@@ -318,6 +318,7 @@ select.form-input{cursor:pointer}
           <div class="nav-item admin-only" onclick="showPage('orgview',this)"><span class="nav-icon">👁️</span> 직원 조회</div>
           <div class="nav-item admin-only" onclick="showPage('employees',this)"><span class="nav-icon">👤</span> 직원 관리</div>
           <div class="nav-item admin-only" onclick="showPage('personnel-card',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🪪</span> 인사기록카드</div>
+          <div class="nav-item admin-only" onclick="showPage('personnel-matrix',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📋</span> 인사기록 총괄표</div>
           <div class="nav-item admin-only" onclick="showPage('myinfo-history',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 정보수정 이력</div>
           <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
           <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
@@ -1482,6 +1483,43 @@ select.form-input{cursor:pointer}
       </div>
 
       <!-- ══════ 인사기록카드 ══════ -->
+      <!-- 인사기록 총괄표 -->
+      <div id="page-personnel-matrix" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">📋 인사기록 총괄표</div>
+            <div class="page-sub">전 직원(재직·퇴사 포함)의 인사기록카드 정보를 한눈에 확인합니다</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="pmPrint()">🖨 인쇄</button>
+            <button class="btn btn-ghost btn-sm" onclick="pmExportExcel()">📥 엑셀</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <input type="text" class="form-input" id="pm-search" placeholder="이름 또는 부서 검색" style="max-width:200px" oninput="pmRender()">
+          <select class="form-input" id="pm-filter-dept" style="max-width:160px" onchange="pmRender()"><option value="">전체 부서</option></select>
+          <select class="form-input" id="pm-filter-status" style="max-width:120px" onchange="pmRender()">
+            <option value="">전체(재직+퇴사)</option>
+            <option value="재직">재직만</option>
+            <option value="퇴사">퇴사만</option>
+          </select>
+        </div>
+        <div style="overflow:auto;background:#fff;border:1px solid var(--border);border-radius:var(--r2)">
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <thead><tr style="background:#f1f5f9;position:sticky;top:0">
+              <td style="padding:6px 8px;text-align:center">상태</td>
+              <td style="padding:6px 8px;text-align:center">이름</td>
+              <td style="padding:6px 8px;text-align:center">부서/직위</td>
+              <td style="padding:6px 8px;text-align:center">입사일</td>
+              <td style="padding:6px 8px;text-align:center">최종학력·전공</td>
+              <td style="padding:6px 8px;text-align:center">보유 자격증</td>
+              <td style="padding:6px 8px;text-align:center">종사년수</td>
+            </tr></thead>
+            <tbody id="pm-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div id="page-personnel-card" class="page">
         <div class="page-header">
           <div>
@@ -17953,6 +17991,7 @@ function showPage(id, el) {
     }).catch(() => renderCodeTable());
   }
   if(id === 'employees') { populateEmpFilterDept(); renderEmployeeTable(); }
+  if(id === 'personnel-matrix') pmRender();
   if(id === 'orgview') initOrgView();
   if(id === 'welfare') {
     var tbodyEl = document.getElementById('welfare-tbody');
@@ -20287,6 +20326,89 @@ function licenseGetMonthlyActivity(emp, year) {
   }
   var count = months.filter(function(x){ return x.active; }).length;
   return { months: months, count: count };
+}
+
+// ══════════════════ 인사기록 총괄표 ══════════════════
+function pmPopulateDeptFilter() {
+  var sel = document.getElementById('pm-filter-dept');
+  if (!sel || sel.options.length > 1) return;
+  var depts = Array.from(new Set(employees.map(function(e){ return e.dept; }).filter(Boolean))).sort();
+  sel.innerHTML = '<option value="">전체 부서</option>' + depts.map(function(d){ return '<option value="'+d+'">'+d+'</option>'; }).join('');
+}
+
+function pmBuildRows() {
+  var q = (document.getElementById('pm-search')||{}).value || '';
+  q = q.trim().toLowerCase();
+  var deptFilter = (document.getElementById('pm-filter-dept')||{}).value || '';
+  var statusFilter = (document.getElementById('pm-filter-status')||{}).value || '';
+
+  return employees.filter(function(e){
+    var isResigned = e.status === '퇴직';
+    if (statusFilter === '재직' && isResigned) return false;
+    if (statusFilter === '퇴사' && !isResigned) return false;
+    if (deptFilter && e.dept !== deptFilter) return false;
+    if (q && (e.name||'').toLowerCase().indexOf(q) < 0 && (e.dept||'').toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  }).map(function(e){
+    var edu = licenseGetHighestEduEntry(e);
+    var totalCareer = pcCalcTotalCareer(e);
+    var licenseNames = (e.license||[]).map(function(l){ return l.name; }).filter(Boolean).join(', ');
+    return {
+      emp: e,
+      isResigned: e.status === '퇴직',
+      eduLine1: edu ? edu.school+' '+edu.degree : '-',
+      eduLine2: edu ? (edu.major||'') : '',
+      licenseNames: licenseNames || '-',
+      years: totalCareer.total.years
+    };
+  }).sort(function(a,b){
+    if (a.isResigned !== b.isResigned) return a.isResigned ? 1 : -1;
+    return (a.emp.dept||'').localeCompare(b.emp.dept||'') || (a.emp.name||'').localeCompare(b.emp.name||'');
+  });
+}
+
+function pmRender() {
+  pmPopulateDeptFilter();
+  var rows = pmBuildRows();
+  document.getElementById('pm-tbody').innerHTML = rows.map(function(r){
+    var e = r.emp;
+    return '<tr style="border-top:1px solid var(--border);'+(r.isResigned?'opacity:.6':'')+'">' +
+      '<td style="padding:6px 8px;text-align:center">'+(r.isResigned?'<span style="color:#9ca3af">퇴사</span>':'<span style="color:#16a34a;font-weight:600">재직</span>')+'</td>' +
+      '<td style="padding:6px 8px;text-align:center;font-weight:600">'+e.name+'</td>' +
+      '<td style="padding:6px 8px;text-align:center">'+(e.dept||'-')+'<br><span style="color:var(--t3);font-size:11px">'+(e.title||e.position||'-')+'</span></td>' +
+      '<td style="padding:6px 8px;text-align:center">'+(e.joindate||'-')+'</td>' +
+      '<td style="padding:6px 8px;text-align:center">'+r.eduLine1+'<br><span style="color:var(--t3);font-size:11px">'+r.eduLine2+'</span></td>' +
+      '<td style="padding:6px 8px;text-align:center">'+r.licenseNames+'</td>' +
+      '<td style="padding:6px 8px;text-align:center">'+r.years+'년</td>' +
+    '</tr>';
+  }).join('') || '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--t3)">조건에 맞는 인원이 없습니다</td></tr>';
+}
+
+function pmPrint() {
+  var content = document.querySelector('#page-personnel-matrix table').outerHTML;
+  var win = window.open('', '_blank');
+  win.document.write('<html><head><title>인사기록 총괄표</title><style>' +
+    ':root{--border:#e2e5ef;--t3:#9ca0b8;--t1:#1a1d2e}' +
+    'body{font-family:"Malgun Gothic",sans-serif;margin:8mm;color:var(--t1)}' +
+    'table{width:100%;border-collapse:collapse}' +
+    'td{border:1px solid var(--border)}' +
+    '@page{size:A4 landscape;margin:8mm}' +
+  '</style></head><body><h2 style="font-size:15px;margin-bottom:10px">인사기록 총괄표</h2>'+content+'</body></html>');
+  win.document.close();
+  win.onload = function(){ win.print(); };
+}
+
+function pmExportExcel() {
+  var rows = pmBuildRows();
+  var aoa = [['상태','이름','부서','직위','입사일','최종학교','학력','전공','보유자격증','종사년수']];
+  rows.forEach(function(r){
+    var e = r.emp;
+    aoa.push([r.isResigned?'퇴사':'재직', e.name, e.dept||'', e.title||e.position||'', e.joindate||'', r.eduLine1.split(' ')[0]||'', r.eduLine1.split(' ')[1]||'', r.eduLine2, r.licenseNames, r.years]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '인사기록총괄표');
+  XLSX.writeFile(wb, '인사기록_총괄표.xlsx');
 }
 
 function licenseGetHighestEduEntry(emp) {
