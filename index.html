@@ -12841,6 +12841,11 @@ async function pcUploadCategoryDoc(category, input) {
     var uploaded = await driveUploadPersonnelFile(file);
     var emp = employees.find(function(e){ return (e.id||e.email)===email; });
     var docs = (emp[category] || []).slice();
+    var PC_DOC_LABELS = { docsJoin:'입사서류', docsInternEval:'인턴평가', docsSelfReport:'자기신고서' };
+    var label = PC_DOC_LABELS[category] || '서류';
+    var displayName = emp.name+' '+label;
+    if (docs.length) displayName += ' '+(docs.length+1); // 이미 있으면 번호 붙임
+    uploaded.name = displayName;
     docs.push(uploaded);
     var payload = {};
     payload[category] = docs;
