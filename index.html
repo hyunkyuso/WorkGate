@@ -20368,6 +20368,7 @@ function pmBuildRows() {
     (e.career||[]).forEach(function(c){
       if (!c.start) return;
       var duty = c.duty || c.position || '';
+      if (duty.indexOf(',') >= 0) duty = duty.split(',')[0].trim()+' 등';
       careerSummary.push((c.company||'-')+'('+c.start+'~'+(c.end||'재직중')+')'+(duty?' - '+duty:''));
     });
 
@@ -20396,7 +20397,7 @@ function pmBuildRows() {
   });
 }
 
-var PM_DEPT_ORDER = ["수석전문위원","경영관리본부","인사총무부","재무회계부","베트남경영관리팀","글로벌사업본부","해외사업부","해외사업팀","TF팀","글로벌기획본부","AI전략기획본부","AI기획팀","디자인팀","AI GIS 연구본부","AI GIS 연구부","연구1팀","연구2팀","SW지원부","SW지원팀","R&D기획부","R&D기획팀","SW기술연구소","응용개발연구부","SW영업본부","GIS SW영업부","GIS SW영업팀","GIS 사업본부","GIS사업1부","GIS 1부 사업1팀","GIS 1부 사업2팀","GIS 사업2부","GIS2부 사업팀","도시계획사업본부","도시계획사업부","도시계획사업1팀","도시계획사업2팀"];
+var PM_DEPT_ORDER = ["정도유아이티","수석전문위원","경영관리본부","인사총무부","재무회계부","베트남경영관리팀","글로벌사업본부","해외사업부","해외사업팀","TF팀","글로벌기획본부","AI전략기획본부","AI기획팀","디자인팀","AI GIS 연구본부","AI GIS 연구부","연구1팀","연구2팀","SW지원부","SW지원팀","R&D기획부","R&D기획팀","SW기술연구소","응용개발연구부","SW영업본부","GIS SW영업부","GIS SW영업팀","GIS 사업본부","GIS사업1부","GIS 1부 사업1팀","GIS 1부 사업2팀","GIS 사업2부","GIS2부 사업팀","도시계획사업본부","도시계획사업부","도시계획사업1팀","도시계획사업2팀"];
 
 function pmIsLeaderTitle(title) {
   if (!title) return false;
@@ -20420,13 +20421,17 @@ function pmSelfReportHtml(docs, label) {
     byYear[year].push(d);
   });
   return Object.keys(byYear).sort().reverse().map(function(year){
-    return '<div style="margin-bottom:2px"><span style="font-weight:600">'+year+'년</span> ' +
-      byYear[year].map(function(d, i){
-        var text = byYear[year].length > 1 ? label+' '+(i+1) : label;
-        return '<a href="'+d.driveLink+'" target="_blank" style="color:var(--ac);text-decoration:none">📎'+text+'</a>';
-      }).join(', ') +
-    '</div>';
+    return byYear[year].map(function(d, i){
+      var text = byYear[year].length > 1 ? label+' '+(i+1) : label;
+      return '<div style="white-space:nowrap"><span style="font-weight:600">'+year+'년</span> <a href="'+d.driveLink+'" target="_blank" style="color:var(--ac);text-decoration:none">📎'+text+'</a></div>';
+    }).join('');
   }).join('');
+}
+
+function pmDisplayTitle(title) {
+  if (!title) return '';
+  if (['부서원','팀원','본부원'].indexOf(title) >= 0) return '';
+  return title;
 }
 
 function pmRender() {
@@ -20442,7 +20447,7 @@ function pmRender() {
     return '<tr style="border-top:1px solid var(--border);'+(r.isResigned?'opacity:.6':'')+'">' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(r.isResigned?'<span style="color:#9ca3af">퇴사</span>':'<span style="color:#16a34a;font-weight:600">재직</span>')+'</td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap;font-weight:600">'+e.name+'</td>' +
-      '<td style="padding:6px 8px;text-align:center">'+(e.dept||'-')+'<br><span style="color:var(--t3);font-size:11px">'+([e.position,e.title].filter(Boolean).join(' · ')||'-')+'</span></td>' +
+      '<td style="padding:6px 8px;text-align:center"><span style="white-space:nowrap">'+(e.dept||'-')+'</span><br><span style="color:var(--t3);font-size:11px">'+([e.position,pmDisplayTitle(e.title)].filter(Boolean).join(' · ')||'-')+'</span></td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(e.duty||'-')+'</td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(e.joindate||'-')+'</td>' +
       '<td style="padding:6px 8px;text-align:center">'+eduHtml+'<br><span style="color:var(--t3);font-size:11px">'+r.eduLine2+'</span></td>' +
