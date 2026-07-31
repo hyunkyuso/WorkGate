@@ -1509,7 +1509,8 @@ select.form-input{cursor:pointer}
             <thead><tr style="background:#f1f5f9;position:sticky;top:0">
               <td style="padding:6px 8px;text-align:center">상태</td>
               <td style="padding:6px 8px;text-align:center">이름</td>
-              <td style="padding:6px 8px;text-align:center">부서/직위·직책</td>
+              <td style="padding:6px 8px;text-align:center">부서/직책</td>
+              <td style="padding:6px 8px;text-align:center">직위</td>
               <td style="padding:6px 8px;text-align:center">직무</td>
               <td style="padding:6px 8px;text-align:center">입사일</td>
               <td style="padding:6px 8px;text-align:center">최종학력·전공</td>
@@ -20356,7 +20357,6 @@ function pmBuildRows() {
     if (statusFilter === '재직' && isResigned) return false;
     if (statusFilter === '퇴사' && !isResigned) return false;
     if (deptFilter && e.dept !== deptFilter) return false;
-    if (q && (e.name||'').toLowerCase().indexOf(q) < 0 && (e.dept||'').toLowerCase().indexOf(q) < 0) return false;
     return true;
   }).map(function(e){
     var edu = licenseGetHighestEduEntry(e);
@@ -20372,6 +20372,13 @@ function pmBuildRows() {
       careerSummary.push((c.company||'-')+'('+c.start+'~'+(c.end||'재직중')+')'+(duty?' - '+duty:''));
     });
 
+    // 검색 대상: 이름/부서/직위/직책/직무/학력/자격증/경력사 전부 포함
+    var searchable = [e.name, e.dept, e.position, e.title, e.duty,
+      edu?edu.school:'', edu?edu.major:'', edu?edu.degree:'',
+      licenseList.map(function(l){ return l.name; }).join(' '),
+      (e.career||[]).map(function(c){ return c.company; }).join(' ')
+    ].join(' ').toLowerCase();
+
     return {
       emp: e,
       isResigned: e.status === '퇴직',
@@ -20383,8 +20390,11 @@ function pmBuildRows() {
       careerSummary: careerSummary,
       docsJoin: e.docsJoin || [],
       docsInternEval: e.docsInternEval || [],
-      docsSelfReport: e.docsSelfReport || []
+      docsSelfReport: e.docsSelfReport || [],
+      searchable: searchable
     };
+  }).filter(function(r){
+    return !q || r.searchable.indexOf(q) >= 0;
   }).sort(function(a,b){
     if (a.isResigned !== b.isResigned) return a.isResigned ? 1 : -1;
     var ai = PM_DEPT_ORDER.indexOf(a.emp.dept); if (ai < 0) ai = 999;
@@ -20427,11 +20437,12 @@ function pmOpenFileModal(url, title) {
   modal.id = 'pm-file-modal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML =
-    '<div style="background:#fff;border-radius:12px;width:80vw;height:85vh;max-width:900px;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">' +
+    '<div style="background:#fff;border-radius:12px;width:94vw;height:94vh;max-width:1200px;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)">' +
         '<span style="font-weight:700;font-size:14px">'+title+'</span>' +
         '<div style="display:flex;gap:12px;align-items:center">' +
-          '<a href="'+url+'" target="_blank" style="font-size:12px;color:var(--ac);text-decoration:none">새 탭에서 열기</a>' +
+          '<span style="font-size:11px;color:var(--t3)">페이지가 여러 장이면 문서 안에서 스크롤(또는 좌우 페이지 이동 버튼)로 넘겨보세요</span>' +
+          '<a href="'+url+'" target="_blank" style="font-size:12px;color:var(--ac);text-decoration:none;white-space:nowrap">새 탭에서 열기</a>' +
           '<span onclick="document.getElementById(\'pm-file-modal\').remove()" style="cursor:pointer;font-size:18px">✕</span>' +
         '</div>' +
       '</div>' +
@@ -20466,7 +20477,8 @@ function pmRender() {
     return '<tr style="border-top:1px solid var(--border);'+(r.isResigned?'opacity:.6':'')+'">' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(r.isResigned?'<span style="color:#9ca3af">퇴사</span>':'<span style="color:#16a34a;font-weight:600">재직</span>')+'</td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap;font-weight:600">'+e.name+'</td>' +
-      '<td style="padding:6px 8px;text-align:center"><span style="white-space:nowrap">'+(e.dept||'-')+'</span><br><span style="color:var(--t3);font-size:11px">'+([e.position,pmDisplayTitle(e.title)].filter(Boolean).join(' · ')||'-')+'</span></td>' +
+      '<td style="padding:6px 8px;text-align:center"><span style="white-space:nowrap">'+(e.dept||'-')+'</span>'+(pmDisplayTitle(e.title)?'<br><span style="color:var(--t3);font-size:11px">'+pmDisplayTitle(e.title)+'</span>':'')+'</td>' +
+      '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(e.position||'-')+'</td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(e.duty||'-')+'</td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(e.joindate||'-')+'</td>' +
       '<td style="padding:6px 8px;text-align:center">'+eduHtml+'<br><span style="color:var(--t3);font-size:11px">'+r.eduLine2+'</span></td>' +
