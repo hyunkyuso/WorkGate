@@ -1513,8 +1513,11 @@ select.form-input{cursor:pointer}
               <td style="padding:6px 8px;text-align:center">입사일</td>
               <td style="padding:6px 8px;text-align:center">최종학력·전공</td>
               <td style="padding:6px 8px;text-align:center">보유 자격증</td>
-              <td style="padding:6px 8px;text-align:center">종사년수</td>
               <td style="padding:6px 8px;text-align:center">경력 요약</td>
+              <td style="padding:6px 8px;text-align:center">경력년수</td>
+              <td style="padding:6px 8px;text-align:center">입사서류</td>
+              <td style="padding:6px 8px;text-align:center">인턴평가</td>
+              <td style="padding:6px 8px;text-align:center">자기신고서</td>
             </tr></thead>
             <tbody id="pm-tbody"></tbody>
           </table>
@@ -20357,15 +20360,15 @@ function pmBuildRows() {
   }).map(function(e){
     var edu = licenseGetHighestEduEntry(e);
     var totalCareer = pcCalcTotalCareer(e);
-    var licenseList = (e.license||[]).map(function(l){ return l.name; }).filter(Boolean);
+    var licenseList = (e.license||[]).map(function(l){ return { name: l.name, link: l.driveLink||'' }; }).filter(function(l){ return l.name; });
 
-    // 경력 요약: 정도유아이티 재직기간 + 인사기록카드에 등록된 이전 경력들을 간단히 나열
+    // 경력 요약: 정도유아이티 재직기간 + 인사기록카드에 등록된 이전 경력들(담당업무 포함)을 간단히 나열
     var careerSummary = [];
-    var todayStr = new Date().toISOString().slice(0,10);
     if (e.joindate) careerSummary.push('정도유아이티('+e.joindate+'~'+(e.status==='퇴직'?(e.leavedate||''):'재직중')+')');
     (e.career||[]).forEach(function(c){
       if (!c.start) return;
-      careerSummary.push((c.company||'-')+'('+c.start+'~'+(c.end||'재직중')+')');
+      var duty = c.duty || c.position || '';
+      careerSummary.push((c.company||'-')+'('+c.start+'~'+(c.end||'재직중')+')'+(duty?' - '+duty:''));
     });
 
     return {
@@ -20373,9 +20376,13 @@ function pmBuildRows() {
       isResigned: e.status === '퇴직',
       eduLine1: edu ? edu.school+' '+edu.degree : '-',
       eduLine2: edu ? (edu.major||'') : '',
+      eduLink: edu ? (edu.driveLink||'') : '',
       licenseList: licenseList,
       years: totalCareer.total.years,
-      careerSummary: careerSummary
+      careerSummary: careerSummary,
+      docsJoin: e.docsJoin || [],
+      docsInternEval: e.docsInternEval || [],
+      docsSelfReport: e.docsSelfReport || []
     };
   }).sort(function(a,b){
     if (a.isResigned !== b.isResigned) return a.isResigned ? 1 : -1;
@@ -20383,24 +20390,52 @@ function pmBuildRows() {
   });
 }
 
+function pmDocLinksHtml(docs) {
+  if (!docs.length) return '-';
+  return docs.map(function(d){
+    return '<a href="'+d.driveLink+'" target="_blank" style="display:block;color:var(--ac);text-decoration:none;white-space:nowrap">📎 '+(d.name||'파일')+'</a>';
+  }).join('');
+}
+
+function pmSelfReportHtml(docs) {
+  if (!docs.length) return '-';
+  var byYear = {};
+  docs.forEach(function(d){
+    var year = (d.uploadedAt||'').slice(0,4) || '기타';
+    if (!byYear[year]) byYear[year] = [];
+    byYear[year].push(d);
+  });
+  return Object.keys(byYear).sort().reverse().map(function(year){
+    return '<div style="margin-bottom:2px"><span style="font-weight:600">'+year+'년</span> ' +
+      byYear[year].map(function(d){ return '<a href="'+d.driveLink+'" target="_blank" style="color:var(--ac);text-decoration:none">📎'+(d.name||'파일')+'</a>'; }).join(', ') +
+    '</div>';
+  }).join('');
+}
+
 function pmRender() {
   pmPopulateDeptFilter();
   var rows = pmBuildRows();
   document.getElementById('pm-tbody').innerHTML = rows.map(function(r){
     var e = r.emp;
-    var licenseHtml = r.licenseList.length ? r.licenseList.join('<br>') : '-';
+    var licenseHtml = r.licenseList.length ? r.licenseList.map(function(l){
+      return l.link ? '<a href="'+l.link+'" target="_blank" style="color:var(--ac);text-decoration:none">'+l.name+'</a>' : l.name;
+    }).join('<br>') : '-';
     var careerHtml = r.careerSummary.length ? r.careerSummary.join('<br>') : '-';
+    var eduHtml = r.eduLink ? '<a href="'+r.eduLink+'" target="_blank" style="color:var(--ac);text-decoration:none">'+r.eduLine1+'</a>' : r.eduLine1;
     return '<tr style="border-top:1px solid var(--border);'+(r.isResigned?'opacity:.6':'')+'">' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(r.isResigned?'<span style="color:#9ca3af">퇴사</span>':'<span style="color:#16a34a;font-weight:600">재직</span>')+'</td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap;font-weight:600">'+e.name+'</td>' +
       '<td style="padding:6px 8px;text-align:center">'+(e.dept||'-')+'<br><span style="color:var(--t3);font-size:11px">'+(e.title||e.position||'-')+'</span></td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(e.joindate||'-')+'</td>' +
-      '<td style="padding:6px 8px;text-align:center">'+r.eduLine1+'<br><span style="color:var(--t3);font-size:11px">'+r.eduLine2+'</span></td>' +
+      '<td style="padding:6px 8px;text-align:center">'+eduHtml+'<br><span style="color:var(--t3);font-size:11px">'+r.eduLine2+'</span></td>' +
       '<td style="padding:6px 8px;text-align:center">'+licenseHtml+'</td>' +
+      '<td style="padding:6px 8px;text-align:center">'+careerHtml+'</td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+r.years+'년</td>' +
-      '<td style="padding:6px 8px;text-align:center;font-size:11px;color:var(--t2)">'+careerHtml+'</td>' +
+      '<td style="padding:6px 8px;text-align:center">'+pmDocLinksHtml(r.docsJoin)+'</td>' +
+      '<td style="padding:6px 8px;text-align:center">'+pmDocLinksHtml(r.docsInternEval)+'</td>' +
+      '<td style="padding:6px 8px;text-align:center">'+pmSelfReportHtml(r.docsSelfReport)+'</td>' +
     '</tr>';
-  }).join('') || '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--t3)">조건에 맞는 인원이 없습니다</td></tr>';
+  }).join('') || '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--t3)">조건에 맞는 인원이 없습니다</td></tr>';
 }
 
 function pmPrint() {
@@ -20419,10 +20454,14 @@ function pmPrint() {
 
 function pmExportExcel() {
   var rows = pmBuildRows();
-  var aoa = [['상태','이름','부서','직위','입사일','최종학교','학력','전공','보유자격증','종사년수','경력요약']];
+  var aoa = [['상태','이름','부서','직위','입사일','최종학교','학력','전공','보유자격증','경력요약','경력년수','입사서류','인턴평가','자기신고서']];
   rows.forEach(function(r){
     var e = r.emp;
-    aoa.push([r.isResigned?'퇴사':'재직', e.name, e.dept||'', e.title||e.position||'', e.joindate||'', r.eduLine1.split(' ')[0]||'', r.eduLine1.split(' ')[1]||'', r.eduLine2, r.licenseList.join(', ')||'-', r.years, r.careerSummary.join(' / ')||'-']);
+    var licenseStr = r.licenseList.map(function(l){ return l.name; }).join(', ') || '-';
+    var docsJoinStr = r.docsJoin.map(function(d){ return d.name; }).join(', ') || '-';
+    var docsInternStr = r.docsInternEval.map(function(d){ return d.name; }).join(', ') || '-';
+    var selfReportStr = r.docsSelfReport.map(function(d){ return ((d.uploadedAt||'').slice(0,4)||'?')+'년:'+d.name; }).join(', ') || '-';
+    aoa.push([r.isResigned?'퇴사':'재직', e.name, e.dept||'', e.title||e.position||'', e.joindate||'', r.eduLine1.split(' ')[0]||'', r.eduLine1.split(' ')[1]||'', r.eduLine2, licenseStr, r.careerSummary.join(' / ')||'-', r.years, docsJoinStr, docsInternStr, selfReportStr]);
   });
   var ws = XLSX.utils.aoa_to_sheet(aoa);
   var wb = XLSX.utils.book_new();
