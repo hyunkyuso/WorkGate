@@ -20518,20 +20518,50 @@ function pmPrint() {
 function pmExportExcel() {
   var rows = pmBuildRows();
   var aoa = [['상태','이름','부서','직위','직책','직무','입사일','최종학교','학력','전공','보유자격증','경력요약','경력년수','입사서류','인턴평가','자기신고서']];
+  var merges = [];
+  var MERGE_COLS = [0,1,2,3,4,5,6,7,8,9,12,13,14,15]; // 보유자격증(10)/경력요약(11) 제외한 나머지는 사람당 병합
+
   rows.forEach(function(r){
     var e = r.emp;
-    var licenseStr = r.licenseList.map(function(l){ return l.name; }).join('\n') || '-';
-    var careerStr = r.careerSummary.join('\n') || '-';
-    aoa.push([r.isResigned?'퇴사':'재직', e.name, e.dept||'', e.position||'', e.title||'', e.duty||'', e.joindate||'', r.eduLine1.split(' ')[0]||'', r.eduLine1.split(' ')[1]||'', r.eduLine2, licenseStr, careerStr, r.years, r.docsJoin.length?'O':'', r.docsInternEval.length?'O':'', r.docsSelfReport.length?'O':'']);
+    var subRowCount = Math.max(1, r.licenseList.length, r.careerSummary.length);
+    var startRow = aoa.length; // 지금부터 추가될 첫 데이터 행 번호(0-indexed, 헤더 포함)
+
+    for (var i = 0; i < subRowCount; i++) {
+      var isFirst = i === 0;
+      aoa.push([
+        isFirst ? (r.isResigned?'퇴사':'재직') : '',
+        isFirst ? e.name : '',
+        isFirst ? (e.dept||'') : '',
+        isFirst ? (e.position||'') : '',
+        isFirst ? (e.title||'') : '',
+        isFirst ? (e.duty||'') : '',
+        isFirst ? (e.joindate||'') : '',
+        isFirst ? (r.eduLine1.split(' ')[0]||'') : '',
+        isFirst ? (r.eduLine1.split(' ')[1]||'') : '',
+        isFirst ? r.eduLine2 : '',
+        r.licenseList[i] ? r.licenseList[i].name : '',
+        r.careerSummary[i] || '',
+        isFirst ? r.years : '',
+        isFirst ? (r.docsJoin.length?'O':'') : '',
+        isFirst ? (r.docsInternEval.length?'O':'') : '',
+        isFirst ? (r.docsSelfReport.length?'O':'') : ''
+      ]);
+    }
+
+    if (subRowCount > 1) {
+      var endRow = startRow + subRowCount - 1;
+      MERGE_COLS.forEach(function(c){
+        merges.push({ s: { r: startRow, c: c }, e: { r: endRow, c: c } });
+      });
+    }
   });
+
   var ws = XLSX.utils.aoa_to_sheet(aoa);
-  // 여러 줄 들어간 칸은 줄바꿈이 보이도록 서식 지정 (지원되는 빌드에서만 적용됨)
+  ws['!merges'] = merges;
+  // 세로 정렬(위쪽 맞춤)로 병합된 칸이 깔끔하게 보이도록 서식 지정 (지원되는 빌드에서만 적용됨)
   Object.keys(ws).forEach(function(cellRef){
     if (cellRef[0] === '!') return;
-    var cell = ws[cellRef];
-    if (cell && typeof cell.v === 'string' && cell.v.indexOf('\n') >= 0) {
-      cell.s = { alignment: { wrapText: true, vertical: 'top' } };
-    }
+    ws[cellRef].s = { alignment: { vertical: 'top', wrapText: true } };
   });
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '인사기록총괄표');
