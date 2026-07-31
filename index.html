@@ -20403,8 +20403,17 @@ function pmBuildRows() {
     var aLeader = pmIsLeaderTitle(a.emp.title) ? 0 : 1;
     var bLeader = pmIsLeaderTitle(b.emp.title) ? 0 : 1;
     if (aLeader !== bLeader) return aLeader - bLeader;
+    var aPos = pmPositionRank(a.emp.position);
+    var bPos = pmPositionRank(b.emp.position);
+    if (aPos !== bPos) return aPos - bPos;
     return (a.emp.joindate||'9999-99-99').localeCompare(b.emp.joindate||'9999-99-99');
   });
+}
+
+function pmPositionRank(position) {
+  var codes = (typeof codeData !== 'undefined' && codeData['position']) || [];
+  var idx = codes.findIndex(function(c){ return c.name === position; });
+  return idx >= 0 ? idx : 999;
 }
 
 var PM_DEPT_ORDER = ["정도유아이티","수석전문위원","경영관리본부","인사총무부","재무회계부","베트남경영관리팀","글로벌사업본부","해외사업부","해외사업팀","TF팀","글로벌기획본부","AI전략기획본부","AI기획팀","디자인팀","AI GIS 연구본부","AI GIS 연구부","연구1팀","연구2팀","SW지원부","SW지원팀","R&D기획부","R&D기획팀","SW기술연구소","응용개발연구부","SW영업본부","GIS SW영업부","GIS SW영업팀","GIS사업본부","GIS사업1부","GIS1부 사업1팀","GIS1부 사업2팀","GIS사업2부","GIS2부 사업팀","도시계획사업본부","도시계획사업부","도시계획사업1팀","도시계획사업2팀"];
@@ -20511,13 +20520,19 @@ function pmExportExcel() {
   var aoa = [['상태','이름','부서','직위','직책','직무','입사일','최종학교','학력','전공','보유자격증','경력요약','경력년수','입사서류','인턴평가','자기신고서']];
   rows.forEach(function(r){
     var e = r.emp;
-    var licenseStr = r.licenseList.map(function(l){ return l.name; }).join(', ') || '-';
-    var docsJoinStr = r.docsJoin.map(function(d){ return d.name; }).join(', ') || '-';
-    var docsInternStr = r.docsInternEval.map(function(d){ return d.name; }).join(', ') || '-';
-    var selfReportStr = r.docsSelfReport.map(function(d){ return ((d.uploadedAt||'').slice(0,4)||'?')+'년:'+d.name; }).join(', ') || '-';
-    aoa.push([r.isResigned?'퇴사':'재직', e.name, e.dept||'', e.position||'', e.title||'', e.duty||'', e.joindate||'', r.eduLine1.split(' ')[0]||'', r.eduLine1.split(' ')[1]||'', r.eduLine2, licenseStr, r.careerSummary.join(' / ')||'-', r.years, docsJoinStr, docsInternStr, selfReportStr]);
+    var licenseStr = r.licenseList.map(function(l){ return l.name; }).join('\n') || '-';
+    var careerStr = r.careerSummary.join('\n') || '-';
+    aoa.push([r.isResigned?'퇴사':'재직', e.name, e.dept||'', e.position||'', e.title||'', e.duty||'', e.joindate||'', r.eduLine1.split(' ')[0]||'', r.eduLine1.split(' ')[1]||'', r.eduLine2, licenseStr, careerStr, r.years, r.docsJoin.length?'O':'', r.docsInternEval.length?'O':'', r.docsSelfReport.length?'O':'']);
   });
   var ws = XLSX.utils.aoa_to_sheet(aoa);
+  // 여러 줄 들어간 칸은 줄바꿈이 보이도록 서식 지정 (지원되는 빌드에서만 적용됨)
+  Object.keys(ws).forEach(function(cellRef){
+    if (cellRef[0] === '!') return;
+    var cell = ws[cellRef];
+    if (cell && typeof cell.v === 'string' && cell.v.indexOf('\n') >= 0) {
+      cell.s = { alignment: { wrapText: true, vertical: 'top' } };
+    }
+  });
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '인사기록총괄표');
   XLSX.writeFile(wb, '인사기록_총괄표.xlsx');
