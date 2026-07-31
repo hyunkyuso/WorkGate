@@ -20397,7 +20397,7 @@ function pmBuildRows() {
   });
 }
 
-var PM_DEPT_ORDER = ["정도유아이티","수석전문위원","경영관리본부","인사총무부","재무회계부","베트남경영관리팀","글로벌사업본부","해외사업부","해외사업팀","TF팀","글로벌기획본부","AI전략기획본부","AI기획팀","디자인팀","AI GIS 연구본부","AI GIS 연구부","연구1팀","연구2팀","SW지원부","SW지원팀","R&D기획부","R&D기획팀","SW기술연구소","응용개발연구부","SW영업본부","GIS SW영업부","GIS SW영업팀","GIS 사업본부","GIS사업1부","GIS 1부 사업1팀","GIS 1부 사업2팀","GIS 사업2부","GIS2부 사업팀","도시계획사업본부","도시계획사업부","도시계획사업1팀","도시계획사업2팀"];
+var PM_DEPT_ORDER = ["정도유아이티","수석전문위원","경영관리본부","인사총무부","재무회계부","베트남경영관리팀","글로벌사업본부","해외사업부","해외사업팀","TF팀","글로벌기획본부","AI전략기획본부","AI기획팀","디자인팀","AI GIS 연구본부","AI GIS 연구부","연구1팀","연구2팀","SW지원부","SW지원팀","R&D기획부","R&D기획팀","SW기술연구소","응용개발연구부","SW영업본부","GIS SW영업부","GIS SW영업팀","GIS사업본부","GIS사업1부","GIS1부 사업1팀","GIS1부 사업2팀","GIS사업2부","GIS2부 사업팀","도시계획사업본부","도시계획사업부","도시계획사업1팀","도시계획사업2팀"];
 
 function pmIsLeaderTitle(title) {
   if (!title) return false;
@@ -20408,24 +20408,43 @@ function pmDocLinksHtml(docs, label) {
   if (!docs.length) return '-';
   return docs.map(function(d, i){
     var text = docs.length > 1 ? label+' '+(i+1) : label;
-    return '<a href="'+d.driveLink+'" target="_blank" style="display:block;color:var(--ac);text-decoration:none;white-space:nowrap">📎 '+text+'</a>';
+    return '<a href="javascript:void(0)" onclick="pmOpenFileModal(\''+(d.driveLink||'').replace(/'/g,"\\'")+'\',\''+text.replace(/'/g,"\\'")+'\')" style="display:block;color:var(--ac);text-decoration:none;white-space:nowrap">📎 '+text+'</a>';
   }).join('');
+}
+
+function pmDriveToPreviewUrl(url) {
+  if (!url) return '';
+  var m = url.match(/\/d\/([^/]+)/);
+  if (m) return 'https://drive.google.com/file/d/'+m[1]+'/preview';
+  return url;
+}
+
+function pmOpenFileModal(url, title) {
+  if (!url) { showToast('❌ 첨부파일이 없습니다'); return; }
+  var existing = document.getElementById('pm-file-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'pm-file-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:#fff;border-radius:12px;width:80vw;height:85vh;max-width:900px;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)">' +
+        '<span style="font-weight:700;font-size:14px">'+title+'</span>' +
+        '<div style="display:flex;gap:12px;align-items:center">' +
+          '<a href="'+url+'" target="_blank" style="font-size:12px;color:var(--ac);text-decoration:none">새 탭에서 열기</a>' +
+          '<span onclick="document.getElementById(\'pm-file-modal\').remove()" style="cursor:pointer;font-size:18px">✕</span>' +
+        '</div>' +
+      '</div>' +
+      '<iframe src="'+pmDriveToPreviewUrl(url)+'" style="flex:1;border:none;width:100%"></iframe>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(ev){ if (ev.target === modal) modal.remove(); });
 }
 
 function pmSelfReportHtml(docs, label) {
   if (!docs.length) return '-';
-  var byYear = {};
-  docs.forEach(function(d){
-    var year = (d.uploadedAt||'').slice(0,4) || '기타';
-    if (!byYear[year]) byYear[year] = [];
-    byYear[year].push(d);
-  });
-  return Object.keys(byYear).sort().reverse().map(function(year){
-    return byYear[year].map(function(d, i){
-      var text = byYear[year].length > 1 ? label+' '+(i+1) : label;
-      return '<div style="white-space:nowrap"><span style="font-weight:600">'+year+'년</span> <a href="'+d.driveLink+'" target="_blank" style="color:var(--ac);text-decoration:none">📎'+text+'</a></div>';
-    }).join('');
-  }).join('');
+  var sorted = docs.slice().sort(function(a,b){ return (b.uploadedAt||'').localeCompare(a.uploadedAt||''); });
+  return pmDocLinksHtml(sorted, label);
 }
 
 function pmDisplayTitle(title) {
@@ -20440,10 +20459,10 @@ function pmRender() {
   document.getElementById('pm-tbody').innerHTML = rows.map(function(r){
     var e = r.emp;
     var licenseHtml = r.licenseList.length ? r.licenseList.map(function(l){
-      return l.link ? '<a href="'+l.link+'" target="_blank" style="color:var(--ac);text-decoration:none">'+l.name+'</a>' : l.name;
+      return l.link ? '<a href="javascript:void(0)" onclick="pmOpenFileModal(\''+l.link.replace(/'/g,"\\'")+'\',\''+l.name.replace(/'/g,"\\'")+'\')" style="color:var(--ac);text-decoration:none">'+l.name+'</a>' : l.name;
     }).join('<br>') : '-';
     var careerHtml = r.careerSummary.length ? r.careerSummary.join('<br>') : '-';
-    var eduHtml = r.eduLink ? '<a href="'+r.eduLink+'" target="_blank" style="color:var(--ac);text-decoration:none">'+r.eduLine1+'</a>' : r.eduLine1;
+    var eduHtml = r.eduLink ? '<a href="javascript:void(0)" onclick="pmOpenFileModal(\''+r.eduLink.replace(/'/g,"\\'")+'\',\''+r.eduLine1.replace(/'/g,"\\'")+'\')" style="color:var(--ac);text-decoration:none">'+r.eduLine1+'</a>' : r.eduLine1;
     return '<tr style="border-top:1px solid var(--border);'+(r.isResigned?'opacity:.6':'')+'">' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(r.isResigned?'<span style="color:#9ca3af">퇴사</span>':'<span style="color:#16a34a;font-weight:600">재직</span>')+'</td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap;font-weight:600">'+e.name+'</td>' +
