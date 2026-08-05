@@ -19668,6 +19668,7 @@ function salesUploadTrainingDoc(input) {
 var LICENSE_DEGREE_ORDER = ['박사','석사','학사','전문학사','고졸'];
 
 function licenseGetHighestDegree(emp) {
+  if (emp._isVirtual) return emp.manualDegree || null;
   var edus = emp.education || [];
   for (var i=0; i<LICENSE_DEGREE_ORDER.length; i++) {
     if (edus.some(function(e){ return e.degree === LICENSE_DEGREE_ORDER[i]; })) return LICENSE_DEGREE_ORDER[i];
@@ -19695,12 +19696,19 @@ function licenseBuildEngSummaryData() {
   var mgmt = { counts:{기술사:0,기사:0,산업기사:0,학력자:0} };
   var etc = { counts:{기술사:0,기사:0,산업기사:0,학력자:0} };
 
-  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(e){
+  var allPeople = employees.filter(function(e){ return e.status !== '퇴직'; }).concat(
+    (_licenseVirtualEmpsCache || []).filter(function(it){ return it.source === 'unregistered' && it.type !== '퇴사'; }).map(function(it){
+      return { name: it.name, licenseCategory: it.licenseCategory||'', _isVirtual: true, manualDegree: it.manualDegree||'', license: [] };
+    })
+  );
+
+  allPeople.forEach(function(e){
     var col = licenseGetBestLicenseCol(e);
     if (e.licenseCategory === '엔지니어링') {
       var deg = licenseGetHighestDegree(e);
       var row = rows.find(function(r){ return r.label === deg; });
       if (row) row.counts[col]++;
+      else mgmt.counts[col]++; // 학력 정보가 없는 미등록 인원은 일단 임시로 관리인력에 집계(학력 등록 시 자동으로 옮겨감)
     } else if (e.licenseCategory === '관리') {
       mgmt.counts[col]++;
     } else if (e.licenseCategory === '기타') {
@@ -20035,6 +20043,7 @@ async function licenseSetSlotSelection(fieldId, slotIdx, empName) {
 async function licenseRenderStatus() {
   await loadLicenseFields();
   await licenseEnsureAutoFields();
+  await licenseLoadVirtualEmps();
   licenseRenderEngSummaryTable();
   licenseRenderStatusInstituteTable();
 
@@ -20191,14 +20200,15 @@ async function licenseLoadVirtualEmps() {
     var doc = await db.collection('workforce').doc('edits').get();
     var items = (doc.data() || {}).items || [];
     _licenseVirtualEmpsCache = items;
-    return items.filter(function(it){ return it.source === 'unregistered'; }).map(function(it, idx){
+    return items.filter(function(it){ return it.source === 'unregistered' && it.type !== '퇴사'; }).map(function(it, idx){
       return {
         name: it.name, dept: it.dept, status: '재직', _isVirtual: true,
         _virtualIndex: items.indexOf(it),
         licenseCategory: it.licenseCategory || '',
         isResearchInstitute: it.isResearchInstitute || false,
         instituteDirector: it.instituteDirector || false,
-        researchInstitutePeriods: it.researchInstitutePeriods || []
+        researchInstitutePeriods: it.researchInstitutePeriods || [],
+        manualDegree: it.manualDegree || ''
       };
     });
   } catch(e) { console.error(e); return []; }
@@ -20212,6 +20222,11 @@ async function licenseSaveVirtualField(virtualIndex, field, value) {
   } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
 }
 
+async function licenseSetVirtualDegree(virtualIndex, degree) {
+  await licenseSaveVirtualField(virtualIndex, 'manualDegree', degree);
+  showToast('✅ 저장되었습니다');
+}
+
 async function licenseRenderCategory() {
   var virtualEmps = await licenseLoadVirtualEmps();
   var q = (document.getElementById('license-category-search')||{}).value || '';
@@ -20219,7 +20234,10 @@ async function licenseRenderCategory() {
   var list = employees.filter(function(e){ return e.status !== '퇴직'; }).concat(virtualEmps).filter(function(e){
     if (!q) return true;
     return (e.name||'').toLowerCase().indexOf(q) >= 0 || (e.dept||'').toLowerCase().indexOf(q) >= 0;
-  }).sort(function(a,b){ return (a.dept||'').localeCompare(b.dept||'') || (a.name||'').localeCompare(b.name||''); });
+  }).sort(function(a,b){
+    if (!!a._isVirtual !== !!b._isVirtual) return a._isVirtual ? 1 : -1;
+    return (a.dept||'').localeCompare(b.dept||'') || (a.name||'').localeCompare(b.name||'');
+  });
 
   document.getElementById('license-category-tbody').innerHTML = list.map(function(e){
     var empId = e._isVirtual ? ('wf-'+e._virtualIndex) : (e._docId || e.id);
@@ -20237,7 +20255,7 @@ async function licenseRenderCategory() {
     }).join('');
     return '<tr style="border-top:1px solid var(--border)">' +
       '<td style="padding:6px 8px;font-weight:600">'+e.name+(e._isVirtual?' <span style="font-size:10px;color:var(--t3);border:1px solid var(--border);border-radius:4px;padding:0 4px" title="직원관리 미등록, 상시근로자수에서 가져온 인원">미등록</span>':'')+'</td>' +
-      '<td style="padding:6px 8px;color:var(--t2)">'+(e.dept||'-')+'</td>' +
+      '<td style="padding:6px 8px;color:var(--t2)">'+(e.dept||'-')+(e._isVirtual?'<br><select style="font-size:10px;margin-top:2px" onchange="licenseSetVirtualDegree('+e._virtualIndex+',this.value)"><option value="">학력 선택</option>'+LICENSE_DEGREE_ORDER.map(function(d){return '<option value="'+d+'"'+(e.manualDegree===d?' selected':'')+'>'+d+'</option>';}).join('')+'</select>':'')+'</td>' +
       '<td style="padding:6px 8px;text-align:center">'+radio('엔지니어링','엔지니어링')+'</td>' +
       '<td style="padding:6px 8px;text-align:center">'+radio('관리','관리')+'</td>' +
       '<td style="padding:6px 8px;text-align:center">'+radio('기타','기타')+'</td>' +
