@@ -20184,16 +20184,45 @@ function licensePrintMaster() {
   win.onload = function(){ win.print(); };
 }
 
-function licenseRenderCategory() {
+var _licenseVirtualEmpsCache = null;
+
+async function licenseLoadVirtualEmps() {
+  try {
+    var doc = await db.collection('workforce').doc('edits').get();
+    var items = (doc.data() || {}).items || [];
+    _licenseVirtualEmpsCache = items;
+    return items.filter(function(it){ return it.source === 'unregistered'; }).map(function(it, idx){
+      return {
+        name: it.name, dept: it.dept, status: '재직', _isVirtual: true,
+        _virtualIndex: items.indexOf(it),
+        licenseCategory: it.licenseCategory || '',
+        isResearchInstitute: it.isResearchInstitute || false,
+        instituteDirector: it.instituteDirector || false,
+        researchInstitutePeriods: it.researchInstitutePeriods || []
+      };
+    });
+  } catch(e) { console.error(e); return []; }
+}
+
+async function licenseSaveVirtualField(virtualIndex, field, value) {
+  if (!_licenseVirtualEmpsCache) return;
+  _licenseVirtualEmpsCache[virtualIndex][field] = value;
+  try {
+    await db.collection('workforce').doc('edits').set({ items: _licenseVirtualEmpsCache });
+  } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
+}
+
+async function licenseRenderCategory() {
+  var virtualEmps = await licenseLoadVirtualEmps();
   var q = (document.getElementById('license-category-search')||{}).value || '';
   q = q.trim().toLowerCase();
-  var list = employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
+  var list = employees.filter(function(e){ return e.status !== '퇴직'; }).concat(virtualEmps).filter(function(e){
     if (!q) return true;
     return (e.name||'').toLowerCase().indexOf(q) >= 0 || (e.dept||'').toLowerCase().indexOf(q) >= 0;
   }).sort(function(a,b){ return (a.dept||'').localeCompare(b.dept||'') || (a.name||'').localeCompare(b.name||''); });
 
   document.getElementById('license-category-tbody').innerHTML = list.map(function(e){
-    var empId = e._docId || e.id;
+    var empId = e._isVirtual ? ('wf-'+e._virtualIndex) : (e._docId || e.id);
     var cat = e.licenseCategory || '';
     function radio(val, label) {
       return '<label style="cursor:pointer"><input type="radio" name="license-cat-'+empId+'" value="'+val+'" '+(cat===val?'checked':'')+' onchange="licenseSetCategory(\''+empId+'\',\''+val+'\')"></label>';
@@ -20207,7 +20236,7 @@ function licenseRenderCategory() {
       '</div>';
     }).join('');
     return '<tr style="border-top:1px solid var(--border)">' +
-      '<td style="padding:6px 8px;font-weight:600">'+e.name+'</td>' +
+      '<td style="padding:6px 8px;font-weight:600">'+e.name+(e._isVirtual?' <span style="font-size:10px;color:var(--t3);border:1px solid var(--border);border-radius:4px;padding:0 4px" title="직원관리 미등록, 상시근로자수에서 가져온 인원">미등록</span>':'')+'</td>' +
       '<td style="padding:6px 8px;color:var(--t2)">'+(e.dept||'-')+'</td>' +
       '<td style="padding:6px 8px;text-align:center">'+radio('엔지니어링','엔지니어링')+'</td>' +
       '<td style="padding:6px 8px;text-align:center">'+radio('관리','관리')+'</td>' +
@@ -20228,7 +20257,17 @@ function licenseRenderCategory() {
   }).join('');
 }
 
+// empId가 'wf-N' 형태면 상시근로자수 미등록 인원(가상 직원), 아니면 실제 employees
+function licenseIsVirtualId(empId) { return typeof empId === 'string' && empId.indexOf('wf-') === 0; }
+function licenseVirtualIndex(empId) { return parseInt(empId.slice(3)); }
+
 async function licenseSetResearchInstituteFlag(empId, checked) {
+  if (licenseIsVirtualId(empId)) {
+    await licenseSaveVirtualField(licenseVirtualIndex(empId), 'isResearchInstitute', checked);
+    licenseRenderCategory();
+    showToast('✅ 저장되었습니다');
+    return;
+  }
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   if (!emp) return;
   emp.isResearchInstitute = checked;
@@ -20240,10 +20279,19 @@ async function licenseSetResearchInstituteFlag(empId, checked) {
 }
 
 function licenseOpenResearchPeriodModal(empId, periodIdx) {
-  var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
-  if (!emp) return;
+  var name, existingPeriod = null;
   var isEdit = periodIdx !== undefined && periodIdx !== null;
-  var existingPeriod = isEdit ? (emp.researchInstitutePeriods||[])[periodIdx] : null;
+  if (licenseIsVirtualId(empId)) {
+    var item = _licenseVirtualEmpsCache[licenseVirtualIndex(empId)];
+    if (!item) return;
+    name = item.name;
+    existingPeriod = isEdit ? (item.researchInstitutePeriods||[])[periodIdx] : null;
+  } else {
+    var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
+    if (!emp) return;
+    name = emp.name;
+    existingPeriod = isEdit ? (emp.researchInstitutePeriods||[])[periodIdx] : null;
+  }
   var existing = document.getElementById('license-period-modal');
   if (existing) existing.remove();
   var modal = document.createElement('div');
@@ -20251,7 +20299,7 @@ function licenseOpenResearchPeriodModal(empId, periodIdx) {
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML =
     '<div style="background:#fff;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">' +
-      '<div style="font-size:14px;font-weight:700;margin-bottom:14px">'+emp.name+' - 기업부설연구소 기간 '+(isEdit?'수정':'추가')+'</div>' +
+      '<div style="font-size:14px;font-weight:700;margin-bottom:14px">'+name+' - 기업부설연구소 기간 '+(isEdit?'수정':'추가')+'</div>' +
       '<div style="font-size:12px;color:var(--t3);margin-bottom:4px">시작일자</div>' +
       '<input type="date" class="form-input" id="license-period-start" value="'+(existingPeriod?existingPeriod.start||'':'')+'" style="margin-bottom:10px">' +
       '<div style="font-size:12px;color:var(--t3);margin-bottom:4px">종료일자 (재직 중이면 비워두세요)</div>' +
@@ -20269,10 +20317,26 @@ async function licenseAddResearchPeriod(empId, periodIdx) {
   var start = document.getElementById('license-period-start').value;
   var end = document.getElementById('license-period-end').value;
   if (!start) { alert('시작일자를 입력하세요'); return; }
+  var isEdit = periodIdx !== undefined && periodIdx !== null;
+
+  if (licenseIsVirtualId(empId)) {
+    var vIdx = licenseVirtualIndex(empId);
+    var item = _licenseVirtualEmpsCache[vIdx];
+    if (!item) return;
+    if (!item.researchInstitutePeriods) item.researchInstitutePeriods = [];
+    if (isEdit) item.researchInstitutePeriods[periodIdx] = { start: start, end: end || '' };
+    else item.researchInstitutePeriods.push({ start: start, end: end || '' });
+    await licenseSaveVirtualField(vIdx, 'researchInstitutePeriods', item.researchInstitutePeriods);
+    document.getElementById('license-period-modal').remove();
+    licenseRenderCategory();
+    showToast('✅ 저장되었습니다');
+    return;
+  }
+
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   if (!emp) return;
   if (!emp.researchInstitutePeriods) emp.researchInstitutePeriods = [];
-  if (periodIdx !== undefined && periodIdx !== null) {
+  if (isEdit) {
     emp.researchInstitutePeriods[periodIdx] = { start: start, end: end || '' };
   } else {
     emp.researchInstitutePeriods.push({ start: start, end: end || '' });
@@ -20286,6 +20350,16 @@ async function licenseAddResearchPeriod(empId, periodIdx) {
 }
 
 async function licenseDeleteResearchPeriod(empId, idx) {
+  if (licenseIsVirtualId(empId)) {
+    var vIdx = licenseVirtualIndex(empId);
+    var item = _licenseVirtualEmpsCache[vIdx];
+    if (!item || !item.researchInstitutePeriods) return;
+    item.researchInstitutePeriods.splice(idx, 1);
+    await licenseSaveVirtualField(vIdx, 'researchInstitutePeriods', item.researchInstitutePeriods);
+    licenseRenderCategory();
+    showToast('✅ 삭제되었습니다');
+    return;
+  }
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   if (!emp || !emp.researchInstitutePeriods) return;
   emp.researchInstitutePeriods.splice(idx, 1);
@@ -20297,6 +20371,11 @@ async function licenseDeleteResearchPeriod(empId, idx) {
 }
 
 async function licenseSetInstituteDirector(empId, checked) {
+  if (licenseIsVirtualId(empId)) {
+    await licenseSaveVirtualField(licenseVirtualIndex(empId), 'instituteDirector', checked);
+    showToast('✅ 저장되었습니다');
+    return;
+  }
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   if (!emp) return;
   emp.instituteDirector = checked;
@@ -20718,6 +20797,11 @@ function licensePrintInstitute() {
 }
 
 async function licenseSetCategory(empId, category) {
+  if (licenseIsVirtualId(empId)) {
+    await licenseSaveVirtualField(licenseVirtualIndex(empId), 'licenseCategory', category);
+    showToast('✅ 저장되었습니다');
+    return;
+  }
   var emp = employees.find(function(e){ return (e._docId||e.id) === empId; });
   if (!emp) return;
   emp.licenseCategory = category;
