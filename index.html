@@ -14416,8 +14416,8 @@ function careerRegRenderDetail() {
             '</select>'
           : '<input type="text" class="form-input" style="font-size:12px;width:150px" value="'+(en.field||'')+'" placeholder="새 전문분야(추적 안 되는 분야는 경력계산 제외)" onchange="careerRegUpdateRow('+i+',\'field\',this.value)">'
         ) + '</td>' +
-        '<td><input type="date" class="form-input" style="font-size:12px" value="'+(en.contractDate||'')+'" onchange="careerRegUpdateRow('+i+',\'contractDate\',this.value)"></td>' +
-        '<td><input type="date" class="form-input" style="font-size:12px" value="'+(en.completionDate||'')+'" onchange="careerRegUpdateRow('+i+',\'completionDate\',this.value)"></td>' +
+        '<td>'+careerRegDateInputHtml('career-reg-start-'+i, en.contractDate, i, 'contractDate')+'</td>' +
+        '<td>'+careerRegDateInputHtml('career-reg-end-'+i, en.completionDate, i, 'completionDate')+'</td>' +
         '<td><input type="number" class="form-input" style="font-size:12px;width:70px" value="'+(en.days||'')+'" onchange="careerRegUpdateRow('+i+',\'days\',this.value)" title="중복기간 조정 후 실제 참여일수"></td>' +
         '<td style="text-align:center;color:var(--t3);font-size:12px">'+((en.contractDate && en.completionDate) ? (careerDaysBetween(en.contractDate, en.completionDate) + 1) : '-')+'</td>' +
         '<td><input type="text" class="form-input" style="font-size:12px;width:120px" value="'+(en.note||'')+'" onchange="careerRegUpdateRow('+i+',\'note\',this.value)"></td>' +
@@ -14470,6 +14470,25 @@ async function careerRegClearAll() {
   }
   careerRegRenderDetail();
 }
+// 업무보드 일정입력 방식(년/월/일 3칸 + 달력버튼)을 재사용한 참여기간 입력 위젯
+function careerRegDateInputHtml(prefix, value, rowIdx, field) {
+  var parts = (value||'').split('-');
+  var y = parts[0]||'', m = parts[1]||'', d = parts[2]||'';
+  return '<div style="display:flex;align-items:center;gap:2px;border:0.5px solid var(--border);border-radius:6px;padding:3px 5px;background:var(--white);white-space:nowrap">' +
+    '<input id="'+prefix+'-y" type="text" maxlength="4" placeholder="년" value="'+y+'" oninput="dateAutoNext(this,\''+prefix+'-m\',4)" onchange="careerRegDateSync('+rowIdx+',\''+field+'\',\''+prefix+'\')" style="width:34px;border:none;outline:none;font-size:12px;background:none;text-align:center;color:var(--t1)">' +
+    '<span style="color:var(--t3);font-size:11px">-</span>' +
+    '<input id="'+prefix+'-m" type="text" maxlength="2" placeholder="월" value="'+m+'" oninput="dateAutoNext(this,\''+prefix+'-d\',2)" onblur="datePad(this)" onchange="careerRegDateSync('+rowIdx+',\''+field+'\',\''+prefix+'\')" style="width:20px;border:none;outline:none;font-size:12px;background:none;text-align:center;color:var(--t1)">' +
+    '<span style="color:var(--t3);font-size:11px">-</span>' +
+    '<input id="'+prefix+'-d" type="text" maxlength="2" placeholder="일" value="'+d+'" onblur="datePad(this)" onchange="careerRegDateSync('+rowIdx+',\''+field+'\',\''+prefix+'\')" style="width:20px;border:none;outline:none;font-size:12px;background:none;text-align:center;color:var(--t1)">' +
+    '<button type="button" onclick="openDatePicker(\''+prefix+'\')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:13px;padding:0 0 0 2px;line-height:1" title="달력에서 선택">📅</button>' +
+  '</div>';
+}
+
+function careerRegDateSync(rowIdx, field, prefix) {
+  var val = getDateVal(prefix);
+  careerRegUpdateRow(rowIdx, field, val);
+}
+
 function careerRegUpdateRow(idx, field, value) {
   var emp = employees.find(function(e){ return (e._docId||e.id) === _careerRegSelectedEmp; });
   emp.assocCareer[_careerRegSelectedAssoc][idx][field] = value;
@@ -25187,6 +25206,8 @@ function selectDate(d) {
   setDateVal(_dpPrefix, _dpYear+'-'+String(_dpMonth).padStart(2,'0')+'-'+String(d).padStart(2,'0'));
   document.getElementById('date-picker-popup').style.display = 'none';
   document.removeEventListener('click', closeDatePickerOutside);
+  var dEl = document.getElementById(_dpPrefix+'-d');
+  if (dEl) dEl.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function datePickerPrevMonth() {
