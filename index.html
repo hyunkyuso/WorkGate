@@ -7963,7 +7963,10 @@ function orgsimDownloadPPT() {
     var img = el.querySelector('img');
     var photoSrc = img ? img.src : '';
     var nameLabel = '', nameFontPx = 14;
-    var sib = el.nextElementSibling;
+    // 아바타는 "position:relative" 래퍼(퇴사예정 배지용)로 한 번 더 감싸져 있으므로,
+    // 이름 라벨은 아바타 자신이 아니라 그 래퍼의 다음 형제 요소에 있음
+    var wrapper = el.parentElement;
+    var sib = wrapper ? wrapper.nextElementSibling : el.nextElementSibling;
     if (sib) {
       nameLabel = sib.textContent.trim();
       var nameSpan = sib.querySelector('span') || sib;
@@ -8016,11 +8019,12 @@ function orgsimDownloadPPT() {
 
     deptBoxes.forEach(function(d){
       var x=px2x(d.rect.x), y=px2y(d.rect.y), w=px2len(d.rect.w), h=px2len(d.rect.h);
+      var padW = w * 0.08; // 측정 오차 보정용 여유폭 (텍스트가 눌리지 않도록)
       slide.addShape('roundRect', { x:x, y:y, w:w, h:h, rectRadius:0.05, fill:{color:d.bg}, line:{type:'none'} });
       slide.addText([
         { text: d.name, options:{ breakLine:true, fontSize: px2pt(d.nameFontPx) } },
         { text: d.count, options:{ fontSize: px2pt(d.countFontPx) } }
-      ], { x:x, y:y, w:w, h:h, align:'center', valign:'middle', color:d.color, bold:true, fontFace:'맑은 고딕' });
+      ], { x:x-padW/2, y:y, w:w+padW, h:h, align:'center', valign:'middle', color:d.color, bold:true, fontFace:'맑은 고딕', wrap:false, shrinkText:true, autoFit:true });
     });
 
     people.forEach(function(p){
@@ -8033,7 +8037,7 @@ function orgsimDownloadPPT() {
         slide.addText(p.initial, { x:x, y:y, w:w, h:h, align:'center', valign:'middle', color:'FFFFFF', bold:true, fontSize: px2pt(h*PX_PER_INCH/scale*0.5) });
       }
       if (p.name) {
-        slide.addText(p.name, { x:x-w*0.3, y:y+h+0.02, w:w*1.6, h:0.22, align:'center', fontSize: px2pt(p.nameFontPx), bold:true, color:'1e293b', fontFace:'맑은 고딕' });
+        slide.addText(p.name, { x:x-w*0.6, y:y+h+0.02, w:w*2.2, h:0.22, align:'center', fontSize: px2pt(p.nameFontPx), bold:true, color:'1e293b', fontFace:'맑은 고딕', wrap:false, shrinkText:true });
       }
     });
 
