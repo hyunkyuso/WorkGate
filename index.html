@@ -1332,6 +1332,7 @@ select.form-input{cursor:pointer}
               <button id="orgsim-view-board-btn" class="btn btn-ghost btn-sm" onclick="orgsimSwitchView('board')">📋 카드형</button>
             </div>
             <select class="form-input" id="orgsim-load-select" style="max-width:180px" onchange="orgsimLoadDraft(this.value)"><option value="">시나리오 불러오기...</option></select>
+            <button class="btn btn-ghost btn-sm" onclick="orgsimDeleteDraft()" title="선택된 시나리오 삭제">🗑 시나리오 삭제</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimAddDept()">➕ 조직 추가</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimAddEmployee()">🆕 신규채용</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimTrashOpen()">🗑 휴지통</button>
@@ -6852,6 +6853,19 @@ async function orgsimLoadDraft(draftId) {
     orgsimRender();
     showToast('✅ 시나리오를 불러왔습니다');
   } catch(e) { console.error(e); showToast('❌ 불러오기 실패'); }
+}
+
+async function orgsimDeleteDraft() {
+  var sel = document.getElementById('orgsim-load-select');
+  var draftId = sel ? sel.value : '';
+  if (!draftId) { showToast('❌ 삭제할 시나리오를 먼저 선택하세요'); return; }
+  var label = sel.options[sel.selectedIndex].textContent;
+  if (!confirm('"'+label+'" 시나리오를 삭제할까요? 되돌릴 수 없습니다.')) return;
+  try {
+    await db.collection('orgSimulations').doc(draftId).delete();
+    showToast('✅ 시나리오가 삭제되었습니다');
+    orgsimPopulateDraftList();
+  } catch(e) { console.error(e); showToast('❌ 삭제 실패'); }
 }
 
 
