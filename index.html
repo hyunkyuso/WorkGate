@@ -7061,12 +7061,45 @@ function orgsimCurrentConcurrent(e) {
 function orgsimAddConcurrent(empId) {
   var emp = orgsimGetSimEmps().find(function(e){ return orgsimEmpId(e) === empId; });
   if (!emp) return;
-  var deptName = prompt(emp.name+'님이 겸직할 부서명을 입력하세요');
-  if (!deptName) return;
-  var title = prompt('겸직 직책(선택, 예: 팀장) — 없으면 비워두세요') || '';
+  var existing = document.getElementById('orgsim-conc-modal');
+  if (existing) existing.remove();
+  var curDept = orgsimCurrentDept(emp);
+  var existingConcDepts = orgsimCurrentConcurrent(emp).map(function(c){ return c.dept; });
+  var deptOptions = orgsimGetSimDepts().filter(function(d){
+    return d.name !== curDept && existingConcDepts.indexOf(d.name) < 0;
+  }).map(function(d){
+    return '<option value="'+d.name.replace(/"/g,'&quot;')+'">'+orgsimDeptName(d)+'</option>';
+  }).join('');
+  var modal = document.createElement('div');
+  modal.id = 'orgsim-conc-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:#fff;border-radius:12px;padding:18px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">' +
+      '<div style="font-size:14px;font-weight:700;margin-bottom:12px">'+emp.name+' - 겸직 추가</div>' +
+      '<div style="font-size:12px;color:var(--t3);margin-bottom:4px">겸직할 부서</div>' +
+      '<select id="orgsim-conc-dept" class="form-input" style="width:100%;margin-bottom:10px">'+(deptOptions||'<option value="">선택 가능한 부서가 없습니다</option>')+'</select>' +
+      '<div style="font-size:12px;color:var(--t3);margin-bottom:4px">겸직 직책(선택)</div>' +
+      '<input id="orgsim-conc-title" class="form-input" placeholder="예: 팀장 (없으면 비워두세요)" style="margin-bottom:16px">' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+        '<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'orgsim-conc-modal\').remove()">취소</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="orgsimConfirmAddConcurrent(\''+empId+'\')">추가</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(ev){ if (ev.target === modal) modal.remove(); });
+}
+
+function orgsimConfirmAddConcurrent(empId) {
+  var emp = orgsimGetSimEmps().find(function(e){ return orgsimEmpId(e) === empId; });
+  if (!emp) return;
+  var deptSel = document.getElementById('orgsim-conc-dept');
+  var deptName = deptSel ? deptSel.value : '';
+  if (!deptName) { showToast('❌ 겸직할 부서를 선택하세요'); return; }
+  var title = (document.getElementById('orgsim-conc-title')||{}).value || '';
   var list = orgsimCurrentConcurrent(emp).slice();
-  list.push({ dept: deptName.trim(), title: title.trim() });
+  list.push({ dept: deptName, title: title.trim() });
   _orgsimConcurrentOverrides[empId] = list;
+  document.getElementById('orgsim-conc-modal').remove();
   orgsimRenderReal();
   orgsimRenderChanges();
   showToast('✅ 겸직이 추가되었습니다');
