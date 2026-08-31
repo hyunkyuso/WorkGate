@@ -6684,7 +6684,13 @@ function orgsimSwitchView(view) {
 
 function orgsimRender() {
   orgsimPopulateDraftList();
-  orgsimRenderReal();
+  try {
+    orgsimRenderReal();
+  } catch(e) {
+    console.error('orgsimRenderReal 오류:', e);
+    var c = document.getElementById('orgsim-chart-real');
+    if (c) c.innerHTML = '<div style="padding:20px;color:#dc2626;font-size:13px">조직도를 그리는 중 오류가 발생했습니다: '+e.message+'</div>';
+  }
   var depts = [...departments].sort(function(a,b){ return (a.sortOrder||99)-(b.sortOrder||99); });
   var activeEmps = employees.filter(function(e){ return e.status !== '퇴직'; });
 
@@ -7015,12 +7021,18 @@ function orgsimEmpMenu(empId) {
   var existing = document.getElementById('orgsim-emp-menu');
   if (existing) existing.remove();
   var conc = orgsimCurrentConcurrent(emp);
+  var curDept = orgsimCurrentDept(emp);
+  var deptOptions = orgsimGetSimDepts().map(function(d){
+    return '<option value="'+d.name.replace(/"/g,'&quot;')+'"'+(d.name===curDept?' selected':'')+'>'+orgsimDeptName(d)+'</option>';
+  }).join('');
   var modal = document.createElement('div');
   modal.id = 'orgsim-emp-menu';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
   modal.innerHTML =
     '<div style="background:#fff;border-radius:12px;padding:18px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">' +
       '<div style="font-size:14px;font-weight:700;margin-bottom:12px">'+emp.name+'</div>' +
+      '<div style="font-size:12px;color:var(--t3);margin-bottom:4px">소속 부서</div>' +
+      '<select class="form-input" style="width:100%;margin-bottom:10px" onchange="document.getElementById(\'orgsim-emp-menu\').remove();orgsimMoveEmpTo(\''+empId+'\',this.value)">'+deptOptions+'</select>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px;text-align:left" onclick="document.getElementById(\'orgsim-emp-menu\').remove();orgsimAssignTitle(\''+empId+'\')">🏷️ 직책 지정/해제</button>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px;text-align:left" onclick="document.getElementById(\'orgsim-emp-menu\').remove();orgsimAddConcurrent(\''+empId+'\')">➕ 겸직 추가</button>' +
       (conc.length ? conc.map(function(c){
@@ -7072,6 +7084,15 @@ function orgsimDropReal(ev, deptId) {
   orgsimRenderChanges();
 }
 
+function orgsimMoveEmpTo(empId, deptName) {
+  var emp = orgsimGetSimEmps().find(function(e){ return orgsimEmpId(e) === empId; });
+  if (!emp) return;
+  if (deptName === emp.dept) delete _orgsimOverrides[empId];
+  else _orgsimOverrides[empId] = deptName;
+  orgsimRenderReal();
+  orgsimRenderChanges();
+}
+
 function orgsimDeptMenu(deptId) {
   var dept = orgsimGetSimDepts().find(function(d){ return d.id === deptId; });
   if (!dept) return;
@@ -7083,12 +7104,25 @@ function orgsimDeptMenu(deptId) {
   modal.innerHTML =
     '<div style="background:#fff;border-radius:12px;padding:18px;width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">' +
       '<div style="font-size:14px;font-weight:700;margin-bottom:12px">'+orgsimDeptName(dept)+'</div>' +
+      '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimAddDeptUnder(\''+deptId+'\')">➕ 이 조직 밑에 하위조직 추가</button>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimRenameDept(\''+deptId+'\')">✎ 이름 변경</button>' +
-      '<button class="btn btn-ghost btn-sm" style="width:100%;color:#dc2626" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimDeleteDept(\''+deptId+'\')">🗑 조직 삭제</button>' +
+      '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px;color:#dc2626" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimDeleteDept(\''+deptId+'\')">🗑 이 조직 삭제</button>' +
+      '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimTrashOpen()">🗑 휴지통(삭제된 조직·인원 복원)</button>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" onclick="document.getElementById(\'orgsim-dept-menu\').remove()">닫기</button>' +
     '</div>';
   document.body.appendChild(modal);
   modal.addEventListener('click', function(ev){ if (ev.target === modal) modal.remove(); });
+}
+
+function orgsimAddDeptUnder(parentId) {
+  var parent = orgsimGetSimDepts().find(function(d){ return d.id === parentId; });
+  if (!parent) return;
+  var name = prompt('"'+orgsimDeptName(parent)+'" 밑에 추가할 하위조직명을 입력하세요');
+  if (!name) return;
+  _orgsimNewDepts.push({ id: 'orgsim-new-'+Date.now(), name: name.trim(), parent: parentId, position: 'bottom', sortOrder: 99 });
+  orgsimRenderReal();
+  orgsimRenderChanges();
+  showToast('✅ 하위조직이 추가되었습니다');
 }
 
 function orgsimRenameDept(deptId) {
@@ -7560,7 +7594,7 @@ function orgsimRenderReal() {
           ?'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06);cursor:pointer'
           :'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;cursor:pointer';
         const deptId2=departments.find(d=>d.name===(e.dept||''))||null;
-        nodes+='<div draggable="true" ondragstart="orgsimDragStartReal(event,\''+orgsimEmpId(e)+'\')" oncontextmenu="event.preventDefault();orgsimEmpMenu(\''+orgsimEmpId(e)+'\')" title="드래그: 부서 이동 / 우클릭: 직책·겸직 설정" style="'+boxStyle2+';cursor:grab">';
+        nodes+='<div draggable="true" ondragstart="orgsimDragStartReal(event,\''+orgsimEmpId(e)+'\')" onclick="orgsimEmpMenu(\''+orgsimEmpId(e)+'\')" oncontextmenu="event.preventDefault();orgsimEmpMenu(\''+orgsimEmpId(e)+'\')" title="클릭: 부서이동/직책/겸직/삭제 메뉴 · 드래그: 바로 부서 이동" style="'+boxStyle2+';cursor:pointer">';
         nodes+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;margin:0 auto">';
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
         nodes+='</div>';
@@ -7616,7 +7650,7 @@ function orgsimRenderReal() {
       const boxStyle=e.isConcurrent
         ?'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
         :'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;overflow:hidden';
-      let h='<div draggable="true" ondragstart="orgsimDragStartReal(event,\''+orgsimEmpId(e)+'\')" oncontextmenu="event.preventDefault();orgsimEmpMenu(\''+orgsimEmpId(e)+'\')" title="드래그: 부서 이동 / 우클릭: 직책·겸직 설정" style="'+boxStyle+';cursor:grab">';
+      let h='<div draggable="true" ondragstart="orgsimDragStartReal(event,\''+orgsimEmpId(e)+'\')" onclick="orgsimEmpMenu(\''+orgsimEmpId(e)+'\')" oncontextmenu="event.preventDefault();orgsimEmpMenu(\''+orgsimEmpId(e)+'\')" title="클릭: 부서이동/직책/겸직/삭제 메뉴 · 드래그: 바로 부서 이동" style="'+boxStyle+';cursor:pointer">';
       const AW=Math.min(BW-4,76);
       h+='<div style="width:'+AW+'px;height:'+AW+'px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;margin:0 auto">';
       h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
