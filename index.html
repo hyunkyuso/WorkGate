@@ -6812,6 +6812,7 @@ function orgsimReset() {
   _orgsimNewEmps = [];
   _orgsimDeletedEmpIds = {};
   _orgsimLevelOverrides = {};
+  _orgsimCurrentDraftId = '';
   orgsimRender();
 }
 
@@ -6838,6 +6839,8 @@ async function orgsimSaveDraft() {
   } catch(e) { console.error(e); showToast('❌ 저장 실패'); }
 }
 
+var _orgsimCurrentDraftId = ''; // 현재 불러온(선택된) 시나리오 id — 화면 다시 그릴 때 드롭다운 선택이 풀리지 않도록 추적
+
 async function orgsimPopulateDraftList() {
   var sel = document.getElementById('orgsim-load-select');
   if (!sel) return;
@@ -6845,7 +6848,7 @@ async function orgsimPopulateDraftList() {
     var snap = await db.collection('orgSimulations').orderBy('createdAt', 'desc').get();
     sel.innerHTML = '<option value="">시나리오 불러오기...</option>' + snap.docs.map(function(d){
       var data = d.data();
-      return '<option value="'+d.id+'">'+data.name+' ('+(data.createdAt||'').slice(0,10)+')</option>';
+      return '<option value="'+d.id+'"'+(d.id===_orgsimCurrentDraftId?' selected':'')+'>'+data.name+' ('+(data.createdAt||'').slice(0,10)+')</option>';
     }).join('');
   } catch(e) { console.error(e); }
 }
@@ -6865,6 +6868,7 @@ async function orgsimLoadDraft(draftId) {
     _orgsimNewEmps = data.newEmps || [];
     _orgsimDeletedEmpIds = data.deletedEmpIds || {};
     _orgsimLevelOverrides = data.levelOverrides || {};
+    _orgsimCurrentDraftId = draftId;
     orgsimRender();
     showToast('✅ 시나리오를 불러왔습니다');
   } catch(e) { console.error(e); showToast('❌ 불러오기 실패'); }
@@ -6872,12 +6876,13 @@ async function orgsimLoadDraft(draftId) {
 
 async function orgsimDeleteDraft() {
   var sel = document.getElementById('orgsim-load-select');
-  var draftId = sel ? sel.value : '';
+  var draftId = (sel && sel.value) || _orgsimCurrentDraftId;
   if (!draftId) { showToast('❌ 삭제할 시나리오를 먼저 선택하세요'); return; }
-  var label = sel.options[sel.selectedIndex].textContent;
+  var label = sel ? sel.options[sel.selectedIndex].textContent : draftId;
   if (!confirm('"'+label+'" 시나리오를 삭제할까요? 되돌릴 수 없습니다.')) return;
   try {
     await db.collection('orgSimulations').doc(draftId).delete();
+    if (draftId === _orgsimCurrentDraftId) _orgsimCurrentDraftId = '';
     showToast('✅ 시나리오가 삭제되었습니다');
     orgsimPopulateDraftList();
   } catch(e) { console.error(e); showToast('❌ 삭제 실패'); }
@@ -6996,14 +7001,41 @@ async function orgsimAddDept() {
 }
 
 function orgsimDeleteDept(deptId) {
-  var dept = orgsimGetSimDepts().find(function(d){ return d.id === deptId; });
+  var simDepts = orgsimGetSimDepts();
+  var dept = simDepts.find(function(d){ return d.id === deptId; });
   if (!dept) return;
-  if (!confirm('"'+dept.name+'" 조직을 시뮬레이션에서 삭제할까요? (하위 조직·소속 인원도 화면에서 함께 사라집니다)')) return;
-  if (dept.id.indexOf('orgsim-new-') === 0) {
-    _orgsimNewDepts = _orgsimNewDepts.filter(function(d){ return d.id !== deptId; });
-  } else {
-    _orgsimDeletedDeptIds[deptId] = true;
-  }
+  if (!confirm('"'+dept.name+'" 조직을 시뮬레이션에서 삭제할까요?\n하위 조직과 소속 인원 전부 휴지통으로 이동합니다.')) return;
+
+  // 이 조직 + 모든 하위 조직 id를 재귀적으로 수집
+  var toDeleteIds = [deptId];
+  (function collect(pid){
+    simDepts.filter(function(d){ return d.parent === pid; }).forEach(function(d){
+      toDeleteIds.push(d.id);
+      collect(d.id);
+    });
+  })(deptId);
+
+  var toDeleteNames = toDeleteIds.map(function(id){
+    var d = simDepts.find(function(x){ return x.id === id; });
+    return d ? d.name : null;
+  }).filter(Boolean);
+
+  // 소속 인원 전부 개별적으로 휴지통 이동
+  orgsimGetSimEmps().forEach(function(e){
+    if (toDeleteNames.indexOf(orgsimCurrentDept(e)) >= 0) {
+      _orgsimDeletedEmpIds[orgsimEmpId(e)] = true;
+    }
+  });
+
+  // 조직들 삭제 처리(신규 추가된 건 목록에서 제거, 기존 조직은 삭제 표시)
+  toDeleteIds.forEach(function(id){
+    if (id.indexOf('orgsim-new-') === 0) {
+      _orgsimNewDepts = _orgsimNewDepts.filter(function(d){ return d.id !== id; });
+    } else {
+      _orgsimDeletedDeptIds[id] = true;
+    }
+  });
+
   orgsimRenderReal();
   orgsimRenderChanges();
 }
