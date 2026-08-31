@@ -1333,8 +1333,6 @@ select.form-input{cursor:pointer}
             </div>
             <select class="form-input" id="orgsim-load-select" style="max-width:180px" onchange="orgsimLoadDraft(this.value)"><option value="">시나리오 불러오기...</option></select>
             <button class="btn btn-ghost btn-sm" onclick="orgsimDeleteDraft()" title="선택된 시나리오 삭제">🗑 시나리오 삭제</button>
-            <button class="btn btn-ghost btn-sm" onclick="orgsimAddDept()">➕ 조직 추가</button>
-            <button class="btn btn-ghost btn-sm" onclick="orgsimAddEmployee()">🆕 신규채용</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimTrashOpen()">🗑 휴지통</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimSaveDraft()">💾 임시저장</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimReset()">↺ 초기화</button>
@@ -6911,12 +6909,17 @@ function orgsimGetSimEmps() {
   return employees.concat(_orgsimNewEmps).filter(function(e){ return !_orgsimDeletedEmpIds[orgsimEmpId(e)]; });
 }
 
-async function orgsimAddEmployee() {
+async function orgsimAddEmployee(deptId) {
   var name = prompt('신규채용 인원의 이름을 입력하세요');
   if (!name) return;
-  var deptName = prompt('배치할 부서명을 입력하세요');
-  if (!deptName) return;
-  var dept = orgsimGetSimDepts().find(function(d){ return d.name === deptName.trim(); });
+  var dept;
+  if (deptId) {
+    dept = orgsimGetSimDepts().find(function(d){ return d.id === deptId; });
+  } else {
+    var deptName = prompt('배치할 부서명을 입력하세요');
+    if (!deptName) return;
+    dept = orgsimGetSimDepts().find(function(d){ return d.name === deptName.trim(); });
+  }
   if (!dept) { showToast('❌ 해당 부서를 찾을 수 없습니다'); return; }
   var position = prompt('직위(선택, 예: 사원) — 없으면 비워두세요') || '';
   var newId = 'orgsim-newemp-'+Date.now();
@@ -7212,6 +7215,7 @@ function orgsimDeptMenu(deptId) {
         '<option value="3"'+(String(currentLevel)==='3'?' selected':'')+'>팀</option>' +
       '</select>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimAddDeptUnder(\''+deptId+'\')">➕ 이 조직 밑에 하위조직 추가</button>' +
+      '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimAddEmployee(\''+deptId+'\')">🆕 이 조직에 신규채용</button>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimRenameDept(\''+deptId+'\')">✎ 이름 변경</button>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px;color:#dc2626" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimDeleteDept(\''+deptId+'\')">🗑 이 조직 삭제</button>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimTrashOpen()">🗑 휴지통(삭제된 조직·인원 복원)</button>' +
