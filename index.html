@@ -1323,10 +1323,14 @@ select.form-input{cursor:pointer}
       </div>
 
       <!-- 조직도 시뮬레이션 -->
-      <div id="page-orgsim" class="page">
+      <div id="page-orgsim" class="page" style="display:flex;flex-direction:column">
         <div class="page-header">
-          <div><div class="page-title">🧪 조직도 시뮬레이션</div><div class="page-sub">드래그로 인원을 옮겨보고 결과를 확인합니다 (저장 전까지 실제 데이터는 바뀌지 않습니다)</div></div>
+          <div><div class="page-title">🧪 조직도 시뮬레이션</div><div class="page-sub">드래그로 인원을 옮기고, 부서박스를 더블클릭해 이름을 바꿔보세요 (저장 전까지 실제 데이터는 바뀌지 않습니다)</div></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="display:flex;gap:4px">
+              <button id="orgsim-view-real-btn" class="btn btn-primary btn-sm" onclick="orgsimSwitchView('real')">🌳 실제 조직도</button>
+              <button id="orgsim-view-board-btn" class="btn btn-ghost btn-sm" onclick="orgsimSwitchView('board')">📋 카드형</button>
+            </div>
             <select class="form-input" id="orgsim-load-select" style="max-width:180px" onchange="orgsimLoadDraft(this.value)"><option value="">시나리오 불러오기...</option></select>
             <button class="btn btn-ghost btn-sm" onclick="orgsimSaveDraft()">💾 임시저장</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimReset()">↺ 초기화</button>
@@ -1334,7 +1338,21 @@ select.form-input{cursor:pointer}
           </div>
         </div>
         <div id="orgsim-changes" style="margin-bottom:14px"></div>
-        <div id="orgsim-board" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
+
+        <div id="orgsim-view-real" style="flex:1;display:flex;flex-direction:column">
+          <div style="display:flex;gap:4px;margin-bottom:8px">
+            <button class="btn btn-ghost btn-sm" onclick="orgsimZoom(0.15)">🔍+</button>
+            <button class="btn btn-ghost btn-sm" onclick="orgsimZoom(-0.15)">🔍-</button>
+            <button class="btn btn-ghost btn-sm" onclick="orgsimResetViewReal()">⊡ 맞춤</button>
+          </div>
+          <div id="orgsim-wrap-real" style="flex:1;min-height:500px;overflow:hidden;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);position:relative">
+            <div id="orgsim-canvas-real" style="position:absolute;transform-origin:0 0;transform:scale(0.7) translate(20px,20px)">
+              <div id="orgsim-chart-real"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="orgsim-view-board" style="display:none;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
       </div>
 
       <!-- 조직 관리 -->
@@ -6623,12 +6641,22 @@ var _orgsimOverrides = {}; // { empId: 새부서명 } — 실제 데이터와 �
 function orgsimEmpId(e) { return e._docId || e.id; }
 function orgsimCurrentDept(e) { return _orgsimOverrides[orgsimEmpId(e)] || e.dept; }
 
+var _orgsimView = 'real';
+function orgsimSwitchView(view) {
+  _orgsimView = view;
+  document.getElementById('orgsim-view-real').style.display = view === 'real' ? 'flex' : 'none';
+  document.getElementById('orgsim-view-board').style.display = view === 'board' ? 'grid' : 'none';
+  document.getElementById('orgsim-view-real-btn').className = 'btn btn-sm ' + (view === 'real' ? 'btn-primary' : 'btn-ghost');
+  document.getElementById('orgsim-view-board-btn').className = 'btn btn-sm ' + (view === 'board' ? 'btn-primary' : 'btn-ghost');
+}
+
 function orgsimRender() {
   orgsimPopulateDraftList();
+  orgsimRenderReal();
   var depts = [...departments].sort(function(a,b){ return (a.sortOrder||99)-(b.sortOrder||99); });
   var activeEmps = employees.filter(function(e){ return e.status !== '퇴직'; });
 
-  document.getElementById('orgsim-board').innerHTML = depts.map(function(d){
+  document.getElementById('orgsim-view-board').innerHTML = depts.map(function(d){
     var members = activeEmps.filter(function(e){ return orgsimCurrentDept(e) === d.name; });
     var chips = members.map(function(e){
       var empId = orgsimEmpId(e);
@@ -6665,32 +6693,39 @@ function orgsimDrop(ev, newDept) {
 }
 
 function orgsimRenderChanges() {
-  var keys = Object.keys(_orgsimOverrides);
+  var empKeys = Object.keys(_orgsimOverrides);
+  var deptKeys = Object.keys(_orgsimDeptNameOverrides);
   var el = document.getElementById('orgsim-changes');
-  if (!keys.length) { el.innerHTML = '<div style="font-size:12px;color:var(--t3)">아직 변경사항이 없습니다. 직원 카드를 다른 부서로 드래그해보세요.</div>'; return; }
+  if (!empKeys.length && !deptKeys.length) { el.innerHTML = '<div style="font-size:12px;color:var(--t3)">아직 변경사항이 없습니다. 직원 카드를 다른 부서로 드래그하거나, 부서박스를 더블클릭해 이름을 바꿔보세요.</div>'; return; }
   el.innerHTML = '<div style="background:var(--surface);border-radius:8px;padding:10px 14px">' +
-    '<div style="font-weight:600;font-size:13px;margin-bottom:6px">변경사항 ('+keys.length+'건)</div>' +
-    keys.map(function(empId){
+    '<div style="font-weight:600;font-size:13px;margin-bottom:6px">변경사항 ('+(empKeys.length+deptKeys.length)+'건)</div>' +
+    empKeys.map(function(empId){
       var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
       if (!emp) return '';
       return '<div style="font-size:12px;color:var(--t2)">'+emp.name+' : '+emp.dept+' → <strong>'+_orgsimOverrides[empId]+'</strong></div>';
+    }).join('') +
+    deptKeys.map(function(deptId){
+      var dept = departments.find(function(d){ return d.id === deptId; });
+      if (!dept) return '';
+      return '<div style="font-size:12px;color:var(--t2)">[부서명] '+dept.name+' → <strong>'+_orgsimDeptNameOverrides[deptId]+'</strong></div>';
     }).join('') +
   '</div>';
 }
 
 function orgsimReset() {
-  if (Object.keys(_orgsimOverrides).length && !confirm('변경사항을 모두 초기화할까요?')) return;
+  if ((Object.keys(_orgsimOverrides).length || Object.keys(_orgsimDeptNameOverrides).length) && !confirm('변경사항을 모두 초기화할까요?')) return;
   _orgsimOverrides = {};
+  _orgsimDeptNameOverrides = {};
   orgsimRender();
 }
 
 async function orgsimSaveDraft() {
-  if (!Object.keys(_orgsimOverrides).length) { showToast('❌ 저장할 변경사항이 없습니다'); return; }
+  if (!Object.keys(_orgsimOverrides).length && !Object.keys(_orgsimDeptNameOverrides).length) { showToast('❌ 저장할 변경사항이 없습니다'); return; }
   var name = prompt('시나리오 이름을 입력하세요 (예: 2026 하반기 개편안 1)');
   if (!name) return;
   try {
     await db.collection('orgSimulations').add({
-      name: name, overrides: _orgsimOverrides, createdAt: new Date().toISOString(), createdBy: (state.user && state.user.email) || ''
+      name: name, overrides: _orgsimOverrides, deptNameOverrides: _orgsimDeptNameOverrides, createdAt: new Date().toISOString(), createdBy: (state.user && state.user.email) || ''
     });
     showToast('✅ 임시저장되었습니다');
     orgsimPopulateDraftList();
@@ -6715,23 +6750,670 @@ async function orgsimLoadDraft(draftId) {
     var doc = await db.collection('orgSimulations').doc(draftId).get();
     if (!doc.exists) return;
     _orgsimOverrides = doc.data().overrides || {};
+    _orgsimDeptNameOverrides = doc.data().deptNameOverrides || {};
     orgsimRender();
     showToast('✅ 시나리오를 불러왔습니다');
   } catch(e) { console.error(e); showToast('❌ 불러오기 실패'); }
 }
 
+
+var _orgsimDeptNameOverrides = {}; // { deptId: 새이름 }
+
+function orgsimDeptName(dept) {
+  return _orgsimDeptNameOverrides[dept.id] || dept.name;
+}
+
+function orgsimGetDeptCount(deptId) {
+  var dept = departments.find(function(d){ return d.id===deptId; });
+  if (!dept) return 0;
+  var countedUids = new Set();
+  employees.filter(function(e){ return orgsimCurrentDept(e)===dept.name && e.status!=='퇴직'; }).forEach(function(e){ countedUids.add(e.uid); });
+  function addSub(pid) {
+    departments.filter(function(d){ return d.parent===pid; }).forEach(function(sub){
+      var subDept = departments.find(function(d){ return d.id===sub.id; });
+      if (subDept) employees.filter(function(e){ return orgsimCurrentDept(e)===subDept.name && e.status!=='퇴직'; }).forEach(function(e){ countedUids.add(e.uid); });
+      addSub(sub.id);
+    });
+  }
+  addSub(deptId);
+  return countedUids.size;
+}
+
+function orgsimDragStartReal(ev, empId) { _orgsimDragEmpId = empId; }
+
+function orgsimDropReal(ev, deptId) {
+  ev.preventDefault();
+  if (!_orgsimDragEmpId) return;
+  var emp = employees.find(function(e){ return orgsimEmpId(e) === _orgsimDragEmpId; });
+  var dept = departments.find(function(d){ return d.id === deptId; });
+  if (!emp || !dept) return;
+  if (dept.name === emp.dept) delete _orgsimOverrides[_orgsimDragEmpId];
+  else _orgsimOverrides[_orgsimDragEmpId] = dept.name;
+  _orgsimDragEmpId = null;
+  orgsimRenderReal();
+  orgsimRenderChanges();
+}
+
+function orgsimRenameDept(deptId) {
+  var dept = departments.find(function(d){ return d.id === deptId; });
+  if (!dept) return;
+  var current = orgsimDeptName(dept);
+  var name = prompt('부서명을 입력하세요 (시뮬레이션에서만 반영되며, 실제 조직도는 바뀌지 않습니다)', current);
+  if (name === null) return;
+  name = name.trim();
+  if (!name || name === dept.name) delete _orgsimDeptNameOverrides[deptId];
+  else _orgsimDeptNameOverrides[deptId] = name;
+  orgsimRenderReal();
+}
+
+var orgsimScale = 0.7, orgsimOffX = 20, orgsimOffY = 20;
+function orgsimApplyTransform() {
+  var canvas = document.getElementById('orgsim-canvas-real');
+  if (canvas) canvas.style.transform = 'translate('+orgsimOffX+'px,'+orgsimOffY+'px) scale('+orgsimScale+')';
+}
+function orgsimZoom(delta) {
+  orgsimScale = Math.min(Math.max(orgsimScale + delta, 0.2), 2);
+  orgsimApplyTransform();
+}
+function orgsimResetViewReal() {
+  var wrap = document.getElementById('orgsim-wrap-real');
+  var chart = document.getElementById('orgsim-chart-real');
+  if (!wrap || !chart) return;
+  orgsimScale = 0.7;
+  orgsimOffX = Math.max((wrap.clientWidth - chart.scrollWidth * orgsimScale) / 2, 20);
+  orgsimOffY = 20;
+  orgsimApplyTransform();
+}
+
+function orgsimRenderReal() {
+  const chart = document.getElementById('orgsim-chart-real');
+  if (!chart) return;
+
+  const todayEl=document.getElementById('orgsim-today');
+  if(todayEl) todayEl.textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+  const statsEl=document.getElementById('orgsim-stats');
+  if(statsEl){
+    const tot=employees.filter(e=>e.status!=='퇴직').length;
+    function ca(id){const d=departments.find(x=>x.id===id);if(!d)return 0;return employees.filter(e=>e.dept===d.name&&e.status!=='퇴직').length+departments.filter(x=>x.parent===id).reduce((s,x)=>s+ca(x.id),0);}
+    const r2=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    statsEl.innerHTML='<span style="font-weight:700">전체 '+tot+'명</span>'+r2.map(r=>'<span style="color:var(--t2);margin-left:8px">'+r.name+' <strong>'+ca(r.id)+'명</strong></span>').join('');
+  }
+
+  const roots=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+  if(!roots.length){chart.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3)">부서를 추가해주세요</div>';return;}
+
+  const CW=140, CH=48, EW=100, HGAP=20, VGAP=60, LINE='#94a3b8';
+  const LC=['#1e293b','#60a5fa','#f59e0b','#eab308','#0891b2','#059669'];
+  function bg(lv){return LC[Math.min(Math.max(lv,0),LC.length-1)];}
+  function getEmps(d){
+    // 본 소속 직원
+    const mainEmps = employees.filter(e=>orgsimCurrentDept(e)===d.name&&e.status!=='퇴직');
+    // 겸직으로 이 부서에 속한 직원 (본 소속은 제외)
+    const concEmps = employees.filter(e=>e.status!=='퇴직'&&e.dept!==d.name&&(e.concurrent||[]).some(c=>c.dept===d.name));
+    // 겸직 직원에 겸직 표시
+    const concEmpsMarked = concEmps.map(e=>({
+      ...e,
+      isConcurrent: true,
+      concurrentTitle: (e.concurrent||[]).find(c=>c.dept===d.name)?.title||''
+    }));
+    return sortEmpsByRank([...mainEmps, ...concEmpsMarked], d.head||'');
+  }
+  function nodeH(id){
+    const d=departments.find(x=>x.id===id);if(!d)return CH;
+    return CH+(getEmps(d).length>0?Math.ceil(getEmps(d).length/6)*96+8:0);
+  }
+  function isBot(d){return !d.position||d.position==='bottom';}
+  function isZ2(d){return d.position&&d.position.startsWith('zone2-');}
+  function gkBot(pid){return [...departments].filter(d=>d.parent===pid&&isBot(d)).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));}
+  function gkZ2(pid){return [...departments].filter(d=>d.parent===pid&&isZ2(d)).sort((a,b)=>(parseInt(a.position.split('-').pop())||1)-(parseInt(b.position.split('-').pop())||1));}
+
+  // bottom 서브트리 너비
+  function subW(id){
+    const d=departments.find(x=>x.id===id);
+    // 조직명 길이 기반 카드 너비 (cardW와 동일 로직)
+    const nameW=d?(d.name.length*14+32):CW;
+    const selfW=Math.max(CW, nameW);
+    const bots=gkBot(id);
+    if(!bots.length)return selfW;
+    const childW=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
+    return Math.max(selfW, childW);
+  }
+
+  // 2구역 한 행의 전체 너비 계산
+  // 위우측: [상위조직] [하위조직1 직원...] [하위조직2]
+  // 위좌측: [하위조직2] [직원... 하위조직1] [상위조직]
+  function z2RowWidth(nodeId){
+    // 상위조직 카드 + gap + 하위조직들이 가로로
+    const bots=gkBot(nodeId);
+    let w=CW; // 상위조직
+    if(bots.length){
+      w+=HGAP;
+      bots.forEach(function(b){
+        const d=departments.find(x=>x.id===b.id);
+        const emps=d?getEmps(d):[];
+        w+=CW+HGAP+(emps.length>0?emps.length*EW+HGAP:0);
+      });
+    }
+    return w;
+  }
+
+  // 2구역 한 행의 높이
+  function z2RowHeight(nodeId){
+    const d=departments.find(x=>x.id===nodeId);
+    const bots=gkBot(nodeId);
+    // 우측: lv2들을 세로로 배치하므로 높이 = lv2 개수 * (CH+VGAP)
+    if(d&&d.position&&d.position.includes('right')&&bots.length>0){
+      return CH + bots.length*(CH+VGAP);
+    }
+    let h=CH;
+    bots.forEach(function(b){h=Math.max(h,CH);});
+    return h+10;
+  }
+
+  const pos={};
+  let svg='', nodes='';
+
+  roots.forEach(function(root){
+    const z2kids=gkZ2(root.id);
+    // 좌우 모두 "번호" 그대로 줄(행)을 맞춰야 하므로, 번호-1을 배열 인덱스로 써서 배치
+    // (번호를 건너뛴 자리는 그 줄에 짝이 없는 것으로 비워둠 - sort로 압축하면 줄이 안 맞게 됨)
+    const z2left=[]; z2kids.filter(d=>d.position.includes('left')).forEach(function(d){ const n=parseInt(d.position.split('-').pop())||1; z2left[n-1]=d; });
+    const z2right=[]; z2kids.filter(d=>d.position.includes('right')).forEach(function(d){ const n=parseInt(d.position.split('-').pop())||1; z2right[n-1]=d; });
+    const z3kids=gkBot(root.id);
+
+    // 3구역 너비
+    const z3W=z3kids.length?z3kids.reduce((s,d)=>s+subW(d.id),0)+(z3kids.length-1)*HGAP:CW;
+
+    // 2구역 각 행 높이 계산 (좌우 중 최대)
+    const maxNum=Math.max(z2left.length, z2right.length);
+    const rowHeights=[];
+    const rowLH=[], rowRH=[]; // 좌/우 각각의 실제 높이(짝 없는 줄을 앞줄의 남는 공간으로 당기기 위해 따로 기록)
+    for(let i=0;i<maxNum;i++){
+      const lh=z2left[i]?z2RowHeight(z2left[i].id):0;
+      const rh=z2right[i]?z2RowHeight(z2right[i].id):0;
+      rowLH.push(lh); rowRH.push(rh);
+      rowHeights.push(Math.max(lh,rh,CH+10));
+    }
+
+    // 2구역 총 높이
+    const z2TotalH=rowHeights.reduce((s,h)=>s+h+VGAP,0);
+
+    // 2구역 좌측 최대 너비
+    let maxLW=0;
+    z2left.forEach(function(c){maxLW=Math.max(maxLW,z2RowWidth(c.id));});
+
+    // spine X
+    const PAD=HGAP*4;
+    const spineX=Math.max(maxLW+PAD, PAD+z3W/2)+PAD;
+
+    // Y 좌표
+    const Z1_Y=40;
+    const Z2_START=Z1_Y+nodeH(root.id)+15;
+    const Z3_Y=z2kids.length>0 ? Z2_START+z2TotalH+VGAP : Z2_START;
+
+    // 1구역 루트
+    pos[root.id]={cx:spineX, absY:Z1_Y, lv:0};
+
+    // 2구역 배치
+    let seqY=Z2_START; // 줄 진행은 이 값으로만 누적 (정렬 보정이 다음 줄까지 밀리지 않게)
+    let prevRowStartY=null, prevLNode=null, prevRNode=null;
+    for(let i=0;i<maxNum;i++){
+      const lNode=z2left[i]||null;
+      const rNode=z2right[i]||null;
+      const rowH=rowHeights[i];
+      let curY=seqY;
+
+      // 짝이 없는 줄(한쪽만 있는 경우)은, 바로 앞줄 반대편의 마지막 하위조직 높이에 정확히 맞춰서 위로 당김
+      // (이 보정은 이번 줄 렌더링에만 적용되고, 다음 줄들의 위치는 원래 순서(seqY) 그대로 유지됨)
+      if(i>0 && prevRowStartY!==null){
+        if(lNode && !rNode){
+          const oppBots=prevRNode?gkBot(prevRNode.id):[];
+          if(oppBots.length>1) curY=prevRowStartY+(oppBots.length-1)*(CH+VGAP);
+          else { const prevUnused=Math.max(0, rowRH[i-1]-rowLH[i-1]); curY-=Math.min(prevUnused, rowH); }
+        } else if(rNode && !lNode){
+          const oppBots=prevLNode?gkBot(prevLNode.id):[];
+          if(oppBots.length>1) curY=prevRowStartY+(oppBots.length-1)*(CH+VGAP);
+          else { const prevUnused=Math.max(0, rowLH[i-1]-rowRH[i-1]); curY-=Math.min(prevUnused, rowH); }
+        }
+      }
+      prevRowStartY=curY; prevLNode=lNode; prevRNode=rNode;
+
+      // 위 좌측: 상위조직은 spine 왼쪽, 하위는 상위 왼쪽으로
+      if(lNode){
+        const d=departments.find(x=>x.id===lNode.id);
+        const bots=gkBot(lNode.id);
+
+        // lv2 그룹 너비 계산
+        const leftGroups=bots.map(function(b){
+          const bd=departments.find(x=>x.id===b.id);
+          const bemps=bd?getEmps(bd):[];
+          const empRowW=bemps.length*(EW+3);
+          const subBots2=gkBot(b.id);
+          // 좌측 lv3 순서: [lv3카드][직원] (우측과 반대)
+          let subTotalW=0;
+          subBots2.forEach(function(sb){
+            const sbd=departments.find(x=>x.id===sb.id);
+            const semps=sbd?getEmps(sbd):[];
+            const sempW=semps.length*(EW+3);
+            subTotalW+=CW+(sempW>0?HGAP+sempW:0)+HGAP;
+          });
+          // lv2 구성: [lv3그룹들][lv2직원][lv2카드]
+          const totalW=subTotalW+(empRowW>0?empRowW+HGAP:0)+CW;
+          return {b,bd,bemps,empRowW,subBots2,totalW};
+        });
+        const allLeftW=leftGroups.reduce((s,g)=>s+g.totalW+HGAP,0);
+
+        // lv1 직원 너비
+        const lv1Lemps=getEmps(departments.find(x=>x.id===lNode.id)||{name:''});
+        const lv1LEmpW=lv1Lemps.length*(EW+3);
+
+        // 배치: [lv2그룹들(역순)] [lv1직원] [lv1카드] → spine
+        // lv2그룹 역순: leftGroups[last]가 가장 왼쪽
+        const totalBlockW=allLeftW+(lv1LEmpW>0?lv1LEmpW+HGAP:0)+CW;
+        // spine에서 왼쪽으로: lv1카드 ← lv1직원 ← [lv2카드 lv2직원 lv3카드 lv3직원]...
+        // 1. lv1 카드: spine 바로 왼쪽
+        const parentCX=spineX-CW/2-HGAP-CW/2;
+        pos[lNode.id]={cx:parentCX, absY:curY, lv:1};
+
+        // 2. lv1 직원: lv1카드 왼쪽
+        let lx2=parentCX-CW/2-HGAP;
+        if(lv1Lemps.length){
+          const lv1LempsR=lv1Lemps.slice().reverse();
+          const lv1LEmpWR=lv1LempsR.length*(EW+3);
+          lx2-=lv1LEmpWR;
+          pos['emp1_'+lNode.id]={cx:lx2+lv1LEmpWR/2, absY:curY, empList:lv1LempsR, deptId:lNode.id, color:(d.orgLevel?bg(d.orgLevel):bg(1))};
+          lx2-=HGAP;
+        }
+
+        // 3. lv2 그룹들: lv1직원 왼쪽으로 (정순: 좌1의 lv2-1이 spine에 가장 가까움)
+        leftGroups.forEach(function(g){
+          const {b,bd,bemps,empRowW,subBots2}=g;
+          // 이 그룹 오른쪽 끝 = lx2
+          // 배치(오→왼): lv2카드 | lv2직원 | lv3-1카드 lv3-1직원 | lv3-2카드 lv3-2직원...
+
+          // lv2 카드 (오른쪽 끝)
+          lx2-=CW;
+          pos[b.id]={cx:lx2+CW/2, absY:curY, lv:2};
+          lx2-=HGAP;
+
+          // lv2 직원 (좌측이므로 역순)
+          if(bemps.length){
+            const bempsR=bemps.slice().reverse();
+            const empRowWR=bempsR.length*(EW+3);
+            lx2-=empRowWR;
+            pos['emp_'+b.id]={cx:lx2+empRowWR/2, absY:curY, empList:bempsR, deptId:b.id, color:bg(2)};
+            lx2-=HGAP;
+          }
+
+          // lv3들 (역순으로 왼쪽에 배치 - spine에서 멀수록 왼쪽)
+          subBots2.slice().reverse().forEach(function(sb){
+            const sbd=departments.find(x=>x.id===sb.id);
+            const semps=sbd?getEmps(sbd):[];
+            const sempW=semps.length*(EW+3);
+            // lv3 카드
+            lx2-=CW;
+            pos[sb.id]={cx:lx2+CW/2, absY:curY, lv:3};
+            lx2-=HGAP;
+            // lv3 직원 (좌측이므로 역순)
+            if(semps.length){
+              const sempsR=semps.slice().reverse();
+              const sempWR=sempsR.length*(EW+3);
+              lx2-=sempWR;
+              pos['emp_'+sb.id]={cx:lx2+sempWR/2, absY:curY, empList:sempsR, deptId:sb.id, color:bg(3)};
+              lx2-=HGAP;
+            }
+          });
+        });
+
+        // parentCX 재선언 방지 (위에서 선언됨)
+
+        // SVG: spine → lv1 카드 가로선
+        const lineY=curY+CH/2;
+        svg+='<line x1="'+spineX+'" y1="'+lineY+'" x2="'+(parentCX+CW/2)+'" y2="'+lineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+      }
+
+      // 위 우측: 상위조직은 spine 오른쪽, 하위는 상위 오른쪽으로
+      if(rNode){
+        const d=departments.find(x=>x.id===rNode.id);
+        const bots=gkBot(rNode.id);
+
+        // lv1 직원 너비 계산
+        const lv1Remps=getEmps(departments.find(x=>x.id===rNode.id)||{name:''});
+        const lv1REmpW=lv1Remps.length*(EW+3);
+
+        // lv1 카드: spine 바로 오른쪽
+        const parentCX=spineX+CW/2+HGAP+CW/2;
+        pos[rNode.id]={cx:parentCX, absY:curY, lv:1};
+
+        // lv1 직원: lv1 카드 바로 오른쪽
+        let bx=parentCX+CW/2+HGAP;
+        if(lv1Remps.length){
+          pos['emp1_'+rNode.id]={cx:bx+lv1REmpW/2, absY:curY, empList:lv1Remps, deptId:rNode.id, color:(d.orgLevel?bg(d.orgLevel):bg(1))};
+          bx+=lv1REmpW+HGAP;
+        }
+
+        // lv2 그룹: 세로로 배치 (첫번째는 lv1과 같은 Y, 이후 아래로)
+        // 우1 lv2 박스 너비: 가장 긴 nameW로 통일
+        const maxLv2W = bots.reduce(function(mx,b){
+          const bd=departments.find(x=>x.id===b.id);
+          const nw=bd?(bd.name.length*14+32):CW;
+          return Math.max(mx, nw, CW);
+        }, CW);
+        let botY=curY;
+        let maxBx=bx; // lv2 오른쪽 끝 최대값 추적
+        bots.forEach(function(b,bi){
+          const bd=departments.find(x=>x.id===b.id);
+          const bemps=bd?getEmps(bd):[];
+          const empRowW=bemps.length*(EW+3);
+          let rowBx=bx; // 각 행의 x는 동일 시작점
+          pos[b.id]={cx:rowBx+maxLv2W/2, absY:botY, lv:2, cardW:maxLv2W};
+          rowBx+=maxLv2W+HGAP;
+          if(bemps.length){
+            pos['emp_'+b.id]={cx:rowBx+empRowW/2, absY:botY, empList:bemps, deptId:b.id, color:bg(2)};
+            rowBx+=empRowW+HGAP;
+          }
+          const subBots=gkBot(b.id);
+          subBots.forEach(function(sb){
+            const sbd=departments.find(x=>x.id===sb.id);
+            const semps=sbd?getEmps(sbd):[];
+            const sempRowW=semps.length*(EW+3);
+            pos[sb.id]={cx:rowBx+CW/2, absY:botY, lv:3};
+            rowBx+=CW+HGAP;
+            if(semps.length){
+              pos['emp_'+sb.id]={cx:rowBx+sempRowW/2, absY:botY, empList:semps, deptId:sb.id, color:bg(3)};
+              rowBx+=sempRowW+HGAP;
+            }
+          });
+          maxBx=Math.max(maxBx,rowBx);
+          botY+=CH+VGAP; // 다음 lv2는 아래로
+        });
+
+        // SVG: spine → lv1 카드 가로선
+        const lineY=curY+CH/2;
+        svg+='<line x1="'+spineX+'" y1="'+lineY+'" x2="'+(parentCX-CW/2)+'" y2="'+lineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+      }
+
+      seqY+=rowH+2;
+    }
+
+    // 3구역 배치: 레벨별 Y 먼저 계산
+    if(z3kids.length){
+      const z3TotalW=z3kids.reduce((s,d)=>s+subW(d.id),0)+(z3kids.length-1)*HGAP;
+      // 레벨별 최대 높이 계산
+      const z3LvH={};
+      calcZ3LvHeights(z3kids.map(c=>c.id), 1, z3LvH);
+      // orgLevel 1~4 모두 확보
+      for(let lv=1;lv<=4;lv++){
+        if(!z3LvH[lv]) z3LvH[lv]=CH;
+      }
+      // orgLevel 기준으로 Y 계산
+      const z3LvY={};
+      let lvCurY=Z3_Y;
+      for(let lv=1;lv<=4;lv++){
+        z3LvY[lv]=lvCurY;
+        lvCurY+=z3LvH[lv]+VGAP;
+      }
+      let blx=spineX-z3TotalW/2;
+      z3kids.forEach(function(c){
+        placeZ3(c.id,blx,Z3_Y,1,z3LvY);
+        blx+=subW(c.id)+HGAP;
+      });
+    }
+
+    // 세로선: 1구역 하단 → 3구역 허브
+    const hubY3=z3kids.length>0?Z3_Y-30:Z3_Y;
+    svg+='<line x1="'+spineX+'" y1="'+(Z1_Y+CH)+'" x2="'+spineX+'" y2="'+hubY3+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+
+    // 3구역 허브 → 본부 T자 연결선
+    if(z3kids.length){
+      const bpos3=z3kids.map(d=>pos[d.id]).filter(Boolean);
+      if(bpos3.length){
+        // 허브 가로선
+        const minX3=Math.min(...bpos3.map(k=>k.cx));
+        const maxX3=Math.max(...bpos3.map(k=>k.cx));
+        if(bpos3.length>1) svg+='<line x1="'+minX3+'" y1="'+hubY3+'" x2="'+maxX3+'" y2="'+hubY3+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+        // 허브 → 각 본부 수직선
+        bpos3.forEach(function(k){
+          svg+='<line x1="'+k.cx+'" y1="'+hubY3+'" x2="'+k.cx+'" y2="'+k.absY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+        });
+      }
+    }
+  });
+
+  // 3구역: 레벨별 최대 높이를 먼저 계산해서 모든 노드가 같은 Y줄에 오도록
+  function calcZ3LvHeights(ids, lv, lvH){
+    if(!ids.length)return;
+    let maxH=CH;
+    ids.forEach(function(id){
+      const d=departments.find(x=>x.id===id);
+      if(!d)return;
+      const es=getEmps(d);
+      if(!es.length){maxH=Math.max(maxH,CH);return;}
+      const hasLeader=!!es.find(function(e){
+        const isHead=d.head&&e.name===d.head;
+        const t=e.title||'';
+        return isHead||(t==='본부장'||t==='부서장'||t==='팀장');
+      });
+      let rows;
+      if(hasLeader&&es.length>1){
+        rows=1+Math.ceil((es.length-1)/2);
+      } else {
+        rows=Math.ceil(es.length/2);
+      }
+      // 첫줄(직책자) 72px 고정 + 나머지 줄 72px
+      const empH=rows*96+8;
+      maxH=Math.max(maxH,CH+empH);
+    });
+    if(!lvH[lv]||lvH[lv]<maxH) lvH[lv]=maxH;
+    const nextIds=[];
+    ids.forEach(function(id){gkBot(id).forEach(function(c){nextIds.push(c.id);});});
+    calcZ3LvHeights(nextIds, lv+1, lvH);
+  }
+
+  function placeZ3(id, left, absY, lv, z3LvY){
+    const w=subW(id), cx=left+w/2;
+    // orgLevel이 설정된 경우 그것으로 z3LvY 인덱스 결정
+    const dept=departments.find(x=>x.id===id);
+    const orgLvKey=(dept&&dept.orgLevel!=null&&dept.orgLevel!=='')?parseInt(dept.orgLevel):lv;
+    const y=(z3LvY&&z3LvY[orgLvKey]!==undefined)?z3LvY[orgLvKey]:
+            (z3LvY&&z3LvY[lv]!==undefined)?z3LvY[lv]:absY;
+    pos[id]={cx, absY:y, lv:orgLvKey};
+    const bots=gkBot(id);
+    if(!bots.length)return;
+    const totalChildW=bots.reduce((s,c)=>s+subW(c.id),0)+(bots.length-1)*HGAP;
+    let lx=cx-totalChildW/2;
+    bots.forEach(function(c){placeZ3(c.id,lx,y,lv+1,z3LvY);lx+=subW(c.id)+HGAP;});
+  }
+
+  // 노드 HTML
+  Object.entries(pos).forEach(function([id,p]){
+    // 직원 그룹인 경우
+    if(p.empList){
+      const empList=p.empList, empColor=p.color||bg(2);
+      // 본부장/부서장/팀장 여부
+      const isLeader2=function(e){ const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장'; };
+      const leaderColor2=function(e){
+        const t=e.title||'';
+        if(t==='본부장') return bg(1);
+        if(t==='부서장') return bg(2);
+        if(t==='팀장') return bg(3);
+        return empColor;
+      };
+      const empGap=1;
+      const totalEmpW=empList.length*EW+(empList.length-1)*empGap;
+      const x=p.cx-totalEmpW/2;
+      // 카드 세로 중앙에 맞춤: absY + CH/2 - 아바타(76px)/2 - 이름영역(20px)/2
+      const avatarH=76, nameH=20;
+      const y=p.absY + Math.round((CH-(avatarH+nameH))/2);
+      // 기존 가로 나열, 본부장/부서장/팀장만 테두리 강조
+      nodes+='<div style="position:absolute;left:'+x+'px;top:'+y+'px;display:flex;gap:'+empGap+'px;z-index:2">';
+      empList.forEach(function(e){
+        const ini=(e.name||'?').charAt(0);
+        const ec=['#3730a3','#6d28d9','#0e7490','#047857','#b45309'];
+        const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
+        const isL=isLeader2(e);
+        const sz=isL?38:34;
+        const avatarBorder2=isL?'2px solid '+leaderColor2(e):'1.5px solid #94a3b8';
+        const boxStyle2=e.isConcurrent
+          ?'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06);cursor:pointer'
+          :'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;cursor:pointer';
+        const deptId2=departments.find(d=>d.name===(e.dept||''))||null;
+        nodes+='<div draggable="true" ondragstart="orgsimDragStartReal(event,\''+orgsimEmpId(e)+'\')" style="'+boxStyle2+';cursor:grab">';
+        nodes+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;margin:0 auto">';
+        nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
+        nodes+='</div>';
+        nodes+='<div style="display:flex;align-items:center;gap:2px;margin-top:2px;max-width:'+(EW+8)+'px">';
+        if(e.position) nodes+='<span style="font-size:18px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
+        nodes+='<span style="font-size:18px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.name+'</span>';
+        nodes+='</div>';
+
+        nodes+='</div>';
+      });
+      nodes+='</div>';
+      return;
+    }
+
+    const dept=departments.find(d=>d.id===id);if(!dept)return;
+    const color=dept.orgLevel?bg(dept.orgLevel):bg(p.lv);
+    const headName=dept.head||'';
+    const es=getEmps(dept);
+    const x=p.cx-CW/2, y=p.absY;
+    // 2구역 하위 여부 먼저 판별
+    const isZ2subNode = pos['emp_'+id] !== undefined || pos['emp1_'+id] !== undefined;
+    // 3구역 lv1,lv2는 하위 범위 너비로 카드 표시
+    // lv0(대표이사)는 이름 길이에 맞게 너비 동적 조정
+    // 글자크기 18px 기준 조직명 너비 동적 계산 (한글 약 13px, padding 18px)
+    const dnameDisp = orgsimDeptName(dept);
+    const nameW = dnameDisp.length * 14 + 32;
+    let cardW = p.cardW || ((!isZ2(dept)&&!isZ2subNode&&(p.lv===1||p.lv===2))?Math.max(CW,nameW,subW(id)):Math.max(CW,nameW));
+    if(p.lv===0) cardW=Math.max(CW, nameW);
+    const cardX=p.cx-cardW/2;
+    nodes+='<div ondragover="event.preventDefault()" ondrop="orgsimDropReal(event,\''+id+'\')" ondblclick="orgsimRenameDept(\''+id+'\')" title="더블클릭: 이름 변경 / 직원을 이 카드로 드래그" style="position:absolute;left:'+cardX+'px;top:'+y+'px;width:'+cardW+'px;cursor:pointer;z-index:2;overflow:visible">';
+    nodes+='<div style="background:'+color+';color:'+(p.lv===0?'#fff':'#1e293b')+';border-radius:8px;padding:7px 9px;text-align:center;font-size:20px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap">';
+    // 인원수: lv1=전체합산, lv2=lv2+lv3합산, lv3=직속만
+    const dispCount = orgsimGetDeptCount(id);
+    nodes+=dnameDisp+'<div style="font-size:20px;font-weight:700;opacity:.95;margin-top:1px">'+dispCount+'명</div></div>';
+    // 3구역만 직원 카드 아래 표시
+    const isLeaderPos=function(e){
+      const t=e.title||''; return t==='본부장'||t==='부서장'||t==='팀장';
+    };
+    const leaderBorderColor=function(e){
+      const t=e.title||'';
+      if(t==='본부장') return bg(1);
+      if(t==='부서장') return bg(2);
+      if(t==='팀장') return bg(3);
+      return color;
+    };
+    const empBubble=function(e,isH){
+      const ini=(e.name||'?').charAt(0);
+      const ec=['#3730a3','#6d28d9','#0e7490','#047857','#b45309'];
+      const ebg=e.photo?'':ec[(e.name||'').charCodeAt(0)%ec.length];
+      const isL=isH||isLeaderPos(e);
+      const avatarBorder=isL?'2px solid '+(isH?color:leaderBorderColor(e)):'1.5px solid #94a3b8';
+      const BW=e.isConcurrent?96:76;
+      const boxStyle=e.isConcurrent
+        ?'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;border:2.5px dashed #2563eb;border-radius:8px;padding:3px 2px;background:rgba(37,99,235,.06)'
+        :'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;overflow:hidden';
+      let h='<div draggable="true" ondragstart="orgsimDragStartReal(event,\''+orgsimEmpId(e)+'\')" style="'+boxStyle+';cursor:grab">';
+      const AW=Math.min(BW-4,76);
+      h+='<div style="width:'+AW+'px;height:'+AW+'px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;margin:0 auto">';
+      h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
+      h+='</div>';
+      h+='<div style="margin-top:4px;text-align:center;white-space:nowrap;overflow:hidden;width:'+BW+'px">';
+      h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+((e.position==='대표이사')?'CEO':(e.position?e.position+' ':' '))+'</span>';
+      h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+e.name+'</span>';
+      h+='</div>';
+      h+='</div>';
+      return h;
+    };
+    if(es.length&&!isZ2(dept)&&!isZ2subNode&&p.lv>0){
+      // 부서장(headName) 또는 직책이 본부장/부서장/팀장인 사람 → 첫줄 단독
+      const headEmp=es.find(e=>e.name===headName&&!!headName);
+      const leaderEmp=es.find(e=>isLeaderPos(e));
+      const head=headEmp||leaderEmp||null;
+      const others=head?es.filter(e=>e!==head):es;
+      // 직원 컨테이너: 카드 중앙 기준, position:absolute로 독립 배치
+      nodes+='<div style="margin-top:4px;width:'+cardW+'px;display:flex;flex-direction:column;align-items:flex-start;position:relative">';
+      if(head&&es.length===1){
+        // 직책자만 1명 → 가운데
+        nodes+='<div style="display:flex;width:fit-content;height:96px;align-items:center;position:relative;left:50%;transform:translateX(-50%)">'+empBubble(head,true)+'</div>';
+      } else if(head&&es.length>1){
+        // 직책있고 여러명 → 직책자 가운데
+        nodes+='<div style="display:flex;width:fit-content;height:96px;align-items:center;position:relative;left:50%;transform:translateX(-50%)">'+empBubble(head,true)+'</div>';
+        const othersOdd=(others.length%2===1);
+        for(let ri=0;ri<others.length;ri+=2){
+          const isLastOne=othersOdd&&!others[ri+1]; // 마지막 1명
+          const center=(others.length===1||!isLastOne);
+          const leftPx2=(cardW/2 - (76*2+1)/2);
+          const pos3=center?'position:relative;left:50%;transform:translateX(-50%);':'position:relative;left:'+leftPx2+'px;';
+          nodes+='<div style="display:flex;width:fit-content;gap:1px;margin-bottom:4px;'+pos3+'">';
+          nodes+=empBubble(others[ri],false);
+          if(others[ri+1]) nodes+=empBubble(others[ri+1],false);
+          nodes+='</div>';
+        }
+      } else {
+        // 직책없음
+        const esOdd=(es.length%2===1);
+        for(let ri=0;ri<es.length;ri+=2){
+          const isLastSingle=esOdd&&!es[ri+1];
+          const isOnlyOne=(es.length===1);
+          const justify=(isOnlyOne||!isLastSingle)?'justify-content:center':'';
+          const center2=(isOnlyOne||!isLastSingle);
+          // 홀수 마지막: 위 줄 왼쪽 끝에 맞춤
+          const rowW2=76*2+1;
+          const leftPx=(cardW/2 - rowW2/2);
+          const pos4=center2?'position:relative;left:50%;transform:translateX(-50%);':'position:relative;left:'+leftPx+'px;';
+          nodes+='<div style="display:flex;width:fit-content;gap:1px;margin-bottom:4px;'+pos4+'">';
+          const isH1=es[ri].name===headName&&!!headName;
+          nodes+=empBubble(es[ri],isH1);
+          if(es[ri+1]) nodes+=empBubble(es[ri+1],es[ri+1].name===headName&&!!headName);
+          nodes+='</div>';
+        }
+      }
+      nodes+='</div>';
+    }
+    nodes+='</div>';
+  });
+
+  const allCX=Object.values(pos).filter(p=>p.cx!=null).map(p=>p.cx);
+  const allYf=Object.values(pos).filter(p=>p.absY!=null).map(p=>p.absY);
+  const CAN_W=Math.max(...allCX)+CW+EW*8+40;
+  const CAN_H=Math.max(...allYf)+CH+100;
+
+  chart.innerHTML='<div style="position:relative;width:'+CAN_W+'px;height:'+CAN_H+'px">'+
+    '<svg style="position:absolute;top:0;left:0;width:'+CAN_W+'px;height:'+CAN_H+'px;z-index:0;overflow:visible">'+svg+'</svg>'+
+    '<div style="position:absolute;top:0;left:0;z-index:1">'+nodes+'</div></div>';
+
+  setTimeout(function(){
+    const wrap=document.getElementById('orgsim-wrap-real');
+    if(!wrap)return;
+    orgsimScale=Math.min(0.8,(wrap.clientWidth-40)/CAN_W);
+    orgsimOffX=Math.max((wrap.clientWidth-CAN_W*orgsimScale)/2,20);
+    orgsimOffY=20;
+    orgsimApplyTransform();
+  },80);
+}
+
 async function orgsimApplyReal() {
-  var keys = Object.keys(_orgsimOverrides);
-  if (!keys.length) { showToast('❌ 반영할 변경사항이 없습니다'); return; }
-  if (!confirm(keys.length+'건의 변경사항을 실제 직원 데이터에 반영하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+  var empKeys = Object.keys(_orgsimOverrides);
+  var deptKeys = Object.keys(_orgsimDeptNameOverrides);
+  if (!empKeys.length && !deptKeys.length) { showToast('❌ 반영할 변경사항이 없습니다'); return; }
+  if (!confirm((empKeys.length+deptKeys.length)+'건의 변경사항을 실제 조직도에 반영하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
   try {
-    for (var i=0; i<keys.length; i++) {
-      var empId = keys[i];
+    for (var i=0; i<empKeys.length; i++) {
+      var empId = empKeys[i];
       await db.collection('employees').doc(empId).update({ dept: _orgsimOverrides[empId] });
       var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
       if (emp) emp.dept = _orgsimOverrides[empId];
     }
+    for (var j=0; j<deptKeys.length; j++) {
+      var deptId = deptKeys[j];
+      await db.collection('departments').doc(deptId).update({ name: _orgsimDeptNameOverrides[deptId] });
+      var dept = departments.find(function(d){ return d.id === deptId; });
+      if (dept) dept.name = _orgsimDeptNameOverrides[deptId];
+    }
     _orgsimOverrides = {};
+    _orgsimDeptNameOverrides = {};
     orgsimRender();
     showToast('✅ 실제 조직도에 반영되었습니다');
   } catch(e) { console.error(e); showToast('❌ 반영 실패'); }
