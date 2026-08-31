@@ -6736,7 +6736,13 @@ function orgsimHasAnyChanges() {
   return Object.keys(_orgsimOverrides).length || Object.keys(_orgsimDeptNameOverrides).length ||
     _orgsimNewDepts.length || Object.keys(_orgsimDeletedDeptIds).length ||
     Object.keys(_orgsimTitleOverrides).length || Object.keys(_orgsimConcurrentOverrides).length ||
-    _orgsimNewEmps.length || Object.keys(_orgsimDeletedEmpIds).length;
+    _orgsimNewEmps.length || Object.keys(_orgsimDeletedEmpIds).length || Object.keys(_orgsimLevelOverrides).length;
+}
+
+var _orgsimChangesOpen = false;
+function orgsimToggleChanges() {
+  _orgsimChangesOpen = !_orgsimChangesOpen;
+  orgsimRenderChanges();
 }
 
 function orgsimRenderChanges() {
@@ -6749,8 +6755,7 @@ function orgsimRenderChanges() {
   var el = document.getElementById('orgsim-changes');
   if (!orgsimHasAnyChanges()) { el.innerHTML = '<div style="font-size:12px;color:var(--t3)">아직 변경사항이 없습니다. 직원 카드를 다른 부서로 드래그하거나, 부서박스를 더블클릭해 이름을 바꿔보세요. (우클릭: 직책·겸직·삭제)</div>'; return; }
   var totalCount = empKeys.length + deptKeys.length + titleKeys.length + concKeys.length + deletedKeys.length + _orgsimNewDepts.length + _orgsimNewEmps.length + deletedEmpKeys.length;
-  el.innerHTML = '<div style="background:var(--surface);border-radius:8px;padding:10px 14px">' +
-    '<div style="font-weight:600;font-size:13px;margin-bottom:6px">변경사항 ('+totalCount+'건)</div>' +
+  var bodyHtml =
     empKeys.map(function(empId){
       var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
       if (!emp) return '';
@@ -6785,7 +6790,14 @@ function orgsimRenderChanges() {
     deletedEmpKeys.map(function(empId){
       var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
       return '<div style="font-size:12px;color:#dc2626">[인원삭제] '+(emp?emp.name:empId)+'</div>';
-    }).join('') +
+    }).join('');
+
+  el.innerHTML = '<div style="background:var(--surface);border-radius:8px;padding:8px 14px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="orgsimToggleChanges()">' +
+      '<span style="font-weight:600;font-size:13px">변경사항 ('+totalCount+'건)</span>' +
+      '<span style="font-size:12px;color:var(--ac)">'+(_orgsimChangesOpen?'접기 ▲':'펼쳐보기 ▼')+'</span>' +
+    '</div>' +
+    (_orgsimChangesOpen ? '<div style="max-height:140px;overflow-y:auto;margin-top:6px">'+bodyHtml+'</div>' : '') +
   '</div>';
 }
 
@@ -6799,6 +6811,7 @@ function orgsimReset() {
   _orgsimConcurrentOverrides = {};
   _orgsimNewEmps = [];
   _orgsimDeletedEmpIds = {};
+  _orgsimLevelOverrides = {};
   orgsimRender();
 }
 
@@ -6817,6 +6830,7 @@ async function orgsimSaveDraft() {
       concurrentOverrides: _orgsimConcurrentOverrides,
       newEmps: _orgsimNewEmps,
       deletedEmpIds: _orgsimDeletedEmpIds,
+      levelOverrides: _orgsimLevelOverrides,
       createdAt: new Date().toISOString(), createdBy: (state.user && state.user.email) || ''
     });
     showToast('✅ 임시저장되었습니다');
@@ -6850,6 +6864,7 @@ async function orgsimLoadDraft(draftId) {
     _orgsimConcurrentOverrides = data.concurrentOverrides || {};
     _orgsimNewEmps = data.newEmps || [];
     _orgsimDeletedEmpIds = data.deletedEmpIds || {};
+    _orgsimLevelOverrides = data.levelOverrides || {};
     orgsimRender();
     showToast('✅ 시나리오를 불러왔습니다');
   } catch(e) { console.error(e); showToast('❌ 불러오기 실패'); }
@@ -6876,10 +6891,14 @@ var _orgsimTitleOverrides = {};    // { empId: 새직책('' 이면 해제) }
 var _orgsimConcurrentOverrides = {}; // { empId: 겸직배열(concurrent 형식 그대로) } — 있으면 이 값으로 완전히 대체해서 렌더
 var _orgsimNewEmps = [];           // 시뮬레이션에서 임시로 추가한 신규채용 인원
 var _orgsimDeletedEmpIds = {};     // { empId: true } 시뮬레이션에서 삭제 표시한 인원 (실제 재직자·신규채용 공통)
+var _orgsimLevelOverrides = {};    // { deptId: 1(본부)|2(부서)|3(팀) } — 박스 색상/구분에 쓰이는 dept.orgLevel 오버라이드
 
 // 시뮬레이션 추가/삭제가 반영된 부서 목록 (전역 departments는 그대로 두고, 렌더링에서만 이 값을 씀)
 function orgsimGetSimDepts() {
-  return departments.concat(_orgsimNewDepts).filter(function(d){ return !_orgsimDeletedDeptIds[d.id]; });
+  return departments.concat(_orgsimNewDepts).filter(function(d){ return !_orgsimDeletedDeptIds[d.id]; }).map(function(d){
+    var override = _orgsimLevelOverrides[d.id];
+    return override ? Object.assign({}, d, { orgLevel: override }) : d;
+  });
 }
 
 // 시뮬레이션 신규채용/삭제가 반영된 인원 목록 (전역 employees는 그대로 두고, 렌더링에서만 이 값을 씀)
@@ -7111,6 +7130,7 @@ function orgsimMoveEmpTo(empId, deptName) {
 function orgsimDeptMenu(deptId) {
   var dept = orgsimGetSimDepts().find(function(d){ return d.id === deptId; });
   if (!dept) return;
+  var currentLevel = _orgsimLevelOverrides[deptId] || dept.orgLevel || '';
   var existing = document.getElementById('orgsim-dept-menu');
   if (existing) existing.remove();
   var modal = document.createElement('div');
@@ -7119,6 +7139,13 @@ function orgsimDeptMenu(deptId) {
   modal.innerHTML =
     '<div style="background:#fff;border-radius:12px;padding:18px;width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">' +
       '<div style="font-size:14px;font-weight:700;margin-bottom:12px">'+orgsimDeptName(dept)+'</div>' +
+      '<div style="font-size:12px;color:var(--t3);margin-bottom:4px">구분</div>' +
+      '<select class="form-input" style="width:100%;margin-bottom:12px" onchange="orgsimSetDeptLevel(\''+deptId+'\',this.value)">' +
+        '<option value="">자동(위치 기준)</option>' +
+        '<option value="1"'+(String(currentLevel)==='1'?' selected':'')+'>본부</option>' +
+        '<option value="2"'+(String(currentLevel)==='2'?' selected':'')+'>부서</option>' +
+        '<option value="3"'+(String(currentLevel)==='3'?' selected':'')+'>팀</option>' +
+      '</select>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimAddDeptUnder(\''+deptId+'\')">➕ 이 조직 밑에 하위조직 추가</button>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimRenameDept(\''+deptId+'\')">✎ 이름 변경</button>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px;color:#dc2626" onclick="document.getElementById(\'orgsim-dept-menu\').remove();orgsimDeleteDept(\''+deptId+'\')">🗑 이 조직 삭제</button>' +
@@ -7127,6 +7154,13 @@ function orgsimDeptMenu(deptId) {
     '</div>';
   document.body.appendChild(modal);
   modal.addEventListener('click', function(ev){ if (ev.target === modal) modal.remove(); });
+}
+
+function orgsimSetDeptLevel(deptId, level) {
+  if (!level) delete _orgsimLevelOverrides[deptId];
+  else _orgsimLevelOverrides[deptId] = parseInt(level);
+  orgsimRenderReal();
+  orgsimRenderChanges();
 }
 
 function orgsimAddDeptUnder(parentId) {
