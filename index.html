@@ -7977,6 +7977,12 @@ function orgsimDownloadPPT() {
 
   if (cvs) cvs.style.transform = savedT;
 
+  function validRect(r) {
+    return r && isFinite(r.x) && isFinite(r.y) && isFinite(r.w) && isFinite(r.h) && r.w > 0 && r.h > 0;
+  }
+  deptBoxes = deptBoxes.filter(function(d){ return validRect(d.rect); });
+  people = people.filter(function(p){ return validRect(p.rect); });
+
   var maxX = 0, maxY = 0;
   deptBoxes.concat(people).forEach(function(o){
     if (o.rect.x + o.rect.w > maxX) maxX = o.rect.x + o.rect.w;
@@ -8024,12 +8030,13 @@ function orgsimDownloadPPT() {
       slide.addText([
         { text: d.name, options:{ breakLine:true, fontSize: px2pt(d.nameFontPx) } },
         { text: d.count, options:{ fontSize: px2pt(d.countFontPx) } }
-      ], { x:x-padW/2, y:y, w:w+padW, h:h, align:'center', valign:'middle', color:d.color, bold:true, fontFace:'맑은 고딕', wrap:false, shrinkText:true, autoFit:true });
+      ], { x:x-padW/2, y:y, w:w+padW, h:h, align:'center', valign:'middle', color:d.color, bold:true, fontFace:'맑은 고딕', wrap:false, shrinkText:true });
     });
 
     people.forEach(function(p){
       var x=px2x(p.rect.x), y=px2y(p.rect.y), w=px2len(p.rect.w), h=px2len(p.rect.h);
       var dataUrl = p.photoSrc ? photoDataMap[p.photoSrc] : null;
+      if (dataUrl && dataUrl.indexOf('data:image/') !== 0) dataUrl = null; // fetch 실패로 이미지가 아닌 데이터가 들어온 경우 방지
       if (dataUrl) {
         slide.addImage({ data: dataUrl, x:x, y:y, w:w, h:h, rounding:true });
       } else {
