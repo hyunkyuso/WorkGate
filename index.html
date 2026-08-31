@@ -1327,10 +1327,6 @@ select.form-input{cursor:pointer}
         <div class="page-header">
           <div><div class="page-title">🧪 조직도 시뮬레이션</div><div class="page-sub">드래그로 인원을 옮기고, 부서박스를 더블클릭해 이름을 바꿔보세요 (저장 전까지 실제 데이터는 바뀌지 않습니다)</div></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <div style="display:flex;gap:4px">
-              <button id="orgsim-view-real-btn" class="btn btn-primary btn-sm" onclick="orgsimSwitchView('real')">🌳 실제 조직도</button>
-              <button id="orgsim-view-board-btn" class="btn btn-ghost btn-sm" onclick="orgsimSwitchView('board')">📋 카드형</button>
-            </div>
             <select class="form-input" id="orgsim-load-select" style="max-width:180px" onchange="orgsimLoadDraft(this.value)"><option value="">시나리오 불러오기...</option></select>
             <button class="btn btn-ghost btn-sm" onclick="orgsimDeleteDraft()" title="선택된 시나리오 삭제">🗑 시나리오 삭제</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimTrashOpen()">🗑 휴지통</button>
@@ -1354,8 +1350,6 @@ select.form-input{cursor:pointer}
             </div>
           </div>
         </div>
-
-        <div id="orgsim-view-board" style="display:none;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
       </div>
 
       <!-- 조직 관리 -->
@@ -6673,15 +6667,6 @@ var _orgsimOverrides = {}; // { empId: 새부서명 } — 실제 데이터와 �
 function orgsimEmpId(e) { return e._docId || e.id; }
 function orgsimCurrentDept(e) { return _orgsimOverrides[orgsimEmpId(e)] || e.dept; }
 
-var _orgsimView = 'real';
-function orgsimSwitchView(view) {
-  _orgsimView = view;
-  document.getElementById('orgsim-view-real').style.display = view === 'real' ? 'flex' : 'none';
-  document.getElementById('orgsim-view-board').style.display = view === 'board' ? 'grid' : 'none';
-  document.getElementById('orgsim-view-real-btn').className = 'btn btn-sm ' + (view === 'real' ? 'btn-primary' : 'btn-ghost');
-  document.getElementById('orgsim-view-board-btn').className = 'btn btn-sm ' + (view === 'board' ? 'btn-primary' : 'btn-ghost');
-}
-
 function orgsimRender() {
   orgsimPopulateDraftList();
   try {
@@ -6691,44 +6676,10 @@ function orgsimRender() {
     var c = document.getElementById('orgsim-chart-real');
     if (c) c.innerHTML = '<div style="padding:20px;color:#dc2626;font-size:13px">조직도를 그리는 중 오류가 발생했습니다: '+e.message+'</div>';
   }
-  var depts = [...departments].sort(function(a,b){ return (a.sortOrder||99)-(b.sortOrder||99); });
-  var activeEmps = employees.filter(function(e){ return e.status !== '퇴직'; });
-
-  document.getElementById('orgsim-view-board').innerHTML = depts.map(function(d){
-    var members = activeEmps.filter(function(e){ return orgsimCurrentDept(e) === d.name; });
-    var chips = members.map(function(e){
-      var empId = orgsimEmpId(e);
-      var moved = !!_orgsimOverrides[empId];
-      return '<div draggable="true" ondragstart="orgsimDragStart(event,\''+empId+'\')" ' +
-        'style="padding:5px 8px;margin-bottom:5px;border-radius:6px;background:'+(moved?'#fef3c7':'var(--surface)')+';font-size:12px;cursor:grab;display:flex;justify-content:space-between;align-items:center">' +
-        '<span>'+e.name+(moved?' <span style="font-size:10px;color:#b45309">(이동됨)</span>':'')+'</span>' +
-      '</div>';
-    }).join('');
-    return '<div ondragover="event.preventDefault()" ondrop="orgsimDrop(event,\''+d.name.replace(/'/g,"\\'")+'\')" ' +
-      'style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px;min-height:100px">' +
-      '<div style="font-weight:700;font-size:13px;margin-bottom:8px;display:flex;justify-content:space-between">' +
-        '<span>'+d.name+'</span><span style="color:var(--t3);font-weight:400">'+members.length+'명</span>' +
-      '</div>' +
-      (chips || '<div style="font-size:11px;color:var(--t3);text-align:center;padding:10px 0">여기로 드래그</div>') +
-    '</div>';
-  }).join('');
-
   orgsimRenderChanges();
 }
 
 var _orgsimDragEmpId = null;
-function orgsimDragStart(ev, empId) { _orgsimDragEmpId = empId; }
-
-function orgsimDrop(ev, newDept) {
-  ev.preventDefault();
-  if (!_orgsimDragEmpId) return;
-  var emp = employees.find(function(e){ return orgsimEmpId(e) === _orgsimDragEmpId; });
-  if (!emp) return;
-  if (newDept === emp.dept) delete _orgsimOverrides[_orgsimDragEmpId]; // 원래 부서로 돌아오면 변경사항에서 제거
-  else _orgsimOverrides[_orgsimDragEmpId] = newDept;
-  _orgsimDragEmpId = null;
-  orgsimRender();
-}
 
 function orgsimHasAnyChanges() {
   return Object.keys(_orgsimOverrides).length || Object.keys(_orgsimDeptNameOverrides).length ||
