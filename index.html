@@ -6734,7 +6734,8 @@ function orgsimHasAnyChanges() {
   return Object.keys(_orgsimOverrides).length || Object.keys(_orgsimDeptNameOverrides).length ||
     _orgsimNewDepts.length || Object.keys(_orgsimDeletedDeptIds).length ||
     Object.keys(_orgsimTitleOverrides).length || Object.keys(_orgsimConcurrentOverrides).length ||
-    _orgsimNewEmps.length || Object.keys(_orgsimDeletedEmpIds).length || Object.keys(_orgsimLevelOverrides).length;
+    _orgsimNewEmps.length || Object.keys(_orgsimDeletedEmpIds).length || Object.keys(_orgsimLevelOverrides).length ||
+    Object.keys(_orgsimResignDateOverrides).length;
 }
 
 var _orgsimChangesOpen = false;
@@ -6750,9 +6751,10 @@ function orgsimRenderChanges() {
   var concKeys = Object.keys(_orgsimConcurrentOverrides);
   var deletedKeys = Object.keys(_orgsimDeletedDeptIds);
   var deletedEmpKeys = Object.keys(_orgsimDeletedEmpIds);
+  var resignKeys = Object.keys(_orgsimResignDateOverrides);
   var el = document.getElementById('orgsim-changes');
   if (!orgsimHasAnyChanges()) { el.innerHTML = '<div style="font-size:12px;color:var(--t3)">아직 변경사항이 없습니다. 직원 카드를 다른 부서로 드래그하거나, 부서박스를 더블클릭해 이름을 바꿔보세요. (우클릭: 직책·겸직·삭제)</div>'; return; }
-  var totalCount = empKeys.length + deptKeys.length + titleKeys.length + concKeys.length + deletedKeys.length + _orgsimNewDepts.length + _orgsimNewEmps.length + deletedEmpKeys.length;
+  var totalCount = empKeys.length + deptKeys.length + titleKeys.length + concKeys.length + deletedKeys.length + _orgsimNewDepts.length + _orgsimNewEmps.length + deletedEmpKeys.length + resignKeys.length;
   var bodyHtml =
     empKeys.map(function(empId){
       var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
@@ -6788,6 +6790,11 @@ function orgsimRenderChanges() {
     deletedEmpKeys.map(function(empId){
       var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
       return '<div style="font-size:12px;color:#dc2626">[인원삭제] '+(emp?emp.name:empId)+'</div>';
+    }).join('') +
+    resignKeys.map(function(empId){
+      var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
+      if (!emp) return '';
+      return '<div style="font-size:12px;color:#b45309">[퇴사예정] '+emp.name+' : <strong>'+_orgsimResignDateOverrides[empId]+'</strong></div>';
     }).join('');
 
   el.innerHTML = '<div style="background:var(--surface);border-radius:8px;padding:8px 14px">' +
@@ -6810,6 +6817,7 @@ function orgsimReset() {
   _orgsimNewEmps = [];
   _orgsimDeletedEmpIds = {};
   _orgsimLevelOverrides = {};
+  _orgsimResignDateOverrides = {};
   _orgsimCurrentDraftId = '';
   orgsimRender();
 }
@@ -6830,6 +6838,7 @@ async function orgsimSaveDraft() {
       newEmps: _orgsimNewEmps,
       deletedEmpIds: _orgsimDeletedEmpIds,
       levelOverrides: _orgsimLevelOverrides,
+      resignDateOverrides: _orgsimResignDateOverrides,
       createdAt: new Date().toISOString(), createdBy: (state.user && state.user.email) || ''
     });
     showToast('✅ 임시저장되었습니다');
@@ -6866,6 +6875,7 @@ async function orgsimLoadDraft(draftId) {
     _orgsimNewEmps = data.newEmps || [];
     _orgsimDeletedEmpIds = data.deletedEmpIds || {};
     _orgsimLevelOverrides = data.levelOverrides || {};
+    _orgsimResignDateOverrides = data.resignDateOverrides || {};
     _orgsimCurrentDraftId = draftId;
     orgsimRender();
     showToast('✅ 시나리오를 불러왔습니다');
@@ -6895,6 +6905,7 @@ var _orgsimConcurrentOverrides = {}; // { empId: 겸직배열(concurrent 형식 
 var _orgsimNewEmps = [];           // 시뮬레이션에서 임시로 추가한 신규채용 인원
 var _orgsimDeletedEmpIds = {};     // { empId: true } 시뮬레이션에서 삭제 표시한 인원 (실제 재직자·신규채용 공통)
 var _orgsimLevelOverrides = {};    // { deptId: 1(본부)|2(부서)|3(팀) } — 박스 색상/구분에 쓰이는 dept.orgLevel 오버라이드
+var _orgsimResignDateOverrides = {}; // { empId: 'YYYY-MM-DD' } — 시뮬레이션상 퇴사예정일 (실제 퇴사 처리는 아님, 표시만)
 
 // 시뮬레이션 추가/삭제가 반영된 부서 목록 (전역 departments는 그대로 두고, 렌더링에서만 이 값을 씀)
 function orgsimGetSimDepts() {
@@ -7043,6 +7054,20 @@ function orgsimDeleteDept(deptId) {
   orgsimRenderChanges();
 }
 
+function orgsimSetResignDate(empId) {
+  var emp = orgsimGetSimEmps().find(function(e){ return orgsimEmpId(e) === empId; });
+  if (!emp) return;
+  var current = _orgsimResignDateOverrides[empId] || '';
+  var dateStr = prompt(emp.name+'님의 퇴사예정일을 입력하세요 (YYYY-MM-DD, 해제하려면 비워두세요)', current);
+  if (dateStr === null) return;
+  dateStr = dateStr.trim();
+  if (!dateStr) { delete _orgsimResignDateOverrides[empId]; }
+  else if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) { showToast('❌ 날짜 형식은 YYYY-MM-DD로 입력하세요'); return; }
+  else { _orgsimResignDateOverrides[empId] = dateStr; }
+  orgsimRenderReal();
+  orgsimRenderChanges();
+}
+
 function orgsimAssignTitle(empId) {
   var emp = orgsimGetSimEmps().find(function(e){ return orgsimEmpId(e) === empId; });
   if (!emp) return;
@@ -7137,6 +7162,7 @@ function orgsimEmpMenu(empId) {
       '<select class="form-input" style="width:100%;margin-bottom:10px" onchange="document.getElementById(\'orgsim-emp-menu\').remove();orgsimMoveEmpTo(\''+empId+'\',this.value)">'+deptOptions+'</select>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px;text-align:left" onclick="document.getElementById(\'orgsim-emp-menu\').remove();orgsimAssignTitle(\''+empId+'\')">🏷️ 직책 지정/해제</button>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px;text-align:left" onclick="document.getElementById(\'orgsim-emp-menu\').remove();orgsimAddConcurrent(\''+empId+'\')">➕ 겸직 추가</button>' +
+      '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px;text-align:left;color:#b45309" onclick="document.getElementById(\'orgsim-emp-menu\').remove();orgsimSetResignDate(\''+empId+'\')">📅 퇴사예정일 설정'+(_orgsimResignDateOverrides[empId]?' ('+_orgsimResignDateOverrides[empId]+')':'')+'</button>' +
       (conc.length ? conc.map(function(c){
         return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:4px 8px;background:var(--surface);border-radius:6px;margin-bottom:4px">' +
           '<span>겸직: '+c.dept+(c.title?' ('+c.title+')':'')+'</span>' +
@@ -7720,6 +7746,10 @@ function orgsimRenderReal() {
         if(e.position) nodes+='<span style="font-size:18px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
         nodes+='<span style="font-size:18px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.name+'</span>';
         nodes+='</div>';
+        if(_orgsimResignDateOverrides[orgsimEmpId(e)]){
+          var rd2=_orgsimResignDateOverrides[orgsimEmpId(e)].split('-');
+          nodes+='<div style="text-align:center;margin-top:2px"><span style="font-size:11px;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:4px">'+rd2[1]+'/'+rd2[2]+' 퇴사예정</span></div>';
+        }
 
         nodes+='</div>';
       });
@@ -7777,6 +7807,10 @@ function orgsimRenderReal() {
       h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+((e.position==='대표이사')?'CEO':(e.position?e.position+' ':' '))+'</span>';
       h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+e.name+'</span>';
       h+='</div>';
+      if(_orgsimResignDateOverrides[orgsimEmpId(e)]){
+        var rd=_orgsimResignDateOverrides[orgsimEmpId(e)].split('-');
+        h+='<div style="text-align:center;margin-top:2px"><span style="font-size:11px;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:4px">'+rd[1]+'/'+rd[2]+' 퇴사예정</span></div>';
+      }
       h+='</div>';
       return h;
     };
