@@ -1333,11 +1333,12 @@ select.form-input{cursor:pointer}
             </div>
             <select class="form-input" id="orgsim-load-select" style="max-width:180px" onchange="orgsimLoadDraft(this.value)"><option value="">시나리오 불러오기...</option></select>
             <button class="btn btn-ghost btn-sm" onclick="orgsimAddDept()">➕ 조직 추가</button>
+            <button class="btn btn-ghost btn-sm" onclick="orgsimAddEmployee()">🆕 신규채용</button>
+            <button class="btn btn-ghost btn-sm" onclick="orgsimTrashOpen()">🗑 휴지통</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimSaveDraft()">💾 임시저장</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimReset()">↺ 초기화</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimPrint()">🖨 인쇄</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimDownloadPPT()" style="color:#C43E1C;border-color:#C43E1C">📑 PPT</button>
-            <button class="btn btn-primary btn-sm" onclick="orgsimApplyReal()">✅ 실제 반영</button>
           </div>
         </div>
         <div id="orgsim-changes" style="margin-bottom:14px"></div>
@@ -1348,7 +1349,7 @@ select.form-input{cursor:pointer}
             <button class="btn btn-ghost btn-sm" onclick="orgsimZoom(-0.15)">🔍-</button>
             <button class="btn btn-ghost btn-sm" onclick="orgsimResetViewReal()">⊡ 맞춤</button>
           </div>
-          <div id="orgsim-wrap-real" style="flex:1;min-height:500px;overflow:hidden;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);position:relative">
+          <div id="orgsim-wrap-real" style="flex:1;min-height:500px;overflow:hidden;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);position:relative;cursor:grab">
             <div id="orgsim-canvas-real" style="position:absolute;transform-origin:0 0;transform:scale(0.7) translate(20px,20px)">
               <div id="orgsim-chart-real"></div>
             </div>
@@ -6473,6 +6474,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }, {passive:false});
 });
 
+var orgsimDragging = false, orgsimDragX = 0, orgsimDragY = 0, orgsimDragOX = 0, orgsimDragOY = 0;
+document.addEventListener('DOMContentLoaded', () => {
+  const simWrap = document.getElementById('orgsim-wrap-real');
+  if (!simWrap) return;
+  simWrap.addEventListener('mousedown', e => {
+    orgsimDragging = true;
+    orgsimDragX = e.clientX; orgsimDragY = e.clientY;
+    orgsimDragOX = orgsimOffX; orgsimDragOY = orgsimOffY;
+    simWrap.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!orgsimDragging) return;
+    orgsimOffX = orgsimDragOX + (e.clientX - orgsimDragX);
+    orgsimOffY = orgsimDragOY + (e.clientY - orgsimDragY);
+    orgsimApplyTransform();
+  });
+  document.addEventListener('mouseup', () => {
+    orgsimDragging = false;
+    const simWrap = document.getElementById('orgsim-wrap-real');
+    if (simWrap) simWrap.style.cursor = 'grab';
+  });
+  simWrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    orgsimZoom(e.deltaY > 0 ? -0.1 : 0.1);
+  }, {passive:false});
+});
+
 function orgviewGoLevel(idx) {}
 
 // ── 부서 상세 모달 ──
@@ -6698,7 +6727,8 @@ function orgsimDrop(ev, newDept) {
 function orgsimHasAnyChanges() {
   return Object.keys(_orgsimOverrides).length || Object.keys(_orgsimDeptNameOverrides).length ||
     _orgsimNewDepts.length || Object.keys(_orgsimDeletedDeptIds).length ||
-    Object.keys(_orgsimTitleOverrides).length || Object.keys(_orgsimConcurrentOverrides).length;
+    Object.keys(_orgsimTitleOverrides).length || Object.keys(_orgsimConcurrentOverrides).length ||
+    _orgsimNewEmps.length || Object.keys(_orgsimDeletedEmpIds).length;
 }
 
 function orgsimRenderChanges() {
@@ -6707,9 +6737,10 @@ function orgsimRenderChanges() {
   var titleKeys = Object.keys(_orgsimTitleOverrides);
   var concKeys = Object.keys(_orgsimConcurrentOverrides);
   var deletedKeys = Object.keys(_orgsimDeletedDeptIds);
+  var deletedEmpKeys = Object.keys(_orgsimDeletedEmpIds);
   var el = document.getElementById('orgsim-changes');
-  if (!orgsimHasAnyChanges()) { el.innerHTML = '<div style="font-size:12px;color:var(--t3)">아직 변경사항이 없습니다. 직원 카드를 다른 부서로 드래그하거나, 부서박스를 더블클릭해 이름을 바꿔보세요. (우클릭: 직책·겸직 설정)</div>'; return; }
-  var totalCount = empKeys.length + deptKeys.length + titleKeys.length + concKeys.length + deletedKeys.length + _orgsimNewDepts.length;
+  if (!orgsimHasAnyChanges()) { el.innerHTML = '<div style="font-size:12px;color:var(--t3)">아직 변경사항이 없습니다. 직원 카드를 다른 부서로 드래그하거나, 부서박스를 더블클릭해 이름을 바꿔보세요. (우클릭: 직책·겸직·삭제)</div>'; return; }
+  var totalCount = empKeys.length + deptKeys.length + titleKeys.length + concKeys.length + deletedKeys.length + _orgsimNewDepts.length + _orgsimNewEmps.length + deletedEmpKeys.length;
   el.innerHTML = '<div style="background:var(--surface);border-radius:8px;padding:10px 14px">' +
     '<div style="font-weight:600;font-size:13px;margin-bottom:6px">변경사항 ('+totalCount+'건)</div>' +
     empKeys.map(function(empId){
@@ -6727,7 +6758,7 @@ function orgsimRenderChanges() {
     }).join('') +
     deletedKeys.map(function(deptId){
       var dept = departments.find(function(d){ return d.id === deptId; });
-      return '<div style="font-size:12px;color:#dc2626">[삭제] '+(dept?dept.name:deptId)+'</div>';
+      return '<div style="font-size:12px;color:#dc2626">[조직삭제] '+(dept?dept.name:deptId)+'</div>';
     }).join('') +
     titleKeys.map(function(empId){
       var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
@@ -6740,6 +6771,13 @@ function orgsimRenderChanges() {
       var list = _orgsimConcurrentOverrides[empId].map(function(c){ return c.dept; }).join(', ') || '없음';
       return '<div style="font-size:12px;color:var(--t2)">[겸직] '+emp.name+' : <strong>'+list+'</strong></div>';
     }).join('') +
+    _orgsimNewEmps.map(function(e){
+      return '<div style="font-size:12px;color:var(--t2)">[신규채용] <strong>'+e.name+'</strong> ('+e.dept+')</div>';
+    }).join('') +
+    deletedEmpKeys.map(function(empId){
+      var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
+      return '<div style="font-size:12px;color:#dc2626">[인원삭제] '+(emp?emp.name:empId)+'</div>';
+    }).join('') +
   '</div>';
 }
 
@@ -6751,6 +6789,8 @@ function orgsimReset() {
   _orgsimDeletedDeptIds = {};
   _orgsimTitleOverrides = {};
   _orgsimConcurrentOverrides = {};
+  _orgsimNewEmps = [];
+  _orgsimDeletedEmpIds = {};
   orgsimRender();
 }
 
@@ -6767,6 +6807,8 @@ async function orgsimSaveDraft() {
       deletedDeptIds: _orgsimDeletedDeptIds,
       titleOverrides: _orgsimTitleOverrides,
       concurrentOverrides: _orgsimConcurrentOverrides,
+      newEmps: _orgsimNewEmps,
+      deletedEmpIds: _orgsimDeletedEmpIds,
       createdAt: new Date().toISOString(), createdBy: (state.user && state.user.email) || ''
     });
     showToast('✅ 임시저장되었습니다');
@@ -6798,6 +6840,8 @@ async function orgsimLoadDraft(draftId) {
     _orgsimDeletedDeptIds = data.deletedDeptIds || {};
     _orgsimTitleOverrides = data.titleOverrides || {};
     _orgsimConcurrentOverrides = data.concurrentOverrides || {};
+    _orgsimNewEmps = data.newEmps || [];
+    _orgsimDeletedEmpIds = data.deletedEmpIds || {};
     orgsimRender();
     showToast('✅ 시나리오를 불러왔습니다');
   } catch(e) { console.error(e); showToast('❌ 불러오기 실패'); }
@@ -6809,10 +6853,89 @@ var _orgsimNewDepts = [];          // 시뮬레이션에서 임시로 추가한 
 var _orgsimDeletedDeptIds = {};    // { deptId: true } 시뮬레이션에서 삭제 표시한 부서
 var _orgsimTitleOverrides = {};    // { empId: 새직책('' 이면 해제) }
 var _orgsimConcurrentOverrides = {}; // { empId: 겸직배열(concurrent 형식 그대로) } — 있으면 이 값으로 완전히 대체해서 렌더
+var _orgsimNewEmps = [];           // 시뮬레이션에서 임시로 추가한 신규채용 인원
+var _orgsimDeletedEmpIds = {};     // { empId: true } 시뮬레이션에서 삭제 표시한 인원 (실제 재직자·신규채용 공통)
 
 // 시뮬레이션 추가/삭제가 반영된 부서 목록 (전역 departments는 그대로 두고, 렌더링에서만 이 값을 씀)
 function orgsimGetSimDepts() {
   return departments.concat(_orgsimNewDepts).filter(function(d){ return !_orgsimDeletedDeptIds[d.id]; });
+}
+
+// 시뮬레이션 신규채용/삭제가 반영된 인원 목록 (전역 employees는 그대로 두고, 렌더링에서만 이 값을 씀)
+function orgsimGetSimEmps() {
+  return employees.concat(_orgsimNewEmps).filter(function(e){ return !_orgsimDeletedEmpIds[orgsimEmpId(e)]; });
+}
+
+async function orgsimAddEmployee() {
+  var name = prompt('신규채용 인원의 이름을 입력하세요');
+  if (!name) return;
+  var deptName = prompt('배치할 부서명을 입력하세요');
+  if (!deptName) return;
+  var dept = orgsimGetSimDepts().find(function(d){ return d.name === deptName.trim(); });
+  if (!dept) { showToast('❌ 해당 부서를 찾을 수 없습니다'); return; }
+  var position = prompt('직위(선택, 예: 사원) — 없으면 비워두세요') || '';
+  var newId = 'orgsim-newemp-'+Date.now();
+  _orgsimNewEmps.push({ id: newId, name: name.trim(), dept: dept.name, position: position.trim(), title: '', status: '재직', concurrent: [] });
+  orgsimRenderReal();
+  orgsimRenderChanges();
+  showToast('✅ 신규채용 인원이 추가되었습니다');
+}
+
+function orgsimDeleteEmployee(empId) {
+  var emp = orgsimGetSimEmps().find(function(e){ return orgsimEmpId(e) === empId; });
+  if (!emp) return;
+  if (!confirm('"'+emp.name+'"님을 시뮬레이션에서 삭제할까요? (휴지통에서 복원할 수 있습니다)')) return;
+  if (empId.indexOf('orgsim-newemp-') === 0) {
+    _orgsimNewEmps = _orgsimNewEmps.filter(function(e){ return e.id !== empId; });
+  } else {
+    _orgsimDeletedEmpIds[empId] = true;
+  }
+  orgsimRenderReal();
+  orgsimRenderChanges();
+}
+
+function orgsimTrashOpen() {
+  var existing = document.getElementById('orgsim-trash-modal');
+  if (existing) existing.remove();
+  var deletedDepts = Object.keys(_orgsimDeletedDeptIds).map(function(id){ return departments.find(function(d){ return d.id === id; }); }).filter(Boolean);
+  var deletedEmps = Object.keys(_orgsimDeletedEmpIds).map(function(id){ return employees.find(function(e){ return orgsimEmpId(e) === id; }); }).filter(Boolean);
+  var modal = document.createElement('div');
+  modal.id = 'orgsim-trash-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:#fff;border-radius:12px;padding:18px;width:340px;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2)">' +
+      '<div style="font-size:14px;font-weight:700;margin-bottom:12px">🗑 휴지통</div>' +
+      '<div style="font-size:12px;color:var(--t3);margin-bottom:6px">삭제된 조직</div>' +
+      (deletedDepts.length ? deletedDepts.map(function(d){
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:var(--surface);border-radius:6px;margin-bottom:4px;font-size:12px">' +
+          '<span>'+d.name+'</span><button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="orgsimRestoreDept(\''+d.id+'\')">복원</button>' +
+        '</div>';
+      }).join('') : '<div style="font-size:12px;color:var(--t3);margin-bottom:8px">없음</div>') +
+      '<div style="font-size:12px;color:var(--t3);margin:10px 0 6px">삭제된 인원</div>' +
+      (deletedEmps.length ? deletedEmps.map(function(e){
+        var empId = orgsimEmpId(e);
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:var(--surface);border-radius:6px;margin-bottom:4px;font-size:12px">' +
+          '<span>'+e.name+' ('+e.dept+')</span><button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="orgsimRestoreEmp(\''+empId+'\')">복원</button>' +
+        '</div>';
+      }).join('') : '<div style="font-size:12px;color:var(--t3);margin-bottom:8px">없음</div>') +
+      '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="document.getElementById(\'orgsim-trash-modal\').remove()">닫기</button>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(ev){ if (ev.target === modal) modal.remove(); });
+}
+
+function orgsimRestoreDept(deptId) {
+  delete _orgsimDeletedDeptIds[deptId];
+  orgsimRenderReal();
+  orgsimRenderChanges();
+  orgsimTrashOpen();
+}
+
+function orgsimRestoreEmp(empId) {
+  delete _orgsimDeletedEmpIds[empId];
+  orgsimRenderReal();
+  orgsimRenderChanges();
+  orgsimTrashOpen();
 }
 
 async function orgsimAddDept() {
@@ -6846,7 +6969,7 @@ function orgsimDeleteDept(deptId) {
 }
 
 function orgsimAssignTitle(empId) {
-  var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
+  var emp = orgsimGetSimEmps().find(function(e){ return orgsimEmpId(e) === empId; });
   if (!emp) return;
   var current = _orgsimTitleOverrides.hasOwnProperty(empId) ? _orgsimTitleOverrides[empId] : (emp.title||'');
   var title = prompt(emp.name+'님의 직책을 입력하세요 (본부장/부서장/팀장, 해제하려면 비워두세요)', current);
@@ -6864,7 +6987,7 @@ function orgsimCurrentConcurrent(e) {
 }
 
 function orgsimAddConcurrent(empId) {
-  var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
+  var emp = orgsimGetSimEmps().find(function(e){ return orgsimEmpId(e) === empId; });
   if (!emp) return;
   var deptName = prompt(emp.name+'님이 겸직할 부서명을 입력하세요');
   if (!deptName) return;
@@ -6878,7 +7001,7 @@ function orgsimAddConcurrent(empId) {
 }
 
 function orgsimRemoveConcurrent(empId, deptName) {
-  var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
+  var emp = orgsimGetSimEmps().find(function(e){ return orgsimEmpId(e) === empId; });
   if (!emp) return;
   var list = orgsimCurrentConcurrent(emp).filter(function(c){ return c.dept !== deptName; });
   _orgsimConcurrentOverrides[empId] = list;
@@ -6887,7 +7010,7 @@ function orgsimRemoveConcurrent(empId, deptName) {
 }
 
 function orgsimEmpMenu(empId) {
-  var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
+  var emp = orgsimGetSimEmps().find(function(e){ return orgsimEmpId(e) === empId; });
   if (!emp) return;
   var existing = document.getElementById('orgsim-emp-menu');
   if (existing) existing.remove();
@@ -6906,6 +7029,7 @@ function orgsimEmpMenu(empId) {
           '<span style="cursor:pointer;color:#dc2626" onclick="document.getElementById(\'orgsim-emp-menu\').remove();orgsimRemoveConcurrent(\''+empId+'\',\''+c.dept.replace(/'/g,"\\'")+'\')">✕</span>' +
         '</div>';
       }).join('') : '') +
+      '<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px;text-align:left;color:#dc2626" onclick="document.getElementById(\'orgsim-emp-menu\').remove();orgsimDeleteEmployee(\''+empId+'\')">🗑 인원 삭제</button>' +
       '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" onclick="document.getElementById(\'orgsim-emp-menu\').remove()">닫기</button>' +
     '</div>';
   document.body.appendChild(modal);
@@ -6917,19 +7041,20 @@ function orgsimDeptName(dept) {
 }
 
 function orgsimGetDeptCount(deptId) {
-  var dept = departments.find(function(d){ return d.id===deptId; });
+  var simDepts = orgsimGetSimDepts();
+  var simEmps = orgsimGetSimEmps();
+  var dept = simDepts.find(function(d){ return d.id===deptId; });
   if (!dept) return 0;
-  var countedUids = new Set();
-  employees.filter(function(e){ return orgsimCurrentDept(e)===dept.name && e.status!=='퇴직'; }).forEach(function(e){ countedUids.add(e.uid); });
+  var countedIds = new Set();
+  simEmps.filter(function(e){ return orgsimCurrentDept(e)===dept.name && e.status!=='퇴직'; }).forEach(function(e){ countedIds.add(orgsimEmpId(e)); });
   function addSub(pid) {
-    departments.filter(function(d){ return d.parent===pid; }).forEach(function(sub){
-      var subDept = departments.find(function(d){ return d.id===sub.id; });
-      if (subDept) employees.filter(function(e){ return orgsimCurrentDept(e)===subDept.name && e.status!=='퇴직'; }).forEach(function(e){ countedUids.add(e.uid); });
+    simDepts.filter(function(d){ return d.parent===pid; }).forEach(function(sub){
+      simEmps.filter(function(e){ return orgsimCurrentDept(e)===sub.name && e.status!=='퇴직'; }).forEach(function(e){ countedIds.add(orgsimEmpId(e)); });
       addSub(sub.id);
     });
   }
   addSub(deptId);
-  return countedUids.size;
+  return countedIds.size;
 }
 
 function orgsimDragStartReal(ev, empId) { _orgsimDragEmpId = empId; }
@@ -6937,8 +7062,8 @@ function orgsimDragStartReal(ev, empId) { _orgsimDragEmpId = empId; }
 function orgsimDropReal(ev, deptId) {
   ev.preventDefault();
   if (!_orgsimDragEmpId) return;
-  var emp = employees.find(function(e){ return orgsimEmpId(e) === _orgsimDragEmpId; });
-  var dept = departments.find(function(d){ return d.id === deptId; });
+  var emp = orgsimGetSimEmps().find(function(e){ return orgsimEmpId(e) === _orgsimDragEmpId; });
+  var dept = orgsimGetSimDepts().find(function(d){ return d.id === deptId; });
   if (!emp || !dept) return;
   if (dept.name === emp.dept) delete _orgsimOverrides[_orgsimDragEmpId];
   else _orgsimOverrides[_orgsimDragEmpId] = dept.name;
@@ -6999,6 +7124,7 @@ function orgsimResetViewReal() {
 
 function orgsimRenderReal() {
   const departments = orgsimGetSimDepts(); // 시뮬레이션 추가/삭제가 반영된 부서 목록 (전역 departments는 건드리지 않음)
+  const employees = orgsimGetSimEmps(); // 시뮬레이션 신규채용/삭제가 반영된 인원 목록 (전역 employees는 건드리지 않음)
   const chart = document.getElementById('orgsim-chart-real');
   if (!chart) return;
 
@@ -7721,68 +7847,6 @@ function orgsimDownloadPPT() {
     s.onerror = function(){ showToast('❌ 라이브러리 로드 실패'); };
     document.head.appendChild(s);
   }
-}
-
-async function orgsimApplyReal() {
-  var empKeys = Object.keys(_orgsimOverrides);
-  var deptKeys = Object.keys(_orgsimDeptNameOverrides);
-  var titleKeys = Object.keys(_orgsimTitleOverrides);
-  var concKeys = Object.keys(_orgsimConcurrentOverrides);
-  var deletedKeys = Object.keys(_orgsimDeletedDeptIds);
-  var totalCount = empKeys.length + deptKeys.length + titleKeys.length + concKeys.length + deletedKeys.length + _orgsimNewDepts.length;
-  if (!totalCount) { showToast('❌ 반영할 변경사항이 없습니다'); return; }
-  if (!confirm(totalCount+'건의 변경사항을 실제 조직도에 반영하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
-  try {
-    // 1) 신규 조직 먼저 생성 (직원 이동이 새 조직을 참조할 수 있으므로 먼저 처리)
-    for (var n=0; n<_orgsimNewDepts.length; n++) {
-      var nd = _orgsimNewDepts[n];
-      var docRef = await db.collection('departments').add({ name: nd.name, parent: nd.parent, position: nd.position, sortOrder: nd.sortOrder });
-      departments.push({ id: docRef.id, name: nd.name, parent: nd.parent, position: nd.position, sortOrder: nd.sortOrder });
-    }
-    // 2) 부서 이동
-    for (var i=0; i<empKeys.length; i++) {
-      var empId = empKeys[i];
-      await db.collection('employees').doc(empId).update({ dept: _orgsimOverrides[empId] });
-      var emp = employees.find(function(e){ return orgsimEmpId(e) === empId; });
-      if (emp) emp.dept = _orgsimOverrides[empId];
-    }
-    // 3) 부서명 변경
-    for (var j=0; j<deptKeys.length; j++) {
-      var deptId = deptKeys[j];
-      await db.collection('departments').doc(deptId).update({ name: _orgsimDeptNameOverrides[deptId] });
-      var dept = departments.find(function(d){ return d.id === deptId; });
-      if (dept) dept.name = _orgsimDeptNameOverrides[deptId];
-    }
-    // 4) 직책 지정/해제
-    for (var k=0; k<titleKeys.length; k++) {
-      var tEmpId = titleKeys[k];
-      await db.collection('employees').doc(tEmpId).update({ title: _orgsimTitleOverrides[tEmpId] });
-      var tEmp = employees.find(function(e){ return orgsimEmpId(e) === tEmpId; });
-      if (tEmp) tEmp.title = _orgsimTitleOverrides[tEmpId];
-    }
-    // 5) 겸직 변경
-    for (var m=0; m<concKeys.length; m++) {
-      var cEmpId = concKeys[m];
-      await db.collection('employees').doc(cEmpId).update({ concurrent: _orgsimConcurrentOverrides[cEmpId] });
-      var cEmp = employees.find(function(e){ return orgsimEmpId(e) === cEmpId; });
-      if (cEmp) cEmp.concurrent = _orgsimConcurrentOverrides[cEmpId];
-    }
-    // 6) 조직 삭제 (마지막에 처리)
-    for (var p=0; p<deletedKeys.length; p++) {
-      var delId = deletedKeys[p];
-      await db.collection('departments').doc(delId).delete();
-      departments = departments.filter(function(d){ return d.id !== delId; });
-    }
-
-    _orgsimOverrides = {};
-    _orgsimDeptNameOverrides = {};
-    _orgsimNewDepts = [];
-    _orgsimDeletedDeptIds = {};
-    _orgsimTitleOverrides = {};
-    _orgsimConcurrentOverrides = {};
-    orgsimRender();
-    showToast('✅ 실제 조직도에 반영되었습니다');
-  } catch(e) { console.error(e); showToast('❌ 반영 실패'); }
 }
 
 
