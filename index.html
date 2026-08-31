@@ -1323,7 +1323,7 @@ select.form-input{cursor:pointer}
       </div>
 
       <!-- 조직도 시뮬레이션 -->
-      <div id="page-orgsim" class="page orgview-page" style="display:flex;flex-direction:column">
+      <div id="page-orgsim" class="page orgview-page">
         <div class="page-header">
           <div><div class="page-title">🧪 조직도 시뮬레이션</div><div class="page-sub">드래그로 인원을 옮기고, 부서박스를 더블클릭해 이름을 바꿔보세요 (저장 전까지 실제 데이터는 바뀌지 않습니다)</div></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -6479,6 +6479,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const simWrap = document.getElementById('orgsim-wrap-real');
   if (!simWrap) return;
   simWrap.addEventListener('mousedown', e => {
+    if (e.target.closest('[draggable="true"]')) return; // 직원 카드(드래그 대상) 위에서는 화면 이동(패닝) 시작 안 함
     orgsimDragging = true;
     orgsimDragX = e.clientX; orgsimDragY = e.clientY;
     orgsimDragOX = orgsimOffX; orgsimDragOY = orgsimOffY;
