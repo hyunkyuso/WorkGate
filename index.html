@@ -7915,7 +7915,6 @@ function orgsimDownloadPPT() {
   const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\. /g,'-').replace('.','');
   showToast('📑 PPT(개별 객체) 생성 중...');
 
-  // 캔버스 변환(줌/이동)을 잠시 초기화해서 실제 좌표를 정확히 읽음
   const cvs = document.getElementById('orgsim-canvas-real');
   const savedT = cvs ? cvs.style.transform : '';
   if (cvs) cvs.style.transform = 'none';
@@ -7931,6 +7930,7 @@ function orgsimDownloadPPT() {
     if (!m) return '4472C4';
     return m.slice(0,3).map(function(n){ return ('0'+parseInt(n).toString(16)).slice(-2); }).join('').toUpperCase();
   }
+  function pxFontSize(el) { return parseFloat(getComputedStyle(el).fontSize) || 14; }
 
   // 부서 박스(색상 박스: 이 box-shadow 값을 가진 요소들만 해당)
   var deptBoxEls = Array.from(inner.querySelectorAll('div')).filter(function(el){
@@ -7939,14 +7939,19 @@ function orgsimDownloadPPT() {
   var deptBoxes = deptBoxEls.map(function(el){
     var rect = relRect(el);
     var cs = getComputedStyle(el);
-    var nameEl = el.childNodes[0]; // 첫번째 텍스트 노드가 부서명
+    var nameEl = el.childNodes[0];
     var name = (nameEl && nameEl.nodeType === 3) ? nameEl.textContent.trim() : el.textContent.split('명')[0];
     var countDiv = el.querySelector('div');
     var count = countDiv ? countDiv.textContent.trim() : '';
-    return { rect: rect, bg: rgbToHex(cs.backgroundColor), color: rgbToHex(cs.color), name: name, count: count };
+    return {
+      rect: rect, bg: rgbToHex(cs.backgroundColor), color: rgbToHex(cs.color),
+      name: name, count: count,
+      nameFontPx: pxFontSize(el),
+      countFontPx: countDiv ? pxFontSize(countDiv) : pxFontSize(el)
+    };
   });
 
-  // 직원 아바타(원형) + 바로 다음 이름 라벨
+  // 직원 아바타(원형) + 바로 다음 이름 라벨 (+ 실제 사진 있으면 사진 사용)
   var avatarEls = Array.from(inner.querySelectorAll('div')).filter(function(el){
     var st = el.getAttribute('style')||'';
     return st.indexOf('border-radius:50%') >= 0;
@@ -7955,15 +7960,20 @@ function orgsimDownloadPPT() {
     var rect = relRect(el);
     var cs = getComputedStyle(el);
     var initial = el.textContent.trim().slice(0,1);
-    var nameLabel = '';
+    var img = el.querySelector('img');
+    var photoSrc = img ? img.src : '';
+    var nameLabel = '', nameFontPx = 14;
     var sib = el.nextElementSibling;
-    if (sib) nameLabel = sib.textContent.trim();
-    return { rect: rect, bg: rgbToHex(cs.backgroundColor), initial: initial, name: nameLabel };
+    if (sib) {
+      nameLabel = sib.textContent.trim();
+      var nameSpan = sib.querySelector('span') || sib;
+      nameFontPx = pxFontSize(nameSpan);
+    }
+    return { rect: rect, bg: rgbToHex(cs.backgroundColor), initial: initial, photoSrc: photoSrc, name: nameLabel, nameFontPx: nameFontPx };
   });
 
   if (cvs) cvs.style.transform = savedT;
 
-  // 전체 범위 계산 → 슬라이드에 맞춤 비율 산정
   var maxX = 0, maxY = 0;
   deptBoxes.concat(people).forEach(function(o){
     if (o.rect.x + o.rect.w > maxX) maxX = o.rect.x + o.rect.w;
@@ -7977,13 +7987,26 @@ function orgsimDownloadPPT() {
   var slideChartW = aW, slideChartH = aW / ratio;
   if (slideChartH > aH) { slideChartH = aH; slideChartW = aH * ratio; }
   const offX = (sW - slideChartW) / 2, offY = hH;
-  const scale = slideChartW / maxX; // px → inch 배율
+  const scale = slideChartW / maxX; // px → inch 배율 (실측 좌표 기준)
+  const PT_PER_INCH = 72, PX_PER_INCH = 96;
 
   function px2x(px) { return offX + px * scale; }
   function px2y(px) { return offY + px * scale; }
   function px2len(px) { return px * scale; }
+  // 화면상 font-size(px)를, 지금 축소 비율(scale)을 반영한 실제 슬라이드 포인트 크기로 정확히 환산
+  function px2pt(fontPx) { return Math.max((fontPx / PX_PER_INCH) * scale * PT_PER_INCH, 6); }
 
-  function makePPT() {
+  function fetchAsDataURL(url) {
+    return fetch(url).then(function(r){ return r.blob(); }).then(function(blob){
+      return new Promise(function(resolve){
+        var reader = new FileReader();
+        reader.onloadend = function(){ resolve(reader.result); };
+        reader.readAsDataURL(blob);
+      });
+    }).catch(function(){ return null; });
+  }
+
+  function makePPT(photoDataMap) {
     const pres = new PptxGenJS();
     pres.layout = 'LAYOUT_WIDE';
     const slide = pres.addSlide();
@@ -7991,23 +8014,26 @@ function orgsimDownloadPPT() {
     slide.addText('조직도 시뮬레이션', { x:0.2, y:0.05, w:8, h:0.35, fontSize:18, bold:true, color:'1a1d2e' });
     slide.addText('기준일자: '+today+' (개별 객체 - 클릭해서 수정 가능)', { x:0.2, y:0.4, w:8, h:0.2, fontSize:9, color:'666666' });
 
-    // 부서 박스: 도형 + 텍스트
     deptBoxes.forEach(function(d){
       var x=px2x(d.rect.x), y=px2y(d.rect.y), w=px2len(d.rect.w), h=px2len(d.rect.h);
       slide.addShape('roundRect', { x:x, y:y, w:w, h:h, rectRadius:0.05, fill:{color:d.bg}, line:{type:'none'} });
       slide.addText([
-        { text: d.name, options:{ breakLine:true, bold:true } },
-        { text: d.count, options:{ fontSize: Math.max(px2len(d.rect.h)*40, 8) } }
-      ], { x:x, y:y, w:w, h:h, align:'center', valign:'middle', color:d.color, fontSize: Math.max(px2len(d.rect.h)*45, 8), fontFace:'맑은 고딕' });
+        { text: d.name, options:{ breakLine:true, fontSize: px2pt(d.nameFontPx) } },
+        { text: d.count, options:{ fontSize: px2pt(d.countFontPx) } }
+      ], { x:x, y:y, w:w, h:h, align:'center', valign:'middle', color:d.color, bold:true, fontFace:'맑은 고딕' });
     });
 
-    // 직원: 원(아바타) + 이름 텍스트
     people.forEach(function(p){
       var x=px2x(p.rect.x), y=px2y(p.rect.y), w=px2len(p.rect.w), h=px2len(p.rect.h);
-      slide.addShape('ellipse', { x:x, y:y, w:w, h:h, fill:{color:p.bg}, line:{color:'FFFFFF', width:1} });
-      slide.addText(p.initial, { x:x, y:y, w:w, h:h, align:'center', valign:'middle', color:'FFFFFF', bold:true, fontSize: Math.max(px2len(h)*40, 8) });
+      var dataUrl = p.photoSrc ? photoDataMap[p.photoSrc] : null;
+      if (dataUrl) {
+        slide.addImage({ data: dataUrl, x:x, y:y, w:w, h:h, rounding:true });
+      } else {
+        slide.addShape('ellipse', { x:x, y:y, w:w, h:h, fill:{color:p.bg}, line:{color:'FFFFFF', width:1} });
+        slide.addText(p.initial, { x:x, y:y, w:w, h:h, align:'center', valign:'middle', color:'FFFFFF', bold:true, fontSize: px2pt(h*PX_PER_INCH/scale*0.5) });
+      }
       if (p.name) {
-        slide.addText(p.name, { x:x-w*0.3, y:y+h+0.02, w:w*1.6, h:0.2, align:'center', fontSize: Math.max(px2len(h)*28, 6), bold:true, color:'1e293b', fontFace:'맑은 고딕' });
+        slide.addText(p.name, { x:x-w*0.3, y:y+h+0.02, w:w*1.6, h:0.22, align:'center', fontSize: px2pt(p.nameFontPx), bold:true, color:'1e293b', fontFace:'맑은 고딕' });
       }
     });
 
@@ -8016,12 +8042,21 @@ function orgsimDownloadPPT() {
       .catch(function(e){ console.error(e); showToast('❌ PPT 저장 실패'); });
   }
 
+  function proceedWithImages() {
+    var uniqueSrcs = Array.from(new Set(people.map(function(p){ return p.photoSrc; }).filter(Boolean)));
+    Promise.all(uniqueSrcs.map(fetchAsDataURL)).then(function(results){
+      var map = {};
+      uniqueSrcs.forEach(function(src, i){ if (results[i]) map[src] = results[i]; });
+      makePPT(map);
+    });
+  }
+
   if (typeof PptxGenJS !== 'undefined') {
-    makePPT();
+    proceedWithImages();
   } else {
     const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
-    s.onload = makePPT;
+    s.onload = proceedWithImages;
     s.onerror = function(){ showToast('❌ PptxGenJS 로드 실패'); };
     document.head.appendChild(s);
   }
