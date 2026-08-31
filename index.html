@@ -7739,17 +7739,19 @@ function orgsimRenderReal() {
           :'display:flex;flex-direction:column;align-items:center;width:'+EW+'px;cursor:pointer';
         const deptId2=departments.find(d=>d.name===(e.dept||''))||null;
         nodes+='<div draggable="true" ondragstart="orgsimDragStartReal(event,\''+orgsimEmpId(e)+'\')" onclick="orgsimEmpMenu(\''+orgsimEmpId(e)+'\')" oncontextmenu="event.preventDefault();orgsimEmpMenu(\''+orgsimEmpId(e)+'\')" title="클릭: 부서이동/직책/겸직/삭제 메뉴 · 드래그: 바로 부서 이동" style="'+boxStyle2+';cursor:pointer">';
-        nodes+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;margin:0 auto">';
+        nodes+='<div style="position:relative;width:76px;margin:0 auto">';
+        nodes+='<div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:'+avatarBorder2+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff">';
         nodes+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
-        nodes+='</div>';
-        nodes+='<div style="display:flex;align-items:center;gap:2px;margin-top:2px;max-width:'+(EW+8)+'px">';
-        if(e.position) nodes+='<span style="font-size:18px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
-        nodes+='<span style="font-size:18px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.name+'</span>';
         nodes+='</div>';
         if(_orgsimResignDateOverrides[orgsimEmpId(e)]){
           var rd2=_orgsimResignDateOverrides[orgsimEmpId(e)].split('-');
-          nodes+='<div style="text-align:center;margin-top:2px"><span style="font-size:11px;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:4px">'+rd2[1]+'/'+rd2[2]+' 퇴사예정</span></div>';
+          nodes+='<div style="position:absolute;top:-3px;right:-8px;white-space:nowrap;font-size:10px;background:#dc2626;color:#fff;padding:1px 5px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.3);z-index:5">'+rd2[1]+'/'+rd2[2]+'</div>';
         }
+        nodes+='</div>';
+        nodes+='<div style="display:flex;align-items:center;gap:2px;margin-top:6px;max-width:'+(EW+8)+'px">';
+        if(e.position) nodes+='<span style="font-size:18px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.position+'</span>';
+        nodes+='<span style="font-size:18px;font-weight:700;color:#1e293b;white-space:nowrap">'+e.name+'</span>';
+        nodes+='</div>';
 
         nodes+='</div>';
       });
@@ -7800,17 +7802,19 @@ function orgsimRenderReal() {
         :'display:flex;flex-direction:column;align-items:center;width:'+BW+'px;overflow:hidden';
       let h='<div draggable="true" ondragstart="orgsimDragStartReal(event,\''+orgsimEmpId(e)+'\')" onclick="orgsimEmpMenu(\''+orgsimEmpId(e)+'\')" oncontextmenu="event.preventDefault();orgsimEmpMenu(\''+orgsimEmpId(e)+'\')" title="클릭: 부서이동/직책/겸직/삭제 메뉴 · 드래그: 바로 부서 이동" style="'+boxStyle+';cursor:pointer">';
       const AW=Math.min(BW-4,76);
-      h+='<div style="width:'+AW+'px;height:'+AW+'px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;margin:0 auto">';
+      h+='<div style="position:relative;width:'+AW+'px;margin:0 auto">';
+      h+='<div style="width:'+AW+'px;height:'+AW+'px;border-radius:50%;overflow:hidden;border:'+avatarBorder+';background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff">';
       h+=e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':ini;
-      h+='</div>';
-      h+='<div style="margin-top:4px;text-align:center;white-space:nowrap;overflow:hidden;width:'+BW+'px">';
-      h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+((e.position==='대표이사')?'CEO':(e.position?e.position+' ':' '))+'</span>';
-      h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+e.name+'</span>';
       h+='</div>';
       if(_orgsimResignDateOverrides[orgsimEmpId(e)]){
         var rd=_orgsimResignDateOverrides[orgsimEmpId(e)].split('-');
-        h+='<div style="text-align:center;margin-top:2px"><span style="font-size:11px;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:4px">'+rd[1]+'/'+rd[2]+' 퇴사예정</span></div>';
+        h+='<div style="position:absolute;top:-3px;right:-6px;white-space:nowrap;font-size:9px;background:#dc2626;color:#fff;padding:1px 4px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.3);z-index:5">'+rd[1]+'/'+rd[2]+'</div>';
       }
+      h+='</div>';
+      h+='<div style="margin-top:6px;text-align:center;white-space:nowrap;overflow:hidden;width:'+BW+'px">';
+      h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+((e.position==='대표이사')?'CEO':(e.position?e.position+' ':' '))+'</span>';
+      h+='<span style="font-size:16px;font-weight:700;color:#1e293b">'+e.name+'</span>';
+      h+='</div>';
       h+='</div>';
       return h;
     };
