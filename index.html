@@ -8004,6 +8004,17 @@ function orgsimDownloadPPT() {
   function px2len(px) { return px * scale; }
   // 화면상 font-size(px)를, 지금 축소 비율(scale)을 반영한 실제 슬라이드 포인트 크기로 정확히 환산
   function px2pt(fontPx) { return Math.max((fontPx / PX_PER_INCH) * scale * PT_PER_INCH, 6); }
+  // PPT 뷰어의 자동축소(fit:shrink)가 항상 정확히 반영되지는 않으므로, 글자 수 기준으로 직접 폰트 크기를 계산해 안전하게 맞춤
+  function fitFontPt(text, boxWidthIn, desiredPt) {
+    var s = text || '';
+    var numSpaces = (s.match(/\s/g) || []).length;
+    var numChars = s.replace(/\s/g, '').length;
+    if (numChars <= 0) return desiredPt;
+    var CHAR_W = 0.95, SPACE_W = 0.4; // 글자크기(pt) 대비 실제 폭 비율(한글 기준 근사치)
+    var widthUnits = numChars * CHAR_W + numSpaces * SPACE_W;
+    var maxPt = (boxWidthIn * 72 * 0.92) / widthUnits; // 92%만 채워서 여백 확보
+    return Math.max(Math.min(desiredPt, maxPt), 5);
+  }
 
   function fetchAsDataURL(url) {
     return fetch(url).then(function(r){ return r.blob(); }).then(function(blob){
@@ -8026,11 +8037,14 @@ function orgsimDownloadPPT() {
     deptBoxes.forEach(function(d){
       var x=px2x(d.rect.x), y=px2y(d.rect.y), w=px2len(d.rect.w), h=px2len(d.rect.h);
       var padW = w * 0.08; // 측정 오차 보정용 여유폭 (텍스트가 눌리지 않도록)
+      var boxTextW = w + padW;
+      var namePt = fitFontPt(d.name, boxTextW, px2pt(d.nameFontPx));
+      var countPt = fitFontPt(d.count, boxTextW, px2pt(d.countFontPx));
       slide.addShape('roundRect', { x:x, y:y, w:w, h:h, rectRadius:0.05, fill:{color:d.bg}, line:{type:'none'} });
       slide.addText([
-        { text: d.name, options:{ breakLine:true, fontSize: px2pt(d.nameFontPx) } },
-        { text: d.count, options:{ fontSize: px2pt(d.countFontPx) } }
-      ], { x:x-padW/2, y:y, w:w+padW, h:h, align:'center', valign:'middle', color:d.color, bold:true, fontFace:'맑은 고딕', wrap:false, fit:'shrink' });
+        { text: d.name, options:{ breakLine:true, fontSize: namePt } },
+        { text: d.count, options:{ fontSize: countPt } }
+      ], { x:x-padW/2, y:y, w:boxTextW, h:h, align:'center', valign:'middle', color:d.color, bold:true, fontFace:'맑은 고딕', wrap:false });
     });
 
     people.forEach(function(p){
@@ -8044,7 +8058,8 @@ function orgsimDownloadPPT() {
         slide.addText(p.initial, { x:x, y:y, w:w, h:h, align:'center', valign:'middle', color:'FFFFFF', bold:true, fontSize: px2pt(h*PX_PER_INCH/scale*0.5) });
       }
       if (p.name) {
-        slide.addText(p.name, { x:x, y:y+h+0.02, w:w, h:0.22, align:'center', fontSize: px2pt(p.nameFontPx), bold:true, color:'1e293b', fontFace:'맑은 고딕', wrap:false, fit:'shrink' });
+        var namePersonPt = fitFontPt(p.name, w, px2pt(p.nameFontPx));
+        slide.addText(p.name, { x:x, y:y+h+0.02, w:w, h:0.22, align:'center', fontSize: namePersonPt, bold:true, color:'1e293b', fontFace:'맑은 고딕', wrap:false });
       }
     });
 
