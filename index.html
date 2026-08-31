@@ -7913,79 +7913,116 @@ function orgsimDownloadPPT() {
   if (!inner) { showToast('❌ 조직도 없음'); return; }
 
   const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\. /g,'-').replace('.','');
-  showToast('📑 PPT 생성 중...');
+  showToast('📑 PPT(개별 객체) 생성 중...');
 
-  // 실제 노드 범위로 크기 계산 (인쇄와 동일)
-  let realW = 0, realH = 0;
-  inner.querySelectorAll('[style*="position:absolute"]').forEach(function(el){
-    const l = parseInt(el.style.left)||0;
-    const t = parseInt(el.style.top)||0;
-    const w = el.offsetWidth||0;
-    const h = el.offsetHeight||0;
-    if(l+w > realW) realW = l+w;
-    if(t+h > realH) realH = t+h;
-  });
-  const cW = realW > 0 ? realW + 20 : Math.max(parseInt(inner.style.width)||0, inner.scrollWidth);
-  const cH = realH > 0 ? realH + 20 : Math.max(parseInt(inner.style.height)||0, inner.scrollHeight);
-
-  // html2canvas로 정확한 크기 캡처
+  // 캔버스 변환(줌/이동)을 잠시 초기화해서 실제 좌표를 정확히 읽음
   const cvs = document.getElementById('orgsim-canvas-real');
-  const saved = cvs ? cvs.style.transform : '';
+  const savedT = cvs ? cvs.style.transform : '';
   if (cvs) cvs.style.transform = 'none';
 
-  function doCapture() {
-    html2canvas(inner, {
-      scale: 2, useCORS: true, backgroundColor: '#f8fafc',
-      logging: false, allowTaint: true,
-      width: cW, height: cH, x: 0, y: 0
-    }).then(function(canvas) {
-      if (cvs) cvs.style.transform = saved;
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      const ratio = cW / cH;
+  const originRect = inner.getBoundingClientRect();
 
-      function makePPT() {
-        const pres = new PptxGenJS();
-        pres.layout = 'LAYOUT_WIDE'; // 13.3" × 7.5"
-        const slide = pres.addSlide();
-        slide.background = { color: 'F8FAFC' };
-        // 헤더
-        slide.addText('조직도 시뮬레이션', { x:0.2, y:0.05, w:8, h:0.35, fontSize:18, bold:true, color:'1a1d2e' });
-        slide.addText('기준일자: '+today, { x:0.2, y:0.4, w:8, h:0.2, fontSize:9, color:'666666' });
-        // 조직도 이미지 (헤더 아래 꽉 채움)
-        const sW=13.3, sH=7.5, hH=0.65;
-        const aW=sW-0.2, aH=sH-hH-0.05;
-        let w=aW, h=aW/ratio;
-        if(h>aH){h=aH;w=aH*ratio;}
-        const x=(sW-w)/2, y=hH;
-        slide.addImage({ data:imgData, x:x, y:y, w:w, h:h });
-        pres.writeFile({ fileName:'조직도_시뮬레이션_'+today+'.pptx' })
-          .then(function(){ showToast('✅ PPT 다운로드 완료!'); })
-          .catch(function(e){ console.error(e); showToast('❌ PPT 저장 실패'); });
-      }
-
-      if (typeof PptxGenJS !== 'undefined') {
-        makePPT();
-      } else {
-        const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
-        s.onload = makePPT;
-        s.onerror = function(){ showToast('❌ PptxGenJS 로드 실패'); };
-        document.head.appendChild(s);
-      }
-    }).catch(function(e){
-      if(cvs) cvs.style.transform=saved;
-      showToast('❌ 캡처 실패: '+e.message);
-      console.error(e);
-    });
+  function relRect(el) {
+    const r = el.getBoundingClientRect();
+    return { x: r.left - originRect.left, y: r.top - originRect.top, w: r.width, h: r.height };
+  }
+  function rgbToHex(rgb) {
+    var m = (rgb||'').match(/\d+/g);
+    if (!m) return '4472C4';
+    return m.slice(0,3).map(function(n){ return ('0'+parseInt(n).toString(16)).slice(-2); }).join('').toUpperCase();
   }
 
-  if (typeof html2canvas !== 'undefined') {
-    doCapture();
+  // 부서 박스(색상 박스: 이 box-shadow 값을 가진 요소들만 해당)
+  var deptBoxEls = Array.from(inner.querySelectorAll('div')).filter(function(el){
+    return (el.getAttribute('style')||'').indexOf('box-shadow:0 2px 6px rgba(0,0,0,.2)') >= 0;
+  });
+  var deptBoxes = deptBoxEls.map(function(el){
+    var rect = relRect(el);
+    var cs = getComputedStyle(el);
+    var nameEl = el.childNodes[0]; // 첫번째 텍스트 노드가 부서명
+    var name = (nameEl && nameEl.nodeType === 3) ? nameEl.textContent.trim() : el.textContent.split('명')[0];
+    var countDiv = el.querySelector('div');
+    var count = countDiv ? countDiv.textContent.trim() : '';
+    return { rect: rect, bg: rgbToHex(cs.backgroundColor), color: rgbToHex(cs.color), name: name, count: count };
+  });
+
+  // 직원 아바타(원형) + 바로 다음 이름 라벨
+  var avatarEls = Array.from(inner.querySelectorAll('div')).filter(function(el){
+    var st = el.getAttribute('style')||'';
+    return st.indexOf('border-radius:50%') >= 0;
+  });
+  var people = avatarEls.map(function(el){
+    var rect = relRect(el);
+    var cs = getComputedStyle(el);
+    var initial = el.textContent.trim().slice(0,1);
+    var nameLabel = '';
+    var sib = el.nextElementSibling;
+    if (sib) nameLabel = sib.textContent.trim();
+    return { rect: rect, bg: rgbToHex(cs.backgroundColor), initial: initial, name: nameLabel };
+  });
+
+  if (cvs) cvs.style.transform = savedT;
+
+  // 전체 범위 계산 → 슬라이드에 맞춤 비율 산정
+  var maxX = 0, maxY = 0;
+  deptBoxes.concat(people).forEach(function(o){
+    if (o.rect.x + o.rect.w > maxX) maxX = o.rect.x + o.rect.w;
+    if (o.rect.y + o.rect.h > maxY) maxY = o.rect.y + o.rect.h;
+  });
+  if (!maxX || !maxY) { showToast('❌ 변환할 조직도 요소를 찾지 못했습니다'); return; }
+
+  const sW = 13.3, sH = 7.5, hH = 0.65;
+  const aW = sW - 0.2, aH = sH - hH - 0.05;
+  const ratio = maxX / maxY;
+  var slideChartW = aW, slideChartH = aW / ratio;
+  if (slideChartH > aH) { slideChartH = aH; slideChartW = aH * ratio; }
+  const offX = (sW - slideChartW) / 2, offY = hH;
+  const scale = slideChartW / maxX; // px → inch 배율
+
+  function px2x(px) { return offX + px * scale; }
+  function px2y(px) { return offY + px * scale; }
+  function px2len(px) { return px * scale; }
+
+  function makePPT() {
+    const pres = new PptxGenJS();
+    pres.layout = 'LAYOUT_WIDE';
+    const slide = pres.addSlide();
+    slide.background = { color: 'F8FAFC' };
+    slide.addText('조직도 시뮬레이션', { x:0.2, y:0.05, w:8, h:0.35, fontSize:18, bold:true, color:'1a1d2e' });
+    slide.addText('기준일자: '+today+' (개별 객체 - 클릭해서 수정 가능)', { x:0.2, y:0.4, w:8, h:0.2, fontSize:9, color:'666666' });
+
+    // 부서 박스: 도형 + 텍스트
+    deptBoxes.forEach(function(d){
+      var x=px2x(d.rect.x), y=px2y(d.rect.y), w=px2len(d.rect.w), h=px2len(d.rect.h);
+      slide.addShape('roundRect', { x:x, y:y, w:w, h:h, rectRadius:0.05, fill:{color:d.bg}, line:{type:'none'} });
+      slide.addText([
+        { text: d.name, options:{ breakLine:true, bold:true } },
+        { text: d.count, options:{ fontSize: Math.max(px2len(d.rect.h)*40, 8) } }
+      ], { x:x, y:y, w:w, h:h, align:'center', valign:'middle', color:d.color, fontSize: Math.max(px2len(d.rect.h)*45, 8), fontFace:'맑은 고딕' });
+    });
+
+    // 직원: 원(아바타) + 이름 텍스트
+    people.forEach(function(p){
+      var x=px2x(p.rect.x), y=px2y(p.rect.y), w=px2len(p.rect.w), h=px2len(p.rect.h);
+      slide.addShape('ellipse', { x:x, y:y, w:w, h:h, fill:{color:p.bg}, line:{color:'FFFFFF', width:1} });
+      slide.addText(p.initial, { x:x, y:y, w:w, h:h, align:'center', valign:'middle', color:'FFFFFF', bold:true, fontSize: Math.max(px2len(h)*40, 8) });
+      if (p.name) {
+        slide.addText(p.name, { x:x-w*0.3, y:y+h+0.02, w:w*1.6, h:0.2, align:'center', fontSize: Math.max(px2len(h)*28, 6), bold:true, color:'1e293b', fontFace:'맑은 고딕' });
+      }
+    });
+
+    pres.writeFile({ fileName:'조직도시뮬레이션_개별객체_'+today+'.pptx' })
+      .then(function(){ showToast('✅ PPT 다운로드 완료! (개별 객체로 생성됨)'); })
+      .catch(function(e){ console.error(e); showToast('❌ PPT 저장 실패'); });
+  }
+
+  if (typeof PptxGenJS !== 'undefined') {
+    makePPT();
   } else {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-    s.onload = doCapture;
-    s.onerror = function(){ showToast('❌ 라이브러리 로드 실패'); };
+    s.src = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
+    s.onload = makePPT;
+    s.onerror = function(){ showToast('❌ PptxGenJS 로드 실패'); };
     document.head.appendChild(s);
   }
 }
