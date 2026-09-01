@@ -7962,7 +7962,7 @@ function orgsimDownloadPPT() {
     var initial = el.textContent.trim().slice(0,1);
     var img = el.querySelector('img');
     var photoSrc = img ? img.src : '';
-    var nameLabel = '', nameFontPx = 14;
+    var nameLabel = '', nameFontPx = 14, nameRect = null;
     // 아바타는 "position:relative" 래퍼(퇴사예정 배지용)로 한 번 더 감싸져 있으므로,
     // 이름 라벨은 아바타 자신이 아니라 그 래퍼의 다음 형제 요소에 있음
     var wrapper = el.parentElement;
@@ -7971,8 +7971,9 @@ function orgsimDownloadPPT() {
       nameLabel = sib.textContent.trim();
       var nameSpan = sib.querySelector('span') || sib;
       nameFontPx = pxFontSize(nameSpan);
+      nameRect = relRect(sib); // 실제 이름칸이 화면에서 차지하는 폭을 그대로 사용 (아바타 폭 기준으로 추정하지 않음)
     }
-    return { rect: rect, bg: rgbToHex(cs.backgroundColor), initial: initial, photoSrc: photoSrc, name: nameLabel, nameFontPx: nameFontPx };
+    return { rect: rect, bg: rgbToHex(cs.backgroundColor), initial: initial, photoSrc: photoSrc, name: nameLabel, nameFontPx: nameFontPx, nameRect: nameRect };
   });
 
   if (cvs) cvs.style.transform = savedT;
@@ -7989,11 +7990,16 @@ function orgsimDownloadPPT() {
     if (o.rect.y + o.rect.h > maxY) maxY = o.rect.y + o.rect.h;
     if (o.rect.x < minX) minX = o.rect.x;
     if (o.rect.y < minY) minY = o.rect.y;
+    if (o.nameRect) {
+      if (o.nameRect.x + o.nameRect.w > maxX) maxX = o.nameRect.x + o.nameRect.w;
+      if (o.nameRect.y + o.nameRect.h > maxY) maxY = o.nameRect.y + o.nameRect.h;
+      if (o.nameRect.x < minX) minX = o.nameRect.x;
+    }
   });
   if (!maxX || !maxY) { showToast('❌ 변환할 조직도 요소를 찾지 못했습니다'); return; }
   // 실제 내용의 좌우/상하 끝을 기준으로 삼아, 캔버스에 있던 불필요한 여백이 그대로 반영되지 않게 함
   deptBoxes.forEach(function(d){ d.rect.x -= minX; d.rect.y -= minY; });
-  people.forEach(function(p){ p.rect.x -= minX; p.rect.y -= minY; });
+  people.forEach(function(p){ p.rect.x -= minX; p.rect.y -= minY; if (p.nameRect) { p.nameRect.x -= minX; p.nameRect.y -= minY; } });
   maxX -= minX; maxY -= minY;
 
   // 화면 그대로의 크기(96dpi 기준 1px=1/96인치)로 슬라이드를 크게 잡아서, 과도한 축소로 글자가 뭉개지는 것을 방지
@@ -8067,9 +8073,10 @@ function orgsimDownloadPPT() {
         slide.addShape('ellipse', { x:x, y:y, w:w, h:h, fill:{color:p.bg}, line:{color:'FFFFFF', width:1} });
         slide.addText(p.initial, { x:x, y:y, w:w, h:h, align:'center', valign:'middle', color:'FFFFFF', bold:true, fontSize: px2pt(h*PX_PER_INCH/scale*0.5) });
       }
-      if (p.name) {
-        var namePersonPt = fitFontPt(p.name, w, px2pt(p.nameFontPx));
-        slide.addText(p.name, { x:x, y:y+h+0.02, w:w, h:0.22, align:'center', fontSize: namePersonPt, bold:true, color:'1e293b', fontFace:'맑은 고딕', wrap:false });
+      if (p.name && p.nameRect) {
+        var nx=px2x(p.nameRect.x), ny=px2y(p.nameRect.y), nw=px2len(p.nameRect.w), nh=px2len(p.nameRect.h);
+        var namePersonPt = fitFontPt(p.name, nw, px2pt(p.nameFontPx));
+        slide.addText(p.name, { x:nx, y:ny, w:nw, h:nh, align:'center', valign:'top', fontSize: namePersonPt, bold:true, color:'1e293b', fontFace:'맑은 고딕', wrap:false });
       }
     });
 
