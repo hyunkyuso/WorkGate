@@ -8018,7 +8018,7 @@ function orgsimDownloadPPT() {
   function px2y(px) { return offY + px * scale; }
   function px2len(px) { return px * scale; }
   // 화면상 font-size(px)를, 지금 축소 비율(scale)을 반영한 실제 슬라이드 포인트 크기로 정확히 환산
-  function px2pt(fontPx) { return Math.max((fontPx / PX_PER_INCH) * scale * PT_PER_INCH, 6); }
+  function px2pt(fontPx) { return Math.max((fontPx / PX_PER_INCH) * scale * PT_PER_INCH, 10); }
   // PPT 뷰어의 자동축소(fit:shrink)가 항상 정확히 반영되지는 않으므로, 글자 수 기준으로 직접 폰트 크기를 계산해 안전하게 맞춤
   function fitFontPt(text, boxWidthIn, desiredPt) {
     var s = text || '';
@@ -8027,8 +8027,8 @@ function orgsimDownloadPPT() {
     if (numChars <= 0) return desiredPt;
     var CHAR_W = 1.0, SPACE_W = 0.4; // 볼드체 기준 실제 폭
     var widthUnits = numChars * CHAR_W + numSpaces * SPACE_W;
-    var maxPt = (boxWidthIn * 72 * 0.95) / widthUnits; // 95%까지 채움
-    return Math.max(Math.min(desiredPt, maxPt), 6);
+    var maxPt = (boxWidthIn * 72) / widthUnits; // 박스를 최대한 채움 (박스 폭은 실측값이라 안전함)
+    return Math.max(Math.min(desiredPt * 1.6, maxPt), 10);
   }
 
   function fetchAsDataURL(url) {
