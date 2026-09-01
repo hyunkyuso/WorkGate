@@ -7932,6 +7932,20 @@ function orgsimDownloadPPT() {
   }
   function pxFontSize(el) { return parseFloat(getComputedStyle(el).fontSize) || 14; }
 
+  // 조직도 연결선 (SVG <line> 태그 그대로 좌표만 추출, SVG 자체의 오프셋도 반영)
+  var lines = [];
+  Array.from(inner.querySelectorAll('svg')).forEach(function(svgEl){
+    var svgOff = relRect(svgEl);
+    Array.from(svgEl.querySelectorAll('line')).forEach(function(lineEl){
+      lines.push({
+        x1: svgOff.x + (parseFloat(lineEl.getAttribute('x1'))||0),
+        y1: svgOff.y + (parseFloat(lineEl.getAttribute('y1'))||0),
+        x2: svgOff.x + (parseFloat(lineEl.getAttribute('x2'))||0),
+        y2: svgOff.y + (parseFloat(lineEl.getAttribute('y2'))||0)
+      });
+    });
+  });
+
   // 부서 박스(색상 박스: 이 box-shadow 값을 가진 요소들만 해당)
   var deptBoxEls = Array.from(inner.querySelectorAll('div')).filter(function(el){
     return (el.getAttribute('style')||'').indexOf('box-shadow:0 2px 6px rgba(0,0,0,.2)') >= 0;
@@ -7962,6 +7976,8 @@ function orgsimDownloadPPT() {
     var initial = el.textContent.trim().slice(0,1);
     var img = el.querySelector('img');
     var photoSrc = img ? img.src : '';
+    var borderColor = rgbToHex(cs.borderTopColor);
+    var borderWidthPx = parseFloat(cs.borderTopWidth) || 0;
     var nameLabel = '', nameFontPx = 14, nameRect = null;
     // 아바타는 "position:relative" 래퍼(퇴사예정 배지용)로 한 번 더 감싸져 있으므로,
     // 이름 라벨은 아바타 자신이 아니라 그 래퍼의 다음 형제 요소에 있음
@@ -7973,7 +7989,22 @@ function orgsimDownloadPPT() {
       nameFontPx = pxFontSize(nameSpan);
       nameRect = relRect(sib); // 실제 이름칸이 화면에서 차지하는 폭을 그대로 사용 (아바타 폭 기준으로 추정하지 않음)
     }
-    return { rect: rect, bg: rgbToHex(cs.backgroundColor), initial: initial, photoSrc: photoSrc, name: nameLabel, nameFontPx: nameFontPx, nameRect: nameRect };
+    // 겸직(concurrent) 인원은 카드 전체를 감싸는 점선 테두리가 있음 — 아바타의 조부모(카드 최상위) 요소에서 확인
+    var cardEl = wrapper ? wrapper.parentElement : null;
+    var cardRect = null, cardBorderColor = '', cardBorderStyle = '', cardBorderWidthPx = 0, cardBg = '';
+    if (cardEl) {
+      var cardCs = getComputedStyle(cardEl);
+      cardBorderStyle = cardCs.borderTopStyle;
+      if (cardBorderStyle === 'dashed' || cardBorderStyle === 'solid') {
+        cardBorderWidthPx = parseFloat(cardCs.borderTopWidth) || 0;
+        if (cardBorderWidthPx > 0) {
+          cardRect = relRect(cardEl);
+          cardBorderColor = rgbToHex(cardCs.borderTopColor);
+          cardBg = cardCs.backgroundColor;
+        }
+      }
+    }
+    return { rect: rect, bg: rgbToHex(cs.backgroundColor), initial: initial, photoSrc: photoSrc, name: nameLabel, nameFontPx: nameFontPx, nameRect: nameRect, borderColor: borderColor, borderWidthPx: borderWidthPx, cardRect: cardRect, cardBorderColor: cardBorderColor, cardBorderStyle: cardBorderStyle, cardBorderWidthPx: cardBorderWidthPx, cardBg: cardBg };
   });
 
   if (cvs) cvs.style.transform = savedT;
@@ -7995,11 +8026,18 @@ function orgsimDownloadPPT() {
       if (o.nameRect.y + o.nameRect.h > maxY) maxY = o.nameRect.y + o.nameRect.h;
       if (o.nameRect.x < minX) minX = o.nameRect.x;
     }
+    if (o.cardRect) {
+      if (o.cardRect.x + o.cardRect.w > maxX) maxX = o.cardRect.x + o.cardRect.w;
+      if (o.cardRect.y + o.cardRect.h > maxY) maxY = o.cardRect.y + o.cardRect.h;
+      if (o.cardRect.x < minX) minX = o.cardRect.x;
+      if (o.cardRect.y < minY) minY = o.cardRect.y;
+    }
   });
   if (!maxX || !maxY) { showToast('❌ 변환할 조직도 요소를 찾지 못했습니다'); return; }
   // 실제 내용의 좌우/상하 끝을 기준으로 삼아, 캔버스에 있던 불필요한 여백이 그대로 반영되지 않게 함
   deptBoxes.forEach(function(d){ d.rect.x -= minX; d.rect.y -= minY; });
-  people.forEach(function(p){ p.rect.x -= minX; p.rect.y -= minY; if (p.nameRect) { p.nameRect.x -= minX; p.nameRect.y -= minY; } });
+  people.forEach(function(p){ p.rect.x -= minX; p.rect.y -= minY; if (p.nameRect) { p.nameRect.x -= minX; p.nameRect.y -= minY; } if (p.cardRect) { p.cardRect.x -= minX; p.cardRect.y -= minY; } });
+  lines.forEach(function(l){ l.x1 -= minX; l.y1 -= minY; l.x2 -= minX; l.y2 -= minY; });
   maxX -= minX; maxY -= minY;
 
   // 화면 그대로의 크기(96dpi 기준 1px=1/96인치)로 슬라이드를 크게 잡아서, 과도한 축소로 글자가 뭉개지는 것을 방지
@@ -8050,6 +8088,16 @@ function orgsimDownloadPPT() {
     slide.addText('조직도 시뮬레이션', { x:0.2, y:0.05, w:8, h:0.35, fontSize:18, bold:true, color:'1a1d2e' });
     slide.addText('기준일자: '+today+' (개별 객체 - 클릭해서 수정 가능)', { x:0.2, y:0.4, w:8, h:0.2, fontSize:9, color:'666666' });
 
+    // 연결선을 박스보다 먼저 그려서 박스 뒤쪽에 배치되도록 함
+    lines.forEach(function(l){
+      var x1=px2x(l.x1), y1=px2y(l.y1), x2=px2x(l.x2), y2=px2y(l.y2);
+      slide.addShape('line', {
+        x: Math.min(x1,x2), y: Math.min(y1,y2),
+        w: Math.abs(x2-x1), h: Math.abs(y2-y1),
+        line: { color: '94A3B8', width: 1 }
+      });
+    });
+
     deptBoxes.forEach(function(d){
       var x=px2x(d.rect.x), y=px2y(d.rect.y), w=px2len(d.rect.w), h=px2len(d.rect.h);
       var padW = w * 0.08; // 측정 오차 보정용 여유폭 (텍스트가 눌리지 않도록)
@@ -8096,6 +8144,15 @@ function orgsimDownloadPPT() {
       }
       ctx.restore();
 
+      if (p.borderWidthPx > 0) {
+        ctx.beginPath();
+        ctx.arc(avatarX+avatarW/2, avatarH/2, avatarW/2 - p.borderWidthPx/2, 0, Math.PI*2);
+        ctx.closePath();
+        ctx.lineWidth = p.borderWidthPx;
+        ctx.strokeStyle = '#'+p.borderColor;
+        ctx.stroke();
+      }
+
       if (p.name) {
         var fs = Math.max(Math.round((p.nameFontPx||14)*1.3), 10);
         ctx.font = 'bold '+fs+'px 맑은 고딕, sans-serif';
@@ -8111,6 +8168,14 @@ function orgsimDownloadPPT() {
     }
 
     people.forEach(function(p){
+      if (p.cardRect && p.cardBorderWidthPx > 0) {
+        var cx=px2x(p.cardRect.x), cy=px2y(p.cardRect.y), cw=px2len(p.cardRect.w), ch=px2len(p.cardRect.h);
+        slide.addShape('roundRect', {
+          x:cx, y:cy, w:cw, h:ch, rectRadius:0.04,
+          fill: p.cardBg && p.cardBg.indexOf('rgba(0, 0, 0, 0)')<0 ? { color: rgbToHex(p.cardBg), transparency: 90 } : { type:'none' },
+          line: { color: p.cardBorderColor || '2563EB', width: Math.max(px2len(p.cardBorderWidthPx)*72, 0.75), dashType: p.cardBorderStyle === 'dashed' ? 'dash' : 'solid' }
+        });
+      }
       var card = buildPersonCardDataUrl(p);
       var x = px2x(p.rect.x - card.avatarX);
       var y = px2y(p.rect.y);
