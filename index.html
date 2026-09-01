@@ -8041,7 +8041,7 @@ function orgsimDownloadPPT() {
     }).catch(function(){ return null; });
   }
 
-  function makePPT(photoImgMap) {
+  function makePPT(photoDataMap) {
     const pres = new PptxGenJS();
     pres.defineLayout({ name: 'ORGSIM_LAYOUT', width: sW, height: sH });
     pres.layout = 'ORGSIM_LAYOUT';
@@ -8063,60 +8063,21 @@ function orgsimDownloadPPT() {
       ], { x:x-padW/2, y:y, w:boxTextW, h:h, align:'center', valign:'middle', color:d.color, bold:true, fontFace:'맑은 고딕', wrap:false });
     });
 
-    // 사진(또는 이니셜 원)과 이름을 캔버스 하나에 합성해서, 파워포인트에서도 진짜 "하나의 이미지 객체"가 되도록 함
-    function buildPersonCardDataUrl(p) {
-      var SC = 4; // 해상도 확보용 배율
-      var avatarW = p.rect.w, avatarH = p.rect.h;
-      var nameW = (p.nameRect ? p.nameRect.w : avatarW);
-      var nameH = (p.nameRect ? p.nameRect.h : 18) + 4;
-      var cardW = Math.max(avatarW, nameW);
-      var cardH = avatarH + nameH;
-      var canvas = document.createElement('canvas');
-      canvas.width = Math.max(Math.round(cardW*SC),1);
-      canvas.height = Math.max(Math.round(cardH*SC),1);
-      var ctx = canvas.getContext('2d');
-      ctx.scale(SC, SC);
-      var avatarX = (cardW - avatarW) / 2;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(avatarX+avatarW/2, avatarH/2, avatarW/2, 0, Math.PI*2);
-      ctx.closePath();
-      ctx.clip();
-      var img = p.photoSrc ? photoImgMap[p.photoSrc] : null;
-      if (img) {
-        ctx.drawImage(img, avatarX, 0, avatarW, avatarH);
-      } else {
-        ctx.fillStyle = '#'+p.bg;
-        ctx.fillRect(avatarX, 0, avatarW, avatarH);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold '+Math.round(avatarH*0.45)+'px 맑은 고딕, sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(p.initial||'', avatarX+avatarW/2, avatarH/2+1);
-      }
-      ctx.restore();
-
-      if (p.name) {
-        var fs = Math.max(Math.round((p.nameFontPx||14)*1.3), 10);
-        ctx.font = 'bold '+fs+'px 맑은 고딕, sans-serif';
-        while (ctx.measureText(p.name).width > cardW-2 && fs > 7) {
-          fs -= 1;
-          ctx.font = 'bold '+fs+'px 맑은 고딕, sans-serif';
-        }
-        ctx.fillStyle = '#1e293b';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-        ctx.fillText(p.name, cardW/2, avatarH+3);
-      }
-      return { dataUrl: canvas.toDataURL('image/png'), cardW: cardW, cardH: cardH, avatarX: avatarX };
-    }
-
     people.forEach(function(p){
-      var card = buildPersonCardDataUrl(p);
-      var x = px2x(p.rect.x - card.avatarX);
-      var y = px2y(p.rect.y);
-      var w = px2len(card.cardW);
-      var h = px2len(card.cardH);
-      slide.addImage({ data: card.dataUrl, x:x, y:y, w:w, h:h });
+      var x=px2x(p.rect.x), y=px2y(p.rect.y), w=px2len(p.rect.w), h=px2len(p.rect.h);
+      var dataUrl = p.photoSrc ? photoDataMap[p.photoSrc] : null;
+      if (dataUrl && dataUrl.indexOf('data:image/') !== 0) dataUrl = null; // fetch 실패로 이미지가 아닌 데이터가 들어온 경우 방지
+      if (dataUrl) {
+        slide.addImage({ data: dataUrl, x:x, y:y, w:w, h:h, rounding:true });
+      } else {
+        slide.addShape('ellipse', { x:x, y:y, w:w, h:h, fill:{color:p.bg}, line:{color:'FFFFFF', width:1} });
+        slide.addText(p.initial, { x:x, y:y, w:w, h:h, align:'center', valign:'middle', color:'FFFFFF', bold:true, fontSize: px2pt(h*PX_PER_INCH/scale*0.5) });
+      }
+      if (p.name && p.nameRect) {
+        var nx=px2x(p.nameRect.x), ny=px2y(p.nameRect.y), nw=px2len(p.nameRect.w), nh=px2len(p.nameRect.h);
+        var namePersonPt = fitFontPt(p.name, nw, px2pt(p.nameFontPx));
+        slide.addText(p.name, { x:nx, y:ny, w:nw, h:nh, align:'center', valign:'top', fontSize: namePersonPt, bold:true, color:'1e293b', fontFace:'맑은 고딕', wrap:false });
+      }
     });
 
     pres.writeFile({ fileName:'조직도시뮬레이션_개별객체_'+today+'.pptx' })
@@ -8124,27 +8085,12 @@ function orgsimDownloadPPT() {
       .catch(function(e){ console.error(e); showToast('❌ PPT 저장 실패'); });
   }
 
-  function loadImg(dataUrl) {
-    return new Promise(function(resolve){
-      if (!dataUrl) { resolve(null); return; }
-      var img = new Image();
-      img.onload = function(){ resolve(img); };
-      img.onerror = function(){ resolve(null); };
-      img.src = dataUrl;
-    });
-  }
-
   function proceedWithImages() {
     var uniqueSrcs = Array.from(new Set(people.map(function(p){ return p.photoSrc; }).filter(Boolean)));
     Promise.all(uniqueSrcs.map(fetchAsDataURL)).then(function(results){
-      var dataMap = {};
-      uniqueSrcs.forEach(function(src, i){ if (results[i]) dataMap[src] = results[i]; });
-      // 사진+이름을 캔버스로 합성하기 위해, 실제 <img> 엘리먼트도 미리 로드해둠
-      return Promise.all(uniqueSrcs.map(function(src){ return loadImg(dataMap[src]); })).then(function(imgs){
-        var imgMap = {};
-        uniqueSrcs.forEach(function(src, i){ imgMap[src] = imgs[i]; });
-        makePPT(imgMap);
-      });
+      var map = {};
+      uniqueSrcs.forEach(function(src, i){ if (results[i]) map[src] = results[i]; });
+      makePPT(map);
     });
   }
 
