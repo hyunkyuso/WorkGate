@@ -7983,15 +7983,21 @@ function orgsimDownloadPPT() {
   deptBoxes = deptBoxes.filter(function(d){ return validRect(d.rect); });
   people = people.filter(function(p){ return validRect(p.rect); });
 
-  var maxX = 0, maxY = 0;
+  var maxX = 0, maxY = 0, minX = Infinity, minY = Infinity;
   deptBoxes.concat(people).forEach(function(o){
     if (o.rect.x + o.rect.w > maxX) maxX = o.rect.x + o.rect.w;
     if (o.rect.y + o.rect.h > maxY) maxY = o.rect.y + o.rect.h;
+    if (o.rect.x < minX) minX = o.rect.x;
+    if (o.rect.y < minY) minY = o.rect.y;
   });
   if (!maxX || !maxY) { showToast('❌ 변환할 조직도 요소를 찾지 못했습니다'); return; }
+  // 실제 내용의 좌우/상하 끝을 기준으로 삼아, 캔버스에 있던 불필요한 여백이 그대로 반영되지 않게 함
+  deptBoxes.forEach(function(d){ d.rect.x -= minX; d.rect.y -= minY; });
+  people.forEach(function(p){ p.rect.x -= minX; p.rect.y -= minY; });
+  maxX -= minX; maxY -= minY;
 
   // 화면 그대로의 크기(96dpi 기준 1px=1/96인치)로 슬라이드를 크게 잡아서, 과도한 축소로 글자가 뭉개지는 것을 방지
-  const MAX_SLIDE_IN = 50; // 파워포인트 최대 슬라이드 크기(56인치) 안쪽으로 여유있게 설정
+  const MAX_SLIDE_IN = 55; // 파워포인트 최대 슬라이드 크기(56인치) 안쪽으로 여유있게 설정
   var natW = maxX / 96, natH = maxY / 96;
   var shrinkNeeded = Math.max(natW / MAX_SLIDE_IN, natH / MAX_SLIDE_IN, 1);
   const hH = 0.65;
@@ -8013,10 +8019,10 @@ function orgsimDownloadPPT() {
     var numSpaces = (s.match(/\s/g) || []).length;
     var numChars = s.replace(/\s/g, '').length;
     if (numChars <= 0) return desiredPt;
-    var CHAR_W = 1.15, SPACE_W = 0.45; // 볼드체 기준 실제 폭이 더 넓어서 여유있게 잡음
+    var CHAR_W = 1.0, SPACE_W = 0.4; // 볼드체 기준 실제 폭
     var widthUnits = numChars * CHAR_W + numSpaces * SPACE_W;
-    var maxPt = (boxWidthIn * 72 * 0.85) / widthUnits; // 85%만 채워서 여백 확보
-    return Math.max(Math.min(desiredPt, maxPt), 5);
+    var maxPt = (boxWidthIn * 72 * 0.95) / widthUnits; // 95%까지 채움
+    return Math.max(Math.min(desiredPt, maxPt), 6);
   }
 
   function fetchAsDataURL(url) {
