@@ -7990,13 +7990,16 @@ function orgsimDownloadPPT() {
   });
   if (!maxX || !maxY) { showToast('❌ 변환할 조직도 요소를 찾지 못했습니다'); return; }
 
-  const sW = 13.3, sH = 7.5, hH = 0.65;
+  // 화면 그대로의 크기(96dpi 기준 1px=1/96인치)로 슬라이드를 크게 잡아서, 과도한 축소로 글자가 뭉개지는 것을 방지
+  const MAX_SLIDE_IN = 50; // 파워포인트 최대 슬라이드 크기(56인치) 안쪽으로 여유있게 설정
+  var natW = maxX / 96, natH = maxY / 96;
+  var shrinkNeeded = Math.max(natW / MAX_SLIDE_IN, natH / MAX_SLIDE_IN, 1);
+  const hH = 0.65;
+  const sW = natW / shrinkNeeded + 0.4, sH = natH / shrinkNeeded + hH + 0.5;
   const aW = sW - 0.2, aH = sH - hH - 0.05;
-  const ratio = maxX / maxY;
-  var slideChartW = aW, slideChartH = aW / ratio;
-  if (slideChartH > aH) { slideChartH = aH; slideChartW = aH * ratio; }
-  const offX = (sW - slideChartW) / 2, offY = hH;
-  const scale = slideChartW / maxX; // px → inch 배율 (실측 좌표 기준)
+  const scale = aW / maxX; // px → inch 배율 (실측 좌표 기준, 위 계산으로 1에 가깝게 유지됨)
+  const slideChartH = maxY * scale;
+  const offX = 0.2, offY = hH;
   const PT_PER_INCH = 72, PX_PER_INCH = 96;
 
   function px2x(px) { return offX + px * scale; }
@@ -8010,9 +8013,9 @@ function orgsimDownloadPPT() {
     var numSpaces = (s.match(/\s/g) || []).length;
     var numChars = s.replace(/\s/g, '').length;
     if (numChars <= 0) return desiredPt;
-    var CHAR_W = 0.95, SPACE_W = 0.4; // 글자크기(pt) 대비 실제 폭 비율(한글 기준 근사치)
+    var CHAR_W = 1.15, SPACE_W = 0.45; // 볼드체 기준 실제 폭이 더 넓어서 여유있게 잡음
     var widthUnits = numChars * CHAR_W + numSpaces * SPACE_W;
-    var maxPt = (boxWidthIn * 72 * 0.92) / widthUnits; // 92%만 채워서 여백 확보
+    var maxPt = (boxWidthIn * 72 * 0.85) / widthUnits; // 85%만 채워서 여백 확보
     return Math.max(Math.min(desiredPt, maxPt), 5);
   }
 
@@ -8028,7 +8031,8 @@ function orgsimDownloadPPT() {
 
   function makePPT(photoDataMap) {
     const pres = new PptxGenJS();
-    pres.layout = 'LAYOUT_WIDE';
+    pres.defineLayout({ name: 'ORGSIM_LAYOUT', width: sW, height: sH });
+    pres.layout = 'ORGSIM_LAYOUT';
     const slide = pres.addSlide();
     slide.background = { color: 'F8FAFC' };
     slide.addText('조직도 시뮬레이션', { x:0.2, y:0.05, w:8, h:0.35, fontSize:18, bold:true, color:'1a1d2e' });
