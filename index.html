@@ -5744,6 +5744,8 @@ function renderDeptTable() {
 let orgCollapsed = {};
 
 function renderOrgTree() {
+  const departments = wgCompanyDepartments(); // 지금 보고 있는 회사의 부서만 (전역 departments는 그대로 둠)
+  const employees = wgCompanyEmployees();
   const tree = document.getElementById('org-tree');
   if (!tree) return;
   const roots = [...departments].filter(d => !d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
