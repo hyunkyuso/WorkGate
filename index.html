@@ -6024,6 +6024,11 @@ function assignX(deptId, level, x, levelNodes, posMap) {
 }
 
 function renderOrgView() {
+  // 정도유아이티(기본 회사)는 기존의 정교한 배치 로직을 그대로 사용, 다른 회사는 별도의 범용 트리 렌더러 사용
+  if (wgCurrentViewCompanyId() !== DEFAULT_COMPANY_ID) {
+    renderOrgViewGeneric();
+    return;
+  }
   const departments = wgCompanyDepartments(); // 지금 보고 있는 회사의 부서만 (전역 departments는 그대로 둠)
   const employees = wgCompanyEmployees();     // 지금 보고 있는 회사의 직원만 (전역 employees는 그대로 둠)
   const chart = document.getElementById('orgview-chart');
@@ -6596,6 +6601,132 @@ function renderOrgView() {
 // ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──// ── 줌/드래그 ──
 let orgScale = 0.8, orgOffX = 0, orgOffY = 0;
 let orgDragging = false, orgDragX = 0, orgDragY = 0, orgDragOX = 0, orgDragOY = 0;
+
+// 정도유아이티 외 다른 회사용 — 어떤 조직 구조(비대칭 구조 포함)든 안전하게 그리는 범용 트리 렌더러
+function renderOrgViewGeneric() {
+  const departments = wgCompanyDepartments();
+  const employees = wgCompanyEmployees();
+  const chart = document.getElementById('orgview-chart');
+  if (!chart) return;
+
+  const todayEl=document.getElementById('orgview-today');
+  if(todayEl) todayEl.textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+  const statsEl=document.getElementById('orgview-stats');
+  const activeEmps = employees.filter(e=>e.status!=='퇴직');
+  if(statsEl){
+    statsEl.innerHTML='<span style="font-weight:700">전체 '+activeEmps.length+'명</span>';
+  }
+
+  const roots=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+  if(!roots.length){chart.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3)">부서를 추가해주세요</div>';return;}
+
+  const CW=140, CH=48, EW=88, HGAP=24, VGAP=56, ROW_H=96, LINE='#94a3b8';
+  const LC=['#1e293b','#60a5fa','#f59e0b','#eab308','#0891b2','#059669'];
+  function bg(lv){return LC[Math.min(Math.max(lv,0),LC.length-1)];}
+  function getEmps(d){
+    const mainEmps = employees.filter(e=>e.dept===d.name&&e.status!=='퇴직');
+    const concEmps = employees.filter(e=>e.status!=='퇴직'&&e.dept!==d.name&&(e.concurrent||[]).some(c=>c.dept===d.name));
+    const concEmpsMarked = concEmps.map(e=>({ ...e, isConcurrent:true, concurrentTitle:(e.concurrent||[]).find(c=>c.dept===d.name)?.title||'' }));
+    return sortEmpsByRank([...mainEmps, ...concEmpsMarked], d.head||'');
+  }
+  function children(pid){ return departments.filter(d=>d.parent===pid).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99)); }
+  function cardW(d){ return Math.max(CW, d.name.length*14+32); }
+  function empRows(d){ return Math.ceil(getEmps(d).length/6) || 0; }
+  function nodeH(d){ return CH + (getEmps(d).length>0 ? empRows(d)*ROW_H + 8 : 0); }
+  function subW(d){
+    const kids = children(d.id);
+    const selfW = cardW(d);
+    if (!kids.length) return selfW;
+    const kidsW = kids.reduce((s,k)=>s+subW(k),0) + (kids.length-1)*HGAP;
+    return Math.max(selfW, kidsW);
+  }
+
+  let nodes = '', svg = '';
+  let maxX = 0, maxY = 0;
+
+  function layout(d, centerX, top, depth) {
+    const w = cardW(d), h = nodeH(d);
+    const boxX = centerX - w/2;
+    const emps = getEmps(d);
+    const lv = d.orgLevel!=null ? d.orgLevel : depth;
+    // 부서 박스
+    nodes += '<div style="position:absolute;left:'+boxX+'px;top:'+top+'px;width:'+w+'px;z-index:2">' +
+      '<div style="background:'+bg(lv)+';color:'+(lv===0?'#fff':'#1e293b')+';border-radius:8px;padding:7px 9px;text-align:center;font-size:14px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.15);white-space:nowrap">' +
+      d.name + '<div style="font-size:12px;font-weight:700;opacity:.95;margin-top:1px">' + emps.length + '명</div></div></div>';
+    // 직원 아바타들
+    if (emps.length) {
+      const perRow = Math.min(6, emps.length);
+      emps.forEach(function(e, i){
+        const row = Math.floor(i/6), col = i%6;
+        const rowCount = Math.min(6, emps.length - row*6);
+        const rowW = rowCount*EW;
+        const ex = centerX - rowW/2 + col*EW + EW/2;
+        const ey = top + CH + 8 + row*ROW_H;
+        const initial = (e.name||'').charAt(0);
+        const ebg = e.isConcurrent ? '#94a3b8' : '#3b82f6';
+        nodes += '<div style="position:absolute;left:'+(ex-EW/2)+'px;top:'+ey+'px;width:'+EW+'px;text-align:center;z-index:2">' +
+          '<div style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;margin:0 auto;border:'+(e.isConcurrent?'2px dashed #2563eb':'1.5px solid #94a3b8')+'">' +
+          (e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':initial) + '</div>' +
+          '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (e.title||e.position||'') + ' ' + e.name + '</div>' +
+        '</div>';
+        if (ex > maxX) maxX = ex + EW/2;
+        if (ey + ROW_H > maxY) maxY = ey + ROW_H;
+      });
+    }
+    if (boxX + w > maxX) maxX = boxX + w;
+    if (top + CH > maxY) maxY = top + CH;
+
+    const kids = children(d.id);
+    if (kids.length) {
+      const childTop = top + h + VGAP;
+      const widths = kids.map(subW);
+      const totalW = widths.reduce((s,w)=>s+w,0) + (kids.length-1)*HGAP;
+      let cx = centerX - totalW/2;
+      const childCenters = [];
+      kids.forEach(function(k, i){
+        const kw = widths[i];
+        const kCenterX = cx + kw/2;
+        childCenters.push(kCenterX);
+        cx += kw + HGAP;
+      });
+      // 연결선: 부모 하단 중앙 -> 스파인 -> 각 자식 상단 중앙
+      const spineY = top + h + VGAP/2;
+      svg += '<line x1="'+centerX+'" y1="'+(top+h)+'" x2="'+centerX+'" y2="'+spineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+      if (childCenters.length > 1) {
+        svg += '<line x1="'+childCenters[0]+'" y1="'+spineY+'" x2="'+childCenters[childCenters.length-1]+'" y2="'+spineY+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+      }
+      kids.forEach(function(k, i){
+        svg += '<line x1="'+childCenters[i]+'" y1="'+spineY+'" x2="'+childCenters[i]+'" y2="'+childTop+'" stroke="'+LINE+'" stroke-width="1.5"/>';
+        layout(k, childCenters[i], childTop, depth+1);
+      });
+    }
+  }
+
+  const rootWidths = roots.map(subW);
+  const totalRootW = rootWidths.reduce((s,w)=>s+w,0) + (roots.length-1)*HGAP;
+  let rx = 40;
+  roots.forEach(function(r, i){
+    const rw = rootWidths[i];
+    layout(r, rx + rw/2, 30, 0);
+    rx += rw + HGAP;
+  });
+
+  const CAN_W = maxX + 60, CAN_H = maxY + 40;
+  chart.innerHTML =
+    '<div style="position:relative;width:'+CAN_W+'px;height:'+CAN_H+'px">' +
+    '<svg style="position:absolute;top:0;left:0;width:'+CAN_W+'px;height:'+CAN_H+'px;z-index:0;overflow:visible">'+svg+'</svg>' +
+    nodes +
+    '</div>';
+
+  setTimeout(function(){
+    const wrap=document.getElementById('orgview-wrap');
+    if(!wrap)return;
+    orgScale=Math.min(0.8,(wrap.clientWidth-40)/CAN_W);
+    orgOffX=Math.max((wrap.clientWidth-CAN_W*orgScale)/2,20);
+    orgOffY=20;
+    applyOrgTransform();
+  },80);
+}
 
 function applyOrgTransform() {
   const canvas = document.getElementById('orgview-canvas');
