@@ -8784,6 +8784,8 @@ function resetWelfareToday() {
 }
 
 function renderWelfareTable() {
+  const employees = wgCompanyEmployees(); // 지금 보고 있는 회사의 직원만 (전역 employees는 그대로 둠)
+  const departments = wgCompanyDepartments();
   if(!employees||employees.length===0){document.getElementById('welfare-tbody').innerHTML='<tr><td colspan="35" style="padding:20px;text-align:center">직원 데이터 로딩 중...</td></tr>';return;}
   // 현재일: 입력값 또는 오늘
   const todayInput = document.getElementById('welfare-today');
@@ -11013,6 +11015,8 @@ function renderDeptFund() {
 
 
 function _renderDeptFund() {
+  const employees = wgCompanyEmployees(); // 지금 보고 있는 회사의 직원만 (전역 employees는 그대로 둠)
+  const departments = wgCompanyDepartments();
   const container = document.getElementById('deptfund-content');
   if (!container) return;
   // nameData 정리 (name 없는 항목 제거)
@@ -23396,7 +23400,8 @@ var _wfAvgTo = null;
 
 // 대표이사 제외 체크 시 적용할 직원 목록 (상시근로자수 계산 전용)
 function wfEmp() {
-  return _wfExcludeCEO ? employees.filter(function(e){ return e.position !== '대표이사'; }) : employees;
+  var companyEmps = wgCompanyEmployees();
+  return _wfExcludeCEO ? companyEmps.filter(function(e){ return e.position !== '대표이사'; }) : companyEmps;
 }
 
 function wfToggleExcludeCEO() {
@@ -23416,7 +23421,7 @@ function wfAvgRangeChange() {
 // 고정 기준인원(전년도 등록값)에서 CEO 제외 반영: 기준일 시점에 대표이사가 재직 중이었다면 1명 차감
 function wfAdjustCeoBase(count, asOfDateStr) {
   if (!_wfExcludeCEO) return count;
-  var ceoActive = employees.some(function(e) {
+  var ceoActive = wgCompanyEmployees().some(function(e) {
     return e.position === '대표이사' &&
       e.joindate && e.joindate <= asOfDateStr &&
       (!e.leavedate || e.leavedate > asOfDateStr);
@@ -23436,11 +23441,21 @@ function wfGetCurActive() {
 }
 
 function wfLoadEdits() {
+  var all;
+  try { all = JSON.parse(localStorage.getItem('wg_wf_edits') || '[]'); } catch { all = []; }
+  var cid = wgCurrentViewCompanyId();
+  return all.filter(function(it){ return (it.companyId||DEFAULT_COMPANY_ID) === cid; });
+}
+function wfLoadAllEditsRaw() {
   try { return JSON.parse(localStorage.getItem('wg_wf_edits') || '[]'); } catch { return []; }
 }
 function wfSaveEdits(arr) {
-  localStorage.setItem('wg_wf_edits', JSON.stringify(arr));
-  db.collection('workforce').doc('edits').set({items: arr}).catch(function(){});
+  var cid = wgCurrentViewCompanyId();
+  var others = wfLoadAllEditsRaw().filter(function(it){ return (it.companyId||DEFAULT_COMPANY_ID) !== cid; });
+  arr.forEach(function(it){ if (!it.companyId) it.companyId = cid; });
+  var merged = others.concat(arr);
+  localStorage.setItem('wg_wf_edits', JSON.stringify(merged));
+  db.collection('workforce').doc('edits').set({items: merged}).catch(function(){});
 }
 
 // Firestore에서 수정 데이터 로드
@@ -24836,6 +24851,7 @@ function draftDownloadWord() {
 var _draftTplSharedWith = [];
 
 function draftTplSearchEmp() {
+  var employees = wgCompanyEmployees();
   var keyword = document.getElementById('draft-tpl-emp-search').value.trim();
   var resultsEl = document.getElementById('draft-tpl-emp-results');
   if (!keyword) { resultsEl.style.display = 'none'; return; }
@@ -25015,6 +25031,7 @@ function docEditRemoveShared(email) {
 }
 
 function docEditSearchEmp() {
+  var employees = wgCompanyEmployees();
   var keyword = document.getElementById('doc-edit-emp-search').value.trim();
   var resultsEl = document.getElementById('doc-edit-emp-results');
   if (!keyword) { resultsEl.style.display = 'none'; return; }
@@ -25463,6 +25480,7 @@ function projectSelectColor(color, el) {
 }
 
 function projectSearchMember() {
+  var employees = wgCompanyEmployees();
   var keyword = document.getElementById('project-member-search').value.trim();
   var resultsEl = document.getElementById('project-member-results');
   if (!keyword) { resultsEl.style.display='none'; return; }
@@ -25577,6 +25595,8 @@ function orgPickerOpen() {
 }
 
 function orgPickerRenderDeptTree() {
+  var departments = wgCompanyDepartments(); // 지금 보고 있는 회사의 부서만 (전역 departments는 그대로 둠)
+  var employees = wgCompanyEmployees();
   var tree = document.getElementById('org-dept-tree');
   if (!tree) return;
 
@@ -25610,6 +25630,7 @@ function orgPickerSelectDept(dept) {
 }
 
 function orgPickerRenderMemberList(keyword) {
+  var employees = wgCompanyEmployees(); // 지금 보고 있는 회사의 직원만 (전역 employees는 그대로 둠)
   var list = document.getElementById('org-member-list');
   if (!list) return;
   var myEmail = state.user ? state.user.email : '';
