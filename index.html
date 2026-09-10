@@ -275,6 +275,7 @@ select.form-input{cursor:pointer}
       <input type="text" placeholder="업무, 파일, 팀원 검색...">
     </div>
     <div class="topbar-right">
+      <select id="wg-company-switcher" onchange="wgSwitchCompany(this.value)" style="display:none;font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer" title="회사 전환"></select>
       <span style="font-size:18px;cursor:pointer" title="알림">🔔</span>
       <div id="user-avatar" class="avatar-placeholder">U</div>
       <span class="topbar-name" id="user-name">사용자</span>
@@ -322,6 +323,7 @@ select.form-input{cursor:pointer}
           <div class="nav-item admin-only" onclick="showPage('personnel-matrix',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📋</span> 인사기록 총괄표</div>
           <div class="nav-item admin-only" onclick="showPage('myinfo-history',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">📝</span> 정보수정 이력</div>
           <div class="nav-item admin-only" onclick="showPage('organization',this)"><span class="nav-icon">🏢</span> 조직 관리</div>
+          <div class="nav-item admin-only" onclick="showPage('companymanage',this)"><span class="nav-icon">🏭</span> 회사 관리</div>
           <div class="nav-item admin-only" onclick="showPage('welfare',this)"><span class="nav-icon">🎁</span> 복리후생</div>
           <div class="nav-item admin-only" onclick="showPage('birthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎂</span> 생일자 현황</div>
           <div class="nav-item admin-only" onclick="showPage('parentbirthday',this)" style="padding-left:32px;font-size:13px"><span class="nav-icon">🎁</span> 부모님 생신현황</div>
@@ -1377,6 +1379,15 @@ select.form-input{cursor:pointer}
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- 회사 관리 -->
+      <div id="page-companymanage" class="page">
+        <div class="page-header">
+          <div><div class="page-title">🏭 회사 관리</div><div class="page-sub">WorkGate에서 관리하는 회사(법인) 목록입니다. 회사별로 직원·조직도·업무 등이 완전히 분리됩니다.</div></div>
+          <button class="btn btn-primary btn-sm" onclick="wgAddCompany()">+ 회사 추가</button>
+        </div>
+        <div id="wg-company-list" style="display:flex;flex-direction:column;gap:10px;max-width:600px"></div>
       </div>
 
       <!-- 코드 관리 -->
@@ -3101,6 +3112,11 @@ select.form-input{cursor:pointer}
           <div class="form-group" style="margin-bottom:0"><label class="form-label">사번 (Google ID) *</label><input type="text" class="form-input" id="emp-id" placeholder="google@company.com"></div>
           <div class="form-group" style="margin-bottom:0"><label class="form-label">이름 *</label><input type="text" class="form-input" id="emp-name" placeholder="홍길동"></div>
         </div>
+        <div class="form-row" id="emp-company-row" style="display:none">
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">소속 회사</label>
+            <select class="form-input" id="emp-company"></select>
+          </div>
+        </div>
         <div class="form-row">
           <div class="form-group" style="margin-bottom:0"><label class="form-label">부서명</label>
             <select class="form-input" id="emp-dept"><option value="">선택</option></select>
@@ -3851,7 +3867,13 @@ let state = {
   members: JSON.parse(localStorage.getItem('wg_members') || '[]'),
   driveAccessToken: null,
   driveTokenExpiry: 0,
+  myCompanyId: null,      // 로그인한 내 계정이 속한 회사
+  viewingCompanyId: null, // 지금 화면에 보고 있는 회사 (관리자는 전환 가능)
 };
+
+// 기존 데이터(회사 구분 도입 이전)는 이 기본 회사 소속으로 간주
+const DEFAULT_COMPANY_ID = 'jungdouit';
+const DEFAULT_COMPANY_NAME = '㈜정도유아이티';
 
 // ── 드라이브 토큰을 sessionStorage에 저장/복원 (새로고침해도 유지되도록) ──
 function driveSaveToken(token, expiresInSec) {
@@ -4037,6 +4059,7 @@ async function loginSuccess(name, picture, email) {
   // 직원 자동 등록 (Firestore에 없으면 신규 등록)
   await autoRegisterEmployee(email, name, picture);
   await loadFirestoreData();
+  wgDetermineCompanyContext();
   // 로그인 기록은 전체 직원 목록을 다 불러온 "이후"에 남긴다.
   // (먼저 남기면 본인 문서에 대한 로컬 병합 쓰기가 방금 막 시작된 전체 목록 조회와 겹쳐서,
   //  본인 문서만 다른 필드 없이 lastLogin만 있는 것처럼 잠깐 보이는 캐시 타이밍 문제가 있었음)
@@ -4242,6 +4265,18 @@ async function autoUpdateRetiredStatus() {
 
 async function loadFirestoreData() {
   try {
+    // 회사 목록 로드 (없으면 기본 회사 하나로 초기화)
+    try {
+      var compSnap = await db.collection('companies').get();
+      if (compSnap.empty) {
+        await db.collection('companies').doc(DEFAULT_COMPANY_ID).set({ name: DEFAULT_COMPANY_NAME, sortOrder: 0 });
+        window._allCompanies = [{ id: DEFAULT_COMPANY_ID, name: DEFAULT_COMPANY_NAME, sortOrder: 0 }];
+      } else {
+        window._allCompanies = compSnap.docs.map(function(d){ return Object.assign({ id: d.id }, d.data()); })
+          .sort(function(a,b){ return (a.sortOrder||0)-(b.sortOrder||0); });
+      }
+    } catch(ce) { console.error('회사 목록 로드 오류:', ce); window._allCompanies = [{ id: DEFAULT_COMPANY_ID, name: DEFAULT_COMPANY_NAME, sortOrder: 0 }]; }
+
     // 직원 데이터 로드 (로그인 직후 권한 평가가 아직 안정되지 않았을 수 있어 실패 시 한 번 재시도)
     let empSnap;
     try {
@@ -4257,7 +4292,12 @@ async function loadFirestoreData() {
     if (blankOnes.length) {
       console.warn('[방어 처리] 이름 없는 직원 문서가 ' + blankOnes.length + '건 발견되어 화면 목록에서 제외했습니다:', blankOnes);
     }
-    employees = rawEmployees.filter(e => e.name);
+    // 회사 구분 도입 이전 데이터는 기본 회사 소속으로 간주
+    window._allEmployees = rawEmployees.filter(e => e.name).map(function(e){
+      if (!e.companyId) e.companyId = DEFAULT_COMPANY_ID;
+      return e;
+    });
+    employees = window._allEmployees; // 전체 직원(모든 회사) — 회사별 화면 필터링은 각 렌더 함수에서 wgCompanyEmployees()로 처리
     localStorage.setItem('wg_employees', JSON.stringify(employees));
 
     // 퇴사일이 지났는데 아직 재직 상태로 남아있는 사람 자동으로 퇴직 처리 (접속할 때마다 확인)
@@ -4266,12 +4306,14 @@ async function loadFirestoreData() {
     // 부서 데이터 로드
     const deptSnap = await db.collection('departments').get();
     if (!deptSnap.empty) {
-      departments = deptSnap.docs.map(d => {
+      window._allDepartments = deptSnap.docs.map(d => {
         const data = d.data();
         // position 기본값 보장
         if (!data.position) data.position = 'bottom';
+        if (!data.companyId) data.companyId = DEFAULT_COMPANY_ID;
         return data;
       });
+      departments = window._allDepartments;
       localStorage.setItem('wg_departments', JSON.stringify(departments));
     }
 
@@ -4313,6 +4355,116 @@ async function loadFirestoreData() {
   }
 }
 
+function wgRefreshEmpDeptOptions(companyId) {
+  const deptSel = document.getElementById('emp-dept');
+  if (!deptSel) return;
+  const cur = deptSel.value;
+  const depts = (window._allDepartments||departments).filter(function(d){ return (d.companyId||DEFAULT_COMPANY_ID) === companyId; });
+  deptSel.innerHTML = '<option value="">선택</option>' + depts.map(d=>`<option value="${d.name}">${d.name}</option>`).join('');
+  deptSel.value = cur;
+}
+
+function wgDetermineCompanyContext() {
+  var myEmp = (window._allEmployees||[]).find(function(e){ return e.id === state.myEmail; });
+  state.myCompanyId = myEmp ? (myEmp.companyId || DEFAULT_COMPANY_ID) : DEFAULT_COMPANY_ID;
+  if (!state.viewingCompanyId) state.viewingCompanyId = state.myCompanyId;
+  wgRenderCompanySwitcher();
+}
+
+// 지금 화면에 보여줄 회사 id (관리자는 전환한 회사, 일반 직원은 항상 자기 회사)
+function wgCurrentViewCompanyId() {
+  return isAdmin() ? (state.viewingCompanyId || state.myCompanyId || DEFAULT_COMPANY_ID) : (state.myCompanyId || DEFAULT_COMPANY_ID);
+}
+function wgCompanyEmployees() {
+  var cid = wgCurrentViewCompanyId();
+  return (window._allEmployees||employees).filter(function(e){ return (e.companyId||DEFAULT_COMPANY_ID) === cid; });
+}
+function wgCompanyDepartments() {
+  var cid = wgCurrentViewCompanyId();
+  return (window._allDepartments||departments).filter(function(d){ return (d.companyId||DEFAULT_COMPANY_ID) === cid; });
+}
+function wgCompanyName(id) {
+  var c = (window._allCompanies||[]).find(function(x){ return x.id === id; });
+  return c ? c.name : id;
+}
+
+function wgRenderCompanySwitcher() {
+  var el = document.getElementById('wg-company-switcher');
+  if (!el) return;
+  if (!isAdmin() || !window._allCompanies || window._allCompanies.length < 2) { el.style.display = 'none'; return; }
+  el.style.display = 'inline-block';
+  el.innerHTML = window._allCompanies.map(function(c){
+    return '<option value="'+c.id+'"'+(c.id===wgCurrentViewCompanyId()?' selected':'')+'>'+c.name+'</option>';
+  }).join('');
+}
+
+function wgSwitchCompany(companyId) {
+  state.viewingCompanyId = companyId;
+  showToast('🏢 '+wgCompanyName(companyId)+' 회사로 전환했습니다');
+  // 현재 열려있는 화면 다시 그리기
+  var activePage = document.querySelector('.page.active');
+  if (activePage) {
+    var pageId = activePage.id.replace('page-','');
+    showPage(pageId, document.querySelector('.nav-item.active'));
+  }
+}
+
+function wgRenderCompanyManage() {
+  var list = window._allCompanies || [];
+  document.getElementById('wg-company-list').innerHTML = list.map(function(c){
+    var empCount = (window._allEmployees||[]).filter(function(e){ return (e.companyId||DEFAULT_COMPANY_ID) === c.id; }).length;
+    var isDefault = c.id === DEFAULT_COMPANY_ID;
+    return '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">' +
+      '<div><div style="font-weight:700;font-size:14px">'+c.name+'</div><div style="font-size:12px;color:var(--t3);margin-top:2px">직원 '+empCount+'명'+(isDefault?' · 기본 회사':'')+'</div></div>' +
+      '<div style="display:flex;gap:6px">' +
+        '<button class="btn btn-ghost btn-sm" onclick="wgRenameCompany(\''+c.id+'\')">✎ 이름변경</button>' +
+        (isDefault ? '' : '<button class="btn btn-ghost btn-sm" style="color:#dc2626" onclick="wgDeleteCompany(\''+c.id+'\')">🗑 삭제</button>') +
+      '</div>' +
+    '</div>';
+  }).join('') || '<div style="color:var(--t3);font-size:13px">등록된 회사가 없습니다.</div>';
+}
+
+async function wgAddCompany() {
+  var name = prompt('추가할 회사(법인)명을 입력하세요');
+  if (!name) return;
+  try {
+    var ref = await db.collection('companies').add({ name: name.trim(), sortOrder: (window._allCompanies||[]).length });
+    window._allCompanies.push({ id: ref.id, name: name.trim(), sortOrder: window._allCompanies.length });
+    wgRenderCompanyManage();
+    wgRenderCompanySwitcher();
+    showToast('✅ 회사가 추가되었습니다');
+  } catch(e) { console.error(e); showToast('❌ 추가 실패'); }
+}
+
+async function wgRenameCompany(companyId) {
+  var c = (window._allCompanies||[]).find(function(x){ return x.id === companyId; });
+  if (!c) return;
+  var name = prompt('새 회사명을 입력하세요', c.name);
+  if (!name || name.trim() === c.name) return;
+  try {
+    await db.collection('companies').doc(companyId).update({ name: name.trim() });
+    c.name = name.trim();
+    wgRenderCompanyManage();
+    wgRenderCompanySwitcher();
+    showToast('✅ 회사명이 변경되었습니다');
+  } catch(e) { console.error(e); showToast('❌ 변경 실패'); }
+}
+
+async function wgDeleteCompany(companyId) {
+  var empCount = (window._allEmployees||[]).filter(function(e){ return (e.companyId||DEFAULT_COMPANY_ID) === companyId; }).length;
+  if (empCount > 0) { showToast('❌ 소속 직원이 있는 회사는 삭제할 수 없습니다 (먼저 직원을 다른 회사로 옮기거나 삭제해주세요)'); return; }
+  var c = (window._allCompanies||[]).find(function(x){ return x.id === companyId; });
+  if (!c || !confirm('"'+c.name+'" 회사를 삭제할까요?')) return;
+  try {
+    await db.collection('companies').doc(companyId).delete();
+    window._allCompanies = window._allCompanies.filter(function(x){ return x.id !== companyId; });
+    if (state.viewingCompanyId === companyId) state.viewingCompanyId = DEFAULT_COMPANY_ID;
+    wgRenderCompanyManage();
+    wgRenderCompanySwitcher();
+    showToast('✅ 회사가 삭제되었습니다');
+  } catch(e) { console.error(e); showToast('❌ 삭제 실패'); }
+}
+
 function isAdmin() {
   return state.myRole === '관리자' || state.myRole === 'HR담당';
 }
@@ -4324,6 +4476,7 @@ function hasFullAccess(pageId) {
 
 function applyRoleUI() {
   const admin = isAdmin();
+  wgRenderCompanySwitcher();
   document.querySelectorAll('.admin-only').forEach(el => {
     var isNavItem = el.classList.contains('nav-item');
     var granted = false;
@@ -5056,7 +5209,7 @@ function renderEmployeeTable() {
   const q = (document.getElementById('emp-search')?.value || '').toLowerCase();
   const deptF = document.getElementById('emp-filter-dept')?.value || '';
   const statusF = document.getElementById('emp-filter-status')?.value || '';
-  let list = employees.filter(e => {
+  let list = wgCompanyEmployees().filter(e => {
     const matchQ = !q || e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q) || (e.dept||'').includes(q);
     const matchD = !deptF || e.dept === deptF;
     const matchS = !statusF || e.status === statusF;
@@ -5115,7 +5268,7 @@ function populateEmpFilterDept() {
   if (!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">전체 부서</option>' +
-    departments.map(d => `<option value="${d.name}" ${cur===d.name?'selected':''}>${d.name}</option>`).join('');
+    wgCompanyDepartments().map(d => `<option value="${d.name}" ${cur===d.name?'selected':''}>${d.name}</option>`).join('');
 }
 
 function openEmployeeModal(uid) {
@@ -5129,9 +5282,21 @@ function openEmployeeModal(uid) {
     const codes = (codeData[cat]||[]).filter(c=>c.use);
     sel.innerHTML = '<option value="">선택</option>' + codes.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
   });
-  // 부서 셀렉트
-  const deptSel = document.getElementById('emp-dept');
-  deptSel.innerHTML = '<option value="">선택</option>' + departments.map(d=>`<option value="${d.name}">${d.name}</option>`).join('');
+
+  // 회사 셀렉트 (회사가 2개 이상일 때만 노출)
+  var existingEmp = uid ? employees.find(x => x.uid === uid) : null;
+  var empCompanyId = existingEmp ? (existingEmp.companyId || DEFAULT_COMPANY_ID) : wgCurrentViewCompanyId();
+  var companyRow = document.getElementById('emp-company-row');
+  var companySel = document.getElementById('emp-company');
+  if (window._allCompanies && window._allCompanies.length > 1) {
+    companyRow.style.display = '';
+    companySel.innerHTML = window._allCompanies.map(c => `<option value="${c.id}" ${c.id===empCompanyId?'selected':''}>${c.name}</option>`).join('');
+    companySel.onchange = function(){ wgRefreshEmpDeptOptions(this.value); };
+  } else {
+    companyRow.style.display = 'none';
+  }
+  // 부서 셀렉트 (선택된 회사 기준)
+  wgRefreshEmpDeptOptions(empCompanyId);
 
   if (uid) {
     const e = employees.find(x => x.uid === uid);
@@ -5401,6 +5566,7 @@ function saveEmployee() {
       concurrent: getConcurrentRows(),
       ...personalInfo,
       photo: photo || prev.photo,
+      companyId: document.getElementById('emp-company')?.value || prev.companyId || DEFAULT_COMPANY_ID,
       history: [...(prev.history||[]), {
         date: now,
         changes: buildChangeLog(prev, {
@@ -5468,6 +5634,7 @@ function saveEmployee() {
       concurrent: getConcurrentRows(),
       ...personalInfo,
       photo, history: [{date: now, changes: ['최초 등록']}],
+      companyId: document.getElementById('emp-company')?.value || wgCurrentViewCompanyId(),
     };
     employees.push(empData);
     // Firestore 새 문서 저장
@@ -5530,6 +5697,8 @@ function inviteGoogleWorkspace() {
 // 조직 관리
 // ══════════════════════════════════════════════════
 function renderDeptTable() {
+  const departments = wgCompanyDepartments(); // 지금 보고 있는 회사의 부서만 (전역 departments는 그대로 둠)
+  const employees = wgCompanyEmployees();
   const tbody = document.getElementById('dept-tbody');
   if (!tbody) return;
   if (!departments.length) {
@@ -5607,12 +5776,14 @@ function toggleOrgNode(id) {
 
 function openDeptModal(id) {
   editingDeptId = id;
+  const companyDepts = wgCompanyDepartments();
+  const companyEmps = wgCompanyEmployees();
   const parentSel = document.getElementById('dept-parent');
   const headSel = document.getElementById('dept-head');
   parentSel.innerHTML = '<option value="">없음 (최상위)</option>' +
-    departments.filter(d => d.id !== id).map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+    companyDepts.filter(d => d.id !== id).map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
   headSel.innerHTML = '<option value="">선택</option>' +
-    employees.map(e=>`<option value="${e.name}">${e.name}</option>`).join('');
+    companyEmps.map(e=>`<option value="${e.name}">${e.name}</option>`).join('');
   if (id) {
     const d = departments.find(x => x.id === id);
     if (!d) return;
@@ -5643,6 +5814,7 @@ function saveDept() {
   const name = document.getElementById('dept-name').value.trim();
   if (!code || !name) { showToast('❌ 부서코드와 부서명은 필수입니다'); return; }
   const levelVal = document.getElementById('dept-level').value;
+  const existingDept = editingDeptId ? departments.find(d => d.id === editingDeptId) : null;
   const deptData = {
     id: editingDeptId || ('dept_' + Date.now()),
     code, name,
@@ -5651,6 +5823,7 @@ function saveDept() {
     sortOrder: parseInt(document.getElementById('dept-sort').value) || 99,
     position: document.getElementById('dept-position').value || 'bottom',
     orgLevel: levelVal ? parseInt(levelVal) : null,
+    companyId: existingDept ? (existingDept.companyId || DEFAULT_COMPANY_ID) : wgCurrentViewCompanyId(),
   };
   if (editingDeptId) {
     const idx = departments.findIndex(d => d.id === editingDeptId);
@@ -5849,6 +6022,8 @@ function assignX(deptId, level, x, levelNodes, posMap) {
 }
 
 function renderOrgView() {
+  const departments = wgCompanyDepartments(); // 지금 보고 있는 회사의 부서만 (전역 departments는 그대로 둠)
+  const employees = wgCompanyEmployees();     // 지금 보고 있는 회사의 직원만 (전역 employees는 그대로 둠)
   const chart = document.getElementById('orgview-chart');
   if (!chart) return;
 
@@ -19689,6 +19864,7 @@ function showPage(id, el) {
   if(id === 'menuUsage') { renderMenuUsage(); }
   if(id === 'parentbirthday') { renderParentBirthdayTable(); }
   if(id === 'organization') renderDeptTable();
+  if(id === 'companymanage') wgRenderCompanyManage();
   if(id === 'workforce') renderWorkforce();
   if(id === 'workforce-join') renderWfJoin();
   if(id === 'workforce-gender') renderWfGender();
