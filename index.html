@@ -7037,7 +7037,7 @@ var _orgsimResignDateOverrides = {}; // { empId: 'YYYY-MM-DD' } — 시뮬레이
 
 // 시뮬레이션 추가/삭제가 반영된 부서 목록 (전역 departments는 그대로 두고, 렌더링에서만 이 값을 씀)
 function orgsimGetSimDepts() {
-  return departments.concat(_orgsimNewDepts).filter(function(d){ return !_orgsimDeletedDeptIds[d.id]; }).map(function(d){
+  return wgCompanyDepartments().concat(_orgsimNewDepts).filter(function(d){ return !_orgsimDeletedDeptIds[d.id]; }).map(function(d){
     var override = _orgsimLevelOverrides[d.id];
     return override ? Object.assign({}, d, { orgLevel: override }) : d;
   });
@@ -7045,7 +7045,7 @@ function orgsimGetSimDepts() {
 
 // 시뮬레이션 신규채용/삭제가 반영된 인원 목록 (전역 employees는 그대로 두고, 렌더링에서만 이 값을 씀)
 function orgsimGetSimEmps() {
-  return employees.concat(_orgsimNewEmps).filter(function(e){ return !_orgsimDeletedEmpIds[orgsimEmpId(e)]; });
+  return wgCompanyEmployees().concat(_orgsimNewEmps).filter(function(e){ return !_orgsimDeletedEmpIds[orgsimEmpId(e)]; });
 }
 
 async function orgsimAddEmployee(deptId) {
@@ -10444,6 +10444,7 @@ function _pbNoteCell(sendKey, note) {
 }
 
 function _renderPbTable(yearF, monthF) {
+  const employees = wgCompanyEmployees(); // 지금 보고 있는 회사의 직원만 (전역 employees는 그대로 둠)
   const tbody = document.getElementById('pb-tbody');
   if (!tbody) return;
   const rows = [];
@@ -14262,6 +14263,7 @@ function renderBirthdayTable() {
 }
 
 function _renderBirthdayTable() {
+  const employees = wgCompanyEmployees(); // 지금 보고 있는 회사의 직원만 (전역 employees는 그대로 둠)
   const tbody = document.getElementById('birthday-tbody');
   if (!tbody) return;
   const yearFilter = parseInt((document.getElementById('birthday-year-filter')||{}).value || '2025');
@@ -23472,7 +23474,7 @@ function wfGetYears() {
   var years = new Set();
   var cur = new Date().getFullYear();
   years.add(cur);
-  employees.forEach(function(e) {
+  wfEmp().forEach(function(e) {
     if (e.joindate) years.add(parseInt(e.joindate.substring(0,4)));
     if (e.leavedate) years.add(parseInt(e.leavedate.substring(0,4)));
   });
@@ -23496,7 +23498,7 @@ function wfYearTabs(containerId, year, fnName) {
 // 해당 연도 입퇴사 목록 (직원관리 + 수정 데이터 합산)
 function wfGetJoinLeave(year) {
   var list = [];
-  employees.forEach(function(e) {
+  wfEmp().forEach(function(e) {
     if (e.joindate && e.joindate.startsWith(year+'')) {
       list.push({name:e.name, dept:e.dept||'-', gender:e.gender||'', type:'입사', date:e.joindate, note:'자동', source:'auto'});
     }
@@ -23780,7 +23782,7 @@ function renderWfJoin(year) {
   // 평균 근속
   var today = new Date();
   var totalMonths = 0; var cnt = 0;
-  employees.forEach(function(e) {
+  wfEmp().forEach(function(e) {
     if (e.status !== '퇴직' && e.joindate) {
       var join = new Date(e.joindate);
       if (!isNaN(join)) {
@@ -23859,7 +23861,7 @@ function renderWfGender(year) {
   wfYearTabs('wf-gender-year-tabs', _wfYear, 'renderWfGender');
 
   var today = new Date();
-  var active = employees.filter(function(e){ return e.status!=='퇴직'; });
+  var active = wgCompanyEmployees().filter(function(e){ return e.status!=='퇴직'; });
   var allEditsG = wfLoadEdits();
   var unregLeaveNamesG = allEditsG.filter(function(e){ return e.source==='unregistered' && e.type==='퇴사'; }).map(function(e){ return e.name; });
   var unregActive = allEditsG.filter(function(e){ return e.source==='unregistered' && e.type==='입사' && unregLeaveNamesG.indexOf(e.name) < 0; });
@@ -24104,7 +24106,7 @@ function openWfEditModal(source, idx) {
     ? '<label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">직원 선택</label>' +
       '<select id="wf-edit-name" style="' + inputS + '">' +
       '<option value="">선택하세요</option>' +
-      employees.map(function(e){ return '<option value="' + e.name + '" data-dept="' + (e.dept||'') + '" data-gender="' + (e.gender||'') + '"' + (row.name===e.name?' selected':'') + '>' + e.name + ' (' + (e.dept||'') + ')</option>'; }).join('') +
+      wgCompanyEmployees().map(function(e){ return '<option value="' + e.name + '" data-dept="' + (e.dept||'') + '" data-gender="' + (e.gender||'') + '"' + (row.name===e.name?' selected':'') + '>' + e.name + ' (' + (e.dept||'') + ')</option>'; }).join('') +
       '</select>'
     : '<label style="font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">이름</label>' +
       '<input id="wf-edit-name" type="text" value="' + (row.name||'') + '" style="' + inputS + '" placeholder="홍길동">';
@@ -24212,7 +24214,7 @@ function workforceExcel(type) {
     monthly.forEach(function(m){ rows.push([m.month+'월',m.lastDay,m.join,m.leave,m.male,m.female,m.total]); });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '상시근로자수');
   } else if (type === 'gender') {
-    var active = employees.filter(function(e){ return e.status!=='퇴직'; });
+    var active = wgCompanyEmployees().filter(function(e){ return e.status!=='퇴직'; });
     var rows = [['이름','부서','성별','재직구분']];
     active.forEach(function(e){ rows.push([e.name,e.dept||'',e.gender||'',e.status||'']); });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '남녀현황');
