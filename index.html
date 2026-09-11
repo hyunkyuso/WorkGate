@@ -23306,11 +23306,12 @@ async function licenseSyncFromSurveyCerts() {
       var matches = certs.filter(function(c){ return (c.name||'').trim() === eqName; });
       if (!matches.length) return;
       matches.sort(function(a,b){
-        return ((b.validity&&b.validity.from)||'').localeCompare((a.validity&&a.validity.from)||'');
+        var ap = certRangeToInputs(a.validity||''), bp = certRangeToInputs(b.validity||'');
+        return (bp[0]||'').localeCompare(ap[0]||'');
       });
       var latest = matches[0];
-      var from = latest.validity && latest.validity.from;
-      var to = latest.validity && latest.validity.to;
+      var parts = certRangeToInputs(latest.validity||'');
+      var from = parts[0], to = parts[1];
       if (!from) return;
       if (eq.lastDate !== from) { eq.lastDate = from; touched = true; }
       if (!eq.cycle && from && to) {
