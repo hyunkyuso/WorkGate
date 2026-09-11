@@ -1543,6 +1543,7 @@ select.form-input{cursor:pointer}
         </div>
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
           <input type="text" class="form-input" id="pm-search" placeholder="이름 또는 부서 검색" style="max-width:200px" oninput="pmRender()">
+          <select class="form-input" id="pm-filter-company" style="max-width:150px;display:none" onchange="pmRender()"><option value="">전체 회사</option></select>
           <select class="form-input" id="pm-filter-dept" style="max-width:160px" onchange="pmRender()"><option value="">전체 부서</option></select>
           <select class="form-input" id="pm-filter-status" style="max-width:120px" onchange="pmRender()">
             <option value="">전체(재직+퇴사)</option>
@@ -1554,6 +1555,7 @@ select.form-input{cursor:pointer}
           <table style="width:100%;font-size:12px;border-collapse:collapse">
             <thead><tr style="background:#f1f5f9;position:sticky;top:0">
               <td style="padding:6px 8px;text-align:center">상태</td>
+              <td id="pm-th-company" style="padding:6px 8px;text-align:center;display:none">회사</td>
               <td style="padding:6px 8px;text-align:center">이름</td>
               <td style="padding:6px 8px;text-align:center">부서/직책</td>
               <td style="padding:6px 8px;text-align:center">직위</td>
@@ -1589,6 +1591,9 @@ select.form-input{cursor:pointer}
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:16px">
             <div style="padding:10px;border-bottom:1px solid var(--border)">
               <input id="pc-emp-search" type="text" class="form-input" style="font-size:12px;width:100%" placeholder="이름 검색..." oninput="pcRenderEmpList()">
+              <select id="pc-filter-company" class="form-input" style="font-size:12px;width:100%;margin-top:6px;display:none" onchange="pcPopulateDeptFilterOptions();pcRenderEmpList()">
+                <option value="">전체 회사</option>
+              </select>
               <select id="pc-dept-filter" class="form-input" style="font-size:12px;width:100%;margin-top:6px" onchange="pcRenderEmpList()">
                 <option value="">전체 부서</option>
               </select>
@@ -6658,7 +6663,7 @@ function renderOrgViewGeneric() {
   const roots=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   if(!roots.length){chart.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3)">부서를 추가해주세요</div>';return;}
 
-  const CW=140, CH=70, EMP_ROW_W=150, EMP_ROW_H=88, HGAP=28, VGAP=56, LINE='#94a3b8';
+  const CW=140, CH=70, EMP_ROW_W=180, EMP_ROW_H=98, HGAP=28, VGAP=56, LINE='#94a3b8';
   const LC=['#1e293b','#60a5fa','#f59e0b','#eab308','#0891b2','#059669'];
   function bg(lv){return LC[Math.min(Math.max(lv,0),LC.length-1)];}
   function getEmps(d){
@@ -6668,7 +6673,7 @@ function renderOrgViewGeneric() {
     return sortEmpsByRank([...mainEmps, ...concEmpsMarked], d.head||'');
   }
   function children(pid){ return departments.filter(d=>d.parent===pid).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99)); }
-  function cardW(d){ return Math.max(CW, d.name.length*16+36); }
+  function cardW(d){ return Math.max(CW, d.name.length*19+36); }
   // 이 조직 자체가 차지하는 최소 폭 (박스 폭과, 세로로 나열되는 직원 목록 폭 중 더 넓은 쪽)
   function selfW(d){ return Math.max(cardW(d), getEmps(d).length>0 ? EMP_ROW_W : 0); }
   function nodeH(d){ return CH + (getEmps(d).length>0 ? getEmps(d).length*EMP_ROW_H + 12 : 0); }
@@ -6726,10 +6731,10 @@ function renderOrgViewGeneric() {
       emps.forEach(function(e, i){
         const ey = top + CH + 14 + i*EMP_ROW_H;
         const initial = (e.name||'').charAt(0);
-        nodes += '<div style="position:absolute;left:'+listX+'px;top:'+ey+'px;width:'+EMP_ROW_W+'px;height:'+(EMP_ROW_H-10)+'px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;z-index:2;box-sizing:border-box;'+(e.isConcurrent?'border:2px dashed #2563eb;border-radius:10px;background:rgba(37,99,235,.06)':'')+'">' +
+        nodes += '<div style="position:absolute;left:'+listX+'px;top:'+ey+'px;width:'+EMP_ROW_W+'px;min-height:'+(EMP_ROW_H-10)+'px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:4px 0;z-index:2;box-sizing:border-box;'+(e.isConcurrent?'border:2px dashed #2563eb;border-radius:10px;background:rgba(37,99,235,.06)':'')+'">' +
           '<div style="width:58px;height:58px;flex-shrink:0;border-radius:50%;overflow:hidden;background:#64748b;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;border:1.5px solid #94a3b8">' +
           (e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':initial) + '</div>' +
-          '<div style="font-size:14px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:'+(EMP_ROW_W-16)+'px">' + (e.position||e.title||'') + ' ' + e.name + '</div>' +
+          '<div style="font-size:13px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:'+(EMP_ROW_W-12)+'px">' + (e.position||e.title||'') + ' ' + e.name + '</div>' +
         '</div>';
         if (listX + EMP_ROW_W > maxX) maxX = listX + EMP_ROW_W;
         if (ey + EMP_ROW_H > maxY) maxY = ey + EMP_ROW_H;
@@ -14808,13 +14813,39 @@ var _pcEditEmp = null;
 var _pcEditData = null;
 var _pcSelectedEmp = null;
 
+function pcPopulateFilterCompany() {
+  var sel = document.getElementById('pc-filter-company');
+  if (!sel) return;
+  if (!isAdmin() || !window._allCompanies || window._allCompanies.length < 2) { sel.style.display = 'none'; return; }
+  sel.style.display = '';
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">전체 회사</option>' +
+    window._allCompanies.map(function(c){ return '<option value="'+c.id+'" '+(cur===c.id?'selected':'')+'>'+c.name+'</option>'; }).join('');
+}
+
+function pcPopulateDeptFilterOptions() {
+  var deptSel = document.getElementById('pc-dept-filter');
+  if (!deptSel) return;
+  var cur = deptSel.value;
+  var companySel = document.getElementById('pc-filter-company');
+  var companyFilterOn = companySel && companySel.style.display !== 'none';
+  var companyF = companySel ? companySel.value : '';
+  var deptSource;
+  if (!companyFilterOn) {
+    deptSource = wgCompanyDepartments();
+  } else if (companyF) {
+    deptSource = (window._allDepartments||departments).filter(function(d){ return (d.companyId||DEFAULT_COMPANY_ID) === companyF; });
+  } else {
+    deptSource = (window._allDepartments||departments);
+  }
+  deptSel.innerHTML = '<option value="">전체 부서</option>' +
+    deptSource.map(function(d){ return '<option value="'+d.name+'" '+(cur===d.name?'selected':'')+'>'+d.name+'</option>'; }).join('');
+}
+
 function pcPopulateEmpSelect() {
   _pcSelectedEmp = null;
-  var deptSel = document.getElementById('pc-dept-filter');
-  if (deptSel) {
-    deptSel.innerHTML = '<option value="">전체 부서</option>' +
-      departments.map(function(d){ return '<option value="'+d.name+'">'+d.name+'</option>'; }).join('');
-  }
+  pcPopulateFilterCompany();
+  pcPopulateDeptFilterOptions();
   pcRenderEmpList();
   document.getElementById('pc-empty').style.display = 'block';
   document.getElementById('pc-profile').style.display = 'none';
@@ -14827,7 +14858,12 @@ function pcRenderEmpList() {
   if (!listEl) return;
   var keyword = (document.getElementById('pc-emp-search').value||'').trim();
   var deptFilter = document.getElementById('pc-dept-filter').value;
-  var list = wgCompanyEmployees().filter(function(e) {
+  var companySel = document.getElementById('pc-filter-company');
+  var companyFilterOn = companySel && companySel.style.display !== 'none';
+  var companyF = companySel ? companySel.value : '';
+  var baseList = (!companyFilterOn) ? wgCompanyEmployees()
+    : (companyF ? (window._allEmployees||employees).filter(function(e){ return (e.companyId||DEFAULT_COMPANY_ID) === companyF; }) : (window._allEmployees||employees));
+  var list = baseList.filter(function(e) {
     if (keyword && (e.name||'').indexOf(keyword) < 0) return false;
     if (deptFilter && e.dept !== deptFilter) return false;
     return true;
@@ -14841,8 +14877,9 @@ function pcRenderEmpList() {
     var email = e.id||e.email;
     var active = _pcSelectedEmp === email;
     var isResigned = e.status === '퇴직';
+    var companyTag = companyFilterOn ? ' <span style="font-size:10px;color:#6366f1">['+wgCompanyName(e.companyId||DEFAULT_COMPANY_ID)+']</span>' : '';
     return '<div onclick="pcSelectEmployee(\''+email+'\')" style="padding:8px 12px;cursor:pointer;font-size:13px;'+(isResigned?'opacity:.55;':'')+(active?'background:var(--acd);color:var(--ac);font-weight:600':'color:var(--t1)')+'">' +
-      e.name + (isResigned?' <span style="font-size:10px;color:#9ca3af;border:1px solid #d1d5db;border-radius:4px;padding:0 4px">퇴사</span>':'') + '<span style="font-size:11px;color:'+(active?'var(--ac)':'var(--t3)')+';margin-left:6px">'+(e.dept||'')+'</span>' +
+      e.name + (isResigned?' <span style="font-size:10px;color:#9ca3af;border:1px solid #d1d5db;border-radius:4px;padding:0 4px">퇴사</span>':'') + '<span style="font-size:11px;color:'+(active?'var(--ac)':'var(--t3)')+';margin-left:6px">'+(e.dept||'')+'</span>' + companyTag +
     '</div>';
   }).join('') || '<div style="padding:12px;color:var(--t3);font-size:12px">해당하는 직원이 없습니다</div>';
 }
@@ -22605,11 +22642,33 @@ function licenseGetMonthlyActivity(emp, year) {
 }
 
 // ══════════════════ 인사기록 총괄표 ══════════════════
+function pmPopulateCompanyFilter() {
+  var sel = document.getElementById('pm-filter-company');
+  var th = document.getElementById('pm-th-company');
+  if (!sel) return;
+  if (!isAdmin() || !window._allCompanies || window._allCompanies.length < 2) {
+    sel.style.display = 'none';
+    if (th) th.style.display = 'none';
+    return;
+  }
+  sel.style.display = '';
+  if (th) th.style.display = '';
+  if (sel.options.length > 1) return;
+  sel.innerHTML = '<option value="">전체 회사</option>' +
+    window._allCompanies.map(function(c){ return '<option value="'+c.id+'">'+c.name+'</option>'; }).join('');
+}
+
 function pmPopulateDeptFilter() {
   var sel = document.getElementById('pm-filter-dept');
-  if (!sel || sel.options.length > 1) return;
-  var depts = Array.from(new Set(employees.map(function(e){ return e.dept; }).filter(Boolean))).sort();
-  sel.innerHTML = '<option value="">전체 부서</option>' + depts.map(function(d){ return '<option value="'+d+'">'+d+'</option>'; }).join('');
+  if (!sel) return;
+  var companySel = document.getElementById('pm-filter-company');
+  var companyFilterOn = companySel && companySel.style.display !== 'none';
+  var companyF = companySel ? companySel.value : '';
+  var base = !companyFilterOn ? wgCompanyEmployees()
+    : (companyF ? (window._allEmployees||employees).filter(function(e){ return (e.companyId||DEFAULT_COMPANY_ID) === companyF; }) : (window._allEmployees||employees));
+  var cur = sel.value;
+  var depts = Array.from(new Set(base.map(function(e){ return e.dept; }).filter(Boolean))).sort();
+  sel.innerHTML = '<option value="">전체 부서</option>' + depts.map(function(d){ return '<option value="'+d+'" '+(cur===d?'selected':'')+'>'+d+'</option>'; }).join('');
 }
 
 function pmBuildRows() {
@@ -22617,8 +22676,13 @@ function pmBuildRows() {
   q = q.trim().toLowerCase();
   var deptFilter = (document.getElementById('pm-filter-dept')||{}).value || '';
   var statusFilter = (document.getElementById('pm-filter-status')||{}).value || '';
+  var companySel = document.getElementById('pm-filter-company');
+  var companyFilterOn = companySel && companySel.style.display !== 'none';
+  var companyF = companySel ? companySel.value : '';
+  var base = !companyFilterOn ? wgCompanyEmployees()
+    : (companyF ? (window._allEmployees||employees).filter(function(e){ return (e.companyId||DEFAULT_COMPANY_ID) === companyF; }) : (window._allEmployees||employees));
 
-  return employees.filter(function(e){
+  return base.filter(function(e){
     var isResigned = e.status === '퇴직';
     if (statusFilter === '재직' && isResigned) return false;
     if (statusFilter === '퇴사' && !isResigned) return false;
@@ -22740,7 +22804,10 @@ function pmDisplayTitle(title) {
 }
 
 function pmRender() {
+  pmPopulateCompanyFilter();
   pmPopulateDeptFilter();
+  var companySel = document.getElementById('pm-filter-company');
+  var companyFilterOn = companySel && companySel.style.display !== 'none';
   var rows = pmBuildRows();
   document.getElementById('pm-tbody').innerHTML = rows.map(function(r){
     var e = r.emp;
@@ -22751,6 +22818,7 @@ function pmRender() {
     var eduHtml = r.eduLink ? '<a href="javascript:void(0)" onclick="pmOpenFileModal(\''+r.eduLink.replace(/'/g,"\\'")+'\',\''+r.eduLine1.replace(/'/g,"\\'")+'\')" style="color:var(--ac);text-decoration:none">'+r.eduLine1+'</a>' : r.eduLine1;
     return '<tr style="border-top:1px solid var(--border);'+(r.isResigned?'opacity:.6':'')+'">' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(r.isResigned?'<span style="color:#9ca3af">퇴사</span>':'<span style="color:#16a34a;font-weight:600">재직</span>')+'</td>' +
+      (companyFilterOn ? '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+wgCompanyName(e.companyId||DEFAULT_COMPANY_ID)+'</td>' : '') +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap;font-weight:600">'+e.name+'</td>' +
       '<td style="padding:6px 8px;text-align:center"><span style="white-space:nowrap">'+(e.dept||'-')+'</span>'+(pmDisplayTitle(e.title)?'<br><span style="color:var(--t3);font-size:11px">'+pmDisplayTitle(e.title)+'</span>':'')+'</td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap">'+(e.position||'-')+'</td>' +
