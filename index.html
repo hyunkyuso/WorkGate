@@ -6620,7 +6620,7 @@ function renderOrgViewGeneric() {
   const roots=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   if(!roots.length){chart.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3)">부서를 추가해주세요</div>';return;}
 
-  const CW=140, CH=70, EMP_ROW_W=180, EMP_ROW_H=98, HGAP=28, VGAP=56, LINE='#94a3b8';
+  const CW=140, CH=70, EMP_ROW_W=150, EMP_ROW_H=88, HGAP=28, VGAP=56, LINE='#94a3b8';
   const LC=['#1e293b','#60a5fa','#f59e0b','#eab308','#0891b2','#059669'];
   function bg(lv){return LC[Math.min(Math.max(lv,0),LC.length-1)];}
   function getEmps(d){
@@ -6630,7 +6630,7 @@ function renderOrgViewGeneric() {
     return sortEmpsByRank([...mainEmps, ...concEmpsMarked], d.head||'');
   }
   function children(pid){ return departments.filter(d=>d.parent===pid).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99)); }
-  function cardW(d){ return Math.max(CW, d.name.length*19+36); }
+  function cardW(d){ return Math.max(CW, d.name.length*16+36); }
   // 이 조직 자체가 차지하는 최소 폭 (박스 폭과, 세로로 나열되는 직원 목록 폭 중 더 넓은 쪽)
   function selfW(d){ return Math.max(cardW(d), getEmps(d).length>0 ? EMP_ROW_W : 0); }
   function nodeH(d){ return CH + (getEmps(d).length>0 ? getEmps(d).length*EMP_ROW_H + 12 : 0); }
@@ -6688,10 +6688,10 @@ function renderOrgViewGeneric() {
       emps.forEach(function(e, i){
         const ey = top + CH + 14 + i*EMP_ROW_H;
         const initial = (e.name||'').charAt(0);
-        nodes += '<div style="position:absolute;left:'+listX+'px;top:'+ey+'px;width:'+EMP_ROW_W+'px;min-height:'+(EMP_ROW_H-10)+'px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:4px 0;z-index:2;box-sizing:border-box;'+(e.isConcurrent?'border:2px dashed #2563eb;border-radius:10px;background:rgba(37,99,235,.06)':'')+'">' +
+        nodes += '<div style="position:absolute;left:'+listX+'px;top:'+ey+'px;width:'+EMP_ROW_W+'px;height:'+(EMP_ROW_H-10)+'px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;z-index:2;box-sizing:border-box;'+(e.isConcurrent?'border:2px dashed #2563eb;border-radius:10px;background:rgba(37,99,235,.06)':'')+'">' +
           '<div style="width:58px;height:58px;flex-shrink:0;border-radius:50%;overflow:hidden;background:#64748b;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;border:1.5px solid #94a3b8">' +
           (e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':initial) + '</div>' +
-          '<div style="font-size:13px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:'+(EMP_ROW_W-12)+'px">' + (e.position||e.title||'') + ' ' + e.name + '</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:'+(EMP_ROW_W-16)+'px">' + (e.position||e.title||'') + ' ' + e.name + '</div>' +
         '</div>';
         if (listX + EMP_ROW_W > maxX) maxX = listX + EMP_ROW_W;
         if (ey + EMP_ROW_H > maxY) maxY = ey + EMP_ROW_H;
@@ -9475,7 +9475,7 @@ function renderWelfareTable() {
               let rfTarget = null, sbTarget = null;
               // 정규 발생 시점 도달했거나, 2025년에 발생한 경우 한시 지원 제외 (단서조항)
               const rfSdW = parseLocalDate(startDate);
-              if (!rfSdW) return;
+              if (!rfSdW) return '';
               const rfCutoffW = parseLocalDate('2026-01-01');
               // 발생한 항목 중 2026-01-01 이전 발생+1년 미만이면 제외 (단서조항)
               const alreadyHasRegular = [6,10,15,20].some(y => {
@@ -14789,7 +14789,7 @@ function pcRenderEmpList() {
   if (!listEl) return;
   var keyword = (document.getElementById('pc-emp-search').value||'').trim();
   var deptFilter = document.getElementById('pc-dept-filter').value;
-  var list = employees.filter(function(e) {
+  var list = wgCompanyEmployees().filter(function(e) {
     if (keyword && (e.name||'').indexOf(keyword) < 0) return false;
     if (deptFilter && e.dept !== deptFilter) return false;
     return true;
@@ -15415,7 +15415,7 @@ function pcBuildOneLineContext(emp) {
 }
 
 function pcBuildAllContext() {
-  return employees.filter(function(e){ return e.status !== '퇴직'; }).map(pcBuildOneLineContext).join('\n');
+  return wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).map(pcBuildOneLineContext).join('\n');
 }
 
 var _pcChatLog = []; // [{role:'user'|'ai', text}]
@@ -15590,7 +15590,7 @@ function careerBuildLicenseMatrix() {
   var totalPeople = new Set();
   var multiPeople = new Set();
 
-  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+  wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
     var matched = (emp.license||[]).filter(careerIsRelevantLicense);
     if (!matched.length) return;
     var empId = emp._docId || emp.id;
@@ -15625,7 +15625,7 @@ function careerBuildGradeMatrix(assocId) {
   var fieldNames = {}; // fieldNames[field] = [이름, ...] - 합계 칸에 이름 표시용
   var totalPeople = new Set(); // 협회 전체 중복제거 합계용
 
-  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+  wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
     var empId = emp._docId || emp.id;
     // 전체 합계는 분야 등급 상관없이, 협회 등록(체크) 되어있거나 사업/수동등급이 하나라도 있으면 포함
     var hasAnyRelation = !!(emp.assocEnrolled||{})[assocId] ||
@@ -15774,7 +15774,7 @@ function careerBuildEduMatrix() {
   var totalPeople = new Set();
   var multiPeople = new Set();
 
-  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+  wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
     var empId = emp._docId || emp.id;
     var matchCount = 0;
     (emp.education||[]).forEach(function(e) {
@@ -16358,7 +16358,7 @@ function careerRegKey(assocId, field) {
 function careerRegRenderEmpList() {
   var keyword = (document.getElementById('career-reg-emp-search').value||'').trim();
   var el = document.getElementById('career-reg-emp-list');
-  var list = employees.filter(function(e){ return e.status !== '퇴직'; });
+  var list = wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; });
   if (keyword) list = list.filter(function(e){ return (e.name||'').indexOf(keyword) >= 0; });
   list.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
   el.innerHTML = list.map(function(e) {
@@ -17294,7 +17294,7 @@ function careerRenderConstructionTab() {
   // 사람 × 등록된 분야 조합으로 행을 만든다 (한 사람이 여러 분야에 등록되어 있으면 여러 줄)
   var rows = [];
   var rowedEmpIds = {};
-  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+  wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
     fields.forEach(function(field) {
       if (!careerIsFieldRegistered(emp, 'construction', field)) return;
       var d = careerDetermineConstructionGrade(emp, field);
@@ -17316,7 +17316,7 @@ function careerRenderConstructionTab() {
   // 기본 정보(본부/직급/이름)만이라도 보이도록 빈 줄을 하나 만들어줌
   // 현재 역량지수는 분야 매칭이 안 되어도, 토목-측량및지형공간정보 기준으로 계산해서 보여줌 (등급 칸은 매칭 분야가 없으니 "-")
   var FALLBACK_FIELD = '토목-측량및지형공간정보';
-  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+  wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
     var empId = emp._docId||emp.id;
     if (rowedEmpIds[empId]) return;
     if (!(emp.assocEnrolled||{}).construction) return;
@@ -17413,7 +17413,7 @@ function careerRenderAiswTab() {
     '</tr>';
 
   var rows = [];
-  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+  wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
     if (!careerIsFieldRegistered(emp, 'aisw', field)) return;
     var g = careerGetEffectiveGrade(emp, field, 'aisw');
     var need = g.grade !== '기술사' ? careerDaysToNextGrade(emp, field, g.grade, 'aisw') : null;
@@ -17510,7 +17510,7 @@ function careerRenderEngTab() {
     '</tr>';
 
   var amAdmin = isAdmin();
-  var people = employees.filter(function(emp) {
+  var people = wgCompanyEmployees().filter(function(emp) {
     if (emp.status === '퇴직') return false;
     var regEntries = (emp.assocCareer||{})['eng'] || [];
     var hasOverride = Object.keys(emp.careerGradeOverride||{}).some(function(f){ return fields.indexOf(f) >= 0; });
@@ -17607,7 +17607,7 @@ function careerRenderGradeDetail() {
 
   var amAdmin = isAdmin();
   var rows = [];
-  employees.filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
+  wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).forEach(function(emp) {
     fields.forEach(function(field) {
       var hasCert = (emp.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseMatchesField(l, field); });
       var hasEdu = (emp.education||[]).some(function(e){ return careerEduFieldsForMajor(e.major).indexOf(field) >= 0; });
@@ -18193,7 +18193,7 @@ function careerRenderOverviewTable() {
   }
 
   var keyword = (document.getElementById('career-overview-search').value||'').trim();
-  var rows = employees.filter(function(e){ return e.status !== '퇴직'; }).map(careerBuildOverviewRow);
+  var rows = wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).map(careerBuildOverviewRow);
 
   if (keyword) {
     rows = rows.filter(function(r) {
@@ -21799,7 +21799,7 @@ function licenseBuildEngSummaryData() {
   var mgmt = { counts:{기술사:0,기사:0,산업기사:0,학력자:0} };
   var etc = { counts:{기술사:0,기사:0,산업기사:0,학력자:0} };
 
-  var allPeople = employees.filter(function(e){ return e.status !== '퇴직'; }).concat(
+  var allPeople = wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).concat(
     (_licenseVirtualEmpsCache || []).filter(function(it){ return it.source === 'unregistered' && it.type !== '퇴사'; }).map(function(it){
       return { name: it.name, licenseCategory: it.licenseCategory||'', _isVirtual: true, manualDegree: it.manualDegree||'', license: [] };
     })
@@ -21920,7 +21920,7 @@ function licenseGradeRank(g) { return LICENSE_GRADE_RANK[g] || 0; }
 function licenseGetEligibleByConstructionGrade(minGrade) {
   var minRank = licenseGradeRank(minGrade === '특급' ? '특급기술자' : minGrade+'기술자');
   var field = '토목-측량및지형공간정보';
-  return employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
+  return wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
     if (!careerIsFieldRegistered(e, 'construction', field)) return false;
     var g = careerGetEffectiveGrade(e, field, 'construction').grade;
     return licenseGradeRank(g) >= minRank;
@@ -21931,7 +21931,7 @@ function licenseGetEligibleByConstructionGrade(minGrade) {
 
 // 자격증(license) 정보 중 특정 키워드(예: "도화", "지도제작")가 이름에 포함된 자격을 보유한 직원 목록
 function licenseGetEligibleByLicenseKeyword(keywords) {
-  return employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
+  return wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
     return (e.license||[]).some(function(l){
       return keywords.some(function(k){ return (l.name||'').indexOf(k) >= 0; });
     });
@@ -21953,7 +21953,7 @@ function licenseOpenReplaceModal(fieldId, personnelIdx) {
     candidates = licenseGetEligibleByLicenseKeyword(p.keywords || []);
   } else {
     // 기준 정보 없으면 전체 재직자에서 검색
-    candidates = employees.filter(function(e){ return e.status !== '퇴직'; }).map(function(e){ return {name:e.name, grade:''}; });
+    candidates = wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).map(function(e){ return {name:e.name, grade:''}; });
   }
 
   var existing = document.getElementById('license-replace-modal');
@@ -22013,7 +22013,7 @@ var LICENSE_ENG_FIELDS = [
 // 협회(eng)에 실제 등록되어 인정되는 인원 목록 (등급 필터 옵션 포함)
 function licenseGetEngRegistered(field, minGrade) {
   var minRank = minGrade ? licenseGradeRank(minGrade+'기술자') : 0;
-  return employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
+  return wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
     if (!careerIsFieldRegistered(e, 'eng', field)) return false;
     if (!minGrade) return true;
     return licenseGradeRank(careerGetEffectiveGrade(e, field, 'eng').grade) >= minRank;
@@ -22025,7 +22025,7 @@ function licenseGetEngRegistered(field, minGrade) {
 // 협회에 등록은 안 했지만, 자격증/전공이 해당 분야에 해당되는 인원 (버튼 눌렀을 때만 보여줄 후보)
 function licenseGetEngPotential(field, minGrade) {
   var minRank = minGrade ? licenseGradeRank(minGrade+'기술자') : 0;
-  return employees.filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
+  return wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직'; }).filter(function(e){
     if (careerIsFieldRegistered(e, 'eng', field)) return false; // 이미 등록된 사람은 제외(중복 방지)
     var hasCert = (e.license||[]).some(function(l){ return careerIsRelevantLicense(l) && careerLicenseMatchesField(l, field); });
     var hasEdu = (e.education||[]).some(function(ed){ return careerEduFieldsForMajor(ed.major).indexOf(field) >= 0; });
@@ -22335,7 +22335,7 @@ async function licenseRenderCategory() {
   var q = (document.getElementById('license-category-search')||{}).value || '';
   q = q.trim().toLowerCase();
   // 퇴사자라도 기업부설연구소 등록/분류 등 기존 데이터가 있으면 계속 표시해서 수정(기간 마감 등) 가능하게 함
-  var list = employees.filter(function(e){ return e.status !== '퇴직' || e.isResearchInstitute || e.licenseCategory; }).concat(virtualEmps).filter(function(e){
+  var list = wgCompanyEmployees().filter(function(e){ return e.status !== '퇴직' || e.isResearchInstitute || e.licenseCategory; }).concat(virtualEmps).filter(function(e){
     if (!q) return true;
     return (e.name||'').toLowerCase().indexOf(q) >= 0 || (e.dept||'').toLowerCase().indexOf(q) >= 0;
   }).sort(function(a,b){
@@ -22513,7 +22513,7 @@ async function licenseSetInstituteDirector(empId, checked) {
 // 기업부설연구소 기간(들) 중 하나라도 해당 연도와 겹치는 직원 목록
 function licenseGetInstituteMembers(year) {
   var yearStart = year+'-01-01', yearEnd = year+'-12-31';
-  return employees.filter(function(e){
+  return wgCompanyEmployees().filter(function(e){
     var periods = e.researchInstitutePeriods || [];
     return periods.some(function(p){
       var s = p.start || '0000-01-01';
@@ -22790,7 +22790,7 @@ function licenseRenderInstitute() {
   var todayParts = new Date().toISOString().slice(0,10).split('-');
   var todayStr = todayParts[0]+'년 '+parseInt(todayParts[1])+'월 '+parseInt(todayParts[2])+'일';
 
-  var members = employees.filter(function(e){ return e.isResearchInstitute; }).map(function(e){
+  var members = wgCompanyEmployees().filter(function(e){ return e.isResearchInstitute; }).map(function(e){
     var edu = licenseGetHighestEduEntry(e);
     var totalCareer = pcCalcTotalCareer(e);
     var yearsNum = totalCareer.total.years;
