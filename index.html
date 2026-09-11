@@ -23290,6 +23290,11 @@ function licenseComputeNextInspection(cycle, lastDate) {
 
 // 측량기기 성능검사(cert-survey) 기록을 제품명이 같은 법인등록현황 장비와 자동 매칭해서
 // 마지막검사일(유효기간 시작일)·검사주기(주기가 비어있으면 유효기간으로 역산)를 갱신
+// 이름 비교용 정규화: 공백/괄호 제거 + 소문자 (예: "트랜싯(데오드라이트 KT-02)" → "트랜싯(데오드라이트kt-02)")
+function licenseNormalizeEquipName(s) {
+  return (s||'').toLowerCase().replace(/\s+/g,'').replace(/[()（）]/g,'');
+}
+
 async function licenseSyncFromSurveyCerts() {
   var certs = (_certCache && _certCache.survey) || [];
   if (!certs.length) return;
@@ -23303,7 +23308,13 @@ async function licenseSyncFromSurveyCerts() {
     f.equipment.forEach(function(eq){
       var eqName = (eq.name||'').trim();
       if (!eqName) return;
-      var matches = certs.filter(function(c){ return (c.name||'').trim() === eqName; });
+      var eqNorm = licenseNormalizeEquipName(eqName);
+      // 이름이 완전히 같거나, 한쪽이 다른 쪽 이름을 포함하면(괄호/공백 무시) 매칭
+      var matches = certs.filter(function(c){
+        var cNorm = licenseNormalizeEquipName(c.name);
+        if (!cNorm) return false;
+        return cNorm === eqNorm || cNorm.indexOf(eqNorm) >= 0 || eqNorm.indexOf(cNorm) >= 0;
+      });
       if (!matches.length) return;
       matches.sort(function(a,b){
         var ap = certRangeToInputs(a.validity||''), bp = certRangeToInputs(b.validity||'');
