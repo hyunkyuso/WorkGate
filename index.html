@@ -20696,6 +20696,14 @@ function certStartListeners() {
       }
       certRender(type);
       certUpdateDashboard();
+      if (type === 'survey' && typeof licenseSyncFromSurveyCerts === 'function') {
+        licenseSyncFromSurveyCerts().then(function(){
+          if (typeof licenseFieldsLoaded !== 'undefined' && licenseFieldsLoaded) {
+            if (typeof licenseRenderMaster === 'function') licenseRenderMaster();
+            if (typeof licenseRenderStatus === 'function') licenseRenderStatus();
+          }
+        }).catch(function(e){ console.error(e); });
+      }
     });
   });
 }
@@ -22235,6 +22243,7 @@ async function licenseSetSlotSelection(fieldId, slotIdx, empName) {
 async function licenseRenderStatus() {
   await loadLicenseFields();
   await licenseEnsureAutoFields();
+  await licenseSyncFromSurveyCerts();
   await licenseLoadVirtualEmps();
   licenseRenderEngSummaryTable();
   licenseRenderStatusInstituteTable();
@@ -23079,6 +23088,7 @@ function licenseToggleEditMode() {
 async function licenseRenderMaster() {
   await loadLicenseFields();
   await licenseEnsureAutoFields();
+  await licenseSyncFromSurveyCerts();
   var hasPerm = hasFullAccess('license-master');
   var canEdit = hasPerm && _licenseEditMode;
   var editBtn = document.getElementById('license-editmode-btn');
@@ -23276,6 +23286,44 @@ function licenseComputeNextInspection(cycle, lastDate) {
   if (isNaN(d.getTime())) return '';
   d.setFullYear(d.getFullYear() + years);
   return d.toISOString().slice(0,10);
+}
+
+// 측량기기 성능검사(cert-survey) 기록을 제품명이 같은 법인등록현황 장비와 자동 매칭해서
+// 마지막검사일(유효기간 시작일)·검사주기(주기가 비어있으면 유효기간으로 역산)를 갱신
+async function licenseSyncFromSurveyCerts() {
+  var certs = (_certCache && _certCache.survey) || [];
+  if (!certs.length) return;
+  if (!licenseFieldsLoaded) await loadLicenseFields();
+  var myFields = wgCompanyLicenseFields();
+  if (!myFields.length) return;
+  var changed = [];
+  myFields.forEach(function(f){
+    if (!f.equipment || !f.equipment.length) return;
+    var touched = false;
+    f.equipment.forEach(function(eq){
+      var eqName = (eq.name||'').trim();
+      if (!eqName) return;
+      var matches = certs.filter(function(c){ return (c.name||'').trim() === eqName; });
+      if (!matches.length) return;
+      matches.sort(function(a,b){
+        return ((b.validity&&b.validity.from)||'').localeCompare((a.validity&&a.validity.from)||'');
+      });
+      var latest = matches[0];
+      var from = latest.validity && latest.validity.from;
+      var to = latest.validity && latest.validity.to;
+      if (!from) return;
+      if (eq.lastDate !== from) { eq.lastDate = from; touched = true; }
+      if (!eq.cycle && from && to) {
+        var years = Math.round((new Date(to) - new Date(from)) / (365*86400000));
+        if (years > 0) { eq.cycle = years+'년'; touched = true; }
+      }
+    });
+    if (touched) changed.push(f);
+  });
+  for (var i=0; i<changed.length; i++) {
+    try { await db.collection('licenseFields').doc(changed[i].id).set(changed[i]); } catch(e) { console.error(e); }
+  }
+  if (changed.length) await loadLicenseFields(true);
 }
 
 async function licenseAddEquipToField(fieldId) {
