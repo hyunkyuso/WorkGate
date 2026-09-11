@@ -1287,6 +1287,9 @@ select.form-input{cursor:pointer}
         <!-- 검색/필터 -->
         <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
           <input type="text" class="form-input" id="emp-search" placeholder="이름, 사번, 부서 검색..." style="max-width:220px" oninput="renderEmployeeTable()">
+          <select class="form-input" id="emp-filter-company" style="max-width:150px;display:none" onchange="populateEmpFilterCompany();populateEmpFilterDept();renderEmployeeTable()">
+            <option value="">전체 회사</option>
+          </select>
           <select class="form-input" id="emp-filter-dept" style="max-width:140px" onchange="renderEmployeeTable()">
             <option value="">전체 부서</option>
           </select>
@@ -1309,6 +1312,7 @@ select.form-input{cursor:pointer}
                 <th style="width:60px">사진</th>
                 <th>사번 (Google ID)</th>
                 <th>이름</th>
+                <th id="emp-th-company" style="display:none">회사</th>
                 <th>부서명</th>
                 <th>직위</th>
                 <th>직책</th>
@@ -4559,7 +4563,7 @@ function initApp() {
   renderKpi();
   renderDashboard();
   renderMembers();
-  populateEmpFilterDept();
+  populateEmpFilterCompany();populateEmpFilterDept();
   renderEmployeeTable();
   loadDemoFiles();
   certStartListeners();
@@ -5207,9 +5211,14 @@ const STATUS_COLORS = { '재직':'tag-green', '휴직':'tag-amber', '육아휴�
 
 function renderEmployeeTable() {
   const q = (document.getElementById('emp-search')?.value || '').toLowerCase();
+  const companySel = document.getElementById('emp-filter-company');
+  const companyFilterOn = companySel && companySel.style.display !== 'none';
+  const companyF = companySel?.value || '';
   const deptF = document.getElementById('emp-filter-dept')?.value || '';
   const statusF = document.getElementById('emp-filter-status')?.value || '';
-  let list = wgCompanyEmployees().filter(e => {
+  let baseList = (!companyFilterOn) ? wgCompanyEmployees()
+    : (companyF ? (window._allEmployees||employees).filter(e => (e.companyId||DEFAULT_COMPANY_ID) === companyF) : (window._allEmployees||employees));
+  let list = baseList.filter(e => {
     const matchQ = !q || e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q) || (e.dept||'').includes(q);
     const matchD = !deptF || e.dept === deptF;
     const matchS = !statusF || e.status === statusF;
@@ -5217,8 +5226,9 @@ function renderEmployeeTable() {
   });
   document.getElementById('emp-count-label').textContent = `총 ${list.length}명`;
   const tbody = document.getElementById('emp-tbody');
+  const colCount = companyFilterOn ? 11 : 10;
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--t3)">직원이 없습니다. 직원 추가 버튼을 눌러주세요.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="'+colCount+'" style="text-align:center;padding:32px;color:var(--t3)">직원이 없습니다. 직원 추가 버튼을 눌러주세요.</td></tr>';
     return;
   }
   tbody.innerHTML = list.map(e => `
@@ -5231,6 +5241,7 @@ function renderEmployeeTable() {
       </td>
       <td style="font-size:12px;color:var(--t2);font-family:monospace" onclick="toggleEmpHistory('${e.uid}')">${e.id||'-'}</td>
       <td style="font-weight:500" onclick="toggleEmpHistory('${e.uid}')">${e.name||'-'}</td>
+      ${companyFilterOn ? `<td onclick="toggleEmpHistory('${e.uid}')"><span class="tag tag-blue">${wgCompanyName(e.companyId||DEFAULT_COMPANY_ID)}</span></td>` : ''}
       <td onclick="toggleEmpHistory('${e.uid}')">${e.dept||'-'}</td>
       <td onclick="toggleEmpHistory('${e.uid}')">${e.position||'-'}</td>
       <td onclick="toggleEmpHistory('${e.uid}')">${e.title||'-'}</td>
@@ -5248,7 +5259,7 @@ function renderEmployeeTable() {
       </td>
     </tr>
     <tr id="hist-${e.uid}" style="display:none">
-      <td colspan="11" style="padding:0">
+      <td colspan="${colCount+1}" style="padding:0">
         <div style="background:var(--surface);padding:12px 16px;border-top:1px solid var(--border)">
           <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px">📋 변경 이력</div>
           ${(e.history||[]).length === 0
@@ -5263,12 +5274,39 @@ function renderEmployeeTable() {
     </tr>`).join('');
 }
 
+function populateEmpFilterCompany() {
+  const sel = document.getElementById('emp-filter-company');
+  if (!sel) return;
+  const th = document.getElementById('emp-th-company');
+  if (!isAdmin() || !window._allCompanies || window._allCompanies.length < 2) {
+    sel.style.display = 'none';
+    if (th) th.style.display = 'none';
+    return;
+  }
+  sel.style.display = '';
+  if (th) th.style.display = '';
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">전체 회사</option>' +
+    window._allCompanies.map(c => `<option value="${c.id}" ${cur===c.id?'selected':''}>${c.name}</option>`).join('');
+}
+
 function populateEmpFilterDept() {
   const sel = document.getElementById('emp-filter-dept');
   if (!sel) return;
   const cur = sel.value;
+  const companySel = document.getElementById('emp-filter-company');
+  const companyFilterVisible = companySel && companySel.style.display !== 'none';
+  const companyF = companySel?.value || '';
+  let deptSource;
+  if (!companyFilterVisible) {
+    deptSource = wgCompanyDepartments();
+  } else if (companyF) {
+    deptSource = (window._allDepartments||departments).filter(d => (d.companyId||DEFAULT_COMPANY_ID) === companyF);
+  } else {
+    deptSource = (window._allDepartments||departments);
+  }
   sel.innerHTML = '<option value="">전체 부서</option>' +
-    wgCompanyDepartments().map(d => `<option value="${d.name}" ${cur===d.name?'selected':''}>${d.name}</option>`).join('');
+    deptSource.map(d => `<option value="${d.name}" ${cur===d.name?'selected':''}>${d.name}</option>`).join('');
 }
 
 function openEmployeeModal(uid) {
@@ -5644,7 +5682,7 @@ function saveEmployee() {
   saveEmployees();
   closeModal('emp-modal');
   renderEmployeeTable();
-  populateEmpFilterDept();
+  populateEmpFilterCompany();populateEmpFilterDept();
   renderOrgView();
 
   // 내 권한이 변경된 경우 즉시 UI 반영
@@ -5838,7 +5876,7 @@ function saveDept() {
   saveDepartments();
   closeModal('dept-modal');
   renderDeptTable();
-  populateEmpFilterDept();
+  populateEmpFilterCompany();populateEmpFilterDept();
   editingDeptId = null;
 }
 
@@ -20106,7 +20144,7 @@ function showPage(id, el) {
       renderCodeTable();
     }).catch(() => renderCodeTable());
   }
-  if(id === 'employees') { populateEmpFilterDept(); renderEmployeeTable(); }
+  if(id === 'employees') { populateEmpFilterCompany();populateEmpFilterDept(); renderEmployeeTable(); }
   if(id === 'orgsim') orgsimRender();
   if(id === 'personnel-matrix') pmRender();
   if(id === 'orgview') initOrgView();
@@ -22003,6 +22041,12 @@ async function loadLicenseFields(force) {
   } catch(e) { console.error(e); }
 }
 
+// 현재 보고 있는 회사의 사업분야만 (기존에 companyId 없이 저장된 데이터는 정도유아이티 것으로 간주)
+function wgCompanyLicenseFields() {
+  var cid = wgCurrentViewCompanyId();
+  return licenseFields.filter(function(f){ return (f.companyId||DEFAULT_COMPANY_ID) === cid; });
+}
+
 var LICENSE_ENG_FIELDS = [
   { name: '엔지니어링활동주체신고-도시계획', engField: '도시계획', section: '건설부문', defaultLead: '특급', slotCount: 5 },
   { name: '엔지니어링활동주체신고-교통', engField: '교통', section: '건설부문', defaultLead: '고급', slotCount: 3 },
@@ -22040,7 +22084,7 @@ function licenseGetEngPotential(field, minGrade) {
 // 엔지니어링활동주체신고 4개 분야 전체에서, 이미 다른 분야(슬롯)에 배정된 이름 목록(중복 배정 방지용)
 function licenseGetEngAssignedElsewhere(exceptFieldId) {
   var used = [];
-  licenseFields.filter(function(f){ return f.engAuto; }).forEach(function(f){
+  wgCompanyLicenseFields().filter(function(f){ return f.engAuto; }).forEach(function(f){
     if (f.id === exceptFieldId) return;
     Object.values(f.engSelections||{}).forEach(function(n){ if (n) used.push(n); });
   });
@@ -22069,8 +22113,10 @@ var LICENSE_AUTO_FIELDS = [
 var LICENSE_NAME_MIGRATIONS = { '수치지도': '수치지도제작업', '지도제작': '지도제작업' };
 
 async function licenseEnsureAutoFields() {
+  var cid = wgCurrentViewCompanyId();
+  var myFields = wgCompanyLicenseFields();
   // 예전 이름(수치지도/지도제작)으로 저장된 문서가 있으면 새 이름으로 변경(데이터는 그대로 유지)
-  var needsMigration = licenseFields.filter(function(f){ return LICENSE_NAME_MIGRATIONS[f.name]; });
+  var needsMigration = myFields.filter(function(f){ return LICENSE_NAME_MIGRATIONS[f.name]; });
   if (needsMigration.length) {
     for (var m=0; m<needsMigration.length; m++) {
       var f = needsMigration[m];
@@ -22078,40 +22124,46 @@ async function licenseEnsureAutoFields() {
       await db.collection('licenseFields').doc(f.id).update({ name: f.name });
     }
     await loadLicenseFields(true);
+    myFields = wgCompanyLicenseFields();
   }
-  var existingNames = licenseFields.map(function(f){ return f.name; });
-  var missing = LICENSE_AUTO_FIELDS.filter(function(af){ return existingNames.indexOf(af.name) < 0; });
-  for (var i=0; i<missing.length; i++) {
-    await db.collection('licenseFields').add({ name: missing[i].name, auto:true, selections:{}, equipment:[] });
-  }
-  var missingEng = LICENSE_ENG_FIELDS.filter(function(ef){ return existingNames.indexOf(ef.name) < 0; });
-  for (var j=0; j<missingEng.length; j++) {
-    await db.collection('licenseFields').add({ name: missingEng[j].name, engAuto:true, engField: missingEng[j].engField, section: missingEng[j].section, leadGrade: missingEng[j].defaultLead, slotCount: missingEng[j].slotCount || 3, engSelections:{}, showPotential:false });
+  // 사업분야 자동 생성(영상처리업/수치지도제작업/지도제작업, 엔지니어링활동주체신고 등)은 정도유아이티 전용 규정이므로 기본 회사에서만 수행.
+  // 다른 회사는 실제 등록된 사업분야를 "총괄관리표"에서 직접 추가해서 관리.
+  if (cid === DEFAULT_COMPANY_ID) {
+    var existingNames = myFields.map(function(f){ return f.name; });
+    var missing = LICENSE_AUTO_FIELDS.filter(function(af){ return existingNames.indexOf(af.name) < 0; });
+    for (var i=0; i<missing.length; i++) {
+      await db.collection('licenseFields').add({ name: missing[i].name, auto:true, selections:{}, equipment:[], companyId: cid });
+    }
+    var missingEng = LICENSE_ENG_FIELDS.filter(function(ef){ return existingNames.indexOf(ef.name) < 0; });
+    for (var j=0; j<missingEng.length; j++) {
+      await db.collection('licenseFields').add({ name: missingEng[j].name, engAuto:true, engField: missingEng[j].engField, section: missingEng[j].section, leadGrade: missingEng[j].defaultLead, slotCount: missingEng[j].slotCount || 3, engSelections:{}, showPotential:false, companyId: cid });
+    }
+    if (missing.length || missingEng.length) { await loadLicenseFields(true); myFields = wgCompanyLicenseFields(); }
   }
   // 이미 있는 필드인데 슬롯 수가 기존(3) 그대로거나 안 맞으면 최신 기준으로 갱신
-  for (var k=0; k<licenseFields.length; k++) {
-    var ef2 = LICENSE_ENG_FIELDS.find(function(x){ return x.name === licenseFields[k].name; });
-    if (ef2 && licenseFields[k].slotCount !== ef2.slotCount) {
-      await db.collection('licenseFields').doc(licenseFields[k].id).update({ slotCount: ef2.slotCount });
-      licenseFields[k].slotCount = ef2.slotCount;
+  for (var k=0; k<myFields.length; k++) {
+    var ef2 = LICENSE_ENG_FIELDS.find(function(x){ return x.name === myFields[k].name; });
+    if (ef2 && myFields[k].slotCount !== ef2.slotCount) {
+      await db.collection('licenseFields').doc(myFields[k].id).update({ slotCount: ef2.slotCount });
+      myFields[k].slotCount = ef2.slotCount;
     }
     // leadGrade가 아예 설정 안 되어있으면(예전에 만들어진 문서) 기본값으로 채워줌
-    if (ef2 && !licenseFields[k].leadGrade) {
-      await db.collection('licenseFields').doc(licenseFields[k].id).update({ leadGrade: ef2.defaultLead });
-      licenseFields[k].leadGrade = ef2.defaultLead;
+    if (ef2 && !myFields[k].leadGrade) {
+      await db.collection('licenseFields').doc(myFields[k].id).update({ leadGrade: ef2.defaultLead });
+      myFields[k].leadGrade = ef2.defaultLead;
     }
   }
-  if (missing.length || missingEng.length) await loadLicenseFields(true);
 
   // 퇴사자가 발생하면(퇴사일 다음날부터) 배정된 슬롯을 자동으로 미지정 처리
   var todayStr2 = new Date().toISOString().slice(0,10);
-  for (var ri=0; ri<licenseFields.length; ri++) {
-    var rf = licenseFields[ri];
+  var myEmps = wgCompanyEmployees();
+  for (var ri=0; ri<myFields.length; ri++) {
+    var rf = myFields[ri];
     if (!rf.engAuto || !rf.engSelections) continue;
     var changed = false;
     Object.keys(rf.engSelections).forEach(function(idx){
       var name = rf.engSelections[idx];
-      var emp = employees.find(function(e){ return e.name === name; });
+      var emp = myEmps.find(function(e){ return e.name === name; });
       if (emp && emp.status === '퇴직' && emp.leavedate && emp.leavedate < todayStr2) {
         delete rf.engSelections[idx];
         if (rf.engManualReasons) delete rf.engManualReasons[idx];
@@ -22152,7 +22204,8 @@ async function licenseRenderStatus() {
 
   var issueCount = 0, calibSoonCount = 0;
   var todayStr = new Date().toISOString().slice(0,10);
-  licenseFields.forEach(function(f){
+  var myFields3 = wgCompanyLicenseFields();
+  myFields3.forEach(function(f){
     var conf = f.auto ? LICENSE_AUTO_FIELDS.find(function(af){ return af.name === f.name; }) : null;
     if (f.engAuto) {
       var engSel = f.engSelections || {};
@@ -22172,11 +22225,11 @@ async function licenseRenderStatus() {
   });
 
   document.getElementById('license-summary').innerHTML =
-    '<div style="background:var(--surface);border-radius:8px;padding:8px 10px"><div style="font-size:11px;color:var(--t3);margin-bottom:2px">등록 사업분야</div><div style="font-size:17px;font-weight:600">'+licenseFields.length+'건</div></div>' +
+    '<div style="background:var(--surface);border-radius:8px;padding:8px 10px"><div style="font-size:11px;color:var(--t3);margin-bottom:2px">등록 사업분야</div><div style="font-size:17px;font-weight:600">'+myFields3.length+'건</div></div>' +
     '<div style="background:var(--surface);border-radius:8px;padding:8px 10px"><div style="font-size:11px;color:var(--t3);margin-bottom:2px">미충족/이상 발견</div><div style="font-size:17px;font-weight:600;color:'+(issueCount?'#dc2626':'inherit')+'">'+issueCount+'건</div></div>' +
     '<div style="background:var(--surface);border-radius:8px;padding:8px 10px"><div style="font-size:11px;color:var(--t3);margin-bottom:2px">장비 검교정 임박(30일)</div><div style="font-size:17px;font-weight:600;color:'+(calibSoonCount?'#b45309':'inherit')+'">'+calibSoonCount+'건</div></div>';
 
-  var orderedFields2 = licenseFields.slice().sort(function(a,b){
+  var orderedFields2 = myFields3.slice().sort(function(a,b){
     var ai = LICENSE_FIELD_ORDER.indexOf(a.name); if (ai<0) ai = 999;
     var bi = LICENSE_FIELD_ORDER.indexOf(b.name); if (bi<0) bi = 999;
     return ai - bi;
@@ -22302,18 +22355,22 @@ async function licenseLoadVirtualEmps() {
   try {
     var doc = await db.collection('workforce').doc('edits').get();
     var items = (doc.data() || {}).items || [];
-    _licenseVirtualEmpsCache = items;
-    return items.filter(function(it){ return it.source === 'unregistered' && it.type !== '퇴사'; }).map(function(it, idx){
-      return {
-        name: it.name, dept: it.dept, status: '재직', _isVirtual: true,
-        _virtualIndex: items.indexOf(it),
-        licenseCategory: it.licenseCategory || '',
-        isResearchInstitute: it.isResearchInstitute || false,
-        instituteDirector: it.instituteDirector || false,
-        researchInstitutePeriods: it.researchInstitutePeriods || [],
-        manualDegree: it.manualDegree || ''
-      };
-    });
+    _licenseVirtualEmpsCache = items; // 전체(모든 회사) 원본 캐시 — 저장 시 그대로 롤백에 사용, virtualIndex는 이 배열 기준
+    var cid = wgCurrentViewCompanyId();
+    return items.map(function(it, idx){ return {it:it, idx:idx}; })
+      .filter(function(x){ return (x.it.companyId||DEFAULT_COMPANY_ID) === cid && x.it.source === 'unregistered' && x.it.type !== '퇴사'; })
+      .map(function(x){
+        var it = x.it;
+        return {
+          name: it.name, dept: it.dept, status: '재직', _isVirtual: true,
+          _virtualIndex: x.idx,
+          licenseCategory: it.licenseCategory || '',
+          isResearchInstitute: it.isResearchInstitute || false,
+          instituteDirector: it.instituteDirector || false,
+          researchInstitutePeriods: it.researchInstitutePeriods || [],
+          manualDegree: it.manualDegree || ''
+        };
+      });
   } catch(e) { console.error(e); return []; }
 }
 
@@ -22962,7 +23019,7 @@ async function licenseRenderMaster() {
     editBtn.textContent = _licenseEditMode ? '입력란 비활성화' : '입력란 활성화';
   }
   var todayStr = new Date().toISOString().slice(0,10);
-  var orderedFields = licenseFields.slice().sort(function(a,b){
+  var orderedFields = wgCompanyLicenseFields().slice().sort(function(a,b){
     var ai = LICENSE_FIELD_ORDER.indexOf(a.name); if (ai<0) ai = 999;
     var bi = LICENSE_FIELD_ORDER.indexOf(b.name); if (bi<0) bi = 999;
     return ai - bi;
@@ -23307,8 +23364,11 @@ async function licenseSaveField() {
   var data = { name: name, personnel: personnel, equipment: equipment };
   try {
     if (_licenseEditingId) {
+      var existing = licenseFields.find(function(x){ return x.id === _licenseEditingId; });
+      data.companyId = (existing && existing.companyId) || wgCurrentViewCompanyId();
       await db.collection('licenseFields').doc(_licenseEditingId).set(data);
     } else {
+      data.companyId = wgCurrentViewCompanyId();
       await db.collection('licenseFields').add(data);
     }
     document.getElementById('license-field-modal').remove();
