@@ -6620,7 +6620,7 @@ function renderOrgViewGeneric() {
   const roots=[...departments].filter(d=>!d.parent).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
   if(!roots.length){chart.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3)">부서를 추가해주세요</div>';return;}
 
-  const CW=140, CH=48, EW=96, HGAP=28, VGAP=56, ROW_H=100, LINE='#94a3b8';
+  const CW=140, CH=48, EMP_ROW_W=180, EMP_ROW_H=52, HGAP=28, VGAP=40, LINE='#94a3b8';
   const LC=['#1e293b','#60a5fa','#f59e0b','#eab308','#0891b2','#059669'];
   function bg(lv){return LC[Math.min(Math.max(lv,0),LC.length-1)];}
   function getEmps(d){
@@ -6631,10 +6631,9 @@ function renderOrgViewGeneric() {
   }
   function children(pid){ return departments.filter(d=>d.parent===pid).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99)); }
   function cardW(d){ return Math.max(CW, d.name.length*16+36); }
-  // 이 조직 자체가 차지하는 최소 폭 (박스 폭과, 그 밑에 나열되는 직원 줄 폭 중 더 넓은 쪽)
-  function selfW(d){ return Math.max(cardW(d), Math.min(getEmps(d).length,6)*EW); }
-  function empRows(d){ return Math.ceil(getEmps(d).length/6) || 0; }
-  function nodeH(d){ return CH + (getEmps(d).length>0 ? empRows(d)*ROW_H + 8 : 0); }
+  // 이 조직 자체가 차지하는 최소 폭 (박스 폭과, 세로로 나열되는 직원 목록 폭 중 더 넓은 쪽)
+  function selfW(d){ return Math.max(cardW(d), getEmps(d).length>0 ? EMP_ROW_W : 0); }
+  function nodeH(d){ return CH + (getEmps(d).length>0 ? getEmps(d).length*EMP_ROW_H + 12 : 0); }
   function subW(d){
     const kids = children(d.id);
     const own = selfW(d);
@@ -6684,21 +6683,19 @@ function renderOrgViewGeneric() {
       '<div style="background:'+bg(lv)+';color:'+(lv===0?'#fff':'#1e293b')+';border-radius:8px;padding:9px 12px;text-align:center;font-size:18px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.15);white-space:nowrap">' +
       d.name + '<div style="font-size:15px;font-weight:700;opacity:.95;margin-top:2px">' + emps.length + '명</div></div></div>';
     if (emps.length) {
+      // 팀장(맨 위)부터 세로로 한 명씩: 작은 원형 사진 + 이름을 한 줄로
+      const listX = displayCenterX - EMP_ROW_W/2;
       emps.forEach(function(e, i){
-        const row = Math.floor(i/6), col = i%6;
-        const rowCount = Math.min(6, emps.length - row*6);
-        const rowW = rowCount*EW;
-        const ex = displayCenterX - rowW/2 + col*EW + EW/2;
-        const ey = top + CH + 8 + row*ROW_H;
+        const ey = top + CH + 10 + i*EMP_ROW_H;
         const initial = (e.name||'').charAt(0);
         const ebg = e.isConcurrent ? '#94a3b8' : '#3b82f6';
-        nodes += '<div style="position:absolute;left:'+(ex-EW/2)+'px;top:'+ey+'px;width:'+EW+'px;text-align:center;z-index:2">' +
-          '<div style="width:64px;height:64px;border-radius:50%;overflow:hidden;background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;margin:0 auto;border:'+(e.isConcurrent?'2px dashed #2563eb':'1.5px solid #94a3b8')+'">' +
+        nodes += '<div style="position:absolute;left:'+listX+'px;top:'+ey+'px;width:'+EMP_ROW_W+'px;height:'+(EMP_ROW_H-6)+'px;display:flex;align-items:center;gap:8px;background:#fff;border-radius:8px;padding:0 8px;box-shadow:0 1px 3px rgba(0,0,0,.08);z-index:2">' +
+          '<div style="width:38px;height:38px;flex-shrink:0;border-radius:50%;overflow:hidden;background:'+ebg+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;border:'+(e.isConcurrent?'2px dashed #2563eb':'1.5px solid #94a3b8')+'">' +
           (e.photo?'<img src="'+e.photo+'" style="width:100%;height:100%;object-fit:cover">':initial) + '</div>' +
-          '<div style="font-size:14px;font-weight:700;color:#1e293b;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (e.title||e.position||'') + ' ' + e.name + '</div>' +
+          '<div style="font-size:13px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (e.title||e.position||'') + ' ' + e.name + '</div>' +
         '</div>';
-        if (ex > maxX) maxX = ex + EW/2;
-        if (ey + ROW_H > maxY) maxY = ey + ROW_H;
+        if (listX + EMP_ROW_W > maxX) maxX = listX + EMP_ROW_W;
+        if (ey + EMP_ROW_H > maxY) maxY = ey + EMP_ROW_H;
       });
     }
     if (boxX + w > maxX) maxX = boxX + w;
