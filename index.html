@@ -179,9 +179,9 @@ select.form-input{cursor:pointer}
 .readonly-banner{display:flex;align-items:center;gap:8px;background:#FFF7E6;border:1px solid #F0C674;color:#8B5E00;font-size:12px;font-weight:600;padding:8px 14px;border-radius:8px;margin-bottom:14px}
 #cert-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
 #cert-menu-items.collapsed{max-height:0;opacity:0}
-#work-menu-items,#hr-menu-items,#doc-menu-items,#system-menu-items,#career-menu-items,#sales-menu-items,#license-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:1000px;opacity:1}
+#work-menu-items,#hr-menu-items,#doc-menu-items,#system-menu-items,#career-menu-items,#sales-menu-items,#license-menu-items,#recruit-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:1000px;opacity:1}
 #career-overview-table th,#career-overview-table td{padding:5px 8px}
-#work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed,#career-menu-items.collapsed,#sales-menu-items.collapsed,#license-menu-items.collapsed{max-height:0;opacity:0}
+#work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed,#career-menu-items.collapsed,#sales-menu-items.collapsed,#license-menu-items.collapsed,#recruit-menu-items.collapsed{max-height:0;opacity:0}
 
 /* ── DRIVE STATUS ── */
 .drive-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;border-radius:8px;margin-bottom:14px}
@@ -667,6 +667,7 @@ select.form-input{cursor:pointer}
         <button class="btn btn-ghost btn-sm" onclick="rcExportExcel()">📥 엑셀 내보내기</button>
         <button class="btn btn-ghost btn-sm" onclick="rcOpenApplicantModal()">+ 지원자 추가</button>
         <button class="btn btn-ghost btn-sm" id="rc-migrate-btn" style="display:none" onclick="rcMigrateStages()">🔀 단계 정리</button>
+        <button class="btn btn-ghost btn-sm" onclick="rcRefillFields()" title="저장된 이력서 텍스트를 다시 읽어 비어 있는 항목(경로·총경력·학력·회사)을 채웁니다">🔄 정보 다시 읽기</button>
       </div>
     </div>
 
@@ -695,6 +696,10 @@ select.form-input{cursor:pointer}
       <div id="rc-selbar" style="display:none;align-items:center;gap:10px;padding:8px 12px;margin-bottom:10px;background:#f8f8f7;border:1px solid var(--border);border-radius:8px">
         <span id="rc-selcount" style="font-size:13px;font-weight:600"></span>
         <button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="rcAiScoreSelected()">🤖 선택 AI 채점</button>
+        <select id="rc-bulk-channel" onchange="rcSetChannelSelected(this.value);this.value=''" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+          <option value="">경로 일괄 지정</option><option>잡코리아</option><option>인크루트</option><option>사람인</option>
+          <option>사람인(자사양식)</option><option>워크넷</option><option>원티드</option><option>사내추천</option><option>기타</option>
+        </select>
         <button class="btn btn-ghost btn-sm" style="color:#dc2626;border-color:#fecaca" onclick="rcDeleteSelected()">🗑 선택 삭제 (이력서 파일까지)</button>
         <button class="btn btn-ghost btn-sm" onclick="rcToggleSelAll(false)">선택 해제</button>
       </div>
@@ -31589,6 +31594,72 @@ function rcOpenResume(aid){
       go(url);
     })
     .catch(function(e){ console.warn('[이력서 메타데이터]', e); go(a.resumeUrl); });
+}
+
+/* 저장해 둔 이력서 텍스트를 다시 읽어 비어 있는 항목을 채운다 (재업로드 불필요) */
+function rcRefillFields(){
+  var p = rcCurPosting();
+  if (!rcCanEditPosting(p)) { showToast('❌ 권한이 없습니다'); return; }
+  var A = rcState.applicants.filter(function(a){
+    return !a.channel || a.totalExpYears==null || !a.education || !a.lastCompany || !a.phone;
+  });
+  if (!A.length) { showToast('채울 항목이 없습니다'); return; }
+  if (!confirm(A.length + '명의 비어 있는 항목을 이력서에서 다시 읽어 채웁니다.\n(경로·총경력·학력·연락처·회사명 / 이미 입력된 값은 그대로 둡니다)\n\n진행할까요?')) return;
+
+  var done = 0, skipped = 0, logs = [];
+  function paint(head){
+    rcProgress('<div style="font-weight:700;margin-bottom:6px">'+head+'</div>'
+      + logs.slice(-10).map(function(l){ return '<div style="padding:2px 0;color:'+(l.ok?'var(--t2,#444)':'#dc2626')+'">'
+          + (l.ok?'✅':'—') + ' ' + rcEsc(l.name) + ' — ' + rcEsc(l.msg) + '</div>'; }).join(''), true);
+  }
+  paint('0 / ' + A.length);
+
+  A.reduce(function(ch, a){
+    return ch.then(function(){
+      return db.collection('recruitResumeTexts').doc(a.id).get().then(function(s){
+        if (!s.exists || !(s.data().text||'').length) {
+          skipped++; logs.push({ok:false, name:a.name, msg:'저장된 이력서 텍스트 없음 (이력서 다시 첨부 필요)'});
+          return;
+        }
+        var d = s.data();
+        var o = rcParseResume(d.text, d.fileName || a.resumeName || a.name);
+        var upd = {}, filled = [];
+        if (!a.channel) { upd.channel = (o.format==='자사양식' ? '사람인(자사양식)' : (o.format||'')); if (upd.channel) filled.push('경로'); }
+        if (a.totalExpYears==null && o.totalExpYears!=null) { upd.totalExpYears = o.totalExpYears; filled.push('총경력'); }
+        if (!a.education && o.education) { upd.education = o.education; filled.push('학력'); }
+        if (!a.lastCompany && o.lastCompany) { upd.lastCompany = o.lastCompany; filled.push('회사'); }
+        if (!a.phone && o.phone) { upd.phone = o.phone; filled.push('연락처'); }
+        if (!a.email && o.email) { upd.email = o.email; filled.push('이메일'); }
+        if (!a.birthYear && o.birthYear) { upd.birthYear = o.birthYear; upd.age = o.age||''; filled.push('생년'); }
+        if (!a.desiredSalary && o.desiredSalary) { upd.desiredSalary = o.desiredSalary; filled.push('희망연봉'); }
+        if (!Object.keys(upd).length) { skipped++; logs.push({ok:false, name:a.name, msg:'채울 값을 찾지 못함'}); return; }
+        return db.collection('recruitApplicants').doc(a.id).update(upd).then(function(){
+          done++; logs.push({ok:true, name:a.name, msg:filled.join(', ')+' 채움'});
+        });
+      }).catch(function(e){ skipped++; logs.push({ok:false, name:a.name, msg:(e.message||e)}); })
+        .then(function(){ paint((done+skipped) + ' / ' + A.length); });
+    });
+  }, Promise.resolve()).then(function(){
+    paint('완료 — ' + done + '명 채움' + (skipped? ' / ' + skipped + '명 건너뜀' : ''));
+    showToast('✅ ' + done + '명 정보를 채웠습니다');
+    if (!skipped) setTimeout(rcProgressClose, 6000);
+    rcLoadApplicants(rcState.postingId).then(rcRenderAll);
+  });
+}
+
+/* 선택한 지원자의 지원경로를 한 번에 지정 */
+function rcSetChannelSelected(ch){
+  if (!ch) return;
+  var ids = Object.keys(_rcSelected);
+  if (!ids.length) { showToast('❌ 지원자를 먼저 선택하세요'); return; }
+  if (!rcCanEditPosting(rcCurPosting())) { showToast('❌ 권한이 없습니다'); return; }
+  ids.reduce(function(c, id){
+    return c.then(function(){ return db.collection('recruitApplicants').doc(id).update({channel:ch}).catch(function(){}); });
+  }, Promise.resolve()).then(function(){
+    showToast('✅ ' + ids.length + '명 경로를 ' + ch + '(으)로 지정했습니다');
+    _rcSelected = {};
+    rcLoadApplicants(rcState.postingId).then(rcRenderAll);
+  });
 }
 
 /* 예전 단계('불합격'·'보류')를 새 단계 체계로 옮긴다.
