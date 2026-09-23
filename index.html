@@ -689,7 +689,7 @@ select.form-input{cursor:pointer}
         <select id="rc-f-stage" onchange="rcRenderList()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px"></select>
         <select id="rc-f-channel" onchange="rcRenderList()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px"></select>
         <select id="rc-f-verdict" onchange="rcRenderList()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">
-          <option value="">서류판정 전체</option><option value="면접 진행">면접 진행</option><option value="보류">보류</option><option value="서류 불합격">서류 불합격</option>
+          <option value="">서류판정(점수) 전체</option><option value="면접 진행">면접 진행</option><option value="보류">보류</option><option value="서류 불합격">서류 불합격</option>
         </select>
         <span id="rc-list-count" style="margin-left:auto;align-self:center;font-size:12px;color:var(--t3)"></span>
       </div>
@@ -31219,6 +31219,14 @@ function rcVisiblePostings(){
   });
 }
 /* 점수 표시: 확정 점수 / 자동 판독 중간값 구분 */
+function rcScorerLabel(a){
+  var e = rcState.evals[a.id];
+  if (!e) return a.autoScore!=null ? '규칙 자동' : '';
+  if (e.status === 'confirmed') return '확정' + (e.aiGenerated ? ' (AI초안)' : '');
+  if (e.aiGenerated) return 'AI 초안';
+  if (e.autoPartial) return '규칙 자동';
+  return '직접 입력';
+}
 function rcScoreCell(a){
   if (a.docScore != null && a.docScore !== '') {
     var s = rcNum(a.docScore);
@@ -31428,7 +31436,7 @@ function rcRenderList(){
     return true;
   });
   var editable = rcCanEditPosting(rcCurPosting());
-  var cols = ['순위','이름','경로','나이','학력','총경력','현재/직전 회사','희망연봉','서류점수','판정','단계'];
+  var cols = ['순위','이름','경로','나이','학력','총경력','현재/직전 회사','희망연봉','서류점수','서류판정(점수)','채점','단계'];
   var t = document.getElementById('rc-table');
   t.querySelector('thead').innerHTML = '<tr>'
     + (editable ? '<th style="padding:8px;border-bottom:2px solid var(--border);width:28px"><input type="checkbox" onchange="rcToggleSelAll(this.checked)"></th>' : '')
@@ -31447,8 +31455,9 @@ function rcRenderList(){
       + '<td style="padding:8px;border-bottom:1px solid var(--border)">'+(a.desiredSalary||'')+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border);font-weight:700;color:'+sc.color+';white-space:nowrap">'+sc.text+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border);white-space:nowrap">'+rcEsc(sc.verdict)+'</td>'
+      + '<td style="padding:8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:11px;color:var(--t3)">'+rcEsc(rcScorerLabel(a))+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border)">'+rcEsc(a.stage||'')+'</td></tr>';
-  }).join('') || '<tr><td colspan="'+(editable?12:11)+'" style="padding:30px;text-align:center;color:var(--t3)">해당 지원자가 없습니다</td></tr>';
+  }).join('') || '<tr><td colspan="'+(editable?13:12)+'" style="padding:30px;text-align:center;color:var(--t3)">해당 지원자가 없습니다</td></tr>';
   document.getElementById('rc-list-count').textContent = rows.length + ' / ' + A.length + '명';
   rcUpdateSelBar();
 }
@@ -32570,7 +32579,7 @@ function rcExportExcel(){
     [12,8,3,12,8,3,26,10].forEach(function(w,i){ s4.getColumn(i+1).width = w; });
     titleRow(s4, '현황 — '+(p.title||'')+' (내보낸 시점 기준)', 8);
     s4.addRow([]);
-    headRow(s4, s4.addRow(['단계','인원','','서류판정','인원','','지원경로','인원']));
+    headRow(s4, s4.addRow(['단계(진행)','인원','','서류판정(점수)','인원','','지원경로','인원']));
     var stages = p.stages || RC_STAGES;
     var vMap = {'면접 진행':0,'보류':0,'서류 불합격':0,'채점 미완':0};
     A.forEach(function(a){
@@ -32601,7 +32610,7 @@ function rcExportExcel(){
     noteRow(s5, rb ? ('배점: '+rb.groups.map(function(g){return g.key+' '+g.label+' '+g.max;}).join(' · ')+' / 판정: 면접 '+rb.passScore+', 보류 '+rb.holdScore) : '', w5.length);
     noteRow(s5, '※ 출생연도·나이는 이력서 기재값 참고용이며 채점에 반영하지 않았습니다(고용상 연령차별금지법).', w5.length);
     s5.addRow([]);
-    headRow(s5, s5.addRow(['순위','이름','경로','출생연도','나이','점수','자동 판정']
+    headRow(s5, s5.addRow(['순위','이름','경로','출생연도','나이','점수','서류판정(점수)']
       .concat(rb? rb.groups.map(function(g){ return g.key+' '+g.label; }) : [])
       .concat(['경력 범위 판단','핵심 근거','면접 전 확인사항'])));
     var sorted = A.slice().sort(function(x,y){
@@ -32876,7 +32885,7 @@ function rcImportSeedFromFile(file){
   rd.onload = function(e){ try { rcImportSeed(e.target.result); } catch(err){ showToast('❌ JSON 형식이 아닙니다'); } };
   rd.readAsText(file);
 }
- 
+
 </script>
 </body>
 </html>
