@@ -666,6 +666,7 @@ select.form-input{cursor:pointer}
       <label class="btn btn-ghost btn-sm" style="cursor:pointer">📎 이력서 업로드(zip 가능)<input type="file" accept=".pdf,.htm,.html,.zip" multiple style="display:none" onchange="rcUploadResumes(this.files);this.value=''"></label>
         <button class="btn btn-ghost btn-sm" onclick="rcExportExcel()">📥 엑셀 내보내기</button>
         <button class="btn btn-ghost btn-sm" onclick="rcOpenApplicantModal()">+ 지원자 추가</button>
+        <button class="btn btn-ghost btn-sm" id="rc-migrate-btn" style="display:none" onclick="rcMigrateStages()">🔀 단계 정리</button>
       </div>
     </div>
 
@@ -31150,7 +31151,16 @@ function taskDeleteFromDetail() {
 })();
 
 /* ===== 채용 모듈 (recruit) ===== */
-var RC_STAGES = ['서류접수','서류검토','1차면접','2차면접','처우협의','최종합격','불합격','보류','지원취소'];
+var RC_STAGES = ['서류접수','서류검토','1차면접','2차면접','처우협의','최종합격','탈락','지원취소'];
+/* 서류 판정(면접 진행·보류·서류 불합격)은 단계가 아니라 점수로 표시합니다.
+   예전 데이터의 '불합격'·'보류' 단계는 아래에서 자동으로 칸을 만들어 보여주고,
+   상단 '단계 정리' 버튼으로 새 단계로 옮길 수 있습니다. */
+function rcStageList(){
+  var used = {};
+  (rcState.applicants||[]).forEach(function(a){ if (a.stage) used[a.stage] = true; });
+  var extra = Object.keys(used).filter(function(s){ return RC_STAGES.indexOf(s) < 0; });
+  return RC_STAGES.concat(extra);
+}
 var RC_GROUPS = [
   {key:'A', label:'직무 관련 경험', max:20},
   {key:'B', label:'경력 범위 적합성', max:10},
@@ -31291,27 +31301,74 @@ function rcSwitchTab(t){
   rcRenderAll();
 }
 function rcRenderAll(){
+  var mb = document.getElementById('rc-migrate-btn');
+  if (mb) mb.style.display = rcState.applicants.some(function(a){ return a.stage==='불합격'||a.stage==='보류'; }) ? '' : 'none';
   rcRenderStats();
   if (rcState.tab==='board') rcRenderBoard();
   if (rcState.tab==='list') rcRenderList();
   if (rcState.tab==='dispose') rcRenderDispose();
 }
 function rcRenderStats(){
-  var A = rcState.applicants, el = document.getElementById('rc-stats');
-  var pass = A.filter(function(a){return rcNum(a.docScore)>=70;}).length;
-  var hold = A.filter(function(a){var s=rcNum(a.docScore);return s>=55&&s<70;}).length;
-  var fail = A.filter(function(a){return a.docScore!=null && rcNum(a.docScore)<55;}).length;
+  var A = rcState.applicants, el = document.getElementById('rc-stats'), p = rcCurPosting();
+  var rb = rcState.rubrics.find(function(r){ return r.id===(p&&p.rubricId); });
+  var passLine = rb ? rb.passScore : 70, holdLine = rb ? rb.holdScore : 55;
+  var pass = A.filter(function(a){return a.docScore!=null && a.docScore!=='' && rcNum(a.docScore)>=passLine;}).length;
+  var hold = A.filter(function(a){var s=rcNum(a.docScore);return a.docScore!=null && a.docScore!=='' && s>=holdLine && s<passLine;}).length;
+  var fail = A.filter(function(a){return a.docScore!=null && a.docScore!=='' && rcNum(a.docScore)<holdLine;}).length;
+  var todo = A.filter(function(a){ return (a.docScore==null||a.docScore===''); }).length;
   var due  = A.filter(rcIsDue).length;
-  var todo = A.filter(function(a){ return (a.docScore==null||a.docScore==='') ; }).length;
-  function card(l,v,c){ return '<div style="flex:1;min-width:120px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">'+l+'</div><div style="font-size:24px;font-weight:700;color:'+c+'">'+v+'</div></div>'; }
-  el.innerHTML = card('전체 지원자',A.length,'var(--t1)') + card('면접 진행 (70점↑)',pass,'#16a34a')
-    + card('보류 (55~69)',hold,'#d97706') + card('서류 불합격',fail,'var(--t3)')
-    + card('채점 미완',todo,'#2563eb') + card('파기 대상',due,'#dc2626');
+  var withRes = A.filter(function(a){ return a.resumeUrl; }).length;
+  var scored = A.length - todo;
+
+  function card(l,v,c,sub){
+    return '<div style="flex:1;min-width:112px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px">'
+      + '<div style="font-size:11px;color:var(--t3);margin-bottom:3px">'+l+'</div>'
+      + '<div style="font-size:23px;font-weight:700;color:'+c+';line-height:1.2">'+v+'</div>'
+      + (sub?'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+sub+'</div>':'') + '</div>';
+  }
+  function bar(items, total){
+    if (!total) return '';
+    return '<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;background:#f1f1f0">'
+      + items.filter(function(x){return x.n>0;}).map(function(x){
+          return '<div title="'+rcEsc(x.label+' '+x.n+'명')+'" style="width:'+(x.n/total*100)+'%;background:'+x.color+'"></div>';
+        }).join('') + '</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">'
+      + items.filter(function(x){return x.n>0;}).map(function(x){
+          return '<span style="font-size:11px;color:var(--t3)"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+x.color+';margin-right:4px"></span>'+rcEsc(x.label)+' '+x.n+'</span>';
+        }).join('') + '</div>';
+  }
+
+  var stageColors = {'서류접수':'#94a3b8','서류검토':'#60a5fa','1차면접':'#34d399','2차면접':'#10b981',
+                     '처우협의':'#a78bfa','최종합격':'#16a34a','탈락':'#cbd5e1','지원취소':'#e2e8f0',
+                     '불합격':'#cbd5e1','보류':'#fcd34d'};
+  var stageItems = rcStageList().map(function(s){
+    return { label:s, n:A.filter(function(a){return (a.stage||'')===s;}).length, color:stageColors[s]||'#d4d4d8' };
+  });
+  var chMap = {}; A.forEach(function(a){ var c=a.channel||'(미기재)'; chMap[c]=(chMap[c]||0)+1; });
+  var chColors = ['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#94a3b8'];
+  var chItems = Object.keys(chMap).map(function(c,i){ return {label:c, n:chMap[c], color:chColors[i%chColors.length]}; });
+
+  el.style.display='block';
+  el.innerHTML =
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'
+    + card('전체 지원자', A.length, 'var(--t1)', withRes+'명 이력서 보유')
+    + card('면접 진행', pass, '#16a34a', passLine+'점 이상')
+    + card('보류', hold, '#d97706', holdLine+'~'+(passLine-1)+'점')
+    + card('서류 불합격', fail, 'var(--t3)', holdLine+'점 미만')
+    + card('채점 미완', todo, '#2563eb', scored+'/'+A.length+' 채점됨')
+    + card('파기 대상', due, '#dc2626', '보관 '+((p&&p.keepDays)||14)+'일')
+    + '</div>'
+    + '<div style="display:flex;gap:12px;flex-wrap:wrap">'
+    + '<div style="flex:2;min-width:300px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px">'
+      + '<div style="font-size:12px;font-weight:700;margin-bottom:8px">전형 진행 현황</div>' + bar(stageItems, A.length) + '</div>'
+    + '<div style="flex:1;min-width:220px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px">'
+      + '<div style="font-size:12px;font-weight:700;margin-bottom:8px">지원경로</div>' + bar(chItems, A.length) + '</div>'
+    + '</div>';
 }
 function rcRenderBoard(){
   var wrap = document.getElementById('rc-board'), A = rcState.applicants;
   var editable = rcCanEditPosting(rcCurPosting());
-  wrap.innerHTML = RC_STAGES.map(function(st){
+  wrap.innerHTML = rcStageList().map(function(st){
     var items = A.filter(function(a){ return (a.stage||'서류접수')===st; });
     return '<div style="flex:0 0 220px;background:var(--bg2,#f8f8f7);border:1px solid var(--border);border-radius:12px;padding:10px" ondragover="event.preventDefault();try{event.dataTransfer.dropEffect=\'move\'}catch(err){}" ondrop="rcDrop(event,\''+st+'\')">'
       + '<div style="font-size:12px;font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between"><span>'+st+'</span><span style="color:var(--t3)">'+items.length+'</span></div>'
@@ -31319,7 +31376,9 @@ function rcRenderBoard(){
           var sc = rcScoreCell(a);
           return '<div draggable="'+(editable?'true':'false')+'" ondragstart="rcDragStart(event,\''+a.id+'\')" onclick="rcOpenApplicant(\''+a.id+'\')" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer">'
             + '<div style="font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:6px"><span>'+rcEsc(a.name)+'</span><span style="color:'+sc.color+';white-space:nowrap"'+(sc.title?' title="'+rcEsc(sc.title)+'"':'')+'>'+sc.text+'</span></div>'
-            + '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+rcEsc((a.lastCompany||'').slice(0,26))+'</div></div>';
+            + '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+rcEsc((a.lastCompany||'').slice(0,26))+'</div>'
+            + (a.stage==='탈락' && a.droppedAt ? '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+rcEsc(a.droppedAt)+'에서 탈락</div>' : '')
+            + '</div>';
         }).join('')
       + '</div>';
   }).join('');
@@ -31338,7 +31397,9 @@ function rcDrop(e,stage){
   if (!rcCanEditPosting(rcCurPosting())) { showToast('❌ 이 공고를 수정할 권한이 없습니다'); return; }
   var prev = a.stage; a.stage = stage;
   a.log = (a.log||[]).concat([{t:rcToday(), m:prev+' → '+stage, by:rcMe()}]);
-  db.collection('recruitApplicants').doc(a.id).update({stage:stage, log:a.log})
+  var upd = {stage:stage, log:a.log};
+  if (stage==='탈락') upd.droppedAt = prev; else if (prev==='탈락') upd.droppedAt = firebase.firestore.FieldValue.delete();
+  db.collection('recruitApplicants').doc(a.id).update(upd)
     .then(function(){ showToast('✅ '+a.name+' → '+stage); })
     .catch(function(){ a.stage = prev; showToast('❌ 저장 실패'); rcRenderAll(); });
   rcRenderAll();
@@ -31347,7 +31408,9 @@ function rcRenderList(){
   var A = rcState.applicants;
   var q = (document.getElementById('rc-q').value||'').trim().toLowerCase();
   var fs = document.getElementById('rc-f-stage'), fc = document.getElementById('rc-f-channel'), fv = document.getElementById('rc-f-verdict');
-  if (!fs.options.length) fs.innerHTML = '<option value="">단계 전체</option>'+RC_STAGES.map(function(s){return '<option>'+s+'</option>';}).join('');
+  var stPrev = fs.value;
+  fs.innerHTML = '<option value="">단계 전체</option>'+rcStageList().map(function(s){return '<option>'+s+'</option>';}).join('');
+  fs.value = stPrev;
   var chs = Array.from(new Set(A.map(function(a){return a.channel;}).filter(Boolean)));
   var vc = fc.value;
   fc.innerHTML = '<option value="">지원경로 전체</option>'+chs.map(function(s){return '<option>'+rcEsc(s)+'</option>';}).join(''); fc.value = vc;
@@ -31406,7 +31469,7 @@ function rcOpenApplicant(id){
   if (rcCanEditPosting(p)) {
     h += '<span style="margin-left:auto;font-size:12px;color:var(--t3)">단계 변경</span>'
       + '<select onchange="rcSetStage(\''+a.id+'\',this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">'
-      + RC_STAGES.map(function(s){ return '<option'+(s===a.stage?' selected':'')+'>'+s+'</option>'; }).join('') + '</select>';
+      + rcStageList().map(function(s){ return '<option'+(s===a.stage?' selected':'')+'>'+s+'</option>'; }).join('') + '</select>';
   }
   h += '</div>';
 
@@ -31528,6 +31591,27 @@ function rcOpenResume(aid){
     .catch(function(e){ console.warn('[이력서 메타데이터]', e); go(a.resumeUrl); });
 }
 
+/* 예전 단계('불합격'·'보류')를 새 단계 체계로 옮긴다.
+   '보류'는 점수 판정과 겹쳐 단계에서 뺐으므로 서류검토로 되돌린다. */
+function rcMigrateStages(){
+  var old = rcState.applicants.filter(function(a){ return a.stage==='불합격' || a.stage==='보류'; });
+  if (!old.length) { showToast('정리할 항목이 없습니다'); return; }
+  var nFail = old.filter(function(a){return a.stage==='불합격';}).length;
+  var nHold = old.length - nFail;
+  if (!confirm('예전 단계를 정리합니다.\n\n· 불합격 ' + nFail + '명 → 탈락\n· 보류 ' + nHold + '명 → 서류검토 (보류 여부는 점수로 표시됩니다)\n\n진행할까요?')) return;
+  old.reduce(function(ch, a){
+    return ch.then(function(){
+      var to = a.stage==='불합격' ? '탈락' : '서류검토';
+      var upd = { stage:to, log:(a.log||[]).concat([{t:rcToday(), m:a.stage+' → '+to+' (단계 정리)', by:rcMe()}]) };
+      if (to==='탈락') upd.droppedAt = '서류검토';
+      return db.collection('recruitApplicants').doc(a.id).update(upd).catch(function(){});
+    });
+  }, Promise.resolve()).then(function(){
+    showToast('✅ ' + old.length + '명 단계를 정리했습니다');
+    rcLoadApplicants(rcState.postingId).then(rcRenderAll);
+  });
+}
+
 /* 단계 변경 (드래그 대신 쓰는 수단) */
 function rcSetStage(aid, stage){
   var a = rcState.applicants.find(function(x){ return x.id===aid; });
@@ -31535,7 +31619,9 @@ function rcSetStage(aid, stage){
   if (!rcCanEditPosting(rcCurPosting())) { showToast('❌ 권한이 없습니다'); return; }
   var prev = a.stage; a.stage = stage;
   a.log = (a.log||[]).concat([{t:rcToday(), m:prev+' → '+stage, by:rcMe()}]);
-  db.collection('recruitApplicants').doc(aid).update({stage:stage, log:a.log}).then(function(){
+  var upd2 = {stage:stage, log:a.log};
+  if (stage==='탈락') upd2.droppedAt = prev; else if (prev==='탈락') upd2.droppedAt = firebase.firestore.FieldValue.delete();
+  db.collection('recruitApplicants').doc(aid).update(upd2).then(function(){
     showToast('✅ '+a.name+' → '+stage); rcRenderAll();
   }).catch(function(e){ a.stage=prev; showToast('❌ 저장 실패: '+e.message); rcRenderAll(); });
 }
@@ -31682,8 +31768,16 @@ function rcParseResume(text, fileName){
       if (mo2>0 && mo2<600) { sum += mo2; cnt++; }
     }
     if (cnt) { o.totalExpYears = Math.round(sum/12*10)/10; o.jobCount = cnt; }
-  } else if (/신입/.test(sq) && !spans.length) o.totalExpYears = 0;
-  if (o.totalExpYears == null && spans.length === 0) o.totalExpYears = 0;
+  }
+  if (o.totalExpYears == null) {
+    // '경력 총 …' 표기가 없으면 경력 없음으로 본다 (학력·자격 기간은 경력이 아님)
+    var hasCareer = /경력\s*총|경력사항|담당업무|담당\s*업무/.test(sq) && /(재직중|퇴사|근무기간)/.test(sq);
+    o.totalExpYears = hasCareer ? null : 0;
+    if (o.totalExpYears === null) {
+      var mo3 = spans.reduce(function(a,s){ return a + s.mo; }, 0);
+      o.totalExpYears = mo3 ? Math.round(mo3/12*10)/10 : 0;
+    }
+  }
 
   // 현재/직전 회사
   if (o.format === '잡코리아') {
