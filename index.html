@@ -687,8 +687,9 @@ select.form-input{cursor:pointer}
         </select>
         <span id="rc-list-count" style="margin-left:auto;align-self:center;font-size:12px;color:var(--t3)"></span>
       </div>
-      <div id="rc-selbar" style="display:none;align-items:center;gap:10px;padding:8px 12px;margin-bottom:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px">
-        <span id="rc-selcount" style="font-size:13px;font-weight:600;color:#dc2626"></span>
+      <div id="rc-selbar" style="display:none;align-items:center;gap:10px;padding:8px 12px;margin-bottom:10px;background:#f8f8f7;border:1px solid var(--border);border-radius:8px">
+        <span id="rc-selcount" style="font-size:13px;font-weight:600"></span>
+        <button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="rcAiScoreSelected()">🤖 선택 AI 채점</button>
         <button class="btn btn-ghost btn-sm" style="color:#dc2626;border-color:#fecaca" onclick="rcDeleteSelected()">🗑 선택 삭제 (이력서 파일까지)</button>
         <button class="btn btn-ghost btn-sm" onclick="rcToggleSelAll(false)">선택 해제</button>
       </div>
@@ -3935,6 +3936,7 @@ select.form-input{cursor:pointer}
 
 <!-- SheetJS (엑셀 업로드 파싱) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <!-- mammoth.js (Word 텍스트 미리보기용) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <!-- docx-preview (Word 원본 서식 미리보기) -->
@@ -31204,7 +31206,8 @@ function rcScoreCell(a){
     return { text: String(s), color: s>=70?'#16a34a':(s>=55?'#d97706':'var(--t3)'), verdict: a.autoVerdict||'' };
   }
   if (a.autoScore != null) {
-    return { text: a.autoScore + '<span style="font-size:10px;color:var(--t3)">/' + (a.autoMax||0) + ' 자동</span>',
+    return { text: a.autoScore + ' <span style="font-size:9px;padding:1px 4px;border:1px solid var(--border);border-radius:4px;color:var(--t3);vertical-align:middle">자동</span>',
+             title: '자동 판독 ' + (a.autoMax||0) + '점 만점 중 ' + a.autoScore + '점 — 나머지 항목은 직접 채점하세요',
              color: 'var(--t3)', verdict: '채점 미완' };
   }
   return { text: '-', color: 'var(--t3)', verdict: '' };
@@ -31311,7 +31314,7 @@ function rcRenderBoard(){
       + items.map(function(a){
           var sc = rcScoreCell(a);
           return '<div draggable="'+(editable?'true':'false')+'" ondragstart="rcDragStart(event,\''+a.id+'\')" onclick="rcOpenApplicant(\''+a.id+'\')" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer">'
-            + '<div style="font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:6px"><span>'+rcEsc(a.name)+'</span><span style="color:'+sc.color+';white-space:nowrap">'+sc.text+'</span></div>'
+            + '<div style="font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:6px"><span>'+rcEsc(a.name)+'</span><span style="color:'+sc.color+';white-space:nowrap"'+(sc.title?' title="'+rcEsc(sc.title)+'"':'')+'>'+sc.text+'</span></div>'
             + '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+rcEsc((a.lastCompany||'').slice(0,26))+'</div></div>';
         }).join('')
       + '</div>';
@@ -31394,7 +31397,7 @@ function rcOpenApplicant(id){
     + '</div>';
 
   h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">';
-  if (a.resumeUrl) h += '<a href="'+rcEsc(a.resumeUrl)+'" target="_blank" class="btn btn-ghost btn-sm">📄 이력서 원본 열기</a>';
+  if (a.resumeUrl) h += '<button class="btn btn-ghost btn-sm" onclick="rcOpenResume(\''+a.id+'\')">📄 이력서 원본 열기</button>';
   if (editable) h += '<label class="btn btn-ghost btn-sm" style="cursor:pointer">'+(a.resumeUrl?'📎 이력서 교체':'📎 이력서 첨부')+'<input type="file" accept=".pdf,.htm,.html" style="display:none" onchange="rcAttachResume(\''+a.id+'\',this.files[0])"></label>';
   if (rcCanEditPosting(p)) {
     h += '<span style="margin-left:auto;font-size:12px;color:var(--t3)">단계 변경</span>'
@@ -31417,8 +31420,14 @@ function rcOpenApplicant(id){
       + '<div><span style="color:var(--t3)">면접 전 확인사항</span><br>'+rcEsc(ev.checkBeforeInterview||'-')+'</div></div>'
       + (ev.status==='draft' && editable ? '<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="rcConfirmEval(\''+ev.id+'\')">이 평가 확정</button></div>' : '')
       + '</div>';
-  } else if (rb && editable) {
-    h += '<div style="margin-bottom:16px"><button class="btn btn-ghost btn-sm" onclick="rcOpenScoreForm(\''+a.id+'\')">📝 서류 채점하기</button></div>';
+  }
+  if (editable) {
+    var rbNow = rcState.rubrics.find(function(r){ return r.id===(p&&p.rubricId); });
+    if (rbNow) {
+      h += '<div style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap">'
+        + (a.resumeUrl ? '<button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="rcAiScoreOneBtn(\''+a.id+'\')">🤖 AI로 채점'+(ev?' 다시 하기':'')+'</button>' : '')
+        + '<button class="btn btn-ghost btn-sm" onclick="rcOpenScoreForm(\''+a.id+'\')">📝 '+(ev?'점수 직접 수정':'서류 채점하기')+'</button></div>';
+    }
   }
 
   if (rcCanEditPosting(p)) {
@@ -31440,20 +31449,22 @@ function rcOpenScoreForm(aid){
   var p = rcCurPosting();
   var rb = rcState.rubrics.find(function(r){ return r.id===p.rubricId; });
   if (!rb) { showToast('❌ 공고에 심사표가 연결되어 있지 않습니다'); return; }
-  var h = '<div style="font-size:12px;color:var(--t3);margin-bottom:12px">'+rcEsc(rb.name)+' v'+rb.version+' 기준으로 채점합니다. 저장 시 이 버전이 평가에 함께 기록됩니다.</div>';
+  var prev = rcState.evals[aid] || {};
+  var h = '<div style="font-size:12px;color:var(--t3);margin-bottom:12px">'+rcEsc(rb.name)+' v'+rb.version+' 기준으로 채점합니다. 저장 시 이 버전이 평가에 함께 기록됩니다.'
+    + (prev.total!=null ? ' 기존 초안('+rcEsc(prev.evaluator||'')+')의 점수를 불러왔습니다.' : '') + '</div>';
   rb.groups.forEach(function(g){
     h += '<div style="font-weight:700;font-size:13px;margin:14px 0 6px">'+g.key+'. '+rcEsc(g.label)+' ('+g.max+')</div>';
     g.items.forEach(function(it){
       h += '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px">'
         + '<div style="flex:1"><div style="font-size:13px">'+rcEsc(it.label)+' <span style="color:var(--t3)">/'+it.max+'</span></div>'
         + '<div style="font-size:11px;color:var(--t3)">'+rcEsc((it.criteria||'').slice(0,120))+'</div></div>'
-        + '<input type="number" id="rcsc-'+it.key+'" min="0" max="'+it.max+'" value="0" style="width:64px;padding:5px;border:1px solid var(--border);border-radius:6px">'
+        + '<input type="number" id="rcsc-'+it.key+'" min="0" max="'+it.max+'" value="'+(((prev.itemScores||{})[it.key])||0)+'" style="width:64px;padding:5px;border:1px solid var(--border);border-radius:6px">'
         + '<input type="text" id="rcmemo-'+it.key+'" placeholder="근거 메모" style="flex:1;padding:5px;border:1px solid var(--border);border-radius:6px;font-size:12px"></div>';
     });
   });
-  h += '<div style="margin-top:14px"><textarea id="rc-sum" placeholder="핵심 근거" style="width:100%;height:70px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px"></textarea>'
-    + '<textarea id="rc-chk" placeholder="면접 전 확인사항" style="width:100%;height:50px;margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px"></textarea>'
-    + '<input id="rc-range" placeholder="경력 범위 판단" style="width:100%;margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px"></div>'
+  h += '<div style="margin-top:14px"><textarea id="rc-sum" placeholder="핵심 근거" style="width:100%;height:90px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px">'+rcEsc(prev.summary||'')+'</textarea>'
+    + '<textarea id="rc-chk" placeholder="면접 전 확인사항" style="width:100%;height:60px;margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px">'+rcEsc(prev.checkBeforeInterview||'')+'</textarea>'
+    + '<input id="rc-range" placeholder="경력 범위 판단" value="'+rcEsc(prev.careerRangeNote||'')+'" style="width:100%;margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px"></div>'
     + '<div style="margin-top:14px;display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="rcSaveScore(\''+aid+'\',\''+rb.id+'\')" style="background:var(--ac);color:#fff;border:none">저장</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="rcOpenApplicant(\''+aid+'\')">취소</button></div>';
   rcShowModal(a.name+' 서류 채점', h);
@@ -31492,6 +31503,26 @@ function rcSaveScore(aid, rubricId){
   }).catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
 }
 
+/* 이력서 열기 — 예전에 올라간 파일은 메타데이터가 없어 다운로드되므로 한 번 고쳐준 뒤 연다 */
+function rcOpenResume(aid){
+  var a = rcState.applicants.find(function(x){ return x.id===aid; });
+  if (!a || !a.resumeUrl) { showToast('❌ 이력서 원본이 없습니다'); return; }
+  var win = window.open('', '_blank');
+  function go(url){ if (win) win.location.href = url; else window.open(url,'_blank'); }
+  if (a.resumeInline || !a.resumePath) { go(a.resumeUrl); return; }
+  var ref = firebase.storage().ref(a.resumePath);
+  var isPdf = /\.pdf$/i.test(a.resumeName||a.resumePath);
+  ref.updateMetadata({ contentType: isPdf ? 'application/pdf' : 'text/html; charset=utf-16',
+                       contentDisposition: 'inline' })
+    .then(function(){ return ref.getDownloadURL(); })
+    .then(function(url){
+      db.collection('recruitApplicants').doc(aid).update({ resumeUrl:url, resumeInline:true }).catch(function(){});
+      a.resumeUrl = url; a.resumeInline = true;
+      go(url);
+    })
+    .catch(function(e){ console.warn('[이력서 메타데이터]', e); go(a.resumeUrl); });
+}
+
 /* 단계 변경 (드래그 대신 쓰는 수단) */
 function rcSetStage(aid, stage){
   var a = rcState.applicants.find(function(x){ return x.id===aid; });
@@ -31511,8 +31542,11 @@ function rcAttachResume(aid, file){
   var p = rcCurPosting();
   if (!rcCanEditPosting(p)) { showToast('❌ 권한이 없습니다'); return; }
   showToast('⏳ 업로드 중...');
-  var ref = firebase.storage().ref('recruit/'+p.id+'/'+aid+'/'+Date.now()+'_'+file.name);
-  ref.put(file).then(function(){ return ref.getDownloadURL(); }).then(function(url){
+  var safe2 = file.name.replace(/[^\w.\-가-힣]/g,'_');
+  var ref = firebase.storage().ref('recruit/'+p.id+'/'+aid+'/'+Date.now()+'_'+safe2);
+  ref.put(file, { contentType: /\.pdf$/i.test(file.name) ? 'application/pdf' : 'text/html; charset=utf-16',
+                  contentDisposition: 'inline; filename="'+safe2+'"' })
+    .then(function(){ return ref.getDownloadURL(); }).then(function(url){
     var old = a.resumePath;
     return db.collection('recruitApplicants').doc(aid).update({
       resumeUrl:url, resumePath:ref.fullPath, resumeName:file.name,
@@ -31569,33 +31603,129 @@ function rcHtmText(arrayBuffer){
 }
 
 function rcParseResume(text, fileName){
-  var t = (text||'').replace(/\u00a0/g,' ');
+  var raw = (text||'').replace(/\u00a0/g,' ');
+  var t  = raw.replace(/\r/g,'');
+  var sq = t.replace(/\s+/g,'');          // 공백 제거본 — 자사양식처럼 글자마다 공백이 있는 서식용
   var o = {}, m;
+
+  // 이름: 파일명에서 한글 2~4자
   var base = (fileName||'').replace(/\.[^.]+$/,'');
-  var parts = base.split('_').filter(function(x){ return x && !/^\d+$/.test(x); });
-  var cand = parts.filter(function(x){ return /^[가-힣]{2,4}$/.test(x.trim()); });
-  o.name = (cand.length ? cand[cand.length-1] : (parts[1] || parts[0] || base)).trim();
-  if ((m = t.match(/(남|여)\s*[,\/]?\s*(\d{4})\s*년/))) o.birthYear = parseInt(m[2],10);
-  if ((m = t.match(/\(?\s*만\s*(\d{1,2})\s*세\s*\)?/))) o.age = '만 ' + m[1];
-  else if ((m = t.match(/(\d{4})\s*년생\s*\(\s*(\d{1,2})\s*세/))) { o.birthYear=parseInt(m[1],10); o.age='만 '+m[2]; }
-  if ((m = t.match(/(01[016789][-\s]?\d{3,4}[-\s]?\d{4})/))) o.phone = m[1].replace(/\s/g,'-');
-  if ((m = t.match(/([\w.\-+]+@[\w.\-]+\.[A-Za-z]{2,})/))) o.email = m[1];
-  if ((m = t.match(/경력\s*총?\s*(\d+)\s*년(?:\s*(\d+)\s*개월)?/))) {
-    o.totalExpYears = Math.round((parseInt(m[1],10) + (parseInt(m[2]||0,10)/12)) * 10)/10;
-  } else if ((m = t.match(/총\s*(\d+)\s*개월/))) {
-    o.totalExpYears = Math.round(parseInt(m[1],10)/12*10)/10;
-  } else if (/신입/.test(t)) o.totalExpYears = 0;
-  if ((m = t.match(/(대학원[^\n]{0,40}|대학교\(4년\)[^\n]{0,40}|대학\(2,3년\)[^\n]{0,40}|고등학교[^\n]{0,30})/))) o.education = m[1].trim().slice(0,60);
-  if ((m = t.match(/희망\s*연봉\s*([\d,]+)\s*만원/))) o.desiredSalary = parseInt(m[1].replace(/,/g,''),10);
-  var co = t.match(/([가-힣A-Za-z()㈜\s]{2,25})\s+(\d{4}\.\s?\d{2}\s*~\s*(?:재직중|\d{4}\.\s?\d{2}))/);
-  if (co) o.lastCompany = (co[1].trim()+' '+co[2].replace(/\s/g,'')).slice(0,55);
-  o.hasLicense = /운전면허|1종\s*보통|2종\s*보통|자동차운전/.test(t);
-  o.majorMatch = /경영|행정|회계|법학|경제|세무|무역|상경|비서|인사|노동/.test(t);
-  o.officeHigh = /컴퓨터활용능력\s*1급|컴활\s*1급|MOS\s*Master|사무자동화산업기사/.test(t);
-  o.officeMid  = /컴퓨터활용능력|컴활|ITQ|워드프로세서|MOS|전산회계|전산세무|ERP/.test(t);
-  var sop = t.split(/자기\s*소개서/);
-  o.sopLen = sop.length>1 ? sop.slice(1).join(' ').length : 0;
-  o.jobCount = (t.match(/\d{4}\.\s?\d{2}\s*~\s*(?:재직중|\d{4}\.\s?\d{2})/g) || []).length;
+  var segs = base.split(/[_\-]/).map(function(x){return x.trim();});
+  var korea = segs.filter(function(x){ return /^[가-힣]{2,4}$/.test(x); });
+  o.name = korea.length ? korea[korea.length-1] : (segs[1]||segs[0]||base);
+
+  // 서식 판별
+  o.format = (/입사지원서/.test(sq) && /인적사항|인적\s*사항/.test(sq)) ? '자사양식'
+           : (/인크루트는구직자가|인크루트/.test(sq) ? '인크루트' : '잡코리아');
+
+  // 공통: 연락처 / 이메일
+  if ((m = sq.match(/(01[016789])[-]?(\d{3,4})[-]?(\d{4})/))) o.phone = m[1]+'-'+m[2]+'-'+m[3];
+  if ((m = raw.match(/([\w.\-+]+)\s*@\s*([\w.\-]+\.[A-Za-z]{2,})/))) o.email = (m[1]+'@'+m[2]).toLowerCase();
+
+  // 생년 / 나이
+  if ((m = sq.match(/(?:남|여)[,\/]?(\d{4})년(?:생)?\(?만?(\d{1,2})세/))) { o.birthYear=+m[1]; o.age='만 '+m[2]; }
+  else if ((m = sq.match(/생년월일(\d{4})년/))) { o.birthYear=+m[1]; }
+  else if ((m = sq.match(/(\d{4})년생/))) { o.birthYear=+m[1]; }
+  else if ((m = sq.match(/성명[가-힣]{2,4}[^\d]{0,12}(\d{4})년\d{1,2}월\d{1,2}일/))) { o.birthYear=+m[1]; }
+  else if ((m = sq.match(/(19[5-9]\d|200[0-9])년\d{1,2}월\d{1,2}일/))) { o.birthYear=+m[1]; }
+  if (!o.age && o.birthYear) o.age = '만 ' + (new Date().getFullYear() - o.birthYear - 1);
+
+  // 근무 기간 목록 → 총경력 보정용
+  var spans = [];
+  var re = /(\d{2,4})[.\-\/](\d{1,2})\s*~\s*(재직중|현재|(\d{2,4})[.\-\/](\d{1,2}))/g, g;
+  while ((g = re.exec(sq))) {
+    var y1 = +g[1]; if (y1 < 100) y1 += 2000;
+    var m1 = +g[2];
+    var y2, m2;
+    if (/재직중|현재/.test(g[3])) { var d=new Date(); y2=d.getFullYear(); m2=d.getMonth()+1; }
+    else { y2 = +g[4]; if (y2 < 100) y2 += 2000; m2 = +g[5]; }
+    var mo = (y2-y1)*12 + (m2-m1);
+    if (mo > 0 && mo < 600 && y1 > 1970) spans.push({y1:y1,m1:m1,mo:mo});
+  }
+  o.jobCount = spans.length;
+
+  // 총경력
+  if ((m = sq.match(/경력총(\d+)년(?:(\d+)개월)?/))) {
+    o.totalExpYears = Math.round((+m[1] + (+(m[2]||0))/12)*10)/10;
+  } else if ((m = sq.match(/총(\d+)년(\d+)개월/))) {
+    o.totalExpYears = Math.round((+m[1] + (+m[2])/12)*10)/10;
+  } else if (o.format === '자사양식') {
+    var ci = sq.search(/경력및자격사항|경력사항을기입/);
+    var ei = sq.search(/자격및면허|기타사항|경험기술서/);
+    var seg = ci>=0 ? sq.slice(ci, ei>ci?ei:undefined) : '';
+    var sum = 0, cnt = 0, re2 = /(\d{2,4})[.\-\/](\d{1,2})~(재직중|현재|(\d{2,4})[.\-\/](\d{1,2}))/g, g2;
+    while ((g2 = re2.exec(seg))) {
+      var a1=+g2[1]; if(a1<100) a1+=2000;
+      var b1, b2;
+      if (/재직중|현재/.test(g2[3])) { var dd=new Date(); b1=dd.getFullYear(); b2=dd.getMonth()+1; }
+      else { b1=+g2[4]; if(b1<100) b1+=2000; b2=+g2[5]; }
+      var mo2 = (b1-a1)*12 + (b2-+g2[2]);
+      if (mo2>0 && mo2<600) { sum += mo2; cnt++; }
+    }
+    if (cnt) { o.totalExpYears = Math.round(sum/12*10)/10; o.jobCount = cnt; }
+  } else if (/신입/.test(sq) && !spans.length) o.totalExpYears = 0;
+  if (o.totalExpYears == null && spans.length === 0) o.totalExpYears = 0;
+
+  // 현재/직전 회사
+  if (o.format === '잡코리아') {
+    if ((m = t.match(/경력\s+총\s+\d+\s*년(?:\s*\d+\s*개월)?\s{2,}([^\s][^\n]{0,28}?)\s{2,}/))) o.lastCompany = m[1].trim();
+    if (!o.lastCompany) {
+      var di = t.indexOf('담당 업무');
+      if (di > 40) {
+        var ch = t.slice(Math.max(0,di-120), di).split(/\s{2,}/).filter(Boolean);
+        for (var ci2 = ch.length-1; ci2 >= 0 && ci2 >= ch.length-4; ci2--) {
+          var cand = ch[ci2].trim();
+          if (/[가-힣]{2,}/.test(cand) && !/^\d/.test(cand) && !/(팀|부|실|본부|파트)$/.test(cand)
+              && !/(사원|주임|대리|과장|차장|부장|팀원|계장)/.test(cand)) { o.lastCompany = cand; break; }
+        }
+      }
+    }
+  } else if (o.format === '자사양식') {
+    if ((m = sq.match(/연봉\(퇴직금제외\)\d{2}\.\d{2}~\d{2}\.\d{2}([가-힣A-Za-z㈜()\.]{2,20}?)(?:사원|주임|대리|과장|차장|부장|팀장|사\s*원)/))) o.lastCompany = m[1];
+    if (!o.lastCompany && (m = sq.match(/기관명직위\/역할담당업무연봉\(퇴직금제외\)[\d.~]+([가-힣A-Za-z㈜()]{2,20}?)(?:사원|주임|대리|과장|차장|부장|팀장)/))) o.lastCompany = m[1];
+  } else {
+    var ar = /경력\s*(?:총\s*)?\d+\s*년\s*\d*\s*개월/g, ag, ci3 = -1;
+    while ((ag = ar.exec(t))) ci3 = ag.index;
+    var seg3 = ci3 >= 0 ? t.slice(ci3) : t;
+    var mi = seg3.match(/\d{4}\.\s?\d{2}\s*~\s*(?:재직중|\d{4}\.\s?\d{2})\s*\n?\s*(?:\d+\s*년\s*)?(?:\d+\s*개월)?\s*\n?\s*([가-힣A-Za-z0-9㈜()·&\.\s]{2,30}?)\s*(?:&nbsp;|\n|$)/);
+    if (mi) o.lastCompany = mi[1].trim().replace(/\s+/g,' ');
+  }
+  if (o.lastCompany) {
+    o.lastCompany = o.lastCompany.replace(/^[·\-\s]+|[·\-\s]+$/g,'')
+      .replace(/\s*(업종|담당\s*업무|연봉|주요직무).*$/,'')
+      .replace(/\s+/g,' ').slice(0,40);
+  }
+
+  // 최종학력
+  var lv = sq.match(/(대학원|대학교\(4년\)|대학\(2,3년\)|고등학교)(졸업예정|졸업|재학|중퇴|수료)?/);
+  var schools = raw.match(/([가-힣]{2,10}(?:대학교|대학원|전문대학|대학))/g) || [];
+  var school = schools.length ? [schools.find(function(x){return /대학원/.test(x);}) || schools[0]] : null;
+  var major  = sq.match(/([가-힣]{2,12}(?:학과|학부|전공|과))(?:\(|졸업|재학|중퇴|\d)/);
+  if (o.format === '자사양식') {
+    var er = /(\d{4})\.\d{2}~(\d{4})\.\d{2}([가-힣]{2,10}?(?:대학교|대학원|대학))([가-힣]{2,12}?(?:학과|학부|전공|계열))/g, eg, last=null;
+    while ((eg = er.exec(sq))) last = eg;
+    if (last) o.education = last[3] + ' (' + last[4] + ')';
+  }
+  if (!o.education) {
+    var eduBits = [];
+    if (lv) eduBits.push((lv[1]||'') + (lv[2]?' '+lv[2]:''));
+    if (school && school.length && school[0]) eduBits.push(school[0]);
+    if (major) eduBits.push('('+major[1]+')');
+    o.education = eduBits.join(' ').trim().slice(0,60);
+  }
+
+  // 희망연봉
+  if ((m = sq.match(/희망연봉\(?퇴직금제외\)?([\d,]+)만원/))) o.desiredSalary = +m[1].replace(/,/g,'');
+  else if ((m = sq.match(/희망연봉([\d,]+)만원/))) o.desiredSalary = +m[1].replace(/,/g,'');
+  else if (/희망연봉(면접후결정|회사내규|협의)/.test(sq)) o.desiredSalary = '';
+
+  // 채점용 신호
+  o.hasLicense = /운전면허|종보통운전|자동차운전|1종보통|2종보통/.test(sq);
+  o.majorMatch = /경영|행정|회계|법학|경제|세무|무역|상경|비서|인사|노동|금융/.test(o.education || sq.slice(0,600));
+  o.officeHigh = /컴퓨터활용능력1급|컴활1급|MOSMaster|사무자동화산업기사/i.test(sq);
+  o.officeMid  = /컴퓨터활용능력|컴활|ITQ|워드프로세서|MOS|전산회계|전산세무|ERP|엑셀/i.test(sq);
+  var sopIdx = sq.search(/자기소개서|성격의장점|지원동기/);
+  o.sopLen = sopIdx >= 0 ? (sq.length - sopIdx) : 0;
   o.textLen = t.length;
   return o;
 }
@@ -31712,7 +31842,9 @@ function rcUploadResumes(files){
           var safe = item.name.replace(/[^\w.\-가-힣]/g,'_');
           var ref = firebase.storage().ref('recruit/'+p.id+'/'+aid+'/'+Date.now()+'_'+safe);
           step = '파일 업로드';
-          return ref.put(item.blob).then(function(){ return ref.getDownloadURL(); }).then(function(url){
+          var meta = { contentType: /\.pdf$/i.test(item.name) ? 'application/pdf' : 'text/html; charset=utf-16',
+                       contentDisposition: 'inline; filename="'+safe+'"' };
+          return ref.put(item.blob, meta).then(function(){ return ref.getDownloadURL(); }).then(function(url){
             step = '지원자 등록';
             return db.collection('recruitApplicants').doc(aid).set({
               postingId:p.id, companyId:rcCid(), name:parsed.name || item.name,
@@ -31778,6 +31910,185 @@ function rcUploadResumes(files){
     showToast('❌ 업로드 실패: '+e.message);
   });
 }
+
+/* ===== AI 서류 채점 (Cloudflare Worker 경유 Claude) ===== */
+var RC_AI_URL = (typeof CF_URL !== 'undefined') ? CF_URL : 'https://twilight-dew-b966.hyunkyu-so.workers.dev';
+var RC_AI_MODEL = 'claude-sonnet-4-6';
+/* 요금 (USD / 1M 토큰) — 단가가 바뀌면 이 두 값만 고치면 됩니다 */
+var RC_AI_PRICE = { in: 3.0, out: 15.0 };
+var RC_USD = 1380;
+
+function rcAiPrompt(rb, parsed, text){
+  var lines = [];
+  lines.push('당신은 채용 서류심사를 돕는 조수입니다. 아래 심사표 기준으로 지원자를 채점하세요.');
+  lines.push('');
+  lines.push('[채용 포지션] ' + (rcCurPosting().title||'') + ' / ' + (rcCurPosting().department||''));
+  lines.push('[목표 경력 범위] ' + (rcCurPosting().targetRange || '제한 없음'));
+  lines.push('');
+  lines.push('[심사표] ' + rb.name + ' v' + rb.version + ' (합격선 ' + rb.passScore + ', 보류선 ' + rb.holdScore + ')');
+  rb.groups.forEach(function(g){
+    lines.push('◆ ' + g.key + '. ' + g.label + ' (' + g.max + '점)');
+    g.items.forEach(function(it){
+      lines.push('  - ' + it.key + ' | ' + it.label + ' | 배점 ' + it.max + ' | 판단 기준: ' + (it.criteria||'없음'));
+    });
+  });
+  lines.push('');
+  lines.push('[이력서 원문]');
+  lines.push(text.slice(0, 12000));
+  lines.push('');
+  lines.push('[지시]');
+  lines.push('1. 각 항목 키에 0 이상 배점 이하의 정수 점수를 매기세요.');
+  lines.push('2. 근거는 이력서에 실제로 적힌 내용만 사용하고, 없는 내용을 지어내지 마세요.');
+  lines.push('3. 성별·나이·출신지역·혼인 여부·용모는 채점에 절대 반영하지 마세요(채용절차법·고용상 연령차별금지법).');
+  lines.push('4. summary에는 어떤 경험이 공고 담당업무와 겹치는지 구체적 회사명·업무명을 들어 3~5문장으로 쓰세요.');
+  lines.push('5. check에는 면접에서 확인해야 할 점(공백기, 처우 격차, 잦은 이직, 미기재 항목 등)을 적으세요. 없으면 빈 문자열.');
+  lines.push('6. range에는 목표 경력 범위와 견준 판단을 한 문장으로 쓰세요.');
+  lines.push('');
+  lines.push('아래 JSON만 출력하세요. 설명·마크다운·코드블록 금지.');
+  lines.push('{"scores":{"항목키":숫자,...},"range":"...","summary":"...","check":"..."}');
+  return lines.join('\n');
+}
+
+function rcAiCall(promptText){
+  return fetch(RC_AI_URL, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ model: RC_AI_MODEL, max_tokens: 1500, messages:[{role:'user', content: promptText}] })
+  }).then(function(res){
+    return res.json().then(function(data){
+      if (!res.ok || data.error) throw new Error((data.error && (data.error.message||JSON.stringify(data.error))) || ('HTTP '+res.status));
+      var txt = (data.content||[]).filter(function(c){ return c.type==='text'; }).map(function(c){ return c.text; }).join('');
+      txt = txt.replace(/```json|```/g,'').trim();
+      var i = txt.indexOf('{'), j = txt.lastIndexOf('}');
+      if (i<0 || j<0) throw new Error('JSON 응답이 아닙니다');
+      return { json: JSON.parse(txt.slice(i, j+1)), usage: data.usage || {} };
+    });
+  });
+}
+
+function rcAiCost(u){
+  var i = (u.inTok||0)/1e6*RC_AI_PRICE.in, o = (u.outTok||0)/1e6*RC_AI_PRICE.out;
+  var usd = i+o;
+  return { usd: usd, krw: Math.round(usd*RC_USD) };
+}
+
+/* 이력서 원문 확보: Storage에서 내려받아 텍스트 추출 */
+function rcResumeText(a){
+  if (a._text) return Promise.resolve(a._text);
+  if (!a.resumeUrl) return Promise.reject(new Error('이력서 원본이 없습니다'));
+  return fetch(a.resumeUrl).then(function(r){ return r.arrayBuffer(); }).then(function(buf){
+    var isPdf = /\.pdf$/i.test(a.resumeName||'') || /pdf/i.test(a.resumeName||'');
+    return (isPdf ? rcPdfText(buf.slice(0)) : Promise.resolve(rcHtmText(buf)));
+  }).then(function(t){ a._text = t; return t; });
+}
+
+/* 한 명 채점 */
+function rcAiScoreOne(a, rb){
+  return rcResumeText(a).then(function(text){
+    if (!text || text.length < 100) throw new Error('이력서 텍스트를 읽지 못했습니다');
+    var parsed = rcParseResume(text, a.resumeName||a.name);
+    return rcAiCall(rcAiPrompt(rb, parsed, text)).then(function(r){
+      var sc = r.json.scores || {};
+      var items = {}, groupScores = {}, total = 0;
+      rb.groups.forEach(function(g){
+        var sum = 0;
+        g.items.forEach(function(it){
+          var v = Math.max(0, Math.min(it.max, Math.round(Number(sc[it.key])||0)));
+          items[it.key] = v; sum += v;
+        });
+        groupScores[g.key] = sum; total += sum;
+      });
+      var verdict = total>=rb.passScore ? '면접 진행' : (total>=rb.holdScore ? '보류' : '서류 불합격');
+      return db.collection('recruitEvaluations').where('applicantId','==',a.id).get().then(function(s){
+        return Promise.all(s.docs.filter(function(d){ return (d.data().type==='서류'); }).map(function(d){ return d.ref.delete(); }));
+      }).then(function(){
+        return db.collection('recruitEvaluations').add({
+          applicantId:a.id, postingId:a.postingId, type:'서류', evaluatedAt:rcToday(),
+          evaluator:'AI 초안 (' + RC_AI_MODEL + ') — 검토 필요',
+          rubricId:rb.id, rubricVersion:rb.version,
+          rubricSnapshot:{passScore:rb.passScore, holdScore:rb.holdScore,
+            items:[].concat.apply([], rb.groups.map(function(g){ return g.items.map(function(it){ return {key:it.key, max:it.max}; }); }))},
+          itemScores:items, groupScores:groupScores, total:total, verdict:verdict,
+          careerRangeNote: r.json.range || '', summary: r.json.summary || '', checkBeforeInterview: r.json.check || '',
+          status:'draft', aiGenerated:true
+        });
+      }).then(function(){
+        return db.collection('recruitApplicants').doc(a.id).update({
+          docScore: total, autoVerdict: verdict,
+          autoScore: firebase.firestore.FieldValue.delete(),
+          autoMax: firebase.firestore.FieldValue.delete(),
+          log: (a.log||[]).concat([{t:rcToday(), m:'AI 서류 채점 초안 '+total+'점 ('+verdict+')', by:rcMe()}])
+        });
+      }).then(function(){
+        return { total:total, verdict:verdict,
+                 inTok:(r.usage.input_tokens||0), outTok:(r.usage.output_tokens||0) };
+      });
+    });
+  });
+}
+
+/* 여러 명 일괄 채점 */
+function rcAiScoreMany(ids){
+  var p = rcCurPosting();
+  if (!rcCanEditPosting(p)) { showToast('❌ 권한이 없습니다'); return; }
+  var rb = rcState.rubrics.find(function(r){ return r.id===p.rubricId; });
+  if (!rb) { showToast('❌ 공고에 심사표가 연결되어 있지 않습니다'); return; }
+  var list = ids.map(function(id){ return rcState.applicants.find(function(x){ return x.id===id; }); })
+                .filter(function(a){ return a && a.resumeUrl; });
+  var noFile = ids.length - list.length;
+  if (!list.length) { showToast('❌ 이력서 원본이 있는 지원자가 없습니다'); return; }
+  if (!confirm(list.length + '명을 AI로 채점합니다.' + (noFile? '\n(이력서 원본이 없는 ' + noFile + '명은 제외)':'')
+    + '\n\n· 심사표 ' + rb.name + ' v' + rb.version + ' 기준\n· 결과는 초안으로 저장되며 담당자 확정이 필요합니다\n· 호출 비용이 발생합니다 (완료 후 사용량 표시)\n\n진행할까요?')) return;
+
+  var done = 0, failed = [], inTok = 0, outTok = 0, t0 = Date.now(), logs = [];
+  function paint(head){
+    rcProgress('<div style="font-weight:700;margin-bottom:6px">'+head+'</div>'
+      + logs.slice(-12).map(function(l){ return '<div style="padding:2px 0;color:'+(l.ok?'var(--t2,#444)':'#dc2626')+'">'
+          + (l.ok?'✅':'❌') + ' ' + rcEsc(l.name) + ' — ' + rcEsc(l.msg) + '</div>'; }).join(''), true);
+  }
+  paint('AI 채점 0 / ' + list.length);
+
+  list.reduce(function(ch, a){
+    return ch.then(function(){
+      return rcAiScoreOne(a, rb).then(function(r){
+        done++; inTok += r.inTok; outTok += r.outTok;
+        logs.push({ok:true, name:a.name, msg:r.total+'점 · '+r.verdict});
+      }).catch(function(e){
+        failed.push(a.name);
+        logs.push({ok:false, name:a.name, msg:(e && e.message ? e.message : e)});
+      }).then(function(){
+        var c = rcAiCost({inTok:inTok, outTok:outTok});
+        paint('AI 채점 ' + (done+failed.length) + ' / ' + list.length
+          + ' · 사용 ' + inTok.toLocaleString() + ' + ' + outTok.toLocaleString() + ' 토큰'
+          + ' · 약 ' + c.krw.toLocaleString() + '원');
+      });
+    });
+  }, Promise.resolve()).then(function(){
+    var c = rcAiCost({inTok:inTok, outTok:outTok});
+    var sec = Math.round((Date.now()-t0)/1000);
+    var per = done ? (c.krw/done) : 0;
+    rcProgress('<div style="font-weight:700;margin-bottom:8px">AI 채점 완료 — 성공 '+done+'건'+(failed.length?' / 실패 '+failed.length+'건':'')+'</div>'
+      + '<table style="font-size:13px;border-collapse:collapse">'
+      + '<tr><td style="padding:3px 14px 3px 0;color:var(--t3)">입력 토큰</td><td style="font-weight:600">'+inTok.toLocaleString()+'</td></tr>'
+      + '<tr><td style="padding:3px 14px 3px 0;color:var(--t3)">출력 토큰</td><td style="font-weight:600">'+outTok.toLocaleString()+'</td></tr>'
+      + '<tr><td style="padding:3px 14px 3px 0;color:var(--t3)">비용</td><td style="font-weight:700">약 '+c.krw.toLocaleString()+'원 ($'+c.usd.toFixed(3)+')</td></tr>'
+      + '<tr><td style="padding:3px 14px 3px 0;color:var(--t3)">1인당</td><td style="font-weight:600">약 '+Math.round(per).toLocaleString()+'원</td></tr>'
+      + '<tr><td style="padding:3px 14px 3px 0;color:var(--t3)">100명 환산</td><td style="font-weight:600">약 '+Math.round(per*100).toLocaleString()+'원</td></tr>'
+      + '<tr><td style="padding:3px 14px 3px 0;color:var(--t3)">소요 시간</td><td>'+sec+'초</td></tr></table>'
+      + '<div style="margin-top:8px;font-size:11px;color:var(--t3)">단가 기준: 입력 $'+RC_AI_PRICE.in+' / 출력 $'+RC_AI_PRICE.out+' per 1M tokens, 환율 '+RC_USD+'원</div>'
+      + (failed.length? '<div style="margin-top:8px;font-size:12px;color:#dc2626">실패: '+rcEsc(failed.join(', '))+'</div>':'')
+      + '<div style="margin-top:8px;font-size:12px">결과는 모두 <b>초안</b>입니다. 지원자 상세에서 확인 후 확정하세요.</div>', true);
+    showToast('✅ AI 채점 '+done+'건 완료 — 약 '+c.krw.toLocaleString()+'원');
+    _rcSelected = {};
+    rcLoadApplicants(rcState.postingId).then(rcRenderAll);
+  });
+}
+
+function rcAiScoreSelected(){
+  var ids = Object.keys(_rcSelected);
+  if (!ids.length) { showToast('❌ 지원자를 선택하세요'); return; }
+  rcAiScoreMany(ids);
+}
+function rcAiScoreOneBtn(aid){ rcCloseModal(); rcAiScoreMany([aid]); }
 
 /* ---------- 삭제 (잘못 올린 건 되돌리기) ---------- */
 /* 파기와 다름: 파기는 기록을 남기고 개인정보만 지우는 법적 절차,
@@ -31890,47 +32201,277 @@ function rcDispose(aid){
   }).catch(function(e){ showToast('❌ 파기 실패: '+e.message); });
 }
 
-/* ---------- 엑셀 내보내기 (지원자관리 + 순위 + 지원자별 심사표) ---------- */
+var RC_XL_STATIC = {"사용법": [["채용 지원자 관리 시트"], [""], ["1. 설정 시트에서 보관일수·포지션·공고기간(노란 칸)을 먼저 입력합니다."], ["2. 지원자관리 시트에 지원자 1명당 1행씩 입력합니다. 노란 칸이 입력 칸, No와 파기예정일은 자동입니다."], ["3. 서류가 들어오면 서류심사표(기본요건 5개 + 평가 100점)로 채점하고 합계를 지원자관리의 서류점수에 적습니다. 자동 판정 기준(면접 70 / 보류 55)은 설정 시트에서 조정."], ["4. 결과통보일을 넣으면 파기예정일이 자동 계산되고, 기한이 지났는데 파기여부가 Y가 아니면 빨갛게 표시됩니다."], ["5. 면접평가표는 1차 직무면접·2차 임원면접이 한 시트에 있고, 면접질문 시트에 항목별 질문 예시가 있습니다. 면접관별로 시트를 복사해 쓰세요."], ["6. 별도 관리 프로그램(applicant-tracker.html)과 엑셀 내보내기/불러오기로 서로 데이터를 옮길 수 있습니다."], [""], ["지원자관리 2행의 홍길동은 입력 형식을 보여주는 예시이므로 실제 사용 시 지우세요."], ["개인정보(연락처·이메일 등)가 들어가는 파일이므로 접근권한을 제한하고, 채용 종료 후 보관기간이 지나면 파일도 파기하세요."], ["채점 기준은 채용공고 v1.0(2026.09.04)의 담당업무(자산·시설 / 차량·계약 / 문서·법인 / 사내행정), 자격요건, 우대사항에 맞춰 만들었습니다. 공고가 바뀌면 배점을 같이 조정하세요."]], "설정": [["설정값 (노란 칸만 수정)", "", "", "", "", ""], ["", "", "", "단계 목록", "지원경로 목록", "결과"], ["채용서류 보관일수 (결과통보 후)", 14, "", "서류접수", "사람인", "합격"], ["채용 포지션", "인사총무부 인사총무 담당 (신입 또는 경력 1인)", "", "서류검토", "잡코리아", "불합격"], ["공고 게시일", "2026-09-04", "", "1차면접", "원티드", "보류"], ["접수 마감일", "2026-09-22", "", "2차면접", "워크넷", "취소"], ["", "", "", "처우협의", "사내추천", ""], ["서류심사 면접 진행 기준(점)", 70, "", "최종합격", "기타", ""], ["서류심사 보류 기준(점)", 55, "", "불합격", "인크루트", ""], ["면접 합격 추천 기준(점)", 70, "", "보류", "", ""], ["", "", "", "지원취소", "", ""], ["목표 경력 범위(v2)", "인사총무·경영지원 직무경력 1~3년, 총경력 5년 이하 (신입은 유사경험 있으면 부분 점수)", "", "", "", ""]], "면접평가표": [["면접평가표 — 인사총무부", "", "", "", ""], ["1차 직무면접(실무 역량)과 2차 임원면접(조직 적합성·성장 가능성)으로 나뉩니다. 각 면접관이 한 장씩 작성하고 평균을 지원자관리 시트의 점수 칸에 적습니다.", "", "", "", ""], ["", "", "", "", ""], ["지원자", "", "", "면접일", ""], ["면접관", "", "", "면접 구분", ""], ["", "", "", "", ""], ["1차 직무면접 (100점)", "", "", "", ""], ["평가 항목", "확인 포인트 (질문 예시는 면접질문 시트)", "배점", "점수", "면접관 메모"], ["자산·시설 관리 실무", "비품 구매·재고, 전산장비 자산관리, 사무환경 개선을 어떻게 해봤는지 / 해보겠는지. 신입은 절차를 논리적으로 구성하는지", 20, "", ""], ["계약·차량·대금 업무", "렌탈·리스·용역·구매 계약의 체결→검수→청구 흐름 이해, 법인차량 운영 경험, 운전 가능 여부 확인", 20, "", ""], ["문서·법인서류 관리", "공문·계약서 작성 경험, 법인인감·등기·증명서 관리의 중요성과 보안 인식", 15, "", ""], ["꼼꼼함·책임감 (사례)", "실수를 잡아낸 경험, 마감을 지킨 경험 등 구체 사례. 답이 추상적이면 낮게", 15, "", ""], ["업무 습득력·문제 해결", "처음 맡은 업무를 어떻게 익혔는지, 매뉴얼 없는 상황에서 대처한 사례", 15, "", ""], ["커뮤니케이션·협업", "전 부서·외부 업체·관공서를 상대한 경험, 요청을 거절하거나 조율한 사례", 15, "", ""], ["합계", "", "", "", ""], ["판정", "", "", "", ""], ["종합 의견", "", "", "", ""], ["", "", "", "", ""], ["", "", "", "", ""], ["", "", "", "", ""], ["2차 임원면접 (100점)", "", "", "", ""], ["평가 항목", "확인 포인트 (질문 예시는 면접질문 시트)", "배점", "점수", "면접관 메모"], ["조직 적합성", "합리적 사내문화(기본을 지키고 의견 존중)에 맞는 태도, 70명 조직에서 다역할 수용", 25, "", ""], ["회사·산업 이해", "GIS·공공 SW 사업과 회사 인증(일생활균형·가족친화 등)에 대한 이해, 지원 동기의 구체성", 20, "", ""], ["성장 가능성", "인사·총무 전반으로 역할을 넓힐 의지, 학습 태도, 장기 커리어 계획", 20, "", ""], ["근속 의지·안정성", "이직 사유(경력) / 진로 일관성(신입), 근무조건·급여 기대의 현실성", 20, "", ""], ["인성·신뢰성", "법인서류·급여 등 민감 정보를 다루는 직무에 맞는 윤리·보안 의식", 15, "", ""], ["합계", "", "", "", ""], ["판정", "", "", "", ""], ["종합 의견", "", "", "", ""]], "면접질문": [["면접 질문 예시 — 평가 항목별", "", "", ""], ["모든 지원자에게 같은 핵심 질문을 던지고(구조화 면접) 답변 근거를 메모하세요. 신입/경력 구분 질문은 해당하는 쪽만 씁니다.", "", "", ""], ["", "", "", ""], ["면접", "평가 항목", "질문", "무엇을 보는가"], ["1차", "자산·시설 관리", "비품이나 장비 재고를 관리해 본 경험이 있나요? 없다면, 70명 회사의 전산장비 자산대장을 처음 만든다면 어떤 항목으로 어떻게 만들겠습니까?", "절차 설계 능력, 누락 없이 챙기는 습관"], ["1차", "자산·시설 관리", "사무실 환경에서 불편한 점을 발견하고 개선한 경험이 있나요?", "주도성, 관찰력"], ["1차", "계약·차량·대금", "렌탈·리스·용역 계약을 체결하고 대금을 청구·정산해 본 경험을 설명해 주세요. (신입) 계약서를 검토할 때 꼭 확인해야 할 항목은 무엇이라고 생각하나요?", "계약 흐름 이해, 리스크 감각"], ["1차", "계약·차량·대금", "운전이 가능한가요? 법인차량 운행·정비·보험 관리를 맡게 되면 어떻게 관리하겠습니까?", "우대사항 확인, 관리 계획"], ["1차", "문서·법인서류", "공문서나 계약서를 직접 작성해 본 경험이 있나요? 법인인감이나 등기서류를 다룰 때 가장 조심해야 할 점은 무엇일까요?", "문서 역량, 보안 의식"], ["1차", "꼼꼼함·책임감", "본인의 실수 또는 남의 실수를 발견해서 문제를 막은 구체적인 경험을 말해 주세요.", "사례의 구체성 (STAR)"], ["1차", "업무 습득력", "전혀 모르는 업무나 시스템을 맡아 익혔던 경험은? 얼마나 걸렸고 어떻게 익혔나요?", "학습 방식, 자기주도성"], ["1차", "커뮤니케이션", "여러 부서의 요청이 동시에 몰릴 때 우선순위를 어떻게 정하겠습니까? 무리한 요청을 거절했던 경험이 있나요?", "조율력, 전 부서 접점 업무 적합성"], ["1차", "커뮤니케이션", "엑셀에서 자주 쓰는 기능은 무엇인가요? 그룹웨어나 ERP를 써본 적이 있나요?", "오피스·시스템 활용 수준"], ["2차", "조직 적합성", "우리 회사는 '서로 기본을 지키며 의견을 존중하는 문화'를 내세웁니다. 본인이 생각하는 '기본'은 무엇인가요?", "가치관 일치"], ["2차", "조직 적합성", "인사와 총무 업무를 오가며 여러 역할을 해야 할 수 있습니다. 괜찮은가요? 비슷한 경험이 있나요?", "다역할 수용도"], ["2차", "회사·산업 이해", "우리 회사가 무슨 일을 하는 회사인지 아는 대로 말해 주세요. 지원하면서 어떤 점이 끌렸나요?", "지원 동기의 진정성"], ["2차", "성장 가능성", "3년 뒤 어떤 인사총무 담당자가 되어 있고 싶나요? 그러기 위해 지금 부족한 것은?", "커리어 계획, 자기 인식"], ["2차", "근속 의지", "(경력) 이전 직장을 옮긴 이유는? (신입) 여러 직무 중 인사총무를 택한 이유는?", "이직 패턴, 진로 일관성"], ["2차", "근속 의지", "희망 근무 조건이나 급여에 대해 회사와 맞춰야 할 부분이 있다면 말씀해 주세요.", "기대치 현실성, 처우협의 사전 파악"], ["2차", "인성·신뢰성", "급여나 개인정보처럼 민감한 정보를 알게 됐을 때 어떻게 행동해야 한다고 생각하나요?", "윤리·보안 의식"], ["", "", "", ""], ["※ 하지 말아야 할 질문: 결혼·출산 계획, 가족 직업·재산, 출신 지역, 종교, 정치 성향, 용모·건강 등 직무와 무관한 개인사 (채용절차법·남녀고용평등법·고용정책기본법)", "", "", ""]]};
+
+/* ===== 엑셀 내보내기 — ExcelJS로 서식까지 (색·굵기·테두리·틀고정) ===== */
+function rcXlLib(){ return window.ExcelJS || null; }
+
 function rcExportExcel(){
-  if (typeof XLSX === 'undefined') { showToast('❌ 엑셀 라이브러리를 찾을 수 없습니다'); return; }
-  var p = rcCurPosting(), A = rcState.applicants.slice();
-  var wb = XLSX.utils.book_new();
+  var EX = rcXlLib();
+  if (!EX) { showToast('❌ 엑셀 라이브러리 로딩 중입니다. 잠시 후 다시 시도하세요'); return; }
+  var p = rcCurPosting();
+  if (!p) { showToast('❌ 공고를 먼저 선택하세요'); return; }
+  showToast('⏳ 최신 데이터를 불러오는 중...');
 
-  var mgr = [['No','접수일','지원경로','이름','연락처','이메일','최종학력','총경력(년)','현재/직전 회사','희망연봉(만원)','현재 단계','서류점수','자동 판정','결과','통보일','파기여부','비고']];
-  A.forEach(function(a,i){
-    var ev = rcState.evals[a.id]||{};
-    mgr.push([i+1, a.appliedAt||'', a.channel||'', a.name, a.phone||'', a.email||'', a.education||'',
-      a.totalExpYears==null?'':a.totalExpYears, a.lastCompany||'', a.desiredSalary||'', a.stage||'',
-      a.docScore==null?'':a.docScore, a.autoVerdict||'', a.finalResult||'', a.noticeDate||'', a.disposed||'N', ev.summary||'']);
-  });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mgr), '지원자관리');
+  rcLoadApplicants(p.id).then(function(){
+    var A = rcState.applicants.slice();
+    if (!A.length) { showToast('❌ 내보낼 지원자가 없습니다'); return; }
+    var rb = rcState.rubrics.find(function(r){ return r.id===p.rubricId; });
+    var wb = new EX.Workbook();
+    wb.creator = 'WorkGate'; wb.created = new Date();
 
-  var rank = [['순위','이름','경로','출생연도','나이','점수','자동 판정','A 경험','B 범위','C 역량','D 우대','E 태도','F 적합','경력 범위 판단','핵심 근거','면접 전 확인사항']];
-  A.slice().sort(function(x,y){return rcNum(y.docScore)-rcNum(x.docScore);}).forEach(function(a,i){
-    var ev = rcState.evals[a.id]||{}, g = ev.groupScores||{};
-    rank.push([i+1, a.name, a.channel||'', a.birthYear||'', a.age||'', a.docScore==null?'':a.docScore, a.autoVerdict||'',
-      g.A||'', g.B||'', g.C||'', g.D||'', g.E||'', g.F||'', ev.careerRangeNote||'', ev.summary||'', ev.checkBeforeInterview||'']);
-  });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rank), '서류심사_순위');
+    var C = { head:'FF2F5597', headBg:'FFD9E2F3', title:'FF1F3864',
+              pass:'FFE2EFDA', hold:'FFFFF2CC', fail:'FFF2F2F2',
+              line:'FFBFBFBF', note:'FF808080', yellow:'FFFFF2CC' };
+    var FONT = { name:'맑은 고딕', size:10 };
+    function border(cell){
+      cell.border = { top:{style:'thin',color:{argb:C.line}}, left:{style:'thin',color:{argb:C.line}},
+                      bottom:{style:'thin',color:{argb:C.line}}, right:{style:'thin',color:{argb:C.line}} };
+    }
+    function headRow(ws, r){
+      r.eachCell(function(c){
+        c.font = { name:FONT.name, size:10, bold:true, color:{argb:C.head} };
+        c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:C.headBg} };
+        c.alignment = { horizontal:'center', vertical:'middle' };
+        border(c);
+      });
+      r.height = 22;
+    }
+    function titleRow(ws, text, span){
+      var r = ws.addRow([text]);
+      r.getCell(1).font = { name:FONT.name, size:13, bold:true, color:{argb:C.title} };
+      if (span>1) ws.mergeCells(r.number, 1, r.number, span);
+      r.height = 24;
+      return r;
+    }
+    function noteRow(ws, text, span){
+      var r = ws.addRow([text]);
+      r.getCell(1).font = { name:FONT.name, size:9, color:{argb:C.note} };
+      if (span>1) ws.mergeCells(r.number, 1, r.number, span);
+      return r;
+    }
+    function body(r, opts){
+      opts = opts || {};
+      r.eachCell({includeEmpty:true}, function(c){
+        c.font = { name:FONT.name, size:10 };
+        c.alignment = { vertical:'top', wrapText: !!opts.wrap };
+        border(c);
+      });
+    }
+    function ev(a){ return rcState.evals[a.id] || {}; }
+    function scoreOf(a){
+      if (a.docScore!=null && a.docScore!=='') return rcNum(a.docScore);
+      if (a.autoScore!=null) return a.autoScore + ' (자동/' + (a.autoMax||0) + ')';
+      return '';
+    }
+    function verdictOf(a){
+      if (a.docScore==null || a.docScore==='') return '채점 미완';
+      return a.autoVerdict || '';
+    }
+    function tint(cell, v){
+      var f = v==='면접 진행'?C.pass : (v==='보류'?C.hold : (v==='서류 불합격'?C.fail : null));
+      if (f) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:f} };
+    }
 
-  var rb = rcState.rubrics.find(function(r){return r.id===(p&&p.rubricId);});
-  A.filter(function(a){ return rcState.evals[a.id]; }).slice(0,60).forEach(function(a){
-    var ev = rcState.evals[a.id];
-    var s = [[ (rb?rb.name:'서류심사표') + ' v' + (ev.rubricVersion||'') ], ['지원자', a.name, '심사일', ev.evaluatedAt||''], ['심사자', ev.evaluator||'', '구분', (a.totalExpYears||0)<1?'신입':'경력'], []];
-    s.push(['평가 항목','배점','점수','근거 메모']);
-    (rb?rb.groups:RC_GROUPS).forEach(function(gr){
-      s.push([gr.key+'. '+gr.label+' ('+gr.max+')','','','']);
-      (gr.items||[]).forEach(function(it){ s.push([it.label, it.max, (ev.itemScores||{})[it.key]||0, '']); });
+    /* 1. 사용법 */
+    var s1 = wb.addWorksheet('사용법');
+    s1.getColumn(1).width = 110;
+    RC_XL_STATIC['사용법'].forEach(function(row, i){
+      var r = s1.addRow([row[0]]);
+      r.getCell(1).font = { name:FONT.name, size: i===0?13:10, bold: i===0, color:{argb: i===0?C.title:'FF000000'} };
+      r.getCell(1).alignment = { wrapText:true, vertical:'top' };
     });
-    s.push([]); s.push(['합계', 100, ev.total, ev.verdict]);
-    s.push([]); s.push(['경력 범위', ev.careerRangeNote||'']);
-    s.push(['핵심 근거', ev.summary||'']);
-    s.push(['확인사항', ev.checkBeforeInterview||'']);
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s), ('심사_'+a.name).slice(0,31));
-  });
 
-  XLSX.writeFile(wb, '채용_지원자관리_'+rcToday()+'.xlsx');
-  showToast('✅ 엑셀을 내보냈습니다');
+    /* 2. 설정 */
+    var s2 = wb.addWorksheet('설정');
+    [32,22,3,14,14,10].forEach(function(w,i){ s2.getColumn(i+1).width = w; });
+    var st = JSON.parse(JSON.stringify(RC_XL_STATIC['설정']));
+    function setCell(label, val){ st.forEach(function(row){ if (String(row[0]).indexOf(label)===0) row[1] = val; }); }
+    setCell('채용서류 보관일수', p.keepDays||14);
+    setCell('채용 포지션', p.title||'');
+    setCell('공고 게시일', p.openDate||'');
+    setCell('접수 마감일', p.closeDate||'');
+    if (rb) { setCell('면접 진행 기준', rb.passScore); setCell('보류 기준', rb.holdScore); }
+    st.forEach(function(row, i){
+      var r = s2.addRow(row);
+      r.eachCell({includeEmpty:true}, function(c, n){
+        c.font = { name:FONT.name, size:10, bold: i===0 || i===1 };
+        if (i===0) c.font = { name:FONT.name, size:13, bold:true, color:{argb:C.title} };
+        if (i>1 && n===2 && c.value!=='' && c.value!=null) {
+          c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:C.yellow} };
+          border(c);
+        }
+      });
+    });
+
+    /* 3. 지원자관리 */
+    var s3 = wb.addWorksheet('지원자관리');
+    var w3 = [6,11,14,9,14,22,14,10,18,13,10,12,11,12,8,11,12,8,8,11,11,8,30,12,8];
+    w3.forEach(function(w,i){ s3.getColumn(i+1).width = w; });
+    headRow(s3, s3.addRow(['No','접수일','지원경로','이름','연락처','이메일','최종학력','총경력(년)','현재/직전 회사','희망연봉(만원)',
+      '현재 단계','서류점수','1차면접일','1차면접관','1차점수','2차면접일','2차면접관','2차점수',
+      '결과','결과통보일','파기예정일','파기여부','비고','출생연도','나이(만)']));
+    A.forEach(function(a,i){
+      var e = ev(a), due = '';
+      if (a.noticeDate) { var d = new Date(a.noticeDate); d.setDate(d.getDate()+(p.keepDays||14)); due = d.toISOString().slice(0,10); }
+      var r = s3.addRow([i+1, a.appliedAt||'', a.channel||'', a.name, a.phone||'', a.email||'', a.education||'',
+        a.totalExpYears==null?'':a.totalExpYears, a.lastCompany||'', a.desiredSalary||'',
+        a.stage||'', scoreOf(a), a.i1Date||'', a.i1By||'', a.i1Score||'', a.i2Date||'', a.i2By||'', a.i2Score||'',
+        a.finalResult||'', a.noticeDate||'', due, a.disposed||'N', e.summary||'', a.birthYear||'', a.age||'']);
+      body(r);
+      r.getCell(4).font = { name:FONT.name, size:10, bold:true };
+      r.getCell(12).font = { name:FONT.name, size:10, bold:true };
+      tint(r.getCell(12), verdictOf(a));
+      r.getCell(23).alignment = { vertical:'top', wrapText:true };
+    });
+    s3.views = [{ state:'frozen', xSplit:4, ySplit:1 }];
+    s3.autoFilter = { from:{row:1,column:1}, to:{row:1,column:25} };
+
+    /* 4. 현황 */
+    var s4 = wb.addWorksheet('현황');
+    [12,8,3,12,8,3,26,10].forEach(function(w,i){ s4.getColumn(i+1).width = w; });
+    titleRow(s4, '현황 — '+(p.title||'')+' (내보낸 시점 기준)', 8);
+    s4.addRow([]);
+    headRow(s4, s4.addRow(['단계','인원','','서류판정','인원','','지원경로','인원']));
+    var stages = p.stages || RC_STAGES;
+    var vMap = {'면접 진행':0,'보류':0,'서류 불합격':0,'채점 미완':0};
+    A.forEach(function(a){
+      if (a.docScore==null || a.docScore==='') vMap['채점 미완']++;
+      else { var s=rcNum(a.docScore); vMap[s>=70?'면접 진행':(s>=55?'보류':'서류 불합격')]++; }
+    });
+    var vKeys = Object.keys(vMap);
+    var chMap = {}; A.forEach(function(a){ var c=a.channel||'(미기재)'; chMap[c]=(chMap[c]||0)+1; });
+    var chs = Object.keys(chMap);
+    var n = Math.max(stages.length, vKeys.length, chs.length);
+    for (var i=0;i<n;i++){
+      var r = s4.addRow([stages[i]||'', stages[i]? A.filter(function(a){return (a.stage||'')===stages[i];}).length : '', '',
+        vKeys[i]||'', vKeys[i]!=null? vMap[vKeys[i]] : '', '', chs[i]||'', chs[i]? chMap[chs[i]] : '']);
+      body(r);
+      if (vKeys[i]) tint(r.getCell(4), vKeys[i]);
+    }
+    s4.addRow([]);
+    var tr = s4.addRow(['전체', A.length]);
+    tr.getCell(1).font = { name:FONT.name, size:11, bold:true };
+    tr.getCell(2).font = { name:FONT.name, size:11, bold:true };
+
+    /* 5. 서류심사_순위 */
+    var s5 = wb.addWorksheet('서류심사_순위');
+    var gcols = rb ? rb.groups.length : 0;
+    var w5 = [6,10,15,9,7,11,11].concat(new Array(gcols).fill(9)).concat([40,88,48]);
+    w5.forEach(function(w,i){ s5.getColumn(i+1).width = w; });
+    titleRow(s5, '서류심사 순위 — '+(p.title||'')+' ('+A.length+'명'+(rb?', '+rb.name+' v'+rb.version:'')+')', w5.length);
+    noteRow(s5, rb ? ('배점: '+rb.groups.map(function(g){return g.key+' '+g.label+' '+g.max;}).join(' · ')+' / 판정: 면접 '+rb.passScore+', 보류 '+rb.holdScore) : '', w5.length);
+    noteRow(s5, '※ 출생연도·나이는 이력서 기재값 참고용이며 채점에 반영하지 않았습니다(고용상 연령차별금지법).', w5.length);
+    s5.addRow([]);
+    headRow(s5, s5.addRow(['순위','이름','경로','출생연도','나이','점수','자동 판정']
+      .concat(rb? rb.groups.map(function(g){ return g.key+' '+g.label; }) : [])
+      .concat(['경력 범위 판단','핵심 근거','면접 전 확인사항'])));
+    var sorted = A.slice().sort(function(x,y){
+      var sx = (x.docScore!=null&&x.docScore!=='')?rcNum(x.docScore):-1;
+      var sy = (y.docScore!=null&&y.docScore!=='')?rcNum(y.docScore):-1;
+      return sy-sx || rcNum(y.autoScore)-rcNum(x.autoScore);
+    });
+    sorted.forEach(function(a,i){
+      var e = ev(a), g = e.groupScores||{}, v = verdictOf(a);
+      var r = s5.addRow([i+1, a.name, a.channel||'', a.birthYear||'', a.age||'', scoreOf(a), v]
+        .concat(rb? rb.groups.map(function(gr){ return g[gr.key]==null?'':g[gr.key]; }) : [])
+        .concat([e.careerRangeNote||'', e.summary||'', e.checkBeforeInterview||'']));
+      body(r, {wrap:false});
+      r.getCell(2).font = { name:FONT.name, size:10, bold:true };
+      r.getCell(6).font = { name:FONT.name, size:11, bold:true };
+      tint(r.getCell(6), v); tint(r.getCell(7), v);
+      [w5.length-2, w5.length-1, w5.length].forEach(function(c){ r.getCell(c).alignment = { vertical:'top', wrapText:true }; });
+    });
+    s5.views = [{ state:'frozen', xSplit:2, ySplit:5 }];
+
+    /* 6. 서류심사표 (빈 양식) */
+    function rubricSheet(name, e, a){
+      var ws = wb.addWorksheet(name);
+      [22,70,9,11,34].forEach(function(w,i){ ws.getColumn(i+1).width = w; });
+      titleRow(ws, (rb?rb.name:'서류심사표')+(rb?' v'+(e?e.rubricVersion||rb.version:rb.version):'')+' — '+(p.title||''), 5);
+      if (rb && rb.note) noteRow(ws, rb.note, 5);
+      ws.addRow([]);
+      var r1 = ws.addRow(['지원자', a?a.name:'', '', '심사일', e?e.evaluatedAt||'':'']);
+      var r2 = ws.addRow(['심사자', e?e.evaluator||'':'', '', '구분', a?((a.totalExpYears||0)<1?'신입':'경력'):'']);
+      [r1,r2].forEach(function(r){ body(r); r.getCell(1).font={name:FONT.name,size:10,bold:true}; r.getCell(4).font={name:FONT.name,size:10,bold:true}; });
+      ws.addRow([]);
+      var h1 = ws.addRow(["1. 기본 요건 (하나라도 '미충족'이면 부적격)"]);
+      h1.getCell(1).font = { name:FONT.name, size:11, bold:true, color:{argb:C.title} };
+      headRow(ws, ws.addRow(['항목','확인 내용','충족 여부','비고']));
+      (rb && rb.basicRequirements || []).forEach(function(q){ body(ws.addRow([q.label, q.desc, '', '']), {wrap:true}); });
+      ws.addRow([]);
+      var h2 = ws.addRow(['2. 평가 항목 ('+(rb?rb.groups.reduce(function(s,g){return s+g.max;},0):100)+'점)']);
+      h2.getCell(1).font = { name:FONT.name, size:11, bold:true, color:{argb:C.title} };
+      headRow(ws, ws.addRow(['평가 항목','판단 기준 (서류에서 확인할 것)','배점','점수','근거 메모']));
+      (rb?rb.groups:[]).forEach(function(g){
+        var gr = ws.addRow([g.key+'. '+g.label+' ('+g.max+')','','','','']);
+        gr.eachCell({includeEmpty:true}, function(c){
+          c.font = { name:FONT.name, size:10, bold:true };
+          c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF2F2F2'} };
+          border(c);
+        });
+        g.items.forEach(function(it){
+          var r = ws.addRow([it.label, it.criteria||'', it.max, e?((e.itemScores||{})[it.key]||0):'', '']);
+          body(r, {wrap:true});
+          r.getCell(4).font = { name:FONT.name, size:10, bold:true };
+          r.getCell(4).alignment = { horizontal:'center', vertical:'middle' };
+        });
+      });
+      var sum = ws.addRow(['합계','', rb?rb.groups.reduce(function(s,g){return s+g.max;},0):100, e?e.total:'', e?e.verdict||'':'']);
+      sum.eachCell({includeEmpty:true}, function(c){ c.font={name:FONT.name,size:11,bold:true}; border(c); });
+      if (e) tint(sum.getCell(5), e.verdict);
+      ws.addRow([]);
+      [['경력 범위', e?e.careerRangeNote||'':''],['핵심 근거', e?e.summary||'':''],['면접 전 확인사항', e?e.checkBeforeInterview||'':''],
+       ['상태', e?(e.status==='confirmed'?'확정':'초안 (검토 필요)'):'']].forEach(function(x){
+        var r = ws.addRow([x[0], x[1]]);
+        ws.mergeCells(r.number, 2, r.number, 5);
+        r.getCell(1).font = { name:FONT.name, size:10, bold:true };
+        r.getCell(2).alignment = { vertical:'top', wrapText:true };
+        body(r);
+        r.height = 32;
+      });
+      if (rb && rb.legalNotice) noteRow(ws, rb.legalNotice, 5);
+      return ws;
+    }
+    rubricSheet('서류심사표', null, null);
+
+    /* 7. 면접평가표 / 면접질문 */
+    function staticSheet(name, widths){
+      var ws = wb.addWorksheet(name);
+      widths.forEach(function(w,i){ ws.getColumn(i+1).width = w; });
+      RC_XL_STATIC[name].forEach(function(row, i){
+        var r = ws.addRow(row);
+        r.eachCell({includeEmpty:true}, function(c){
+          c.font = { name:FONT.name, size: i===0?13:10, bold: i===0 };
+          if (i===0) c.font = { name:FONT.name, size:13, bold:true, color:{argb:C.title} };
+          c.alignment = { vertical:'top', wrapText:true };
+        });
+      });
+    }
+    staticSheet('면접평가표', [22,66,9,11,34]);
+    staticSheet('면접질문', [7,16,80,30]);
+
+    /* 8. 지원자별 심사표 */
+    var withEval = sorted.filter(function(a){ return rcState.evals[a.id]; }).slice(0,80);
+    withEval.forEach(function(a){
+      var nm = ('심사_'+a.name).replace(/[\\\/\?\*\[\]:]/g,'').slice(0,31);
+      if (wb.getWorksheet(nm)) nm = nm.slice(0,28) + Math.floor(Math.random()*90+10);
+      rubricSheet(nm, ev(a), a);
+    });
+
+    return wb.xlsx.writeBuffer().then(function(buf){
+      var blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url; link.download = '채용_지원자관리_'+rcToday()+'.xlsx';
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
+      showToast('✅ '+A.length+'명 / 시트 '+wb.worksheets.length+'장으로 내보냈습니다');
+    });
+  }).catch(function(e){
+    console.error('[채용 엑셀]', e);
+    showToast('❌ 내보내기 실패: '+(e && e.message ? e.message : e));
+  });
 }
 
 /* ---------- 채용공고 ---------- */
