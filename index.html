@@ -31150,6 +31150,27 @@ var RC_GROUPS = [
 ];
 var rcState = { postings:[], rubrics:[], applicants:[], evals:{}, postingId:null, rubricId:null, rubricDraft:null, tab:'board' };
 
+/* 공고에 담당자·면접관으로 등록된 사람은 권한관리 부여 없이도 채용 메뉴가 보이도록 */
+function rcAutoGrantMenus(){
+  if (!db || !state || !state.myEmail) { setTimeout(rcAutoGrantMenus, 800); return; }
+  if (typeof isAdmin==='function' && isAdmin()) return;
+  db.collection('recruitPostings').get().then(function(s){
+    var me = state.myEmail, onAny = false, canEdit = false;
+    s.docs.forEach(function(d){
+      var p = d.data();
+      var o = (p.owners||[]).concat(p.managers||[]);
+      if (o.indexOf(me)>=0) { onAny = true; canEdit = true; }
+      else if ((p.interviewers||[]).indexOf(me)>=0) { onAny = true; }
+    });
+    if (!onAny) return;
+    if (typeof _myMenuGrants === 'undefined') return;
+    if (!_myMenuGrants['recruit-applicants']) _myMenuGrants['recruit-applicants'] = canEdit ? 'full' : 'readonly';
+    if (!_myMenuGrants['recruit-postings'])  _myMenuGrants['recruit-postings']  = 'readonly';
+    if (typeof applyRoleUI === 'function') applyRoleUI();
+  }).catch(function(){});
+}
+setTimeout(rcAutoGrantMenus, 2500);
+
 function rcCid(){ return (typeof wgCurrentViewCompanyId==='function') ? wgCurrentViewCompanyId() : 'jungdouit'; }
 function rcMe(){ return (state && state.myEmail) || ''; }
 function rcToday(){ var d=new Date(); return d.toISOString().slice(0,10); }
@@ -31257,7 +31278,7 @@ function rcRenderBoard(){
   var editable = rcCanEditPosting(rcCurPosting());
   wrap.innerHTML = RC_STAGES.map(function(st){
     var items = A.filter(function(a){ return (a.stage||'서류접수')===st; });
-    return '<div style="flex:0 0 220px;background:var(--bg2,#f8f8f7);border:1px solid var(--border);border-radius:12px;padding:10px" ondragover="event.preventDefault()" ondrop="rcDrop(event,\''+st+'\')">'
+    return '<div style="flex:0 0 220px;background:var(--bg2,#f8f8f7);border:1px solid var(--border);border-radius:12px;padding:10px" ondragover="event.preventDefault();try{event.dataTransfer.dropEffect=\'move\'}catch(err){}" ondrop="rcDrop(event,\''+st+'\')">'
       + '<div style="font-size:12px;font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between"><span>'+st+'</span><span style="color:var(--t3)">'+items.length+'</span></div>'
       + items.map(function(a){
           var s = rcNum(a.docScore);
@@ -31270,10 +31291,15 @@ function rcRenderBoard(){
   }).join('');
 }
 var _rcDragId = null;
-function rcDragStart(e,id){ _rcDragId = id; }
+function rcDragStart(e,id){
+  _rcDragId = id;
+  try { e.dataTransfer.setData('text/plain', id); e.dataTransfer.effectAllowed = 'move'; } catch(err){}
+}
 function rcDrop(e,stage){
   e.preventDefault();
-  var a = rcState.applicants.find(function(x){ return x.id===_rcDragId; });
+  var id = _rcDragId;
+  try { id = e.dataTransfer.getData('text/plain') || _rcDragId; } catch(err){}
+  var a = rcState.applicants.find(function(x){ return x.id===id; });
   if (!a || a.stage===stage) return;
   if (!rcCanEditPosting(rcCurPosting())) { showToast('❌ 이 공고를 수정할 권한이 없습니다'); return; }
   var prev = a.stage; a.stage = stage;
@@ -31335,7 +31361,15 @@ function rcOpenApplicant(id){
       .map(function(r){ return '<div><span style="color:var(--t3)">'+r[0]+'</span><br>'+rcEsc(r[1]||'-')+'</div>'; }).join('')
     + '</div>';
 
-  if (a.resumeUrl) h += '<div style="margin-bottom:16px"><a href="'+rcEsc(a.resumeUrl)+'" target="_blank" class="btn btn-ghost btn-sm">📄 이력서 원본 열기</a></div>';
+  h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">';
+  if (a.resumeUrl) h += '<a href="'+rcEsc(a.resumeUrl)+'" target="_blank" class="btn btn-ghost btn-sm">📄 이력서 원본 열기</a>';
+  if (editable) h += '<label class="btn btn-ghost btn-sm" style="cursor:pointer">'+(a.resumeUrl?'📎 이력서 교체':'📎 이력서 첨부')+'<input type="file" accept=".pdf,.htm,.html" style="display:none" onchange="rcAttachResume(\''+a.id+'\',this.files[0])"></label>';
+  if (rcCanEditPosting(p)) {
+    h += '<span style="margin-left:auto;font-size:12px;color:var(--t3)">단계 변경</span>'
+      + '<select onchange="rcSetStage(\''+a.id+'\',this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">'
+      + RC_STAGES.map(function(s){ return '<option'+(s===a.stage?' selected':'')+'>'+s+'</option>'; }).join('') + '</select>';
+  }
+  h += '</div>';
 
   if (ev){
     var snap = ev.rubricSnapshot||{};
@@ -31415,6 +31449,38 @@ function rcSaveScore(aid, rubricId){
     showToast('✅ 저장했습니다 ('+total+'점 / '+verdict+')');
     rcLoadApplicants(rcState.postingId).then(function(){ rcCloseModal(); rcRenderAll(); });
   }).catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
+}
+
+/* 단계 변경 (드래그 대신 쓰는 수단) */
+function rcSetStage(aid, stage){
+  var a = rcState.applicants.find(function(x){ return x.id===aid; });
+  if (!a || a.stage===stage) return;
+  if (!rcCanEditPosting(rcCurPosting())) { showToast('❌ 권한이 없습니다'); return; }
+  var prev = a.stage; a.stage = stage;
+  a.log = (a.log||[]).concat([{t:rcToday(), m:prev+' → '+stage, by:rcMe()}]);
+  db.collection('recruitApplicants').doc(aid).update({stage:stage, log:a.log}).then(function(){
+    showToast('✅ '+a.name+' → '+stage); rcRenderAll();
+  }).catch(function(e){ a.stage=prev; showToast('❌ 저장 실패: '+e.message); rcRenderAll(); });
+}
+
+/* 기존 지원자에게 이력서 파일 붙이기 */
+function rcAttachResume(aid, file){
+  if (!file) return;
+  var a = rcState.applicants.find(function(x){ return x.id===aid; });
+  var p = rcCurPosting();
+  if (!rcCanEditPosting(p)) { showToast('❌ 권한이 없습니다'); return; }
+  showToast('⏳ 업로드 중...');
+  var ref = firebase.storage().ref('recruit/'+p.id+'/'+aid+'/'+Date.now()+'_'+file.name);
+  ref.put(file).then(function(){ return ref.getDownloadURL(); }).then(function(url){
+    var old = a.resumePath;
+    return db.collection('recruitApplicants').doc(aid).update({
+      resumeUrl:url, resumePath:ref.fullPath, resumeName:file.name,
+      log:(a.log||[]).concat([{t:rcToday(), m:'이력서 '+(old?'교체':'첨부'), by:rcMe()}])
+    }).then(function(){ if (old) return firebase.storage().ref(old).delete().catch(function(){}); });
+  }).then(function(){
+    showToast('✅ 이력서를 올렸습니다');
+    rcLoadApplicants(p.id).then(function(){ rcOpenApplicant(aid); rcRenderAll(); });
+  }).catch(function(e){ showToast('❌ 업로드 실패: '+e.message); });
 }
 
 /* ---------- 이력서 업로드 (Firebase Storage) ---------- */
