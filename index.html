@@ -31617,7 +31617,7 @@ function rcParseResume(text, fileName){
   var raw = (text||'').replace(/\u00a0/g,' ');
   var t  = raw.replace(/\r/g,'');
   var sq = t.replace(/\s+/g,'');          // 공백 제거본 — 자사양식처럼 글자마다 공백이 있는 서식용
-  var o = {}, m;
+  var o = {}, m, seg3 = '';
 
   // 이름: 파일명에서 한글 2~4자
   var base = (fileName||'').replace(/\.[^.]+$/,'');
@@ -31651,7 +31651,11 @@ function rcParseResume(text, fileName){
     if (/재직중|현재/.test(g[3])) { var d=new Date(); y2=d.getFullYear(); m2=d.getMonth()+1; }
     else { y2 = +g[4]; if (y2 < 100) y2 += 2000; m2 = +g[5]; }
     var mo = (y2-y1)*12 + (m2-m1);
-    if (mo > 0 && mo < 600 && y1 > 1970) spans.push({y1:y1,m1:m1,mo:mo});
+    if (mo > 0 && mo < 600 && y1 > 1970) spans.push({
+      y1:y1, m1:m1, mo:mo,
+      label: y1 + '.' + ('0'+m1).slice(-2) + '~' + (/재직중|현재/.test(g[3]) ? '재직중' : (y2 + '.' + ('0'+m2).slice(-2))),
+      start: y1*12 + m1
+    });
   }
   o.jobCount = spans.length;
 
@@ -31697,14 +31701,34 @@ function rcParseResume(text, fileName){
   } else {
     var ar = /경력\s*(?:총\s*)?\d+\s*년\s*\d*\s*개월/g, ag, ci3 = -1;
     while ((ag = ar.exec(t))) ci3 = ag.index;
-    var seg3 = ci3 >= 0 ? t.slice(ci3) : t;
+    seg3 = ci3 >= 0 ? t.slice(ci3) : t;
     var mi = seg3.match(/\d{4}\.\s?\d{2}\s*~\s*(?:재직중|\d{4}\.\s?\d{2})\s*\n?\s*(?:\d+\s*년\s*)?(?:\d+\s*개월)?\s*\n?\s*([가-힣A-Za-z0-9㈜()·&\.\s]{2,30}?)\s*(?:&nbsp;|\n|$)/);
     if (mi) o.lastCompany = mi[1].trim().replace(/\s+/g,' ');
   }
   if (o.lastCompany) {
     o.lastCompany = o.lastCompany.replace(/^[·\-\s]+|[·\-\s]+$/g,'')
       .replace(/\s*(업종|담당\s*업무|연봉|주요직무).*$/,'')
-      .replace(/\s+/g,' ').slice(0,40);
+      .replace(/\s+/g,' ').slice(0,30);
+    // 가장 최근 '재직' 기간을 회사명 뒤에 붙인다 (학력·자격 기간은 제외)
+    var nowM = (new Date()).getFullYear()*12 + (new Date()).getMonth()+1;
+    var pool = spans;
+    if (o.format === '인크루트' && seg3) {
+      pool = spans.filter(function(s){ return seg3.indexOf(String(s.y1)) >= 0 && seg3.indexOf(s.label.split('~')[0]) >= 0; });
+      if (!pool.length) pool = spans;
+    }
+    pool = pool.filter(function(s){ return s.start <= nowM + 12; });
+    var latest = null;
+    pool.forEach(function(s){ if (!latest || s.start > latest.start) latest = s; });
+    if (latest) o.lastCompany += ' ' + latest.label;
+    // 부서·직급이 잡히면 덧붙임
+    if (o.format === '잡코리아') {
+      var dm = t.match(new RegExp(o.lastCompany.split(' ')[0].replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\s{2,}([^\\s]{2,12}(?:팀|부|실|본부|파트|센터))\\s{2,}([^\\s/]{1,8})'));
+      if (dm) o.lastCompany += ' ' + dm[1] + ' ' + dm[2];
+    } else if (o.format === '인크루트') {
+      var dm2 = seg3 && seg3.match(/\n\s*([^\s\n]{2,12}(?:팀|부|실|본부|파트|센터))\s*\n\s*(사원|주임|대리|과장|차장|부장|팀장|팀원|이사|실장)/);
+      if (dm2) o.lastCompany += ' ' + dm2[1] + ' ' + dm2[2];
+    }
+    o.lastCompany = o.lastCompany.slice(0,55);
   }
 
   // 최종학력
@@ -32108,6 +32132,7 @@ function rcAiScoreMany(ids){
       + (failed.length? '<div style="margin-top:8px;font-size:12px;color:#dc2626">실패: '+rcEsc(failed.join(', '))+'</div>':'')
       + '<div style="margin-top:8px;font-size:12px">결과는 모두 <b>초안</b>입니다. 지원자 상세에서 확인 후 확정하세요.</div>', true);
     showToast('✅ AI 채점 '+done+'건 완료 — 약 '+c.krw.toLocaleString()+'원');
+    if (!failed.length) setTimeout(rcProgressClose, 12000);
     _rcSelected = {};
     rcLoadApplicants(rcState.postingId).then(rcRenderAll);
   });
