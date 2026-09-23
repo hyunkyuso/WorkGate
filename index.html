@@ -31418,6 +31418,7 @@ function rcOpenApplicant(id){
       + '<div style="font-size:13px;line-height:1.7"><div style="margin-bottom:8px"><span style="color:var(--t3)">경력 범위 판단</span><br>'+rcEsc(ev.careerRangeNote||'-')+'</div>'
       + '<div style="margin-bottom:8px"><span style="color:var(--t3)">핵심 근거</span><br>'+rcEsc(ev.summary||'-')+'</div>'
       + '<div><span style="color:var(--t3)">면접 전 확인사항</span><br>'+rcEsc(ev.checkBeforeInterview||'-')+'</div></div>'
+      + (ev.autoPartial ? '<div style="margin-top:10px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px">이 초안은 <b>계산으로 확인되는 항목만</b> 채운 것입니다. 직무 관련 경험·핵심 근거·경력 범위 판단은 아래 <b>AI로 채점</b>을 누르거나 직접 입력하세요.</div>' : '')
       + (ev.status==='draft' && editable ? '<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="rcConfirmEval(\''+ev.id+'\')">이 평가 확정</button></div>' : '')
       + '</div>';
   }
@@ -31544,12 +31545,22 @@ function rcAttachResume(aid, file){
   showToast('⏳ 업로드 중...');
   var safe2 = file.name.replace(/[^\w.\-가-힣]/g,'_');
   var ref = firebase.storage().ref('recruit/'+p.id+'/'+aid+'/'+Date.now()+'_'+safe2);
+  var _buf = null;
   ref.put(file, { contentType: /\.pdf$/i.test(file.name) ? 'application/pdf' : 'text/html; charset=utf-16',
                   contentDisposition: 'inline; filename="'+safe2+'"' })
+    .then(function(){
+      return rcBufOf(file).then(function(b){
+        return (/\.pdf$/i.test(file.name) ? rcPdfText(b.slice(0)) : Promise.resolve(rcHtmText(b)));
+      }).then(function(tx){
+        if (tx && tx.length > 100) return db.collection('recruitResumeTexts').doc(aid).set({
+          postingId:p.id, applicantId:aid, fileName:file.name, text:tx.slice(0,60000), createdAt:rcToday()
+        }).catch(function(){});
+      }).catch(function(){});
+    })
     .then(function(){ return ref.getDownloadURL(); }).then(function(url){
     var old = a.resumePath;
     return db.collection('recruitApplicants').doc(aid).update({
-      resumeUrl:url, resumePath:ref.fullPath, resumeName:file.name,
+      resumeUrl:url, resumePath:ref.fullPath, resumeName:file.name, hasText:true,
       log:(a.log||[]).concat([{t:rcToday(), m:'이력서 '+(old?'교체':'첨부'), by:rcMe()}])
     }).then(function(){ if (old) return firebase.storage().ref(old).delete().catch(function(){}); });
   }).then(function(){
@@ -31846,6 +31857,12 @@ function rcUploadResumes(files){
                        contentDisposition: 'inline; filename="'+safe+'"' };
           return ref.put(item.blob, meta).then(function(){ return ref.getDownloadURL(); }).then(function(url){
             step = '지원자 등록';
+            if (text && text.length > 100) {
+              db.collection('recruitResumeTexts').doc(aid).set({
+                postingId:p.id, applicantId:aid, fileName:item.name,
+                text: text.slice(0, 60000), createdAt: rcToday()
+              }).catch(function(e){ console.warn('[이력서 텍스트 저장]', e); });
+            }
             return db.collection('recruitApplicants').doc(aid).set({
               postingId:p.id, companyId:rcCid(), name:parsed.name || item.name,
               appliedAt:rcToday(), channel:'', stage:'서류접수',
@@ -31853,7 +31870,7 @@ function rcUploadResumes(files){
               education:parsed.education||'', totalExpYears:(parsed.totalExpYears==null?null:parsed.totalExpYears),
               lastCompany:parsed.lastCompany||'', desiredSalary:parsed.desiredSalary||'',
               birthYear:parsed.birthYear||null, age:parsed.age||'',
-              resumeUrl:url, resumePath:ref.fullPath, resumeName:item.name,
+              resumeUrl:url, resumePath:ref.fullPath, resumeName:item.name, hasText:(text&&text.length>100)?true:false,
               disposed:'N', docScore:null, autoVerdict:'',
               log:[{t:rcToday(), m:'이력서 업로드 및 자동 판독', by:rcMe()}]
             }).then(function(){ return {aid:aid, parsed:parsed}; });
@@ -31974,11 +31991,24 @@ function rcAiCost(u){
 /* 이력서 원문 확보: Storage에서 내려받아 텍스트 추출 */
 function rcResumeText(a){
   if (a._text) return Promise.resolve(a._text);
-  if (!a.resumeUrl) return Promise.reject(new Error('이력서 원본이 없습니다'));
-  return fetch(a.resumeUrl).then(function(r){ return r.arrayBuffer(); }).then(function(buf){
-    var isPdf = /\.pdf$/i.test(a.resumeName||'') || /pdf/i.test(a.resumeName||'');
-    return (isPdf ? rcPdfText(buf.slice(0)) : Promise.resolve(rcHtmText(buf)));
-  }).then(function(t){ a._text = t; return t; });
+  return db.collection('recruitResumeTexts').doc(a.id).get().then(function(s){
+    if (s.exists && (s.data().text||'').length > 100) { a._text = s.data().text; return a._text; }
+    if (!a.resumeUrl) throw new Error('이력서 원본이 없습니다');
+    // 예전에 올린 건은 텍스트가 없어 Storage에서 직접 읽어야 하는데 브라우저가 막을 수 있음
+    return fetch(a.resumeUrl).then(function(r){ return r.arrayBuffer(); }).then(function(buf){
+      var isPdf = /\.pdf$/i.test(a.resumeName||'') || /pdf/i.test(a.resumeUrl||'');
+      return (isPdf ? rcPdfText(buf.slice(0)) : Promise.resolve(rcHtmText(buf)));
+    }).then(function(t){
+      if (!t || t.length < 100) throw new Error('텍스트 추출 실패');
+      a._text = t;
+      db.collection('recruitResumeTexts').doc(a.id).set({
+        postingId:a.postingId, applicantId:a.id, fileName:a.resumeName||'', text:t.slice(0,60000), createdAt:rcToday()
+      }).catch(function(){});
+      return t;
+    }).catch(function(){
+      throw new Error('이력서 텍스트가 없습니다 — 지원자 상세에서 이력서를 다시 첨부하면 해결됩니다');
+    });
+  });
 }
 
 /* 한 명 채점 */
@@ -32110,6 +32140,8 @@ function rcDeleteApplicantIds(ids, cb){
       }).then(function(s){
         return Promise.all(s.docs.map(function(d){ return d.ref.delete(); }));
       }).then(function(){
+        return db.collection('recruitResumeTexts').doc(aid).delete().catch(function(){});
+      }).then(function(){
         return db.collection('recruitApplicants').doc(aid).delete();
       }).then(function(){ done++; })
         .catch(function(e){ console.error('[채용 삭제 실패]', a.name, e); failed.push(a.name+' ('+(e.message||e)+')'); });
@@ -32187,7 +32219,7 @@ function rcDispose(aid){
   if (!a) return;
   if (!confirm(a.name+' 님의 이력서 원본과 개인정보(연락처·이메일·생년)를 파기합니다.\n되돌릴 수 없습니다. 진행할까요?')) return;
   var del = a.resumePath ? firebase.storage().ref(a.resumePath).delete().catch(function(){}) : Promise.resolve();
-  del.then(function(){
+  del.then(function(){ return db.collection('recruitResumeTexts').doc(aid).delete().catch(function(){}); }).then(function(){
     return db.collection('recruitApplicants').doc(aid).update({
       phone:firebase.firestore.FieldValue.delete(), email:firebase.firestore.FieldValue.delete(),
       birthYear:firebase.firestore.FieldValue.delete(), age:firebase.firestore.FieldValue.delete(),
