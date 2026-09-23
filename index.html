@@ -687,6 +687,11 @@ select.form-input{cursor:pointer}
         </select>
         <span id="rc-list-count" style="margin-left:auto;align-self:center;font-size:12px;color:var(--t3)"></span>
       </div>
+      <div id="rc-selbar" style="display:none;align-items:center;gap:10px;padding:8px 12px;margin-bottom:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px">
+        <span id="rc-selcount" style="font-size:13px;font-weight:600;color:#dc2626"></span>
+        <button class="btn btn-ghost btn-sm" style="color:#dc2626;border-color:#fecaca" onclick="rcDeleteSelected()">🗑 선택 삭제 (이력서 파일까지)</button>
+        <button class="btn btn-ghost btn-sm" onclick="rcToggleSelAll(false)">선택 해제</button>
+      </div>
       <div class="table-wrap" style="overflow-x:auto"><table id="rc-table" style="width:100%;border-collapse:collapse;font-size:13px"><thead></thead><tbody></tbody></table></div>
     </div>
 
@@ -31192,6 +31197,18 @@ function rcVisiblePostings(){
     return (p.owners||[]).indexOf(me)>=0 || (p.managers||[]).indexOf(me)>=0 || (p.interviewers||[]).indexOf(me)>=0;
   });
 }
+/* 점수 표시: 확정 점수 / 자동 판독 중간값 구분 */
+function rcScoreCell(a){
+  if (a.docScore != null && a.docScore !== '') {
+    var s = rcNum(a.docScore);
+    return { text: String(s), color: s>=70?'#16a34a':(s>=55?'#d97706':'var(--t3)'), verdict: a.autoVerdict||'' };
+  }
+  if (a.autoScore != null) {
+    return { text: a.autoScore + '<span style="font-size:10px;color:var(--t3)">/' + (a.autoMax||0) + ' 자동</span>',
+             color: 'var(--t3)', verdict: '채점 미완' };
+  }
+  return { text: '-', color: 'var(--t3)', verdict: '' };
+}
 function rcCurPosting(){ return rcState.postings.find(function(p){ return p.id===rcState.postingId; }); }
 
 /* ---------- 데이터 로드 ---------- */
@@ -31219,7 +31236,14 @@ function rcLoadApplicants(postingId){
       var e = Object.assign({id:d.id}, d.data());
       if (e.type==='서류') rcState.evals[e.applicantId] = e;
     });
-    rcState.applicants.sort(function(a,b){ return rcNum(b.docScore)-rcNum(a.docScore) || (a.name||'').localeCompare(b.name||''); });
+    rcState.applicants.sort(function(a,b){
+      var sa = (a.docScore!=null&&a.docScore!=='') ? rcNum(a.docScore) : -1;
+      var sb = (b.docScore!=null&&b.docScore!=='') ? rcNum(b.docScore) : -1;
+      if (sa !== sb) return sb - sa;
+      return rcNum(b.autoScore) - rcNum(a.autoScore) || (a.name||'').localeCompare(b.name||'');
+    });
+    var rk = 0;
+    rcState.applicants.forEach(function(a){ if (a.docScore!=null && a.docScore!=='') a.rankInPosting = ++rk; });
   });
 }
 
@@ -31246,6 +31270,8 @@ function rcSelectPosting(pid){
 }
 function rcSwitchTab(t){
   rcState.tab = t;
+  var pg = document.getElementById('rc-progress');
+  if (pg && pg.innerHTML.indexOf('❌') < 0) rcProgressClose();
   ['board','list','dispose'].forEach(function(x){
     document.getElementById('rc-tab-'+x).style.display = (x===t)?'':'none';
   });
@@ -31269,9 +31295,11 @@ function rcRenderStats(){
   var hold = A.filter(function(a){var s=rcNum(a.docScore);return s>=55&&s<70;}).length;
   var fail = A.filter(function(a){return a.docScore!=null && rcNum(a.docScore)<55;}).length;
   var due  = A.filter(rcIsDue).length;
+  var todo = A.filter(function(a){ return (a.docScore==null||a.docScore==='') ; }).length;
   function card(l,v,c){ return '<div style="flex:1;min-width:120px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">'+l+'</div><div style="font-size:24px;font-weight:700;color:'+c+'">'+v+'</div></div>'; }
   el.innerHTML = card('전체 지원자',A.length,'var(--t1)') + card('면접 진행 (70점↑)',pass,'#16a34a')
-    + card('보류 (55~69)',hold,'#d97706') + card('서류 불합격',fail,'var(--t3)') + card('파기 대상',due,'#dc2626');
+    + card('보류 (55~69)',hold,'#d97706') + card('서류 불합격',fail,'var(--t3)')
+    + card('채점 미완',todo,'#2563eb') + card('파기 대상',due,'#dc2626');
 }
 function rcRenderBoard(){
   var wrap = document.getElementById('rc-board'), A = rcState.applicants;
@@ -31281,10 +31309,9 @@ function rcRenderBoard(){
     return '<div style="flex:0 0 220px;background:var(--bg2,#f8f8f7);border:1px solid var(--border);border-radius:12px;padding:10px" ondragover="event.preventDefault();try{event.dataTransfer.dropEffect=\'move\'}catch(err){}" ondrop="rcDrop(event,\''+st+'\')">'
       + '<div style="font-size:12px;font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between"><span>'+st+'</span><span style="color:var(--t3)">'+items.length+'</span></div>'
       + items.map(function(a){
-          var s = rcNum(a.docScore);
-          var col = s>=70?'#16a34a':(s>=55?'#d97706':'var(--t3)');
+          var sc = rcScoreCell(a);
           return '<div draggable="'+(editable?'true':'false')+'" ondragstart="rcDragStart(event,\''+a.id+'\')" onclick="rcOpenApplicant(\''+a.id+'\')" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer">'
-            + '<div style="font-size:13px;font-weight:600;display:flex;justify-content:space-between"><span>'+rcEsc(a.name)+'</span><span style="color:'+col+'">'+(a.docScore!=null?a.docScore:'-')+'</span></div>'
+            + '<div style="font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:6px"><span>'+rcEsc(a.name)+'</span><span style="color:'+sc.color+';white-space:nowrap">'+sc.text+'</span></div>'
             + '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+rcEsc((a.lastCompany||'').slice(0,26))+'</div></div>';
         }).join('')
       + '</div>';
@@ -31325,25 +31352,30 @@ function rcRenderList(){
     if (q && [a.name,a.lastCompany,ev.summary,a.email].join(' ').toLowerCase().indexOf(q)<0) return false;
     return true;
   });
+  var editable = rcCanEditPosting(rcCurPosting());
   var cols = ['순위','이름','경로','나이','학력','총경력','현재/직전 회사','희망연봉','서류점수','판정','단계'];
   var t = document.getElementById('rc-table');
-  t.querySelector('thead').innerHTML = '<tr>'+cols.map(function(c){return '<th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);font-size:12px;white-space:nowrap">'+c+'</th>';}).join('')+'</tr>';
+  t.querySelector('thead').innerHTML = '<tr>'
+    + (editable ? '<th style="padding:8px;border-bottom:2px solid var(--border);width:28px"><input type="checkbox" onchange="rcToggleSelAll(this.checked)"></th>' : '')
+    + cols.map(function(c){return '<th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);font-size:12px;white-space:nowrap">'+c+'</th>';}).join('')+'</tr>';
   t.querySelector('tbody').innerHTML = rows.map(function(a){
-    var s = rcNum(a.docScore), col = s>=70?'#16a34a':(s>=55?'#d97706':'var(--t3)');
-    return '<tr style="cursor:pointer" onclick="rcOpenApplicant(\''+a.id+'\')">'
-      + '<td style="padding:8px;border-bottom:1px solid var(--border)">'+(a.rankInPosting||'')+'</td>'
-      + '<td style="padding:8px;border-bottom:1px solid var(--border);font-weight:600">'+rcEsc(a.name)+'</td>'
+    var sc = rcScoreCell(a);
+    return '<tr>'
+      + (editable ? '<td style="padding:8px;border-bottom:1px solid var(--border)"><input type="checkbox" class="rc-sel" value="'+a.id+'"'+(_rcSelected[a.id]?' checked':'')+' onchange="rcToggleSel(\''+a.id+'\',this.checked)"></td>' : '')
+      + '<td style="padding:8px;border-bottom:1px solid var(--border);cursor:pointer" onclick="rcOpenApplicant(\''+a.id+'\')">'+(a.rankInPosting||'')+'</td>'
+      + '<td style="padding:8px;border-bottom:1px solid var(--border);font-weight:600;cursor:pointer" onclick="rcOpenApplicant(\''+a.id+'\')">'+rcEsc(a.name)+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border)">'+rcEsc(a.channel||'')+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border)">'+rcEsc(a.age||'')+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+rcEsc(a.education||'')+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border)">'+(a.totalExpYears!=null?a.totalExpYears:'')+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+rcEsc(a.lastCompany||'')+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border)">'+(a.desiredSalary||'')+'</td>'
-      + '<td style="padding:8px;border-bottom:1px solid var(--border);font-weight:700;color:'+col+'">'+(a.docScore!=null?a.docScore:'')+'</td>'
-      + '<td style="padding:8px;border-bottom:1px solid var(--border)">'+rcEsc(a.autoVerdict||'')+'</td>'
+      + '<td style="padding:8px;border-bottom:1px solid var(--border);font-weight:700;color:'+sc.color+';white-space:nowrap">'+sc.text+'</td>'
+      + '<td style="padding:8px;border-bottom:1px solid var(--border);white-space:nowrap">'+rcEsc(sc.verdict)+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border)">'+rcEsc(a.stage||'')+'</td></tr>';
-  }).join('') || '<tr><td colspan="11" style="padding:30px;text-align:center;color:var(--t3)">해당 지원자가 없습니다</td></tr>';
+  }).join('') || '<tr><td colspan="'+(editable?12:11)+'" style="padding:30px;text-align:center;color:var(--t3)">해당 지원자가 없습니다</td></tr>';
   document.getElementById('rc-list-count').textContent = rows.length + ' / ' + A.length + '명';
+  rcUpdateSelBar();
 }
 
 /* ---------- 지원자 상세 + 심사표 ---------- */
@@ -31389,6 +31421,11 @@ function rcOpenApplicant(id){
     h += '<div style="margin-bottom:16px"><button class="btn btn-ghost btn-sm" onclick="rcOpenScoreForm(\''+a.id+'\')">📝 서류 채점하기</button></div>';
   }
 
+  if (rcCanEditPosting(p)) {
+    h += '<div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">'
+      + '<button class="btn btn-ghost btn-sm" style="color:#dc2626;border-color:#fecaca" onclick="rcDeleteApplicant(\''+a.id+'\')">🗑 이 지원자 삭제 (이력서 파일까지)</button>'
+      + '<span style="margin-left:8px;font-size:11px;color:var(--t3)">잘못 등록된 건을 되돌릴 때 쓰세요. 보관기간 경과 파기는 파기관리 탭에서 하세요.</span></div>';
+  }
   h += '<div style="border-top:1px solid var(--border);padding-top:12px"><div style="font-size:12px;color:var(--t3);margin-bottom:6px">진행 이력</div>'
     + (a.log||[]).map(function(l){ return '<div style="font-size:12px;padding:3px 0">'+rcEsc(l.t)+' · '+rcEsc(l.m)+(l.by?' <span style="color:var(--t3)">('+rcEsc(l.by)+')</span>':'')+'</div>'; }).join('') + '</div>';
 
@@ -31444,7 +31481,11 @@ function rcSaveScore(aid, rubricId){
     status:'confirmed'
   };
   db.collection('recruitEvaluations').add(ev).then(function(){
-    return db.collection('recruitApplicants').doc(aid).update({docScore:total, autoVerdict:verdict});
+    return db.collection('recruitApplicants').doc(aid).update({
+      docScore:total, autoVerdict:verdict,
+      autoScore: firebase.firestore.FieldValue.delete(),
+      autoMax: firebase.firestore.FieldValue.delete()
+    });
   }).then(function(){
     showToast('✅ 저장했습니다 ('+total+'점 / '+verdict+')');
     rcLoadApplicants(rcState.postingId).then(function(){ rcCloseModal(); rcRenderAll(); });
@@ -31582,27 +31623,35 @@ function rcRuleScore(p, rubric){
     if (avg >= 3) f3 = 5; else if (avg >= 1.5) f3 = 4; else { f3 = 3; notes.push('평균 재직 '+(Math.round(avg*10)/10)+'년'); }
   }
   s.F3 = f3;
-  var items = {};
-  rubric.groups.forEach(function(g){ g.items.forEach(function(it){ items[it.key] = (s[it.key]!=null) ? s[it.key] : 0; }); });
+  var items = {}, autoMax = 0, autoKeys = [];
+  rubric.groups.forEach(function(g){ g.items.forEach(function(it){
+    if (s[it.key]!=null) { items[it.key] = Math.min(s[it.key], it.max); autoMax += it.max; autoKeys.push(it.key); }
+    else items[it.key] = 0;
+  }); });
   var groupScores = {}, total = 0;
   rubric.groups.forEach(function(g){
     var sum = 0; g.items.forEach(function(it){ sum += items[it.key]||0; });
     groupScores[g.key] = sum; total += sum;
   });
-  return { items:items, groupScores:groupScores, total:total, notes:notes };
+  return { items:items, groupScores:groupScores, total:total, autoMax:autoMax, autoKeys:autoKeys, notes:notes };
 }
 
 /* 업로드 진행 상황 패널 */
-function rcProgress(html){
+function rcProgress(html, closable){
   var el = document.getElementById('rc-progress');
   if (!el) {
     el = document.createElement('div');
     el.id = 'rc-progress';
-    el.style.cssText = 'margin:12px 0;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:13px;max-height:280px;overflow:auto';
+    el.style.cssText = 'margin:12px 0;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:13px;max-height:280px;overflow:auto;position:relative';
     var st = document.getElementById('rc-stats');
     st.parentNode.insertBefore(el, st.nextSibling);
   }
-  el.innerHTML = html;
+  el.style.display = '';
+  el.innerHTML = (closable ? '<button onclick="rcProgressClose()" style="position:absolute;top:8px;right:10px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--t3)" title="닫기">×</button>' : '') + html;
+}
+function rcProgressClose(){
+  var el = document.getElementById('rc-progress');
+  if (el) { el.innerHTML = ''; el.style.display = 'none'; }
 }
 
 function rcUploadResumes(files){
@@ -31614,10 +31663,11 @@ function rcUploadResumes(files){
   if (!list.length) return;
 
   var logs = [];
-  function paint(head){
+  rcProgressClose();
+  function paint(head, closable){
     rcProgress('<div style="font-weight:700;margin-bottom:6px">'+head+'</div>'
       + logs.map(function(l){ return '<div style="padding:2px 0;color:'+(l.ok?'var(--t2,#444)':'#dc2626')+'">'
-          + (l.ok?'✅':'❌') + ' ' + rcEsc(l.file) + (l.msg?' — '+rcEsc(l.msg):'') + '</div>'; }).join(''));
+          + (l.ok?'✅':'❌') + ' ' + rcEsc(l.file) + (l.msg?' — '+rcEsc(l.msg):'') + '</div>'; }).join(''), closable);
   }
 
   // 1) zip 펼치기
@@ -31680,6 +31730,10 @@ function rcUploadResumes(files){
           if (!rb) return r;
           step = '평가 초안';
           var sc = rcRuleScore(r.parsed, rb);
+          r.sc = sc;
+          return db.collection('recruitApplicants').doc(r.aid).update({
+            autoScore: sc.total, autoMax: sc.autoMax, autoVerdict: '채점 미완'
+          }).then(function(){
           return db.collection('recruitEvaluations').add({
             applicantId:r.aid, postingId:p.id, type:'서류', evaluatedAt:rcToday(),
             evaluator:'자동 판독 (규칙) — 검토 필요',
@@ -31690,8 +31744,9 @@ function rcUploadResumes(files){
             careerRangeNote:(r.parsed.totalExpYears==null?'총경력 미확인':'총경력 '+r.parsed.totalExpYears+'년'),
             summary:'계산으로 확인되는 항목만 채운 초안입니다. 직무경험·문서작성·태도·회사적합성은 직접 입력하세요.',
             checkBeforeInterview:sc.notes.join(' / '),
-            status:'draft', autoPartial:true
+            status:'draft', autoPartial:true, autoMax:sc.autoMax, autoKeys:sc.autoKeys
           }).then(function(){ return r; });
+          });
         }).then(function(r){
           done++;
           logs.push({ok:true, file:item.name, msg:(r.parsed.name||'')+(r.parsed.totalExpYears!=null?' · 경력 '+r.parsed.totalExpYears+'년':'')+(r.parsed.textLen?'':' · 텍스트 추출 안 됨')});
@@ -31703,15 +31758,87 @@ function rcUploadResumes(files){
         });
       });
     }, Promise.resolve()).then(function(){
-      paint('완료 — 성공 '+done+'건 / 전체 '+total+'건');
-      showToast(done===total ? ('✅ '+done+'건 등록 완료') : ('⚠️ '+done+'/'+total+'건만 등록됨 — 아래 목록 확인'));
-      rcLoadApplicants(p.id).then(rcRenderAll);
+      var allOk = (done === total);
+      if (allOk) {
+        rcProgress('<div style="font-weight:700;color:#16a34a">✅ '+done+'건 등록 완료 — 서류접수 칸으로 이동했습니다</div>', true);
+        showToast('✅ '+done+'건 등록 완료');
+        setTimeout(rcProgressClose, 4000);
+      } else {
+        paint('완료 — 성공 '+done+'건 / 실패 '+(total-done)+'건 (실패한 건만 다시 올리세요)', true);
+        showToast('⚠️ '+done+'/'+total+'건만 등록됨 — 아래 목록 확인');
+      }
+      rcLoadApplicants(p.id).then(function(){
+        rcRenderAll();
+        rcSwitchTab('board');
+      });
     });
   }).catch(function(e){
     console.error('[채용 업로드]', e);
     paint('업로드 실패: '+rcEsc(e.message||String(e)));
     showToast('❌ 업로드 실패: '+e.message);
   });
+}
+
+/* ---------- 삭제 (잘못 올린 건 되돌리기) ---------- */
+/* 파기와 다름: 파기는 기록을 남기고 개인정보만 지우는 법적 절차,
+   삭제는 잘못 등록된 데이터를 통째로 없애는 것 (원본 파일·평가까지 전부). */
+function rcDeleteApplicantIds(ids, cb){
+  if (!rcCanEditPosting(rcCurPosting())) { showToast('❌ 권한이 없습니다'); return; }
+  var done = 0, failed = [];
+  ids.reduce(function(ch, aid){
+    return ch.then(function(){
+      var a = rcState.applicants.find(function(x){ return x.id===aid; });
+      if (!a) return;
+      var delFile = a.resumePath
+        ? firebase.storage().ref(a.resumePath).delete().catch(function(e){
+            if (e && e.code !== 'storage/object-not-found') throw e;
+          })
+        : Promise.resolve();
+      return delFile.then(function(){
+        return db.collection('recruitEvaluations').where('applicantId','==',aid).get();
+      }).then(function(s){
+        return Promise.all(s.docs.map(function(d){ return d.ref.delete(); }));
+      }).then(function(){
+        return db.collection('recruitApplicants').doc(aid).delete();
+      }).then(function(){ done++; })
+        .catch(function(e){ console.error('[채용 삭제 실패]', a.name, e); failed.push(a.name+' ('+(e.message||e)+')'); });
+    });
+  }, Promise.resolve()).then(function(){
+    showToast(failed.length ? ('⚠️ '+done+'건 삭제 / 실패 '+failed.length+'건') : ('✅ '+done+'건을 삭제했습니다'));
+    if (failed.length) console.warn('삭제 실패:', failed);
+    _rcSelected = {};
+    rcLoadApplicants(rcState.postingId).then(function(){ rcRenderAll(); if (cb) cb(); });
+  });
+}
+function rcDeleteApplicant(aid){
+  var a = rcState.applicants.find(function(x){ return x.id===aid; });
+  if (!a) return;
+  if (!confirm(a.name + ' 님을 완전히 삭제합니다.\n\n· 이력서 원본 파일\n· 서류·면접 평가 기록\n· 지원자 정보\n\n전부 지워지고 되돌릴 수 없습니다. 진행할까요?')) return;
+  rcDeleteApplicantIds([aid], rcCloseModal);
+}
+var _rcSelected = {};
+function rcToggleSel(aid, on){ if (on) _rcSelected[aid] = true; else delete _rcSelected[aid]; rcUpdateSelBar(); }
+function rcToggleSelAll(on){
+  document.querySelectorAll('.rc-sel').forEach(function(cb){
+    cb.checked = on; if (on) _rcSelected[cb.value] = true; else delete _rcSelected[cb.value];
+  });
+  rcUpdateSelBar();
+}
+function rcUpdateSelBar(){
+  var n = Object.keys(_rcSelected).length;
+  var el = document.getElementById('rc-selbar');
+  if (el) {
+    el.style.display = n ? 'flex' : 'none';
+    var c = document.getElementById('rc-selcount');
+    if (c) c.textContent = n + '명 선택됨';
+  }
+}
+function rcDeleteSelected(){
+  var ids = Object.keys(_rcSelected);
+  if (!ids.length) return;
+  var names = ids.map(function(id){ var a = rcState.applicants.find(function(x){return x.id===id;}); return a?a.name:id; });
+  if (!confirm(ids.length + '명을 완전히 삭제합니다.\n\n' + names.slice(0,15).join(', ') + (names.length>15?' 외 '+(names.length-15)+'명':'') + '\n\n이력서 원본과 평가 기록까지 전부 지워지고 되돌릴 수 없습니다. 진행할까요?')) return;
+  rcDeleteApplicantIds(ids);
 }
 
 /* ---------- 파기 ---------- */
