@@ -659,7 +659,11 @@ select.form-input{cursor:pointer}
       <h2 style="font-size:20px;font-weight:700">지원자관리</h2>
       <select id="rc-posting-select" onchange="rcSelectPosting(this.value)" style="margin-left:12px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;min-width:280px"></select>
       <div style="margin-left:auto;display:flex;gap:8px">
-        <label class="btn btn-ghost btn-sm" style="cursor:pointer">📎 이력서 업로드(zip 가능)<input type="file" accept=".pdf,.htm,.html,.zip" multiple style="display:none" onchange="rcUploadResumes(this.files);this.value=''"></label>
+        <select id="rc-up-channel" title="업로드할 이력서의 지원경로" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+        <option value="">경로 선택</option><option>잡코리아</option><option>인크루트</option><option>사람인</option>
+        <option>사람인(자사양식)</option><option>워크넷</option><option>원티드</option><option>사내추천</option><option>기타</option>
+      </select>
+      <label class="btn btn-ghost btn-sm" style="cursor:pointer">📎 이력서 업로드(zip 가능)<input type="file" accept=".pdf,.htm,.html,.zip" multiple style="display:none" onchange="rcUploadResumes(this.files);this.value=''"></label>
         <button class="btn btn-ghost btn-sm" onclick="rcExportExcel()">📥 엑셀 내보내기</button>
         <button class="btn btn-ghost btn-sm" onclick="rcOpenApplicantModal()">+ 지원자 추가</button>
       </div>
@@ -31737,9 +31741,18 @@ function rcParseResume(text, fileName){
   var school = schools.length ? [schools.find(function(x){return /대학원/.test(x);}) || schools[0]] : null;
   var major  = sq.match(/([가-힣]{2,12}(?:학과|학부|전공|과))(?:\(|졸업|재학|중퇴|\d)/);
   if (o.format === '자사양식') {
-    var er = /(\d{4})\.\d{2}~(\d{4})\.\d{2}([가-힣]{2,10}?(?:대학교|대학원|대학))([가-힣]{2,12}?(?:학과|학부|전공|계열))/g, eg, last=null;
+    var er = /([가-힣]{1,8}?(?:대학교|대학원|대학))([가-힣]{2,16}?(?:학과|학부|계열|학전공))/g, eg, last=null;
     while ((eg = er.exec(sq))) last = eg;
-    if (last) o.education = last[3] + ' (' + last[4] + ')';
+    if (last) {
+      var sch = last[1].replace(/^.*?(?:졸업예정|졸업|재학중|재학|수료|중퇴|\d학년)/,'');
+      var grad = /졸업예정/.test(sq) ? ' 졸업예정' : (/재학중|\d학년재학/.test(sq) ? ' 재학' : '');
+      o.education = sch + grad + ' (' + last[2] + ')';
+    }
+  }
+  if (!major) {
+    var mr = /([가-힣]{1,8}?(?:대학교|대학원|대학))([가-힣]{2,16}?(?:학과|학부|계열|학전공))/g, mg, mlast=null;
+    while ((mg = mr.exec(sq))) mlast = mg;
+    if (mlast) major = [mlast[0], mlast[2]];
   }
   if (!o.education) {
     var eduBits = [];
@@ -31827,6 +31840,7 @@ function rcUploadResumes(files){
   var list = Array.prototype.slice.call(files||[]);
   if (!list.length) return;
 
+  var chSel = (document.getElementById('rc-up-channel')||{}).value || '';
   var logs = [];
   rcProgressClose();
   function paint(head, closable){
@@ -31889,7 +31903,9 @@ function rcUploadResumes(files){
             }
             return db.collection('recruitApplicants').doc(aid).set({
               postingId:p.id, companyId:rcCid(), name:parsed.name || item.name,
-              appliedAt:rcToday(), channel:'', stage:'서류접수',
+              appliedAt:rcToday(),
+              channel: chSel || (parsed.format==='자사양식' ? '사람인(자사양식)' : (parsed.format||'')),
+              stage:'서류접수',
               phone:parsed.phone||'', email:parsed.email||'',
               education:parsed.education||'', totalExpYears:(parsed.totalExpYears==null?null:parsed.totalExpYears),
               lastCompany:parsed.lastCompany||'', desiredSalary:parsed.desiredSalary||'',
