@@ -179,9 +179,9 @@ select.form-input{cursor:pointer}
 .readonly-banner{display:flex;align-items:center;gap:8px;background:#FFF7E6;border:1px solid #F0C674;color:#8B5E00;font-size:12px;font-weight:600;padding:8px 14px;border-radius:8px;margin-bottom:14px}
 #cert-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:600px;opacity:1}
 #cert-menu-items.collapsed{max-height:0;opacity:0}
-#work-menu-items,#hr-menu-items,#doc-menu-items,#system-menu-items,#career-menu-items,#sales-menu-items,#license-menu-items,#recruit-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:1000px;opacity:1}
+#work-menu-items,#hr-menu-items,#doc-menu-items,#system-menu-items,#career-menu-items,#sales-menu-items,#license-menu-items,#recruit-menu-items,#sub-menu-items{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:1000px;opacity:1}
 #career-overview-table th,#career-overview-table td{padding:5px 8px}
-#work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed,#career-menu-items.collapsed,#sales-menu-items.collapsed,#license-menu-items.collapsed,#recruit-menu-items.collapsed{max-height:0;opacity:0}
+#work-menu-items.collapsed,#hr-menu-items.collapsed,#doc-menu-items.collapsed,#system-menu-items.collapsed,#career-menu-items.collapsed,#sales-menu-items.collapsed,#license-menu-items.collapsed,#recruit-menu-items.collapsed,#sub-menu-items.collapsed{max-height:0;opacity:0}
 
 /* ── DRIVE STATUS ── */
 .drive-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;border-radius:8px;margin-bottom:14px}
@@ -345,6 +345,17 @@ select.form-input{cursor:pointer}
     <div class="nav-item admin-only" onclick="showPage('recruit-postings',this)"><span class="nav-icon">📢</span> 채용공고</div>
     <div class="nav-item admin-only" onclick="showPage('recruit-applicants',this)"><span class="nav-icon">🧑‍💼</span> 지원자관리</div>
     <div class="nav-item admin-only" onclick="showPage('recruit-rubrics',this)"><span class="nav-icon">📐</span> 심사표설정</div>
+  </div>
+</div>
+
+<!-- 구독관리 -->
+<div class="sidebar-section">
+  <div class="sidebar-section-label" onclick="toggleSideSection('sub-menu-items','sub-arrow')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 8px;user-select:none">
+    <span>구독관리</span>
+    <span id="sub-arrow" style="font-size:9px;color:var(--t3);transition:transform .2s;display:inline-block;transform:rotate(-90deg)">▼</span>
+  </div>
+  <div id="sub-menu-items" class="collapsed">
+    <div class="nav-item admin-only" onclick="showPage('sub-contracts',this)"><span class="nav-icon">🧾</span> 소프트웨어 관리대장</div>
   </div>
 </div>
 
@@ -640,6 +651,39 @@ select.form-input{cursor:pointer}
       <!-- 팀원 -->
       <!-- 직원 조회 (조직도 뷰) -->
 <!-- ===== 채용공고 ===== -->
+
+<!-- ===== 구독관리 ===== -->
+<div id="page-sub-contracts" class="page">
+  <div style="padding:32px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+      <div style="width:4px;height:24px;background:var(--ac);border-radius:2px"></div>
+      <h2 style="font-size:20px;font-weight:700">소프트웨어 관리대장</h2>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="sbOpenSettings()">⚙ 설정</button>
+        <button class="btn btn-ghost btn-sm" onclick="sbExport()">📥 엑셀 내보내기</button>
+        <button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="sbOpenForm()">+ 계약 등록</button>
+      </div>
+    </div>
+    <div id="sb-stats" style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap"></div>
+    <div id="sb-tabs" style="display:flex;gap:6px;border-bottom:1px solid var(--border);margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+      <input id="sb-q" placeholder="서비스·사용자·계정·비고 검색" oninput="sbRenderAll()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;min-width:240px">
+      <span id="sb-count" style="margin-left:auto;font-size:12px;color:var(--t3)"></span>
+    </div>
+    <div id="sb-list"></div>
+  </div>
+</div>
+
+<div id="sb-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:14px;max-width:860px;width:100%;max-height:88vh;overflow:auto">
+    <div style="display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:1">
+      <div id="sb-modal-title" style="font-size:16px;font-weight:700"></div>
+      <button onclick="sbCloseModal()" style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--t3)">×</button>
+    </div>
+    <div id="sb-modal-body" style="padding:20px"></div>
+  </div>
+</div>
+
 <div id="page-recruit-postings" class="page">
   <div style="padding:32px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
@@ -20334,6 +20378,7 @@ function showPage(id, el) {
     if(id === 'recruit-postings')  rcInitPostingsPage();
     if(id === 'recruit-applicants') rcInitApplicantsPage();
     if(id === 'recruit-rubrics')   rcInitRubricsPage();
+    if(id === 'sub-contracts')     sbInitPage();
   if(id === 'dashboard') renderDashboard();
   if(id === 'birthday') { renderBirthdayTable(); }
   if(id === 'deptfund') { renderDeptFund(); }
@@ -28455,6 +28500,9 @@ var PM_MENU_LIST = {
     {id:'license-institute', label:'면허관리 기업부설연구소 인력현황'},
     {id:'license-category', label:'면허관리 인력 분류'}
   ],
+    subscription: [
+      {id:'sub-contracts', label:'소프트웨어 관리대장'}
+    ],
     recruit: [
       {id:'recruit-postings', label:'채용공고'},
       {id:'recruit-applicants', label:'지원자관리'},
@@ -31154,6 +31202,411 @@ function taskDeleteFromDetail() {
   auth = firebase.auth();
   setupAuthListener();
 })();
+
+/* ===== 구독관리 (subscription) ===== */
+var SB_TYPES = ['전사','부서','개인'];
+var sbState = { contracts:[], seats:{}, tab:'전체', settings:{usdRate:1380, renewWarnDays:90}, sel:{} };
+
+function sbCid(){ return (typeof wgCurrentViewCompanyId==='function') ? wgCurrentViewCompanyId() : 'jungdouit'; }
+function sbMe(){ return (state && state.myEmail) || ''; }
+function sbToday(){ return new Date().toISOString().slice(0,10); }
+function sbEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function sbNum(v){ var n=Number(v); return isFinite(n)?n:0; }
+function sbCanEdit(){ return (typeof isAdmin==='function' && isAdmin()) || (typeof hasFullGrant==='function' && hasFullGrant('sub-contracts')); }
+function sbMoney(c){
+  if (c.amount==null || c.amount==='') return '';
+  var v = sbNum(c.amount);
+  return (c.currency==='USD' ? '$' : '₩') + v.toLocaleString(undefined,{maximumFractionDigits:2});
+}
+function sbKrw(c){
+  if (c.amount==null || c.amount==='') return 0;
+  var v = sbNum(c.amount);
+  return c.currency==='USD' ? v * sbNum(sbState.settings.usdRate||1380) : v;
+}
+function sbDday(c){
+  if (!c.endDate) return null;
+  return Math.round((new Date(c.endDate) - new Date(sbToday())) / 86400000);
+}
+
+/* ---------- 로드 ---------- */
+function sbLoad(){
+  return Promise.all([
+    db.collection('subContracts').get(),
+    db.collection('subSeats').get(),
+    db.collection('settings').doc('subscription').get().catch(function(){ return {exists:false}; })
+  ]).then(function(r){
+    sbState.contracts = r[0].docs.map(function(d){ return Object.assign({id:d.id}, d.data()); })
+      .filter(function(c){ return (c.companyId||'jungdouit')===sbCid(); });
+    sbState.seats = {};
+    r[1].docs.forEach(function(d){
+      var s = Object.assign({id:d.id}, d.data());
+      (sbState.seats[s.contractId] = sbState.seats[s.contractId] || []).push(s);
+    });
+    if (r[2] && r[2].exists) sbState.settings = Object.assign(sbState.settings, r[2].data());
+    var ord = {'전사':0,'부서':1,'개인':2};
+    sbState.contracts.sort(function(a,b){
+      return (ord[a.type]||9)-(ord[b.type]||9) || (a.service||'').localeCompare(b.service||'');
+    });
+  });
+}
+function sbInitPage(){
+  document.getElementById('sb-list').innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3)">불러오는 중...</div>';
+  sbLoad().then(sbRenderAll).catch(function(e){
+    document.getElementById('sb-list').innerHTML = '<div style="padding:40px;text-align:center;color:#dc2626">불러오기 실패: '+sbEsc(e.message)+'</div>';
+  });
+}
+function sbRenderAll(){ sbRenderStats(); sbRenderTabs(); if (sbState.tab==='직원별') sbRenderByEmployee(); else sbRenderList(); }
+
+/* ---------- 요약 ---------- */
+function sbRenderStats(){
+  var C = sbState.contracts;
+  var krw = C.filter(function(c){return c.currency==='KRW';}).reduce(function(a,c){return a+sbNum(c.amount);},0);
+  var usd = C.filter(function(c){return c.currency==='USD';}).reduce(function(a,c){return a+sbNum(c.amount);},0);
+  var seatsAll = C.filter(function(c){return c.type==='전사';}).reduce(function(a,c){return a+sbNum(c.seats);},0);
+  var warn = C.filter(function(c){ var d=sbDday(c); return d!=null && d>=0 && d<=sbNum(sbState.settings.renewWarnDays||90); }).length;
+  var miss = 0;
+  Object.keys(sbState.seats).forEach(function(k){
+    sbState.seats[k].forEach(function(s){ if (s.status==='회수대기') miss++; });
+  });
+  var byType = {}; C.forEach(function(c){ byType[c.type]=(byType[c.type]||0)+1; });
+  function card(l,v,c,sub){
+    return '<div style="flex:1;min-width:120px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:13px 16px">'
+      +'<div style="font-size:11px;color:var(--t3);margin-bottom:3px">'+l+'</div>'
+      +'<div style="font-size:21px;font-weight:700;line-height:1.2;color:'+c+'">'+v+'</div>'
+      +(sub?'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+sub+'</div>':'')+'</div>';
+  }
+  document.getElementById('sb-stats').innerHTML =
+      card('계약', C.length, 'var(--t1)', '전사 '+(byType['전사']||0)+' · 부서 '+(byType['부서']||0)+' · 개인 '+(byType['개인']||0))
+    + card('원화 계약', '₩'+Math.round(krw).toLocaleString(), 'var(--t1)', '부가세 포함')
+    + card('달러 계약', '$'+usd.toLocaleString(undefined,{maximumFractionDigits:0}), 'var(--t1)', '환율 '+sbNum(sbState.settings.usdRate).toLocaleString()+'원')
+    + card('전사 좌석', seatsAll, 'var(--t1)', '전사 계약 합계')
+    + card('갱신 임박', warn, warn?'#d97706':'var(--t3)', (sbState.settings.renewWarnDays||90)+'일 이내')
+    + card('회수 대기', miss, miss?'#dc2626':'var(--t3)', '퇴사자 미삭제');
+}
+function sbRenderTabs(){
+  var C = sbState.contracts;
+  var tabs = [['전체',C.length],['전사',C.filter(function(c){return c.type==='전사';}).length],
+              ['부서',C.filter(function(c){return c.type==='부서';}).length],
+              ['개인',C.filter(function(c){return c.type==='개인';}).length],['직원별','']];
+  document.getElementById('sb-tabs').innerHTML = tabs.map(function(t){
+    var on = sbState.tab===t[0];
+    return '<div onclick="sbSwitchTab(\''+t[0]+'\')" style="padding:9px 15px;cursor:pointer;font-size:13px;'
+      +(on?'font-weight:700;border-bottom:2px solid var(--ac)':'color:var(--t3);border-bottom:2px solid transparent')+'">'
+      + t[0] + (t[1]!==''?' '+t[1]:'') + '</div>';
+  }).join('');
+}
+function sbSwitchTab(t){ sbState.tab=t; sbRenderAll(); }
+
+/* ---------- 계약 목록 ---------- */
+function sbRenderList(){
+  var q = ((document.getElementById('sb-q')||{}).value||'').trim().toLowerCase();
+  var rows = sbState.contracts.filter(function(c){
+    if (sbState.tab!=='전체' && c.type!==sbState.tab) return false;
+    if (q && [c.service,c.userText,c.account,c.note].join(' ').toLowerCase().indexOf(q)<0) return false;
+    return true;
+  });
+  var editable = sbCanEdit();
+  var cols = ['구분','서비스 · 플랜','좌석','금액','기간','결제','사용자','비고','관리'];
+  var h = '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
+    + cols.map(function(c){ return '<th style="text-align:left;padding:9px 8px;border-bottom:2px solid var(--border);font-size:12px;white-space:nowrap">'+c+'</th>'; }).join('')
+    + '</tr></thead><tbody>';
+  var tint = {'전사':'#dbe7f7','부서':'#e3ecdd','개인':'#f0e6d9'};
+  var tcol = {'전사':'#1f3864','부서':'#2c5320','개인':'#6b4a1e'};
+  rows.forEach(function(c){
+    var d = sbDday(c);
+    var soon = d!=null && d>=0 && d<=sbNum(sbState.settings.renewWarnDays||90);
+    var outside = /gmail|naver|hanmail|daum|outlook|khcu|uitgis/i.test(c.account||'');
+    var seats = sbState.seats[c.id]||[];
+    var used = seats.filter(function(s){ return s.status==='사용중'; }).length;
+    h += '<tr style="'+(soon?'background:#fdf8ef':'')+'">'
+      + '<td style="padding:9px 8px;border-bottom:1px solid var(--border)"><span style="font-size:10px;padding:2px 6px;background:'+(tint[c.type]||'#eee')+';color:'+(tcol[c.type]||'#444')+';border-radius:4px">'+sbEsc(c.type)+'</span></td>'
+      + '<td style="padding:9px 8px;border-bottom:1px solid var(--border);font-weight:500;max-width:280px">'+sbEsc(c.service)+'</td>'
+      + '<td style="padding:9px 8px;border-bottom:1px solid var(--border);white-space:nowrap">'+(c.seats||'')+(used?' <span style="font-size:11px;color:var(--t3)">('+used+' 배정)</span>':'')+'</td>'
+      + '<td style="padding:9px 8px;border-bottom:1px solid var(--border);white-space:nowrap">'+sbEsc(sbMoney(c))+'</td>'
+      + '<td style="padding:9px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:12px'+(soon?';color:#8a5008;font-weight:600':'')+'">'
+        + (c.startDate? c.startDate.slice(2).replace(/-/g,'.') : '') + (c.endDate? ' ~ '+c.endDate.slice(2).replace(/-/g,'.') : (c.billing==='월간'?' ~ 매월':''))
+        + (soon? ' <span style="font-size:10px">D-'+d+'</span>':'') + '</td>'
+      + '<td style="padding:9px 8px;border-bottom:1px solid var(--border);font-size:12px;color:var(--t3)">'+sbEsc(c.billing||'')+'</td>'
+      + '<td style="padding:9px 8px;border-bottom:1px solid var(--border);font-size:12px;max-width:260px">'
+        + sbEsc((c.userText||'').slice(0,40))
+        + (c.account? '<br><span style="color:'+(outside?'#b91c1c':'var(--t3)')+'">'+sbEsc(c.account.slice(0,44))+(outside?' <b>사외</b>':'')+'</span>' : '')
+        + '</td>'
+      + '<td style="padding:9px 8px;border-bottom:1px solid var(--border)">'
+        + (c.note? '<button class="btn btn-ghost btn-sm" style="min-width:30px;padding:2px 7px" title="'+sbEsc(c.note)+'">'+((c.srcRows||[]).length||1)+'</button>' : '')
+        + '</td>'
+      + '<td style="padding:9px 8px;border-bottom:1px solid var(--border);white-space:nowrap">'
+        + '<button class="btn btn-ghost btn-sm" onclick="sbOpenSeats(\''+c.id+'\')">좌석</button> '
+        + (editable? '<button class="btn btn-ghost btn-sm" onclick="sbOpenForm(\''+c.id+'\')">수정</button>' : '')
+        + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  document.getElementById('sb-list').innerHTML = rows.length ? h : '<div style="padding:40px;text-align:center;color:var(--t3)">해당 계약이 없습니다</div>';
+  document.getElementById('sb-count').textContent = rows.length + ' / ' + sbState.contracts.length + '건';
+}
+
+/* ---------- 직원별 ---------- */
+function sbRenderByEmployee(){
+  var map = {};
+  sbState.contracts.forEach(function(c){
+    (c.namedUsers||[]).forEach(function(n){ (map[n]=map[n]||[]).push({c:c, id:''}); });
+    (sbState.seats[c.id]||[]).forEach(function(s){
+      if (s.status==='제외됨') return;
+      (map[s.empName]=map[s.empName]||[]).push({c:c, id:s.userId||'', st:s.status});
+    });
+  });
+  var names = Object.keys(map).sort();
+  var q = ((document.getElementById('sb-q')||{}).value||'').trim();
+  if (q) names = names.filter(function(n){ return n.indexOf(q)>=0; });
+  document.getElementById('sb-count').textContent = names.length + '명';
+  document.getElementById('sb-list').innerHTML = names.length ? names.map(function(n){
+    var items = map[n];
+    return '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">'
+      + '<div style="font-weight:700;font-size:13px;margin-bottom:6px">'+sbEsc(n)+' <span style="font-size:11px;color:var(--t3);font-weight:400">'+items.length+'건</span></div>'
+      + items.map(function(it){
+          var outside = /gmail|naver|hanmail|daum|outlook|khcu|uitgis/i.test(it.id||it.c.account||'');
+          return '<div style="display:flex;gap:10px;font-size:12px;padding:3px 0">'
+            + '<span style="min-width:280px">'+sbEsc(it.c.service)+'</span>'
+            + '<span style="color:'+(outside?'#b91c1c':'var(--t3)')+'">'+sbEsc(it.id || it.c.account || '(계정 미기재)')+'</span>'
+            + (it.st==='회수대기'? '<span style="color:#b91c1c;font-weight:600">회수 대기</span>':'')
+            + '</div>';
+        }).join('') + '</div>';
+  }).join('') : '<div style="padding:40px;text-align:center;color:var(--t3)">표시할 직원이 없습니다</div>';
+}
+
+/* ---------- 좌석 배정 ---------- */
+function sbOpenSeats(cid){
+  var c = sbState.contracts.find(function(x){ return x.id===cid; });
+  if (!c) return;
+  var seats = (sbState.seats[cid]||[]).slice();
+  var assigned = seats.filter(function(s){ return s.status==='사용중'; });
+  var waiting  = seats.filter(function(s){ return s.status==='회수대기'; });
+  var excluded = seats.filter(function(s){ return s.status==='제외됨'; });
+  var editable = sbCanEdit();
+  var h = '<div style="font-size:12px;color:var(--t3);margin-bottom:12px">'+sbEsc(c.type)+' · 좌석 '+(c.seats||0)+'석 · 배정 '+assigned.length+'명 · 남은 좌석 '+Math.max(0,(sbNum(c.seats)-assigned.length))+'석</div>';
+  if (c.userText) h += '<div style="font-size:12px;margin-bottom:12px"><span style="color:var(--t3)">대장 기재 사용자</span><br>'+sbEsc(c.userText)+'</div>';
+
+  function rows(list, kind){
+    if (!list.length) return '<div style="font-size:12px;color:var(--t3);padding:6px 0">없음</div>';
+    return list.map(function(s){
+      return '<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">'
+        + '<span style="min-width:80px;font-weight:500">'+sbEsc(s.empName)+'</span>'
+        + '<span style="min-width:110px;font-size:11px;color:var(--t3)">'+sbEsc(s.dept||'')+'</span>'
+        + '<span style="flex:1;font-size:12px">'+sbEsc(s.userId||'(ID 미입력)')+'</span>'
+        + (editable && kind==='assigned' ? '<button class="btn btn-ghost btn-sm" onclick="sbSeatStatus(\''+s.id+'\',\'회수대기\')">회수 대기로</button>' : '')
+        + (editable && kind==='waiting' ? '<button class="btn btn-ghost btn-sm" onclick="sbSeatDone(\''+s.id+'\')">삭제함</button>' : '')
+        + (editable && kind==='excluded' ? '<button class="btn btn-ghost btn-sm" onclick="sbSeatStatus(\''+s.id+'\',\'사용중\')">되돌리기</button>' : '')
+        + (editable ? ' <button class="btn btn-ghost btn-sm" style="color:#dc2626" onclick="sbSeatDelete(\''+s.id+'\')">삭제</button>' : '')
+        + '</div>';
+    }).join('');
+  }
+  h += '<div style="font-weight:700;font-size:13px;margin:14px 0 4px">배정됨 ('+assigned.length+')</div>' + rows(assigned,'assigned');
+  h += '<div style="font-weight:700;font-size:13px;margin:16px 0 4px;color:#b91c1c">회수 대기 ('+waiting.length+')</div>' + rows(waiting,'waiting');
+  h += '<div style="font-weight:700;font-size:13px;margin:16px 0 4px;color:var(--t3)">제외됨 ('+excluded.length+')</div>' + rows(excluded,'excluded');
+
+  if (editable) {
+    h += '<div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px">'
+      + '<div style="font-weight:700;font-size:13px;margin-bottom:6px">좌석 추가</div>'
+      + '<div style="font-size:11px;color:var(--t3);margin-bottom:8px">이름과 계정을 한 줄에 하나씩 넣으세요. 예) 소현규, hyunkyu@jungdouit.com</div>'
+      + '<textarea id="sb-add" style="width:100%;height:90px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px" placeholder="소현규, hyunkyu@jungdouit.com&#10;홍길동, gildong@jungdouit.com"></textarea>'
+      + '<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="sbAddSeats(\''+cid+'\')">추가</button></div></div>';
+  }
+  sbShowModal(c.service + ' — 좌석', h);
+}
+function sbAddSeats(cid){
+  var txt = (document.getElementById('sb-add')||{}).value||'';
+  var lines = txt.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  if (!lines.length) return;
+  lines.reduce(function(ch, line){
+    return ch.then(function(){
+      var p = line.split(/[,\t]/).map(function(x){ return x.trim(); });
+      if (!p[0]) return;
+      return db.collection('subSeats').add({
+        contractId:cid, companyId:sbCid(), empName:p[0], userId:p[1]||'', dept:p[2]||'',
+        status:'사용중', assignedAt:sbToday(), by:sbMe(),
+        log:[{t:sbToday(), m:'배정', by:sbMe()}]
+      });
+    });
+  }, Promise.resolve()).then(function(){
+    showToast('✅ '+lines.length+'명 배정했습니다');
+    sbLoad().then(function(){ sbOpenSeats(cid); sbRenderAll(); });
+  }).catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
+}
+function sbSeatStatus(sid, st){
+  db.collection('subSeats').doc(sid).update({ status:st, updatedAt:sbToday(), by:sbMe() }).then(function(){
+    showToast('✅ 변경했습니다');
+    var cid = null;
+    Object.keys(sbState.seats).forEach(function(k){ if (sbState.seats[k].some(function(s){return s.id===sid;})) cid=k; });
+    sbLoad().then(function(){ if (cid) sbOpenSeats(cid); sbRenderAll(); });
+  });
+}
+function sbSeatDone(sid){
+  db.collection('subSeats').doc(sid).update({
+    status:'삭제완료', revokedAt:sbToday(), revokedBy:sbMe()
+  }).then(function(){
+    showToast('✅ 회수 처리했습니다');
+    var cid=null; Object.keys(sbState.seats).forEach(function(k){ if (sbState.seats[k].some(function(s){return s.id===sid;})) cid=k; });
+    sbLoad().then(function(){ if (cid) sbOpenSeats(cid); sbRenderAll(); });
+  });
+}
+function sbSeatDelete(sid){
+  if (!confirm('이 좌석 기록을 삭제합니다. 진행할까요?')) return;
+  var cid=null; Object.keys(sbState.seats).forEach(function(k){ if (sbState.seats[k].some(function(s){return s.id===sid;})) cid=k; });
+  db.collection('subSeats').doc(sid).delete().then(function(){
+    showToast('✅ 삭제했습니다');
+    sbLoad().then(function(){ if (cid) sbOpenSeats(cid); sbRenderAll(); });
+  });
+}
+
+/* ---------- 계약 등록·수정 ---------- */
+function sbOpenForm(cid){
+  if (!sbCanEdit()) { showToast('❌ 권한이 없습니다'); return; }
+  var c = cid ? sbState.contracts.find(function(x){return x.id===cid;}) : {type:'개인', currency:'KRW', billing:'월간', status:'사용중'};
+  function f(id,label,val,type,ph){
+    return '<div style="margin-bottom:10px"><div style="font-size:12px;color:var(--t3);margin-bottom:3px">'+label+'</div>'
+      +'<input id="sbf-'+id+'" type="'+(type||'text')+'" value="'+sbEsc(val==null?'':val)+'"'+(ph?' placeholder="'+ph+'"':'')
+      +' style="width:100%;padding:7px;border:1px solid var(--border);border-radius:8px;font-size:13px"></div>';
+  }
+  function sel(id,label,val,opts){
+    return '<div style="margin-bottom:10px"><div style="font-size:12px;color:var(--t3);margin-bottom:3px">'+label+'</div>'
+      +'<select id="sbf-'+id+'" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:8px;font-size:13px">'
+      + opts.map(function(o){ return '<option'+(o===val?' selected':'')+'>'+o+'</option>'; }).join('') + '</select></div>';
+  }
+  var h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">'
+    + sel('type','구분',c.type,SB_TYPES) + f('service','서비스 · 플랜',c.service)
+    + f('seats','좌석 수',c.seats,'number') + sel('billing','결제 주기',c.billing,['월간','연간','일회성'])
+    + f('amount','금액',c.amount,'number') + sel('currency','통화',c.currency,['KRW','USD'])
+    + f('startDate','시작일',c.startDate,'date') + f('endDate','종료일 (월간이면 비움)',c.endDate,'date')
+    + sel('status','상태',c.status||'사용중',['사용중','해지','대기'])
+    + f('account','계정 / 라이선스',c.account)
+    + '</div>'
+    + f('userText','사용자 (대장 표기 그대로)',c.userText)
+    + '<div style="margin-bottom:10px"><div style="font-size:12px;color:var(--t3);margin-bottom:3px">비고</div>'
+    + '<textarea id="sbf-note" style="width:100%;height:80px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px">'+sbEsc(c.note||'')+'</textarea></div>'
+    + '<div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="sbSave('+(cid?"'"+cid+"'":'null')+')">저장</button>'
+    + (cid? '<button class="btn btn-ghost btn-sm" style="color:#dc2626;margin-left:auto" onclick="sbDelete(\''+cid+'\')">계약 삭제</button>':'') + '</div>';
+  sbShowModal(cid?'계약 수정':'계약 등록', h);
+}
+function sbSave(cid){
+  function v(id){ return (document.getElementById('sbf-'+id)||{}).value||''; }
+  var names = v('userText').split(/[,·]/).map(function(x){return x.trim();}).filter(function(x){ return /^[가-힣]{2,4}$/.test(x); });
+  var data = { companyId:sbCid(), type:v('type'), service:v('service'),
+    seats:sbNum(v('seats'))||null, billing:v('billing'), amount: v('amount')===''?null:sbNum(v('amount')),
+    currency:v('currency'), startDate:v('startDate'), endDate:v('endDate'), status:v('status'),
+    account:v('account'), userText:v('userText'), namedUsers:names, note:v('note') };
+  var op = cid ? db.collection('subContracts').doc(cid).update(data) : db.collection('subContracts').add(data);
+  op.then(function(){ showToast('✅ 저장했습니다'); sbCloseModal(); sbLoad().then(sbRenderAll); })
+    .catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
+}
+function sbDelete(cid){
+  var c = sbState.contracts.find(function(x){return x.id===cid;});
+  if (!confirm((c?c.service:'')+' 계약을 삭제합니다.\n배정된 좌석 기록도 함께 지워지고 되돌릴 수 없습니다. 진행할까요?')) return;
+  var seats = sbState.seats[cid]||[];
+  seats.reduce(function(ch,s){ return ch.then(function(){ return db.collection('subSeats').doc(s.id).delete().catch(function(){}); }); }, Promise.resolve())
+    .then(function(){ return db.collection('subContracts').doc(cid).delete(); })
+    .then(function(){ showToast('✅ 삭제했습니다'); sbCloseModal(); sbLoad().then(sbRenderAll); })
+    .catch(function(e){ showToast('❌ 삭제 실패: '+e.message); });
+}
+
+/* ---------- 설정 ---------- */
+function sbOpenSettings(){
+  if (!sbCanEdit()) { showToast('❌ 권한이 없습니다'); return; }
+  var s = sbState.settings;
+  var h = '<div style="margin-bottom:10px"><div style="font-size:12px;color:var(--t3);margin-bottom:3px">환율 (1 USD = ? 원)</div>'
+    + '<input id="sbs-rate" type="number" value="'+sbNum(s.usdRate||1380)+'" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:8px;font-size:13px"></div>'
+    + '<div style="margin-bottom:10px"><div style="font-size:12px;color:var(--t3);margin-bottom:3px">갱신 임박 기준 (일)</div>'
+    + '<input id="sbs-days" type="number" value="'+sbNum(s.renewWarnDays||90)+'" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:8px;font-size:13px"></div>'
+    + '<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="sbSaveSettings()">저장</button></div>';
+  sbShowModal('구독관리 설정', h);
+}
+function sbSaveSettings(){
+  var d = { usdRate: sbNum((document.getElementById('sbs-rate')||{}).value)||1380,
+            renewWarnDays: sbNum((document.getElementById('sbs-days')||{}).value)||90 };
+  db.collection('settings').doc('subscription').set(d, {merge:true}).then(function(){
+    sbState.settings = Object.assign(sbState.settings, d);
+    showToast('✅ 저장했습니다'); sbCloseModal(); sbRenderAll();
+  }).catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
+}
+
+/* ---------- 엑셀 ---------- */
+function sbExport(){
+  var EX = window.ExcelJS;
+  if (!EX) { showToast('❌ 엑셀 라이브러리 로딩 중입니다'); return; }
+  var wb = new EX.Workbook();
+  var ws = wb.addWorksheet('구독관리');
+  [8,40,8,14,10,13,13,8,10,30,30,60].forEach(function(w,i){ ws.getColumn(i+1).width=w; });
+  var hd = ws.addRow(['구분','서비스 · 플랜','좌석','금액','통화','시작일','종료일','결제','상태','사용자','계정','비고']);
+  hd.eachCell(function(c){
+    c.font={name:'맑은 고딕',size:10,bold:true,color:{argb:'FF2F5597'}};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD9E2F3'}};
+    c.alignment={horizontal:'center',vertical:'middle'};
+  });
+  sbState.contracts.forEach(function(c){
+    var r = ws.addRow([c.type, c.service, c.seats||'', c.amount==null?'':c.amount, c.currency||'',
+      c.startDate||'', c.endDate||'', c.billing||'', c.status||'', c.userText||'', c.account||'', c.note||'']);
+    r.eachCell({includeEmpty:true}, function(cl){ cl.font={name:'맑은 고딕',size:10}; cl.alignment={vertical:'top',wrapText:false}; });
+    r.getCell(12).alignment={vertical:'top',wrapText:true};
+  });
+  ws.views=[{state:'frozen',ySplit:1}];
+  ws.autoFilter={from:{row:1,column:1},to:{row:1,column:12}};
+
+  var ws2 = wb.addWorksheet('좌석배정');
+  [40,12,14,30,12,12,12,12].forEach(function(w,i){ ws2.getColumn(i+1).width=w; });
+  var hd2 = ws2.addRow(['서비스','직원','부서','사용자 ID','상태','배정일','회수일','확인자']);
+  hd2.eachCell(function(c){
+    c.font={name:'맑은 고딕',size:10,bold:true,color:{argb:'FF2F5597'}};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD9E2F3'}};
+  });
+  sbState.contracts.forEach(function(c){
+    (sbState.seats[c.id]||[]).forEach(function(s){
+      ws2.addRow([c.service, s.empName||'', s.dept||'', s.userId||'', s.status||'', s.assignedAt||'', s.revokedAt||'', s.revokedBy||'']);
+    });
+  });
+  ws2.views=[{state:'frozen',ySplit:1}];
+
+  wb.xlsx.writeBuffer().then(function(buf){
+    var blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href=url; a.download='소프트웨어_관리대장_'+sbToday()+'.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
+    showToast('✅ 엑셀을 내보냈습니다');
+  });
+}
+
+/* ---------- 모달 ---------- */
+function sbShowModal(title, html){
+  document.getElementById('sb-modal-title').textContent = title;
+  document.getElementById('sb-modal-body').innerHTML = html;
+  document.getElementById('sb-modal').style.display = 'flex';
+}
+function sbCloseModal(){ document.getElementById('sb-modal').style.display = 'none'; }
+
+/* ---------- 초기 데이터 가져오기 ---------- */
+function sbImportSeed(json){
+  if (!sbCanEdit()) { showToast('❌ 권한이 없습니다'); return; }
+  var d = (typeof json==='string') ? JSON.parse(json) : json;
+  var list = d.contracts||[];
+  if (!list.length) { showToast('❌ 계약 데이터가 없습니다'); return; }
+  var ops = Promise.resolve();
+  if (d.settings) ops = db.collection('settings').doc('subscription').set(d.settings, {merge:true}).catch(function(){});
+  ops.then(function(){
+    return list.reduce(function(ch, c){
+      return ch.then(function(){
+        var id = c.id; var body = Object.assign({}, c); delete body.id;
+        return db.collection('subContracts').doc(id).set(body);
+      });
+    }, Promise.resolve());
+  }).then(function(){
+    showToast('✅ 계약 '+list.length+'건을 넣었습니다');
+    sbLoad().then(sbRenderAll);
+  }).catch(function(e){ showToast('❌ 가져오기 실패: '+e.message); });
+}
+function sbImportSeedFromFile(file){
+  var r = new FileReader();
+  r.onload = function(e){ try { sbImportSeed(e.target.result); } catch(err){ showToast('❌ JSON 형식이 아닙니다'); } };
+  r.readAsText(file);
+}
+
 
 /* ===== 채용 모듈 (recruit) ===== */
 var RC_STAGES = ['서류접수','서류검토','1차면접','2차면접','처우협의','최종합격','탈락','지원취소'];
