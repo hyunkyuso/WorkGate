@@ -31808,8 +31808,22 @@ function sbImportSeed(json){
       });
     }, Promise.resolve());
   }).then(function(){
-    showToast('✅ 계약 '+done+'건을 넣었습니다');
-    sbLoad().then(sbRenderAll);
+    var seats = d.seats||[];
+    if (!seats.length) return 0;
+    showToast('⏳ 좌석 '+seats.length+'건 등록 중...');
+    return seats.reduce(function(ch, s){
+      return ch.then(function(){
+        var id = s.id; var body = Object.assign({}, s); delete body.id;
+        return db.collection('subSeats').doc(id).set(body);
+      });
+    }, Promise.resolve()).then(function(){ return seats.length; });
+  }).then(function(n){
+    showToast('✅ 계약 '+done+'건'+(n?' · 좌석 '+n+'건':'')+'을 넣었습니다');
+    sbLoad().then(function(){
+      if (document.getElementById('page-sub-dashboard') && document.getElementById('page-sub-dashboard').classList.contains('active')) sbRenderDash();
+      else if (typeof sbRenderOthers==='function' && document.getElementById('sb-o-list') && document.getElementById('sb-o-list').offsetParent) sbRenderOthers();
+      else sbRenderAll();
+    });
   }).catch(function(e){ showToast('❌ 가져오기 실패: '+e.message); });
 }
 function sbImportSeedFromFile(file){
