@@ -659,6 +659,7 @@ select.form-input{cursor:pointer}
       <div style="width:4px;height:24px;background:var(--ac);border-radius:2px"></div>
       <h2 style="font-size:20px;font-weight:700">소프트웨어 관리대장</h2>
       <div style="margin-left:auto;display:flex;gap:8px">
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer" title="workgate_구독관리_초기데이터.json 을 선택하면 계약이 한 번에 등록됩니다">📂 데이터 가져오기<input type="file" accept=".json" style="display:none" onchange="sbImportSeedFromFile(this.files[0]);this.value=''"></label>
         <button class="btn btn-ghost btn-sm" onclick="sbOpenSettings()">⚙ 설정</button>
         <button class="btn btn-ghost btn-sm" onclick="sbExport()">📥 엑셀 내보내기</button>
         <button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="sbOpenForm()">+ 계약 등록</button>
@@ -708,6 +709,7 @@ select.form-input{cursor:pointer}
         <option>사람인(자사양식)</option><option>워크넷</option><option>원티드</option><option>사내추천</option><option>기타</option>
       </select>
       <label class="btn btn-ghost btn-sm" style="cursor:pointer">📎 이력서 업로드(zip 가능)<input type="file" accept=".pdf,.htm,.html,.zip" multiple style="display:none" onchange="rcUploadResumes(this.files);this.value=''"></label>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer" title="workgate_채용_초기데이터.json 을 선택하면 지원자와 평가가 한 번에 등록됩니다">📂 데이터 가져오기<input type="file" accept=".json" style="display:none" onchange="rcImportSeedFromFile(this.files[0]);this.value=''"></label>
         <button class="btn btn-ghost btn-sm" onclick="rcExportExcel()">📥 엑셀 내보내기</button>
         <button class="btn btn-ghost btn-sm" onclick="rcOpenApplicantModal()">+ 지원자 추가</button>
         <button class="btn btn-ghost btn-sm" id="rc-migrate-btn" style="display:none" onclick="rcMigrateStages()">🔀 단계 정리</button>
@@ -31589,15 +31591,20 @@ function sbImportSeed(json){
   if (!list.length) { showToast('❌ 계약 데이터가 없습니다'); return; }
   var ops = Promise.resolve();
   if (d.settings) ops = db.collection('settings').doc('subscription').set(d.settings, {merge:true}).catch(function(){});
+  var done = 0;
+  showToast('⏳ '+list.length+'건 등록 중...');
   ops.then(function(){
     return list.reduce(function(ch, c){
       return ch.then(function(){
         var id = c.id; var body = Object.assign({}, c); delete body.id;
-        return db.collection('subContracts').doc(id).set(body);
+        return db.collection('subContracts').doc(id).set(body).then(function(){
+          done++;
+          if (done % 10 === 0) showToast('⏳ '+done+' / '+list.length+' 등록 중...');
+        });
       });
     }, Promise.resolve());
   }).then(function(){
-    showToast('✅ 계약 '+list.length+'건을 넣었습니다');
+    showToast('✅ 계약 '+done+'건을 넣었습니다');
     sbLoad().then(sbRenderAll);
   }).catch(function(e){ showToast('❌ 가져오기 실패: '+e.message); });
 }
