@@ -31370,7 +31370,8 @@ function sbPaintTable(list, listId, countId, qId, total){
       + '<td style="padding:9px 8px;border-bottom:1px solid var(--border)"><span style="font-size:10px;padding:2px 6px;background:'+(tint[c.type]||'#eee')+';color:'+(tcol[c.type]||'#444')+';border-radius:4px">'+sbEsc(c.type)+'</span></td>'
       + '<td style="padding:9px 8px;border-bottom:1px solid var(--border);font-weight:500;max-width:300px">'+sbEsc(c.service)+'</td>'
       + '<td style="padding:9px 8px;border-bottom:1px solid var(--border);white-space:nowrap">'+(c.seats||'')
-        + (sbNum(c.seats)>1 ? (st.any? ' <span style="font-size:11px;color:var(--t3)">('+st.used+' 배정)</span>' : ' <span style="font-size:11px;color:#b45309">(미파악)</span>') : '') + '</td>'
+        + (c.seatManaged===false ? ' <span style="font-size:11px;color:var(--t3)">(전부 사용)</span>'
+           : (sbNum(c.seats)>1 ? (st.any? ' <span style="font-size:11px;color:var(--t3)">('+st.used+' 배정)</span>' : ' <span style="font-size:11px;color:#b45309">(미파악)</span>') : '')) + '</td>'
       + '<td style="padding:9px 8px;border-bottom:1px solid var(--border);white-space:nowrap">'+sbEsc(sbMoney(c))+'</td>'
       + '<td style="padding:9px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:12px'+(soon?';color:#8a5008;font-weight:600':'')+'">'
         + (c.startDate? c.startDate.slice(2).replace(/-/g,'.') : '')
@@ -31433,7 +31434,9 @@ function sbOpenSeats(cid){
   var waiting  = seats.filter(function(s){ return s.status==='회수대기'; });
   var excluded = seats.filter(function(s){ return s.status==='제외됨'; });
   var editable = sbCanEdit();
-  var h = '<div style="font-size:12px;color:var(--t3);margin-bottom:12px">'+sbEsc(c.type)+' · 좌석 '+(c.seats||0)+'석 · 배정 '+assigned.length+'명 · 남은 좌석 '+Math.max(0,(sbNum(c.seats)-assigned.length))+'석</div>';
+  var h = '<div style="font-size:12px;color:var(--t3);margin-bottom:12px">'+sbEsc(c.type)+' · 좌석 '+(c.seats||0)+'석'
+    + (c.seatManaged===false ? ' · <b>명단 관리 안 함</b> (전부 사용중으로 집계)' : ' · 배정 '+assigned.length+'명 · 남은 좌석 '+Math.max(0,(sbNum(c.seats)-assigned.length))+'석') + '</div>';
+  if (c.note) h += '<div style="font-size:12px;background:var(--bg2,#f8f8f7);border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.7"><span style="color:var(--t3)">비고</span><br>'+sbEsc(c.note)+'</div>';
   if (c.userText) h += '<div style="font-size:12px;margin-bottom:12px"><span style="color:var(--t3)">대장 기재 사용자</span><br>'+sbEsc(c.userText)+'</div>';
 
   function rows(list, kind){
@@ -31528,6 +31531,8 @@ function sbOpenForm(cid){
     + f('amount','금액',c.amount,'number') + sel('currency','통화',c.currency,['KRW','USD'])
     + f('startDate','시작일',c.startDate,'date') + f('endDate','종료일 (월간이면 비움)',c.endDate,'date')
     + sel('status','상태',c.status||'사용중',['사용중','해지','대기'])
+    + sel('seatManaged','좌석 관리', (c.seatManaged===false?'관리 안 함 (전부 사용중으로 봄)':'관리함 (명단·회수 추적)'),
+          ['관리함 (명단·회수 추적)','관리 안 함 (전부 사용중으로 봄)'])
     + f('account','계정 / 라이선스',c.account)
     + '</div>'
     + f('userText','사용자 (대장 표기 그대로)',c.userText)
@@ -31543,7 +31548,8 @@ function sbSave(cid){
   var data = { companyId:sbCid(), type:v('type'), service:v('service'),
     seats:sbNum(v('seats'))||null, billing:v('billing'), amount: v('amount')===''?null:sbNum(v('amount')),
     currency:v('currency'), startDate:v('startDate'), endDate:v('endDate'), status:v('status'),
-    account:v('account'), userText:v('userText'), namedUsers:names, note:v('note') };
+    account:v('account'), userText:v('userText'), namedUsers:names, note:v('note'),
+    seatManaged: v('seatManaged').indexOf('관리 안 함') < 0 };
   var op = cid ? db.collection('subContracts').doc(cid).update(data) : db.collection('subContracts').add(data);
   op.then(function(){ showToast('✅ 저장했습니다'); sbCloseModal(); sbLoad().then(sbRenderAll); })
     .catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
@@ -31633,6 +31639,9 @@ function sbInitDash(){
 }
 function sbSeatStat(c){
   var s = sbState.seats[c.id]||[];
+  if (c.seatManaged === false) {
+    return { used: sbNum(c.seats), wait:0, done:0, excl:0, any:1, unmanagedMode:true };
+  }
   return {
     used: s.filter(function(x){return x.status==='사용중';}).length,
     wait: s.filter(function(x){return x.status==='회수대기';}).length,
@@ -31649,7 +31658,7 @@ function sbRenderDash(){
 
   var totalSeats = company.reduce(function(a,c){ return a+sbNum(c.seats); },0);
   var totalUsed = company.reduce(function(a,c){ return a+sbSeatStat(c).used; },0);
-  var unmanaged = C.filter(function(c){ return sbNum(c.seats)>1 && sbSeatStat(c).any===0; });
+  var unmanaged = C.filter(function(c){ return c.seatManaged!==false && sbNum(c.seats)>1 && sbSeatStat(c).any===0; });
   var waitAll = C.reduce(function(a,c){ return a+sbSeatStat(c).wait; },0);
   var krw = C.filter(function(c){return c.currency==='KRW';}).reduce(function(a,c){return a+sbNum(c.amount);},0);
   var usd = C.filter(function(c){return c.currency==='USD';}).reduce(function(a,c){return a+sbNum(c.amount);},0);
@@ -31691,8 +31700,9 @@ function sbRenderDash(){
       + '<div style="display:flex;align-items:center;gap:10px;margin-top:7px">'
       + '<div style="flex:1;height:9px;background:#ededea;border-radius:5px;overflow:hidden">'
       + '<div style="width:'+pct+'%;height:100%;background:'+(st.any? '#2563eb':'#d4d4d8')+'"></div></div>'
-      + '<div style="font-size:12px;min-width:150px;color:'+(st.any?'var(--t1)':'#b45309')+'">'
-      + (st.any ? st.used+' / '+seats+'석 배정 ('+pct+'%)' : '명단 미등록 ('+seats+'석)') + '</div>'
+      + '<div style="font-size:12px;min-width:170px;color:'+(st.any?'var(--t1)':'#b45309')+'">'
+      + (c.seatManaged===false ? seats+'석 전부 사용 (명단 관리 안 함)'
+         : (st.any ? st.used+' / '+seats+'석 배정 ('+pct+'%)' : '명단 미등록 ('+seats+'석)')) + '</div>'
       + (st.wait ? '<span style="font-size:11px;color:#dc2626;font-weight:600">회수 대기 '+st.wait+'</span>' : '')
       + '</div></div>';
   });
