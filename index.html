@@ -33724,7 +33724,32 @@ function rcImportSeedFromFile(file){
 var BDG = { fixed: [], settings: null, weekStart: null, dashCo: null, logs: [], loaded: false };
 var BDG_DEFAULTS = { defaultHoliday: 'next', monthEdgePrev: true, clampDay: true, saturdayWork: false, holidaysCustom: [], holidaysRemoved: [],
   extraCompanies: [{ id:'daonsoft', name:'다온소프트' }],
-  owners: ['최주희','박상현','소현규'], ownerTags: ['확정금액','대략금액'] };
+  owners: ['최주희','박상현','소현규'], ownerTags: ['확정금액','대략금액'], carryStart: '2026-10-12' };
+// 정도유아이티 차주지출 엑셀의 '드롭서식' 시트 계정과목 (양식을 등록하면 그 회사 목록으로 바뀜)
+var BDG_ACC_JD = ["관리비", "광고선전비", "교육훈련비", "기관부담연구개발비", "기부금", "단기차입금", "도서인쇄비", "렌트료-업무용승용차", "렌트료-카니발", "미지급금(법인카드)", "미지급금(일반)", "미지급금(직원)", "미지급세금", "법인세", "법인지방소득세", "법인카드대금", "보험료-산재보험료", "보험료-회사보험료", "복리후생비-사내행사지원금", "복리후생비-경조사지원금", "복리후생비-사회보험회사부담금", "복리후생비-선물지원", "복리후생비-야근교통비", "복리후생비-음료및소모품지원", "복리후생비-경력관리", "부가세예수금", "비품", "선납세금", "세금과공과금-기타", "세금과공과금-사회보험회사부담금", "사내(공동)근로복지기금", "소모품비-납품용물품", "소모품비-내부용", "소프트웨어(무형)", "소프트웨어(유형)", "수도광열비", "수입임대료", "시설장치", "여비교통비", "여비교통비-해외체재비", "연구비-교육비", "연구비-논문심사/게재료", "연구비-도서구입비", "연구비-도서인쇄비", "연구비-법인카드대금", "연구비-부가세환입", "연구비-석식비", "연구비-소모품비", "연구비-여비교통비", "연구비-연구수당", "연구비-인건비", "연구비-전략회의경비", "연구비-전문가활용비", "연구비-지급수수료", "예수금(주민세)", "예수금-갑근세예수", "예수금-갑근주민세예수", "예수금-기타소득세", "예수금-기타소득주민세", "예수금-사업소득세", "예수금-사업소득주민세", "예수금-연말정산갑근세", "예수금-연말정산갑근주민세", "예수금-학자금상환대출", "외주용역비", "운반비", "워크샵", "이자비용", "임차보증금_사무실 및 직원숙소", "임차보증금-차량보증금", "강연료", "자문료", "장기금융상품", "장기차입금", "기업업무추진비-식비", "기업업무추진비-음료", "기업업무추진비-거래처경조사", "기업업무추진비-거래처선물", "기업업무추진비-기타", "지급수수료-기타", "지급수수료-용역보증수수료", "지급수수료-지역개발채권수수료", "지급수수료-회비", "지급임차료-사무실및직원숙소임차료", "지급임차료-전산장비", "직원급여", "차량유지비-주차요금", "차량유지비-차량수리비", "차량유지비-카니발", "차량유지비-통행료", "청년내일채움공제지원금(구,청년인턴고용지원금)", "통신비-전화요금", "퇴직급여", "특허권", "회원권-콘도회원권", "대출연장"];
+// 회사별 하단 잔금 현황 기본값 (정도유아이티)
+var BDG_NOTES_JD = { title:'※ 베트남 외주 잔금 현황', items:[
+  { label:'베트남 도시정보관리시스템(UPIS) 개발 잔금', amount:329482 },
+  { label:'베트남 땀끼시 스마트시티 플랫폼 개발 잔금', amount:79996 },
+  { label:'베트남 도시정보관리시스템(UPIS) 현지전문가(VIUP-IRURE)', amount:216000 },
+  { label:'베트남 도시정보관리시스템(UPIS) 현지전문가(VUPDA)', amount:84000 } ] };
+function bdgAccountsFor(cid){
+  var m = (BDG.settings && BDG.settings.accountsByCo) || {};
+  if (m[cid] && m[cid].length) return m[cid];
+  return cid==='jungdouit' ? BDG_ACC_JD : [];
+}
+function bdgNotesFor(cid){
+  var m = (BDG.settings && BDG.settings.notes) || {};
+  if (m[cid]) return m[cid].off ? null : m[cid];
+  return cid==='jungdouit' ? BDG_NOTES_JD : null;
+}
+function bdgAcctField(id, cid, val){
+  var list = bdgAccountsFor(cid);
+  if (!list.length) return bdgInp(id, val, '계정과목');
+  var has = !val || list.indexOf(val)>=0;
+  return '<select id="'+id+'" class="bdg-in"><option value="">선택</option>'+(has?'':'<option selected>'+bdgEsc(val)+'</option>')
+    + list.map(function(a){ return '<option'+(a===val?' selected':'')+'>'+bdgEsc(a)+'</option>'; }).join('')+'</select>';
+}
 var BDG_HOLIDAYS = {
   '2026-01-01':'신정','2026-02-16':'설날 연휴','2026-02-17':'설날','2026-02-18':'설날 연휴','2026-03-01':'삼일절','2026-03-02':'대체공휴일(삼일절)',
   '2026-05-01':'노동절','2026-05-05':'어린이날','2026-05-24':'부처님오신날','2026-05-25':'대체공휴일(부처님오신날)','2026-06-03':'전국동시지방선거',
@@ -33988,14 +34013,19 @@ function bdgStatusTag(s){
   return '<span class="bdg-tag" style="'+c+'">'+bdgEsc(s||'미작성')+'</span>';
 }
 
-/* ---------- 이월: 지난주(확정본) 지출 중 '나감' 체크 안 된 것은 다음 주로 그대로 넘어와 빨간 글씨로 ---------- */
+/* ---------- 이월: 지급완료 체크가 안 된 지출은 다음 주로 그대로 넘어와 빨간 글씨로 ----------
+   기준 주(carryStart, 기본 2026-10-12)부터 적용 — 그 이전 주는 넘기지 않는다.
+   체크는 각 주 문서의 paid[행키]에 저장 (그 주 자체 행이든, 넘어온 행이든) */
 var BDG_CARRY_DEPTH = 6;
 function bdgPrevWs(ws){ return bdgYmd(bdgAdd(bdgParse(ws), -7)); }
+function bdgCarryStart(){ return (BDG.settings && BDG.settings.carryStart) || BDG_DEFAULTS.carryStart; }
 function bdgLoadChain(cid, ws){
   var list = []; for (var i=BDG_CARRY_DEPTH; i>=1; i--) list.push(bdgYmd(bdgAdd(bdgParse(ws), -7*i)));
+  list = list.filter(function(w){ return w>=bdgCarryStart(); });
   return Promise.all(list.map(function(w){ return bdgLoadWeek(cid, w); })).then(function(docs){ var m = {}; docs.forEach(function(d){ m[d.weekStart] = d; }); return m; });
 }
-// ws 주 차주 표에 보일 행 = 이월된 행 + 그 주 자체 행
+function bdgIsPaid(wk, key){ return !!(wk && wk.paid && wk.paid[key]); }
+// ws 주 차주 표에 보일 행 = 넘어온 행 + 그 주 자체 행
 function bdgVisible(cid, ws, docs, depth){
   var wk = docs[ws] || { companyId:cid, weekStart:ws, rows:[], overrides:{} };
   var own = bdgBuildRows(cid, wk).filter(function(x){ return !x.skip; });
@@ -34003,13 +34033,13 @@ function bdgVisible(cid, ws, docs, depth){
 }
 function bdgCarryInto(cid, ws, docs, depth){
   if (!depth) return [];
-  var prev = bdgPrevWs(ws), pd = docs[prev];
-  if (!pd || !pd.ver) return [];            // 한 번도 확정(발송)하지 않은 주는 이월하지 않음
-  var me = docs[ws] || {}, paid = me.carryPaid || {};
-  return bdgVisible(cid, prev, docs, depth-1).map(function(x){
+  var prev = bdgPrevWs(ws);
+  if (prev < bdgCarryStart()) return [];
+  var pd = docs[prev];
+  return bdgVisible(cid, prev, docs, depth-1).filter(function(x){ return !bdgIsPaid(pd, x.key); }).map(function(x){
     var k = x.carried ? x.key : 'c:'+prev+':'+x.key;
     return Object.assign({}, x, { key:k, carried:true, red:true, from:x.from||prev });
-  }).filter(function(x){ return !paid[x.key]; });
+  });
 }
 
 /* ===================== 주간 대시보드 ===================== */
@@ -34139,16 +34169,18 @@ function bdgInitSheet(){
 // 열 너비(px)는 차주지출 엑셀 열 너비(문자 수 × 7 + 5)와 같게 — A 일자 · B 계정과목 · C 금액 · D:E 거래처 · F 본부명 · G 내용 · H 비고 · I 담당자(인쇄 영역 밖)
 var BDG_XW = [62, 180, 98, 112, 96, 115, 304, 139, 70];
 function bdgXCols(){ return '<colgroup><col style="width:44px">'+BDG_XW.map(function(w){ return '<col style="width:'+w+'px">'; }).join('')+'</colgroup>'; }
-function bdgXHead(){
-  return '<tr class="hd"><td class="o" style="font-size:11px;text-align:center;color:#888">나감</td><td class="L dg" style="font-size:11px"><span style="position:absolute;left:3px;bottom:2px">일자</span><span style="position:absolute;right:4px;top:2px">구분</span></td>'
+function bdgXHead(noChk){
+  return '<tr class="hd"><td class="o" style="font-size:11px;text-align:center;color:#555;line-height:1.2">'+(arguments[0]?'':'지급<br>완료')+'</td><td class="L dg" style="font-size:11px"><span style="position:absolute;left:3px;bottom:2px">일자</span><span style="position:absolute;right:4px;top:2px">구분</span></td>'
     + '<td>계정과목</td><td>금액</td><td colspan="2">거래처</td><td>본부명</td><td>내용</td><td class="R">비고</td><td class="o">담당자</td></tr>';
 }
 function bdgSheetRow(x, which, clickable){
   var click = clickable ? (x.type==='fixed' ? 'onclick="bdgOpenOverride(\''+bdgEsc(x.key)+'\','+which+')"' : 'onclick="bdgOpenVarForm('+x.idx+','+which+')"') : '';
   var tip = [x.type==='fixed' ? '고정비 '+(x.code||'') : '직접 입력', x.moved ? x.reason : '', x.tbd ? '금액 미정 — 눌러서 이번 주 금액 입력' : '', x.excl ? '합계 제외' : '', x.changed ? '이번 주만 금액 변경 (원래 '+bdgWon(x.base)+')' : '', x.memo||''].filter(Boolean).join('\n');
-  var chk = x.carried ? '<td class="o" style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" title="나갔으면 체크 → 목록에서 빠짐" '+(clickable?'':'disabled ')+'onchange="bdgCarryPaid(\''+bdgEsc(x.key)+'\', this.checked)" style="width:16px;height:16px;cursor:pointer"></td>' : '<td class="o"></td>';
-  if (x.carried){ tip = bdgMD(bdgParse(x.date))+' 지출 예정이었으나 나감 체크가 안 돼 이월됨\n'+tip; click = ''; }
-  return '<tr class="'+(x.red?'red ':'')+(clickable && !x.carried?'ed':'')+'" '+click+' title="'+bdgEsc(tip)+'">' + chk
+  var paid = which==1 && bdgIsPaid(BDG_WK, x.key);
+  var chk = which==1 ? '<td class="o" style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" title="지급했으면 체크. 체크 안 된 지출은 다음 주로 넘어가 빨간 글씨로 표시됩니다" '+(bdgCanEdit('budget-sheet')?'':'disabled ')+(paid?'checked ':'')+'onchange="bdgTogglePaid(\''+bdgEsc(x.key)+'\', this.checked)" style="width:16px;height:16px;cursor:pointer"></td>' : '<td class="o"></td>';
+  if (x.carried){ tip = bdgMD(bdgParse(x.date))+' 지출 예정이었는데 지급완료 체크가 없어 넘어옴\n'+tip; click = ''; }
+  var style = (x.carried && paid) ? ' style="opacity:.45;text-decoration:line-through"' : '';
+  return '<tr class="'+(x.red?'red ':'')+(clickable && !x.carried?'ed':'')+'" '+click+' title="'+bdgEsc(tip)+'"'+style+'>' + chk
     + '<td class="L" style="text-align:center;white-space:nowrap">'+bdgKDay(bdgParse(x.date))+'</td>'
     + '<td>'+bdgEsc(x.acct)+'</td>'
     + '<td class="num">'+(x.tbd ? '' : bdgWon(x.amount))+'</td>'
@@ -34167,7 +34199,8 @@ function bdgRenderSheet(){
     + '<button class="btn btn-ghost btn-sm" onclick="bdgDownloadWeek(\''+cid+'\')">📥 엑셀 다운로드</button>'
     + (ed ? (locked ? '<button class="btn btn-ghost btn-sm" onclick="bdgSetStatus(\'작성중\')">🔓 확정 해제</button>'
                     : '<button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="bdgSetStatus(\'확정\')">✔ 확정 (v'+((wk.ver||0)+1)+'.0)</button>') : ''));
-  var all = bdgBuildRows(cid, wk), carried = bdgCarryInto(cid, BDG.weekStart, Object.assign({}, BDG_CHAIN, (function(){ var o = {}; o[wk.weekStart] = wk; return o; })()), BDG_CARRY_DEPTH);
+  var chain = Object.assign({}, BDG_CHAIN); chain[wk.weekStart] = wk;
+  var all = bdgBuildRows(cid, wk), carried = bdgCarryInto(cid, BDG.weekStart, chain, BDG_CARRY_DEPTH);
   var rows = carried.concat(all.filter(function(x){ return !x.skip; })), g = bdgGroupDays(rows), r = bdgWeekRange();
   var all2 = bdgBuildRows(cid, BDG_WK2), rows2 = all2.filter(function(x){ return !x.skip; });
   var total = bdgTotal(rows);
@@ -34183,18 +34216,18 @@ function bdgRenderSheet(){
   if (!g.length) h += '<tr><td class="o"></td><td class="L" colspan="7" style="text-align:center;color:#888">이번 주 지출 없음</td><td class="R"></td><td class="o"></td></tr>';
   h += '<tr class="sub tot"><td class="o"></td><td class="L" colspan="2" style="text-align:center;white-space:pre">합     계</td><td class="num">'+bdgWon(total)+'</td><td colspan="2"></td><td></td><td></td><td class="R"></td><td class="o"></td></tr>'
     + '<tr><td class="t" colspan="10" style="height:33px"></td></tr>'
-    + bdgXHead()
+    + bdgXHead(true)
     + rows2.map(function(x){ return bdgSheetRow(x, 2, can); }).join('')
     + (rows2.length ? '' : '<tr><td class="o"></td><td class="L" colspan="7" style="color:#888;text-align:center">차차주('+bdgMD(bdgParse(BDG_WK2.weekStart))+'~) 지출 없음</td><td class="R"></td><td class="o"></td></tr>')
     + '<tr><td class="t"></td><td class="t" colspan="9" style="font-family:\'굴림\',Gulim,sans-serif;font-size:13px;height:33px"> ※ 미지급된 지출은 이월시켜 주세요.</td></tr>'
+    + bdgNotesRows(cid)
     + '</table></div>';
   var skipped = all.concat(all2).filter(function(x){ return x.skip; });
   var info = [];
   if (locked) info.push('🔒 확정된 주입니다. 수정하려면 [확정 해제]를 누르세요.');
   else if (ed) info.push('행을 누르면 수정합니다. 고정비 행은 그 주에만 금액·내용·담당자를 바꾸거나 빼고, 계속 바꾸려면 고정비 관리에서 수정합니다. 행에 마우스를 올리면 고정비 여부·지급일 이동 이유가 보입니다.');
-  if (carried.length) info.push('<span style="color:#ff0000">지난주에서 넘어온 '+carried.length+'건</span>은 아직 나갔다는 체크가 없는 지출입니다. 나갔으면 왼쪽 [나감]을 체크하면 목록에서 빠지고, 안 나갔으면 빨간 글씨로 계속 다음 주로 넘어갑니다.');
-  var paidList = Object.keys(wk.carryPaid||{});
-  if (paidList.length && can) info.push('이번 주에 나감 처리한 이월 '+paidList.length+'건 · <a href="#" onclick="bdgCarryUndo();return false">모두 되돌리기</a>');
+  if (carried.length) info.push('맨 위 <span style="color:#ff0000">빨간 글씨 '+carried.length+'건</span>은 지난주까지 지급완료 체크가 안 돼 넘어온 지출입니다.');
+  info.push('왼쪽 <b>지급완료</b>를 체크한 지출은 다음 주로 넘어가지 않습니다. 체크 안 된 것은 다음 주 표 맨 위에 빨간 글씨로 그대로 넘어갑니다 ('+bdgCarryStart()+' 주부터 적용).');
   info.push('<span style="color:#ff0000">빨간 글씨</span>는 직전 확정본(또는 지난주 차차주로 잡았던 내용)에서 바뀌었거나 추가된 행입니다. 합계 아래 표는 차차주 지출계획입니다.');
   var tbdN = rows.concat(rows2).filter(function(x){ return x.tbd; }).length;
   if (tbdN) info.push('<span style="color:#a12626">금액이 비어 있는 고정비 '+tbdN+'건</span>은 금액 미정 항목입니다. 행을 눌러 그 주 금액을 넣으세요.');
@@ -34237,7 +34270,7 @@ function bdgOpenVarForm(idx, which){
   var dates = []; for (var i=0;i<7;i++){ var d = bdgAdd(r.s, i); dates.push('<option value="'+bdgYmd(d)+'"'+((v.date||bdgYmd(r.s))===bdgYmd(d)?' selected':'')+'>'+bdgDayLabel(bdgYmd(d))+'</option>'); }
   var h = bdgDeptOptions() + bdgAcctOptions() + '<div class="bdg-form">'
     + bdgField('일자 *', '<select id="bv-date" class="bdg-in">'+dates.join('')+'</select>')
-    + bdgField('계정과목 *', bdgInp('bv-acct', v.acct, '예: 광고선전비', 'list="bdg-dl-acct"'))
+    + bdgField('계정과목 *', bdgAcctField('bv-acct', wk.companyId, v.acct||''))
     + bdgField('금액 *', bdgInp('bv-amount', v.amount!=null?bdgWon(v.amount):'', '숫자', 'inputmode="numeric"'))
     + bdgField('거래처', bdgInp('bv-vendor', v.vendor, ''))
     + bdgField('은행·계좌', bdgInp('bv-bank', v.bank, '예: 우리 1005-000-000000'))
@@ -34297,15 +34330,42 @@ function bdgSaveOverride(key, which, reset){
   bdgSaveWeek(wk).then(function(){ bdgCloseModal(); showToast('✅ 저장했습니다'); bdgRenderSheet(); }).catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
 }
 
-function bdgCarryPaid(key, on){
-  var wk = BDG_WK; wk.carryPaid = wk.carryPaid || {};
-  if (on) wk.carryPaid[key] = true; else delete wk.carryPaid[key];
-  bdgSaveWeek(wk).then(function(){ showToast(on?'✅ 나감 처리 — 목록에서 뺐습니다':'되돌렸습니다'); bdgRenderSheet(); }).catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
+function bdgTogglePaid(key, on){
+  var wk = BDG_WK; wk.paid = wk.paid || {};
+  if (on) wk.paid[key] = true; else delete wk.paid[key];
+  bdgSaveWeek(wk).then(function(){ showToast(on?'✅ 지급완료':'지급완료 해제'); bdgRenderSheet(); }).catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
 }
-function bdgCarryUndo(){
-  if (!confirm('이번 주에 나감 처리한 이월 항목을 모두 다시 목록에 넣을까요?')) return;
-  BDG_WK.carryPaid = {};
-  bdgSaveWeek(BDG_WK).then(function(){ bdgRenderSheet(); });
+/* ---------- 하단 잔금 현황 (회사별, 달러) ---------- */
+function bdgNotesRows(cid){
+  var n = bdgNotesFor(cid), ed = bdgCanEdit('budget-sheet');
+  if (!n && !ed) return '';
+  var click = ed ? ' class="ed" onclick="bdgOpenNotes()" title="눌러서 수정"' : '';
+  if (!n) return '<tr'+click+'><td class="t"></td><td class="t" colspan="6"></td><td class="t" colspan="2" style="color:#888;font-size:11px;height:33px">+ 하단 메모(잔금 현황 등) 추가</td><td class="t"></td></tr>';
+  var h = '<tr'+click+'><td class="t"></td><td class="t" colspan="6"></td><td class="t" style="font-weight:700;height:33px">'+bdgEsc(n.title)+'</td><td class="t"></td><td class="t"></td></tr>';
+  (n.items||[]).forEach(function(it){
+    h += '<tr'+click+'><td class="t"></td><td class="t" colspan="6"></td><td class="t" style="color:#ff0000;height:33px">'+bdgEsc(it.label)+'</td><td class="t" style="color:#ff0000;text-align:right">$'+bdgWon(it.amount)+'</td><td class="t"></td></tr>';
+  });
+  return h;
+}
+function bdgOpenNotes(){
+  var cid = bdgCid(), n = bdgNotesFor(cid) || { title:'※ ', items:[] };
+  var rows = (n.items||[]).concat([{ label:'', amount:'' }, { label:'', amount:'' }]);
+  var h = bdgField('제목', bdgInp('bn-title', n.title, '예: ※ 베트남 외주 잔금 현황'), true)
+    + '<table class="bdg-tbl" style="margin-top:10px"><thead><tr><th>항목</th><th style="width:160px;text-align:right">금액 (USD)</th></tr></thead><tbody>'
+    + rows.map(function(it, i){ return '<tr><td><input class="bdg-in bn-l" value="'+bdgEsc(it.label)+'"></td><td><input class="bdg-in bn-a" style="text-align:right" inputmode="numeric" value="'+(it.amount===''?'':bdgWon(it.amount))+'"></td></tr>'; }).join('')
+    + '</tbody></table><div style="font-size:12px;color:var(--t3);margin-top:6px">항목을 비우면 빠집니다. 엑셀에는 ※ 미지급 문구 아래에 $ 금액으로 나갑니다. 이 회사의 매주 엑셀에 같은 값이 쓰입니다.</div>'
+    + '<div class="bdg-actions"><button class="btn btn-ghost btn-sm" style="color:#dc2626;margin-right:auto" onclick="bdgSaveNotes(true)">표 없애기</button><button class="btn btn-ghost btn-sm" onclick="bdgCloseModal()">취소</button><button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="bdgSaveNotes()">저장</button></div>';
+  bdgShowModal(bdgCoName(cid)+' · 하단 잔금 현황', h);
+}
+function bdgSaveNotes(clear){
+  var cid = bdgCid(), notes = Object.assign({}, (BDG.settings && BDG.settings.notes) || {});
+  if (clear){ if (!confirm('하단 표를 없앨까요?')) return; notes[cid] = { title:'', items:[], off:true }; }
+  else {
+    var ls = document.querySelectorAll('.bn-l'), as = document.querySelectorAll('.bn-a'), items = [];
+    for (var i=0;i<ls.length;i++){ var l = ls[i].value.trim(); if (l) items.push({ label:l, amount:bdgNum(as[i].value) }); }
+    notes[cid] = { title:bdgVal('bn-title'), items:items };
+  }
+  bdgSaveSettings({ notes:notes }).then(function(){ bdgCloseModal(); showToast('✅ 저장했습니다'); bdgLog(cid, '하단 잔금 현황 수정', ''); bdgRenderSheet(); }).catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
 }
 
 /* ===================== 고정비 관리 ===================== */
@@ -34389,7 +34449,7 @@ function bdgOpenFixedForm(id){
   var ymNow = bdgYm(new Date());
   var sel = function(idv, map, v){ return '<select id="'+idv+'" class="bdg-in">'+Object.keys(map).map(function(k){ return '<option value="'+k+'"'+(k===v?' selected':'')+'>'+map[k]+'</option>'; }).join('')+'</select>'; };
   var h = bdgDeptOptions() + bdgAcctOptions() + '<div class="bdg-form">'
-    + bdgField('계정과목 *', bdgInp('bf-acct', f.acct, '예: 렌트료-업무용승용차', 'list="bdg-dl-acct"'))
+    + bdgField('계정과목 *', bdgAcctField('bf-acct', f.companyId||bdgCid(), f.acct||''))
     + bdgField('금액 *', bdgInp('bf-amount', isNew?'':bdgWon(bdgAmountAt(f, ymNow)), '숫자', 'inputmode="numeric"'))
     + (isNew ? '' : bdgField('금액을 바꾸면 적용 시작월', '<input id="bf-from" type="month" class="bdg-in" value="'+ymNow+'">'))
     + bdgField('거래처 *', bdgInp('bf-vendor', f.vendor, '예: 현대캐피탈'))
@@ -34905,8 +34965,8 @@ function bdgUploadTemplate(cid, file){
       if (!info.headerRow){ showToast('❌ ‘계정과목’ 머리글을 찾지 못했습니다'); return; }
       var doc = { fileName:file.name, b64:bdgAbToB64(ab), size:file.size, info:info, uploadedAt:new Date().toISOString(), uploadedBy:bdgMyName() };
       if ((info.accounts||[]).length){
-        var acc = {}; (BDG.settings.accounts||[]).concat(info.accounts).forEach(function(a){ acc[a]=1; });
-        bdgSaveSettings({ accounts:Object.keys(acc) }).catch(function(){});
+        var abc = Object.assign({}, BDG.settings.accountsByCo||{}); abc[cid] = info.accounts;
+        bdgSaveSettings({ accountsByCo:abc }).catch(function(){});
       }
       return db.collection('budgetTemplates').doc(cid).set(doc).then(function(){
         BDG_TPL[cid] = doc; showToast('✅ '+bdgCoName(cid)+' 양식을 등록했습니다'); bdgLog(cid, '주간지출계획 양식 등록', file.name); bdgRenderSettings();
@@ -34950,8 +35010,8 @@ function bdgAnalyzeTpl(wb){
   var acc = [];
   wb.worksheets.slice(1).forEach(function(w){
     if (acc.length) return;
-    var vals = []; w.getColumn(1).eachCell(function(c){ var t = bdgCellText(c).trim(); if (t && t.length<40) vals.push(t); });
-    if (vals.length>=10) acc = vals.slice(0, 400);
+    var vals = [], last = 0; w.getColumn(1).eachCell(function(c, rn){ var t = bdgCellText(c).trim(); if (t && t.length<40){ vals.push(t); last = rn; } });
+    if (vals.length>=10){ acc = vals.slice(0, 400); info.accSheet = w.name; info.accLast = last; }
   });
   info.accounts = acc;
   return info;
@@ -34998,7 +35058,7 @@ function bdgIsDataLike(ws, r, C){
 function bdgRedRow(row, maxCol){
   for (var c=1; c<=maxCol; c++){ var cell = row.getCell(c); cell.font = Object.assign({}, cell.font||{}, { color:{ argb:'FFFF0000' } }); }
 }
-function bdgFillTemplate(wb, info, groups, coName, rows2){
+function bdgFillTemplate(wb, info, groups, coName, rows2, notes){
   rows2 = rows2 || [];
   var ws = wb.worksheets[0], r = bdgWeekRange(), maxCol = Math.max(info.maxCol||0, ws.columnCount);
   var C = info.cols, H = info.headerRow;
@@ -35051,7 +35111,12 @@ function bdgFillTemplate(wb, info, groups, coName, rows2){
       var f = h2+1;
       if (f<=lastContent && bdgIsDataLike(ws, f, C)){ data2Cap = capWithMerges(f); data2Cap.merges = data2Cap.merges.filter(function(m){ return !m.span; }); }
       while (f<=lastContent && bdgIsDataLike(ws, f, C)) f++;
-      for (t=f; t<=lastContent; t++) tail.push(capWithMerges(t));
+      for (t=f; t<=lastContent; t++){
+        // 잔금 현황 같은 하단 메모는 회사 설정 값으로 다시 쓴다
+        var tt = []; ws.getRow(t).eachCell(function(c){ tt.push(bdgCellText(c)); });
+        if (notes!==undefined && /잔금\s*현황/.test(tt.join(' '))) break;
+        tail.push(capWithMerges(t));
+      }
     } else {
       for (t=info.totalRow+1; t<=lastContent; t++) tail.push(capWithMerges(t));
     }
@@ -35103,15 +35168,43 @@ function bdgFillTemplate(wb, info, groups, coName, rows2){
   pre.forEach(putCopy);
   if (head2){ putCopy(head2); rows2.forEach(function(x){ putData(x, data2Cap); }); }
   tail.forEach(putCopy);
+  rr = bdgPutNotes(ws, rr, notes, C.desc||7, C.note||8);
+  bdgAccValidation(ws, info.accSheet, info.accLast, C.acct||2, H+1, rr);
   var pa = ws.pageSetup && ws.pageSetup.printArea;
   if (pa){ ws.pageSetup.printArea = String(pa).replace(/(\$?)(\d+)(?!.*\d)/, function(_, d){ return d+(rr-1); }); }
   if (/\d+월\s*\d+주/.test(ws.name)) { try { ws.name = bdgWeekName(r.s); } catch(e){} }
   return ws;
 }
 
+// 하단 잔금 현황: 제목(굵게) + 항목·달러 금액(빨강) — 원본 G·H열 위치
+function bdgPutNotes(ws, rr, notes, lc, vc){
+  if (!notes || !(notes.items||[]).length) return rr;
+  var t = ws.getRow(rr); t.height = 24.75;
+  var tc = t.getCell(lc); tc.value = notes.title || null; tc.font = { name:'새굴림', size:9, bold:true }; tc.alignment = { horizontal:'left', vertical:'middle' };
+  rr++;
+  notes.items.forEach(function(it){
+    var row = ws.getRow(rr); row.height = 24.75;
+    var a = row.getCell(lc), b = row.getCell(vc);
+    a.value = it.label; a.font = { name:'새굴림', size:9, color:{ argb:'FFFF0000' } }; a.alignment = { horizontal:'left', vertical:'middle' };
+    b.value = bdgNum(it.amount); b.font = { name:'새굴림', size:9, color:{ argb:'FFFF0000' } }; b.alignment = { horizontal:'right', vertical:'middle' };
+    b.numFmt = '\\$#,##0_);[Red]\\(\\$#,##0\\)';
+    rr++;
+  });
+  return rr;
+}
+// 계정과목 칸 드롭다운: 드롭서식 시트가 있으면 그 목록, 없으면 그냥 둔다
+function bdgAccValidation(ws, sheetName, last, col, from, to){
+  if (!sheetName || !last) return;
+  var f = "'"+sheetName.replace(/'/g,"''")+"'!$A$1:$A$"+last;
+  for (var r=from; r<to; r++){
+    var c = ws.getRow(r).getCell(col);
+    if (typeof c.value==='string' && /소\s*계|합\s*계|계정과목/.test(c.value)) continue;
+    c.dataValidation = { type:'list', allowBlank:true, showErrorMessage:false, formulae:[f] };
+  }
+}
 // 양식이 없을 때 기본 양식 — 보내주신 차주지출 엑셀(10월3주)과 같은 서식
 // 새굴림 9pt, hair 테두리, 바깥 좌우 medium, 머리글 위 thin, 합계 아래 thin, 제목 맑은 고딕 18pt, A4·가운데·1쪽 너비
-function bdgDefaultWb(groups, coName, rows2){
+function bdgDefaultWb(groups, coName, rows2, notes, accounts){
   rows2 = rows2 || [];
   var r = bdgWeekRange();
   var wb = new ExcelJS.Workbook();
@@ -35124,7 +35217,8 @@ function bdgDefaultWb(groups, coName, rows2){
   var BL = { argb:'FF000000' };
   var hair = { style:'hair', color:BL }, thin = { style:'thin', color:BL }, med = { style:'medium', color:BL };
   var NUM = '_-* #,##0_-;\\-* #,##0_-;_-* "-"_-;_-@_-', DATE = 'm"월"\\ d"일";@';
-  ws.columns = [8.11, 25, 13.22, 15.33, 13, 15.66, 42.66, 19.11, 9.33].map(function(w){ return { width:w }; });
+  // 원본은 기본 글꼴이 돋움 11pt라 같은 열 너비 숫자도 더 넓게 보인다 → 엑셀JS 기본(Calibri) 기준으로 1.2배 환산
+  ws.columns = [8.11, 25, 13.22, 15.33, 13, 15.66, 42.66, 19.11, 9.33].map(function(w){ return { width:Math.round(w*1.2*100)/100 }; });
   ws.getRow(1).height = 6;
   ws.mergeCells('A2:H2'); ws.getRow(2).height = 45.75;
   var t = ws.getCell('A2'); t.value = '주간지출계획'+bdgTitleText(r); t.font = { name:K, size:18 }; t.alignment = { horizontal:'center', vertical:'middle' };
@@ -35191,8 +35285,16 @@ function bdgDefaultWb(groups, coName, rows2){
   ws.getRow(rr).height = 24.75; rr++;
   if (rows2.length){ header(true); rows2.forEach(data); }
   var n = ws.getCell('A'+rr); n.value = ' ※ 미지급된 지출은 이월시켜 주세요.'; n.font = { name:'굴림', size:10 }; n.alignment = { vertical:'middle' };
-  ws.getRow(rr).height = 24.75;
-  ws.pageSetup.printArea = 'A1:H'+rr;
+  ws.getRow(rr).height = 24.75; rr++;
+  var dataEnd = rr;
+  rr = bdgPutNotes(ws, rr, notes, 7, 8);
+  ws.pageSetup.printArea = 'A1:H'+(rr-1);
+  if (accounts && accounts.length){
+    var ds = wb.addWorksheet('드롭서식');
+    accounts.forEach(function(a, i){ ds.getCell('A'+(i+1)).value = a; });
+    ds.getColumn(1).width = 34;
+    bdgAccValidation(ws, '드롭서식', accounts.length, 2, 5, dataEnd);
+  }
   return wb;
 }
 
@@ -35201,7 +35303,9 @@ function bdgBuildWeekFile(cid){
   return Promise.all([bdgLoadWeek(cid), bdgLoadWeek(cid, bdgNextWs()), tplP, bdgLoadChain(cid, BDG.weekStart)]).then(function(res){
     var wk = res[0], wk2 = res[1], tpl = res[2], chain = res[3], coName = bdgCoName(cid);
     chain[wk.weekStart] = wk;
-    var rows = bdgCarryInto(cid, wk.weekStart, chain, BDG_CARRY_DEPTH).concat(bdgBuildRows(cid, wk).filter(function(x){ return !x.skip; }));
+    var rows = bdgCarryInto(cid, wk.weekStart, chain, BDG_CARRY_DEPTH).filter(function(x){ return !bdgIsPaid(wk, x.key); })
+      .concat(bdgBuildRows(cid, wk).filter(function(x){ return !x.skip; }));
+    var notes = bdgNotesFor(cid);
     var groups = bdgGroupDays(rows), r = bdgWeekRange();
     var rows2 = bdgBuildRows(cid, wk2).filter(function(x){ return !x.skip; });
     var t = new Date(), stamp = String(t.getFullYear()).slice(2)+bdgPad(t.getMonth()+1)+bdgPad(t.getDate());
@@ -35210,8 +35314,8 @@ function bdgBuildWeekFile(cid){
     var wbP;
     if (tpl && tpl.b64){
       var wb = new ExcelJS.Workbook();
-      wbP = wb.xlsx.load(bdgB64ToAb(tpl.b64)).then(function(){ bdgFillTemplate(wb, bdgAnalyzeTpl(wb), groups, coName, rows2); return wb; });
-    } else wbP = Promise.resolve(bdgDefaultWb(groups, coName, rows2));
+      wbP = wb.xlsx.load(bdgB64ToAb(tpl.b64)).then(function(){ bdgFillTemplate(wb, bdgAnalyzeTpl(wb), groups, coName, rows2, notes); return wb; });
+    } else wbP = Promise.resolve(bdgDefaultWb(groups, coName, rows2, notes, bdgAccountsFor(cid)));
     return wbP.then(function(wb){ return wb.xlsx.writeBuffer(); }).then(function(buf){ return { name:name, buf:buf, count:rows.length }; });
   });
 }
