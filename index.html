@@ -33913,12 +33913,14 @@ function bdgBuildRows(cid, wk){
     rows.push(Object.assign({ type:'var', idx:i, sort:'1'+bdgPad(i) }, v, { key:'v:'+(v.id||('i'+i)), amount:bdgNum(v.amount), excl:!!v.excludeTotal }));
   });
   rows.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:(a.sort<b.sort?-1:a.sort>b.sort?1:0); });
-  // 빨간 글씨: 전에 잡았던(직전 확정본) 내용에서 바뀌었거나 새로 추가된 행
-  var base = wk ? (wk.status==='확정' ? wk.shownBase : wk.base) : null;
-  if (base) rows.forEach(function(x){
-    if (x.skip) return;
-    var b = base[x.key];
-    x.red = !b || BDG_SNAP_F.some(function(k){ return String(b[k]==null?'':b[k])!==String(x[k]==null?'':x[k]); });
+  // 빨간 글씨 규칙
+  //  · 직접 추가한 변동비(차주·차차주 모두) → 행 전체
+  //  · 고정비는 그 주에 금액을 바꾼 경우 → 금액 칸만
+  //  · 차차주 표의 고정비 → 행 전체 (bdgMarkNext)
+  //  · 지난주에서 넘어온 행 → 날짜 칸만 (bdgCarryInto)
+  rows.forEach(function(x){
+    if (x.type==='var') x.redAll = true;
+    else x.redAmt = !!x.changed;
   });
   return rows;
 }
@@ -34038,9 +34040,13 @@ function bdgCarryInto(cid, ws, docs, depth){
   var pd = docs[prev];
   return bdgVisible(cid, prev, docs, depth-1).filter(function(x){ return !bdgIsPaid(pd, x.key); }).map(function(x){
     var k = x.carried ? x.key : 'c:'+prev+':'+x.key;
-    return Object.assign({}, x, { key:k, carried:true, red:true, from:x.from||prev });
+    return Object.assign({}, x, { key:k, carried:true, redAll:false, redDate:true, redAmt:!!x.changed, from:x.from||prev });
   });
 }
+
+// 차차주 표: 고정비도 행 전체 빨강
+function bdgMarkNext(rows){ rows.forEach(function(x){ x.redAll = true; }); return rows; }
+function bdgRedOf(x){ return { date: !!(x.redAll||x.redDate), amt: !!(x.redAll||x.redAmt), all: !!x.redAll }; }
 
 /* ===================== 주간 대시보드 ===================== */
 function bdgInitDash(){
@@ -34180,15 +34186,16 @@ function bdgSheetRow(x, which, clickable){
   var chk = which==1 ? '<td class="o" style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" title="지급했으면 체크. 체크 안 된 지출은 다음 주로 넘어가 빨간 글씨로 표시됩니다" '+(bdgCanEdit('budget-sheet')?'':'disabled ')+(paid?'checked ':'')+'onchange="bdgTogglePaid(\''+bdgEsc(x.key)+'\', this.checked)" style="width:16px;height:16px;cursor:pointer"></td>' : '<td class="o"></td>';
   if (x.carried){ tip = bdgMD(bdgParse(x.date))+' 지출 예정이었는데 지급완료 체크가 없어 넘어옴\n'+tip; click = ''; }
   var style = (x.carried && paid) ? ' style="opacity:.45;text-decoration:line-through"' : '';
-  return '<tr class="'+(x.red?'red ':'')+(clickable && !x.carried?'ed':'')+'" '+click+' title="'+bdgEsc(tip)+'"'+style+'>' + chk
-    + '<td class="L" style="text-align:center;white-space:nowrap">'+bdgKDay(bdgParse(x.date))+'</td>'
-    + '<td>'+bdgEsc(x.acct)+'</td>'
-    + '<td class="num">'+(x.tbd ? '' : bdgWon(x.amount))+'</td>'
-    + '<td colspan="2" style="white-space:pre-line">'+bdgEsc(x.vendor)+(x.bank?'\n'+bdgEsc(x.bank):'')+'</td>'
-    + '<td style="text-align:center">'+bdgEsc(x.dept)+'</td>'
-    + '<td style="white-space:pre-line">'+bdgEsc(x.desc)+'</td>'
-    + '<td class="R" style="font-family:Arial,sans-serif">'+bdgEsc(x.note)+'</td>'
-    + '<td class="o" style="white-space:nowrap">'+bdgEsc(x.owner)+'</td></tr>';
+  var rd = bdgRedOf(x), R = 'color:#ff0000;', A = rd.all ? R : '';
+  return '<tr class="'+(clickable && !x.carried?'ed':'')+'" '+click+' title="'+bdgEsc(tip)+'"'+style+'>' + chk
+    + '<td class="L" style="text-align:center;white-space:nowrap;'+(rd.date?R:'')+'">'+bdgKDay(bdgParse(x.date))+'</td>'
+    + '<td style="'+A+'">'+bdgEsc(x.acct)+'</td>'
+    + '<td class="num" style="'+(rd.amt?R:'')+'">'+(x.tbd ? '' : bdgWon(x.amount))+'</td>'
+    + '<td colspan="2" style="white-space:pre-line;'+A+'">'+bdgEsc(x.vendor)+(x.bank?'\n'+bdgEsc(x.bank):'')+'</td>'
+    + '<td style="text-align:center;'+A+'">'+bdgEsc(x.dept)+'</td>'
+    + '<td style="white-space:pre-line;'+A+'">'+bdgEsc(x.desc)+'</td>'
+    + '<td class="R" style="font-family:Arial,sans-serif;'+A+'">'+bdgEsc(x.note)+'</td>'
+    + '<td class="o" style="white-space:nowrap;'+A+'">'+bdgEsc(x.owner)+'</td></tr>';
 }
 function bdgRenderSheet(){
   var wk = BDG_WK, cid = wk.companyId, ed = bdgCanEdit('budget-sheet'), locked = wk.status==='확정';
@@ -34202,7 +34209,7 @@ function bdgRenderSheet(){
   var chain = Object.assign({}, BDG_CHAIN); chain[wk.weekStart] = wk;
   var all = bdgBuildRows(cid, wk), carried = bdgCarryInto(cid, BDG.weekStart, chain, BDG_CARRY_DEPTH);
   var rows = carried.concat(all.filter(function(x){ return !x.skip; })), g = bdgGroupDays(rows), r = bdgWeekRange();
-  var all2 = bdgBuildRows(cid, BDG_WK2), rows2 = all2.filter(function(x){ return !x.skip; });
+  var all2 = bdgBuildRows(cid, BDG_WK2), rows2 = bdgMarkNext(all2.filter(function(x){ return !x.skip; }));
   var total = bdgTotal(rows);
   var h = '<div class="bdg-sheetwrap"><table class="bdg-xs">'+bdgXCols()
     + '<tr><td class="t" colspan="10" style="height:8px"></td></tr>'
@@ -34226,9 +34233,9 @@ function bdgRenderSheet(){
   var info = [];
   if (locked) info.push('🔒 확정된 주입니다. 수정하려면 [확정 해제]를 누르세요.');
   else if (ed) info.push('행을 누르면 수정합니다. 고정비 행은 그 주에만 금액·내용·담당자를 바꾸거나 빼고, 계속 바꾸려면 고정비 관리에서 수정합니다. 행에 마우스를 올리면 고정비 여부·지급일 이동 이유가 보입니다.');
-  if (carried.length) info.push('맨 위 <span style="color:#ff0000">빨간 글씨 '+carried.length+'건</span>은 지난주까지 지급완료 체크가 안 돼 넘어온 지출입니다.');
-  info.push('왼쪽 <b>지급완료</b>를 체크한 지출은 다음 주로 넘어가지 않습니다. 체크 안 된 것은 다음 주 표 맨 위에 빨간 글씨로 그대로 넘어갑니다 ('+bdgCarryStart()+' 주부터 적용).');
-  info.push('<span style="color:#ff0000">빨간 글씨</span>는 직전 확정본(또는 지난주 차차주로 잡았던 내용)에서 바뀌었거나 추가된 행입니다. 합계 아래 표는 차차주 지출계획입니다.');
+  if (carried.length) info.push('맨 위 '+carried.length+'건은 지난주까지 지급완료 체크가 안 돼 넘어온 지출입니다 (날짜만 빨간 글씨).');
+  info.push('왼쪽 <b>지급완료</b>를 체크한 지출은 다음 주로 넘어가지 않습니다 ('+bdgCarryStart()+' 주부터 적용).');
+  info.push('<span style="color:#ff0000">빨간 글씨</span>: 직접 추가한 지출(차주·차차주)은 행 전체, 고정비는 그 주 금액을 바꾸면 금액만, 차차주 표의 고정비는 행 전체, 넘어온 지출은 날짜만.');
   var tbdN = rows.concat(rows2).filter(function(x){ return x.tbd; }).length;
   if (tbdN) info.push('<span style="color:#a12626">금액이 비어 있는 고정비 '+tbdN+'건</span>은 금액 미정 항목입니다. 행을 눌러 그 주 금액을 넣으세요.');
   if (skipped.length) info.push('이번 주에서 뺀 고정비: '+skipped.map(function(x){ return (can?'<a href="#" onclick="bdgOpenOverride(\''+bdgEsc(x.key)+'\','+(all.indexOf(x)>=0?1:2)+');return false">':'')+bdgEsc(x.desc||x.acct)+(can?'</a>':''); }).join(', '));
@@ -35055,8 +35062,13 @@ function bdgIsDataLike(ws, r, C){
   var dt = bdgCellText(row.getCell(C.date)).trim();
   return dv instanceof Date || typeof dv==='number' || /^\d{1,2}\s*월\s*\d{1,2}\s*일?$/.test(dt) || (!!at && !/※/.test(dt));
 }
-function bdgRedRow(row, maxCol){
-  for (var c=1; c<=maxCol; c++){ var cell = row.getCell(c); cell.font = Object.assign({}, cell.font||{}, { color:{ argb:'FFFF0000' } }); }
+function bdgRedCell(cell){ cell.font = Object.assign({}, cell.font||{}, { color:{ argb:'FFFF0000' } }); }
+// 빨간 글씨: 날짜만 / 금액만 / 행 전체 (bdgRedOf)
+function bdgRedCells(row, x, C, lastCol){
+  var rd = bdgRedOf(x);
+  if (rd.all){ for (var c=1; c<=lastCol; c++) bdgRedCell(row.getCell(c)); return; }
+  if (rd.date) bdgRedCell(row.getCell(C.date));
+  if (rd.amt && C.amount) bdgRedCell(row.getCell(C.amount));
 }
 function bdgFillTemplate(wb, info, groups, coName, rows2, notes){
   rows2 = rows2 || [];
@@ -35142,7 +35154,7 @@ function bdgFillTemplate(wb, info, groups, coName, rows2, notes){
     if (C.dept) vals[C.dept] = x.dept; if (C.desc) vals[C.desc] = x.desc; if (C.note) vals[C.note] = x.note; if (C.owner) vals[C.owner] = x.owner;
     var row = bdgPutRow(ws, rr, cap, maxCol, vals);
     if (x.bank && C.vendor){ var vc = row.getCell(C.vendor); vc.alignment = Object.assign({}, vc.alignment||{}, { wrapText:true }); if (!row.height || row.height<28) row.height = 30; }
-    if (x.red) bdgRedRow(row, Math.max(C.owner||0, C.note||0, C.desc||0));
+    bdgRedCells(row, x, C, Math.max(C.owner||0, C.note||0, C.desc||0));
     rr++;
   };
   var putCopy = function(cap){
@@ -35247,18 +35259,18 @@ function bdgDefaultWb(groups, coName, rows2, notes, accounts){
   }
   function data(x){
     var row = ws.getRow(rr); row.height = 24.75;
-    var color = x.red ? { argb:'FFFF0000' } : undefined;
+    var rd = bdgRedOf(x), RED = { argb:'FFFF0000' };
     var vals = [new Date(Date.UTC(+x.date.slice(0,4), +x.date.slice(5,7)-1, +x.date.slice(8,10))), x.acct, x.tbd ? null : x.amount,
       (x.vendor||'')+(x.bank?'\n'+x.bank:''), null, x.dept||null, x.desc||null, x.note||null];
     for (var c=1; c<=8; c++){
       var cell = row.getCell(c);
       cell.value = vals[c-1]==='' ? null : vals[c-1];
-      cell.font = { name: c===8 ? 'Arial' : G, size:9, color:color };
+      cell.font = { name: c===8 ? 'Arial' : G, size:9, color: (rd.all || (c===1 && rd.date) || (c===3 && rd.amt)) ? RED : undefined };
       cell.alignment = AL[c];
       cell.border = { left: c===1 ? med : hair, right: c===8 ? med : hair, top:hair, bottom:hair };
     }
     row.getCell(1).numFmt = DATE; row.getCell(3).numFmt = NUM;
-    var o = row.getCell(9); o.value = x.owner || null; o.font = { name:K, size:9, color:color }; o.alignment = { vertical:'middle' };
+    var o = row.getCell(9); o.value = x.owner || null; o.font = { name:K, size:9, color: rd.all ? RED : undefined }; o.alignment = { vertical:'middle' };
     ws.mergeCells(rr, 4, rr, 5); rr++;
   }
   function sum(label, formula, val, isTotal){
@@ -35307,7 +35319,7 @@ function bdgBuildWeekFile(cid){
       .concat(bdgBuildRows(cid, wk).filter(function(x){ return !x.skip; }));
     var notes = bdgNotesFor(cid);
     var groups = bdgGroupDays(rows), r = bdgWeekRange();
-    var rows2 = bdgBuildRows(cid, wk2).filter(function(x){ return !x.skip; });
+    var rows2 = bdgMarkNext(bdgBuildRows(cid, wk2).filter(function(x){ return !x.skip; }));
     var t = new Date(), stamp = String(t.getFullYear()).slice(2)+bdgPad(t.getMonth()+1)+bdgPad(t.getDate());
     var ver = wk.status==='확정' ? wk.ver : (wk.ver||0)+1;
     var name = stamp+'_[차주지출]_'+bdgCoKey(coName)+'v'+ver+'.0('+bdgWeekName(r.s)+').xlsx';
