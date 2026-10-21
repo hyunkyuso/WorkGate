@@ -3174,36 +3174,7 @@ select.form-input{cursor:pointer}
         <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">
           <div style="font-weight:600;margin-bottom:4px">"일반" 역할 기본 메뉴</div>
           <div style="font-size:11px;color:var(--t3);margin-bottom:12px">직원관리에서 권한이 "일반"인 모든 직원이 기본으로 보는 메뉴입니다. 아래 개별 부여가 이 기본값 위에 얹혀서 적용됩니다. (관리자는 항상 전체 접근이라 설정 대상 아님)</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:16px">
-            <div>
-              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">인사</div>
-              <div class="pm-role-menu-group" data-group="hr"></div>
-            </div>
-            <div>
-              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">문서관리</div>
-              <div class="pm-role-menu-group" data-group="docs"></div>
-            </div>
-            <div>
-              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">총무</div>
-              <div class="pm-role-menu-group" data-group="affairs"></div>
-            </div>
-            <div>
-              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">경력관리</div>
-              <div class="pm-role-menu-group" data-group="career"></div>
-            </div>
-            <div>
-              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">영업지원</div>
-              <div class="pm-role-menu-group" data-group="sales"></div>
-            </div>
-            <div>
-              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">면허관리</div>
-              <div class="pm-role-menu-group" data-group="license"></div>
-            </div>
-            <div>
-              <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">시스템</div>
-              <div class="pm-role-menu-group" data-group="system"></div>
-            </div>
-          </div>
+          <div id="pm-role-menu-tree" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px"></div>
           <button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="pmRoleSaveDefaults()">이 역할 기본값 저장</button>
         </div>
 
@@ -3230,20 +3201,7 @@ select.form-input{cursor:pointer}
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
             <div style="font-weight:600;margin-bottom:4px">2. 메뉴별 접근 레벨 선택</div>
             <div style="font-size:11px;color:var(--t3);margin-bottom:12px">메뉴마다 없음/읽기전용/전체 권한을 따로 지정할 수 있습니다</div>
-            <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">인사</div>
-            <div class="pm-menu-group" data-group="hr" style="margin-bottom:10px"></div>
-            <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">문서관리</div>
-            <div class="pm-menu-group" data-group="docs" style="margin-bottom:10px"></div>
-            <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">총무</div>
-            <div class="pm-menu-group" data-group="affairs" style="margin-bottom:10px"></div>
-            <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">경력관리</div>
-            <div class="pm-menu-group" data-group="career" style="margin-bottom:10px"></div>
-            <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">영업지원</div>
-            <div class="pm-menu-group" data-group="sales" style="margin-bottom:10px"></div>
-            <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">면허관리</div>
-            <div class="pm-menu-group" data-group="license" style="margin-bottom:10px"></div>
-            <div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">시스템</div>
-            <div class="pm-menu-group" data-group="system"></div>
+            <div id="pm-menu-tree"></div>
             <button class="btn btn-primary btn-sm" style="margin-top:14px;width:100%" onclick="pmSaveGrants()">선택한 직원들에게 이 설정으로 저장 (덮어쓰기)</button>
           </div>
 
@@ -28602,22 +28560,52 @@ function pmRoleLoadDefaults() {
   });
 }
 
-function pmRoleRenderMenuTree() {
-  ['hr','docs','affairs','career','sales','license','system'].forEach(function(group) {
-    var el = document.querySelector('.pm-role-menu-group[data-group="'+group+'"]');
-    if (!el) return;
-    el.innerHTML = PM_MENU_LIST[group].map(function(m) {
-      var level = _pmRoleMenuLevels[m.id] || 'none';
-      return '<div style="padding:5px 4px;display:flex;align-items:center;justify-content:space-between;gap:8px">' +
-        '<span style="font-size:13px">'+m.label+'</span>' +
-        '<select onchange="pmRoleSetMenuLevel(\''+m.id+'\',this.value)" style="font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--border)">' +
-          '<option value="none"'+(level==='none'?' selected':'')+'>없음</option>' +
-          '<option value="readonly"'+(level==='readonly'?' selected':'')+'>읽기 전용</option>' +
-          '<option value="full"'+(level==='full'?' selected':'')+'>전체 권한</option>' +
-        '</select>' +
-      '</div>';
-    }).join('');
+// 권한관리 메뉴 목록은 사이드바를 그대로 읽어서 그린다 (순서·묶음이 항상 사이드바와 같음).
+// 새 메뉴를 사이드바에 admin-only로 추가하면 여기에도 자동으로 나온다.
+var PM_SIDEBAR_SKIP = { 'permission-manage':1, 'companymanage':1 };  // 진짜 관리자만 쓰는 메뉴
+function pmSidebarTree() {
+  var known = {};
+  Object.keys(PM_MENU_LIST).forEach(function(g){ PM_MENU_LIST[g].forEach(function(m){ known[m.id] = m.label; }); });
+  var out = [], seen = {};
+  document.querySelectorAll('.sidebar > .sidebar-section').forEach(function(sec) {
+    var lab = sec.querySelector(':scope > .sidebar-section-label span');
+    var title = lab ? lab.textContent.trim() : '';
+    var items = [];
+    sec.querySelectorAll('.nav-item').forEach(function(el) {
+      var id = el.getAttribute('data-menu-id');
+      if (!id) { var m = /showPage\('([^']+)'/.exec(el.getAttribute('onclick') || ''); if (m) id = m[1]; }
+      if (!id || seen[id] || PM_SIDEBAR_SKIP[id]) return;
+      if (!known[id] && !el.classList.contains('admin-only')) return;   // 전 직원 메뉴(업무보드·마이페이지 등)는 제외
+      var t = el.cloneNode(true); t.querySelectorAll('.nav-icon,.nav-badge').forEach(function(x){ x.remove(); });
+      seen[id] = 1;
+      items.push({ id:id, label:t.textContent.trim() || known[id] || id, sub:/padding-left:\s*32px/.test(el.getAttribute('style') || '') });
+    });
+    if (items.length) out.push({ title:title || '기타', items:items });
   });
+  // 사이드바에 없지만 예전부터 권한 목록에 있던 메뉴
+  var rest = [];
+  Object.keys(known).forEach(function(id){ if (!seen[id] && !PM_SIDEBAR_SKIP[id]) rest.push({ id:id, label:known[id] }); });
+  if (rest.length) out.push({ title:'기타', items:rest });
+  return out;
+}
+function pmTreeHtml(levels, setFn) {
+  return pmSidebarTree().map(function(sec) {
+    return '<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:600;color:var(--t3);margin-bottom:6px">'+sec.title+'</div>' +
+      sec.items.map(function(m) {
+        var level = levels[m.id] || 'none';
+        return '<div style="padding:5px 4px'+(m.sub?' 5px 18px':'')+';display:flex;align-items:center;justify-content:space-between;gap:8px">' +
+          '<span style="font-size:13px">'+(m.sub?'└ ':'')+m.label+'</span>' +
+          '<select onchange="'+setFn+'(\''+m.id+'\',this.value)" style="font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--border)">' +
+            '<option value="none"'+(level==='none'?' selected':'')+'>없음</option>' +
+            '<option value="readonly"'+(level==='readonly'?' selected':'')+'>읽기 전용</option>' +
+            '<option value="full"'+(level==='full'?' selected':'')+'>전체 권한</option>' +
+          '</select></div>';
+      }).join('') + '</div>';
+  }).join('');
+}
+function pmRoleRenderMenuTree() {
+  var el = document.getElementById('pm-role-menu-tree');
+  if (el) el.innerHTML = pmTreeHtml(_pmRoleMenuLevels, 'pmRoleSetMenuLevel');
 }
 
 function pmRoleSetMenuLevel(menuId, level) {
@@ -28743,6 +28731,8 @@ function pmMenuLabel(menuId) {
   if (!PM_ALL_MENU_MAP) {
     PM_ALL_MENU_MAP = {};
     Object.keys(PM_MENU_LIST).forEach(function(g){ PM_MENU_LIST[g].forEach(function(m){ PM_ALL_MENU_MAP[m.id] = m.label; }); });
+    // 사이드바 이름(섹션 · 메뉴)이 있으면 그걸로 — 권한 목록과 같은 이름
+    try { pmSidebarTree().forEach(function(sec){ sec.items.forEach(function(m){ PM_ALL_MENU_MAP[m.id] = (sec.title && sec.title!=='기타' ? sec.title+' · ' : '') + m.label; }); }); } catch(e) {}
   }
   return PM_ALL_MENU_MAP[menuId] || menuId;
 }
@@ -28850,21 +28840,8 @@ function pmSyncLevelsWithSelection() {
 }
 
 function pmRenderMenuTree() {
-  ['hr','docs','affairs','career','sales','license','system'].forEach(function(group) {
-    var el = document.querySelector('.pm-menu-group[data-group="'+group+'"]');
-    if (!el) return;
-    el.innerHTML = PM_MENU_LIST[group].map(function(m) {
-      var level = _pmMenuLevels[m.id] || 'none';
-      return '<div style="padding:5px 4px;display:flex;align-items:center;justify-content:space-between;gap:8px">' +
-        '<span style="font-size:13px">'+m.label+'</span>' +
-        '<select onchange="pmSetMenuLevel(\''+m.id+'\',this.value)" style="font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--border)">' +
-          '<option value="none"'+(level==='none'?' selected':'')+'>없음</option>' +
-          '<option value="readonly"'+(level==='readonly'?' selected':'')+'>읽기 전용</option>' +
-          '<option value="full"'+(level==='full'?' selected':'')+'>전체 권한</option>' +
-        '</select>' +
-      '</div>';
-    }).join('');
-  });
+  var el = document.getElementById('pm-menu-tree');
+  if (el) el.innerHTML = pmTreeHtml(_pmMenuLevels, 'pmSetMenuLevel');
 }
 
 function pmSetMenuLevel(menuId, level) {
