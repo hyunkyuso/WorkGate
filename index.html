@@ -7256,7 +7256,10 @@ function printOrgChart() {
   if (!inner) { showToast('❌ 조직도 없음'); return; }
 
   const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
-  const totalActive = employees.filter(e=>e.status!=='퇴직').length;
+  // 지금 보고 있는 회사 직원만 센다 (정도유아이티·인데이터 합산 방지)
+  const coEmps = (typeof wgCompanyEmployees==='function') ? wgCompanyEmployees() : employees;
+  const totalActive = coEmps.filter(e=>e.status!=='퇴직').length;
+  const coName = (typeof wgCompanyName==='function' && typeof wgCurrentViewCompanyId==='function') ? wgCompanyName(wgCurrentViewCompanyId()) : '';
 
   // 실제 크기
   // 실제 노드들의 범위로 정확한 크기 계산
@@ -7307,7 +7310,7 @@ function printOrgChart() {
     'html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}' +
     '</style></head><body>' +
     '<div class="hdr">' +
-    '<div><div class="t">조직도</div><div class="m">기준일자: '+today+'</div></div>' +
+    '<div><div class="t">조직도'+(coName?' · '+coName:'')+'</div><div class="m">기준일자: '+today+'</div></div>' +
     '<div class="r">전체 <strong>'+totalActive+'</strong>명</div></div>' +
     '<div class="chart-box"><div class="chart-scale">' +
     inner.innerHTML +
