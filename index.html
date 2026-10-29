@@ -32298,6 +32298,7 @@ function rcOpenApplicant(id){
       + rcStageList().map(function(s){ return '<option'+(s===a.stage?' selected':'')+'>'+s+'</option>'; }).join('') + '</select>';
   }
   h += '</div>';
+  h += rcAttachSection(a, rcCanEditPosting(p));
 
   if (ev){
     var snap = ev.rubricSnapshot||{};
@@ -33002,7 +33003,7 @@ var RC_AI_MODEL = 'claude-sonnet-4-6';
 var RC_AI_PRICE = { in: 3.0, out: 15.0 };
 var RC_USD = 1380;
 
-function rcAiPrompt(rb, parsed, text){
+function rcAiPrompt(rb, parsed, text, attText){
   var lines = [];
   lines.push('당신은 채용 서류심사를 돕는 조수입니다. 아래 심사표 기준으로 지원자를 채점하세요.');
   lines.push('');
@@ -33022,6 +33023,12 @@ function rcAiPrompt(rb, parsed, text){
   lines.push('[이력서 원문]');
   lines.push(text.slice(0, 12000));
   lines.push('');
+  if (attText) {
+    lines.push('[첨부 서류 — 포트폴리오·경력증명서 등]');
+    lines.push(attText);
+    lines.push('첨부 서류도 이력서와 같은 근거로 쓰되, evidence에 인용할 때는 앞에 [포트폴리오]처럼 출처를 붙이세요.');
+    lines.push('');
+  }
   lines.push('[지시]');
   lines.push('1. 각 항목 키에 0 이상 배점 이하의 정수 점수를 매기세요.');
   lines.push('2. 근거는 이력서에 실제로 적힌 내용만 사용하고, 없는 내용을 지어내지 마세요.');
@@ -33083,10 +33090,11 @@ function rcResumeText(a){
 
 /* 한 명 채점 */
 function rcAiScoreOne(a, rb){
-  return rcResumeText(a).then(function(text){
+  var attText = '';
+  return rcAttachTexts(a).then(function(t){ attText = t; return rcResumeText(a); }).then(function(text){
     if (!text || text.length < 100) throw new Error('이력서 텍스트를 읽지 못했습니다');
     var parsed = rcParseResume(text, a.resumeName||a.name);
-    return rcAiCall(rcAiPrompt(rb, parsed, text)).then(function(r){
+    return rcAiCall(rcAiPrompt(rb, parsed, text, attText)).then(function(r){
       var sc = r.json.scores || {};
       var items = {}, groupScores = {}, total = 0;
       rb.groups.forEach(function(g){
@@ -33207,7 +33215,7 @@ function rcDeleteApplicantIds(ids, cb){
             if (e && e.code !== 'storage/object-not-found') throw e;
           })
         : Promise.resolve();
-      return delFile.then(function(){
+      return delFile.then(function(){ return rcPurgeAttachments(a); }).then(function(){
         return db.collection('recruitEvaluations').where('applicantId','==',aid).get();
       }).then(function(s){
         return Promise.all(s.docs.map(function(d){ return d.ref.delete(); }));
@@ -33286,16 +33294,136 @@ function rcRenderDispose(){
     + '<table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>'
     + (done.map(function(a){return row(a,false);}).join('') || '<tr><td style="padding:20px;color:var(--t3)">없음</td></tr>') + '</tbody></table>';
 }
+
+/* ---------- 첨부 서류 (포트폴리오·경력증명서·자격증 등) ----------
+   파일: Storage recruit/{공고}/{지원자}/{시각}_att_{이름}  (이력서와 같은 폴더 → 같은 규칙·같이 파기)
+   글자: recruitResumeTexts/{지원자}__{첨부id} (PDF·HTM·TXT만 읽음) → AI 서류 채점에 함께 보냄 */
+var RC_ATT_KINDS = ['포트폴리오','경력증명서','자격증 사본','기타'];
+function rcAttachSection(a, editable){
+  var list = a.attachments || [];
+  var h = '<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><b style="font-size:14px">첨부 서류</b>'
+    + '<span style="font-size:12px;color:var(--t3)">포트폴리오 등. PDF·HTM·TXT는 글자를 읽어 AI 서류 채점에 함께 반영합니다.</span>';
+  if (editable) h += '<span style="margin-left:auto;display:flex;gap:6px;align-items:center">'
+    + '<select id="rc-att-kind" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px">'+RC_ATT_KINDS.map(function(k){ return '<option>'+k+'</option>'; }).join('')+'</select>'
+    + '<label class="btn btn-ghost btn-sm" style="cursor:pointer">📎 파일 첨부<input type="file" multiple style="display:none" onchange="rcAttachFiles(\''+a.id+'\', this.files, (document.getElementById(\'rc-att-kind\')||{}).value);this.value=\'\'"></label></span>';
+  h += '</div>';
+  if (!list.length) h += '<div style="font-size:12px;color:var(--t3)">첨부된 서류가 없습니다.</div>';
+  list.forEach(function(f){
+    h += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #f0f1f4;font-size:13px;flex-wrap:wrap">'
+      + '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;background:'+(f.kind==='포트폴리오'?'#eef1fe;color:#2a43c0':'#f0f1f4;color:#4a4f5e')+'">'+rcEsc(f.kind||'기타')+'</span>'
+      + '<a href="#" onclick="rcOpenAttach(\''+a.id+'\',\''+f.id+'\');return false" style="min-width:0;word-break:break-all">'+rcEsc(f.name)+'</a>'
+      + '<span style="font-size:11px;color:var(--t3)">'+(f.size?Math.max(1,Math.round(f.size/1024))+'KB':'')+'</span>'
+      + '<span style="font-size:11px;'+(f.hasText?'color:#1d6b45':'color:var(--t3)')+'">'+(f.hasText?'AI 채점 반영':'글자 없음 · 열람용')+'</span>'
+      + (editable ? '<button class="btn btn-ghost btn-sm" style="margin-left:auto;padding:3px 8px;color:#dc2626" onclick="rcDeleteAttach(\''+a.id+'\',\''+f.id+'\')">삭제</button>' : '')
+      + '</div>';
+  });
+  return h + '</div>';
+}
+function rcFileText(file){
+  var n = file.name.toLowerCase();
+  if (!/\.(pdf|htm|html|txt)$/.test(n)) return Promise.resolve('');
+  return rcBufOf(file).then(function(b){
+    if (/\.pdf$/.test(n)) return rcPdfText(b.slice(0));
+    if (/\.txt$/.test(n)) return new TextDecoder('utf-8').decode(new Uint8Array(b));
+    return rcHtmText(b);
+  }).catch(function(){ return ''; });
+}
+function rcAttachFiles(aid, files, kind){
+  files = Array.prototype.slice.call(files||[]);
+  if (!files.length) return;
+  var a = rcState.applicants.find(function(x){ return x.id===aid; });
+  var p = rcCurPosting();
+  if (!rcCanEditPosting(p)) { showToast('❌ 권한이 없습니다'); return; }
+  var big = files.filter(function(f){ return f.size > 50*1024*1024; });
+  if (big.length) { showToast('❌ 50MB 넘는 파일은 올릴 수 없습니다: '+big[0].name); return; }
+  var added = [];
+  showToast('⏳ '+files.length+'개 올리는 중...');
+  files.reduce(function(ch, file){
+    return ch.then(function(){
+      var id = Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+      var safe = file.name.replace(/[^\w.\-가-힣]/g,'_');
+      var ref = firebase.storage().ref('recruit/'+p.id+'/'+aid+'/'+Date.now()+'_att_'+safe);
+      var inline = /\.(pdf|png|jpe?g|gif|webp)$/i.test(file.name);
+      return ref.put(file, { contentType: file.type || 'application/octet-stream', contentDisposition: (inline?'inline':'attachment')+'; filename="'+safe+'"' })
+        .then(function(){ return ref.getDownloadURL(); })
+        .then(function(url){
+          return rcFileText(file).then(function(tx){
+            var has = !!(tx && tx.replace(/\s/g,'').length > 80);
+            var w = has ? db.collection('recruitResumeTexts').doc(aid+'__'+id).set({ postingId:p.id, applicantId:aid, attachId:id, fileName:file.name, kind:kind||'기타', text:tx.slice(0,40000), createdAt:rcToday() }).catch(function(){ has = false; }) : Promise.resolve();
+            return w.then(function(){ added.push({ id:id, name:file.name, kind:kind||'기타', path:ref.fullPath, url:url, size:file.size, type:file.type||'', hasText:has, at:rcToday(), by:rcMe() }); });
+          });
+        });
+    });
+  }, Promise.resolve()).then(function(){
+    var list = (a.attachments||[]).concat(added);
+    return db.collection('recruitApplicants').doc(aid).update({
+      attachments:list,
+      log:(a.log||[]).concat([{ t:rcToday(), m:(kind||'첨부')+' '+added.length+'개 첨부: '+added.map(function(f){ return f.name; }).join(', '), by:rcMe() }])
+    });
+  }).then(function(){
+    var withText = added.filter(function(f){ return f.hasText; }).length;
+    showToast('✅ '+added.length+'개 첨부'+(withText?' · '+withText+'개는 AI 채점에 반영 (다시 채점하면 적용)':''));
+    rcLoadApplicants(rcState.postingId).then(function(){ rcRenderAll(); rcOpenApplicant(aid); });
+  }).catch(function(e){ showToast('❌ 첨부 실패: '+e.message); });
+}
+function rcOpenAttach(aid, attId){
+  var a = rcState.applicants.find(function(x){ return x.id===aid; });
+  var f = ((a&&a.attachments)||[]).find(function(x){ return x.id===attId; });
+  if (f && f.url) window.open(f.url, '_blank');
+}
+function rcDeleteAttach(aid, attId){
+  var a = rcState.applicants.find(function(x){ return x.id===aid; });
+  var f = ((a&&a.attachments)||[]).find(function(x){ return x.id===attId; });
+  if (!f || !confirm('"'+f.name+'"을 삭제할까요? 파일도 지워집니다.')) return;
+  firebase.storage().ref(f.path).delete().catch(function(){}).then(function(){
+    return db.collection('recruitResumeTexts').doc(aid+'__'+attId).delete().catch(function(){});
+  }).then(function(){
+    return db.collection('recruitApplicants').doc(aid).update({
+      attachments:(a.attachments||[]).filter(function(x){ return x.id!==attId; }),
+      log:(a.log||[]).concat([{ t:rcToday(), m:'첨부 삭제: '+f.name, by:rcMe() }])
+    });
+  }).then(function(){ showToast('🗑 삭제했습니다'); rcLoadApplicants(rcState.postingId).then(function(){ rcRenderAll(); rcOpenApplicant(aid); }); })
+    .catch(function(e){ showToast('❌ 삭제 실패: '+e.message); });
+}
+// 첨부 파일·글자 모두 지우기 (파기·지원자 삭제 때)
+function rcPurgeAttachments(a){
+  var list = a.attachments || [];
+  return Promise.all(list.map(function(f){
+    return firebase.storage().ref(f.path).delete().catch(function(){}).then(function(){
+      return db.collection('recruitResumeTexts').doc(a.id+'__'+f.id).delete().catch(function(){});
+    });
+  }));
+}
+// AI 채점용: 글자를 읽은 첨부 서류 합치기 (최대 15,000자)
+function rcAttachTexts(a){
+  var list = (a.attachments||[]).filter(function(f){ return f.hasText; });
+  var noText = (a.attachments||[]).filter(function(f){ return !f.hasText; });
+  return Promise.all(list.map(function(f){
+    return db.collection('recruitResumeTexts').doc(a.id+'__'+f.id).get().then(function(s){ return s.exists ? { f:f, text:s.data().text||'' } : null; }).catch(function(){ return null; });
+  })).then(function(rs){
+    var out = '', room = 15000;
+    rs.filter(Boolean).forEach(function(r){
+      if (room <= 0) return;
+      var t = r.text.slice(0, Math.max(0, Math.min(room, 8000)));
+      out += '\n--- ['+(r.f.kind||'첨부')+'] '+r.f.name+' ---\n'+t+'\n'; room -= t.length;
+    });
+    if (noText.length) out += '\n(글자를 읽을 수 없는 첨부 '+noText.length+'개: '+noText.map(function(f){ return '['+(f.kind||'첨부')+'] '+f.name; }).join(', ')+' — 내용 확인 불가, 면접 확인사항에 적을 것)\n';
+    return out;
+  });
+}
+
 function rcDispose(aid){
   var a = rcState.applicants.find(function(x){return x.id===aid;});
   if (!a) return;
-  if (!confirm(a.name+' 님의 이력서 원본과 개인정보(연락처·이메일·생년)를 파기합니다.\n되돌릴 수 없습니다. 진행할까요?')) return;
+  if (!confirm(a.name+' 님의 이력서 원본·첨부 서류와 개인정보(연락처·이메일·생년)를 파기합니다.\n되돌릴 수 없습니다. 진행할까요?')) return;
   var del = a.resumePath ? firebase.storage().ref(a.resumePath).delete().catch(function(){}) : Promise.resolve();
-  del.then(function(){ return db.collection('recruitResumeTexts').doc(aid).delete().catch(function(){}); }).then(function(){
+  del.then(function(){ return rcPurgeAttachments(a); }).then(function(){ return db.collection('recruitResumeTexts').doc(aid).delete().catch(function(){}); }).then(function(){
     return db.collection('recruitApplicants').doc(aid).update({
       phone:firebase.firestore.FieldValue.delete(), email:firebase.firestore.FieldValue.delete(),
       birthYear:firebase.firestore.FieldValue.delete(), age:firebase.firestore.FieldValue.delete(),
       resumeUrl:firebase.firestore.FieldValue.delete(), resumePath:firebase.firestore.FieldValue.delete(),
+      attachments:firebase.firestore.FieldValue.delete(),
       disposed:'Y', disposedDate:rcToday(),
       log:(a.log||[]).concat([{t:rcToday(), m:'개인정보 파기', by:rcMe()}])
     });
