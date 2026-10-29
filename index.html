@@ -948,11 +948,12 @@ select.form-input{cursor:pointer}
       <h2 style="font-size:20px;font-weight:700">심사표설정</h2>
       <select id="rc-rubric-select" onchange="rcSelectRubric(this.value)" style="margin-left:12px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;min-width:260px"></select>
       <div style="margin-left:auto;display:flex;gap:8px">
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer" title="workgate_서류심사표_v3.json 같은 심사표 파일을 불러옵니다">📂 심사표 가져오기<input type="file" accept=".json" style="display:none" onchange="rcImportRubricFile(this.files[0]);this.value=''"></label>
         <button class="btn btn-ghost btn-sm" onclick="rcNewRubric()">+ 새 심사표</button>
         <button class="btn btn-ghost btn-sm" onclick="rcSaveRubricAsNewVersion()" style="background:var(--ac);color:#fff;border:none">새 버전으로 저장</button>
       </div>
     </div>
-    <div style="font-size:12px;color:var(--t3);margin-bottom:16px">대항목 6개와 합계 100점은 고정입니다. 세부 항목·배점·판단 기준·합격선만 조정할 수 있습니다. 저장하면 새 버전이 생기고, 이미 채점된 지원자의 점수는 채점 당시 버전 그대로 유지됩니다.</div>
+    <div style="font-size:12px;color:var(--t3);margin-bottom:16px">대항목 6개와 합계 100점은 고정입니다. 세부 항목·배점·판단 기준·근거 없을 때 점수·기준 출처·합격선을 조정할 수 있습니다. 저장하면 새 버전이 생기고, 이미 채점된 지원자의 점수는 채점 당시 버전 그대로 유지됩니다.</div>
     <div id="rc-rubric-editor"></div>
   </div>
 </div>
@@ -32074,7 +32075,8 @@ function rcLoadApplicants(postingId){
     rcState.evals = {};
     r[1].docs.forEach(function(d){
       var e = Object.assign({id:d.id}, d.data());
-      if (e.type==='서류') rcState.evals[e.applicantId] = e;
+      // 서류 평가가 여러 건이면 가장 최근 것 (예전 문서는 ts가 없어 0으로 봄)
+      if (e.type==='서류') { var cur = rcState.evals[e.applicantId]; if (!cur || (e.ts||0) >= (cur.ts||0)) rcState.evals[e.applicantId] = e; }
     });
     rcState.applicants.sort(function(a,b){
       var sa = (a.docScore!=null&&a.docScore!=='') ? rcNum(a.docScore) : -1;
@@ -32309,6 +32311,7 @@ function rcOpenApplicant(id){
       + '<div style="font-size:13px;line-height:1.7"><div style="margin-bottom:8px"><span style="color:var(--t3)">경력 범위 판단</span><br>'+rcEsc(ev.careerRangeNote||'-')+'</div>'
       + '<div style="margin-bottom:8px"><span style="color:var(--t3)">핵심 근거</span><br>'+rcEsc(ev.summary||'-')+'</div>'
       + '<div><span style="color:var(--t3)">면접 전 확인사항</span><br>'+rcEsc(ev.checkBeforeInterview||'-')+'</div></div>'
+      + rcEvalItemList(ev)
       + (ev.autoPartial ? '<div style="margin-top:10px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px">이 초안은 <b>계산으로 확인되는 항목만</b> 채운 것입니다. 직무 관련 경험·핵심 근거·경력 범위 판단은 아래 <b>AI로 채점</b>을 누르거나 직접 입력하세요.</div>' : '')
       + (ev.status==='draft' && editable ? '<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="rcConfirmEval(\''+ev.id+'\')">이 평가 확정</button></div>' : '')
       + '</div>';
@@ -32332,6 +32335,23 @@ function rcOpenApplicant(id){
 
   rcShowModal(a.name + ' — ' + (a.stage||''), h);
 }
+// 지원자 상세: 항목별 점수 · AI 점수 · 근거 · 담당자 메모
+function rcEvalItemList(ev){
+  var rb = rcState.rubrics.find(function(r){ return r.id===ev.rubricId; });
+  if (!rb || !ev.itemScores) return '';
+  var ai = ev.aiItemScores||{}, evd = ev.aiEvidence||{}, memo = ev.itemMemos||{}, nChg = (ev.changedFromAi||[]).length;
+  var rows = [];
+  rb.groups.forEach(function(g){ g.items.forEach(function(it){
+    var v = ev.itemScores[it.key], a = ai[it.key], e = evd[it.key]||'', m = memo[it.key]||'';
+    var chg = a!=null && a!==v;
+    rows.push('<tr style="border-top:1px solid #f0f1f4"><td style="padding:6px 6px;white-space:nowrap"><b>'+rcEsc(it.key)+'</b> '+rcEsc(it.label)+'</td>'
+      + '<td style="padding:6px;text-align:right;white-space:nowrap;font-weight:700'+(chg?';color:#b45309':'')+'">'+(v==null?'-':v)+' / '+it.max+'</td>'
+      + '<td style="padding:6px;text-align:right;white-space:nowrap;color:#3a57e8">'+(a==null?'':'AI '+a)+'</td>'
+      + '<td style="padding:6px;font-size:12px;'+(/^근거\s*없음/.test(e)?'color:#a12626':'color:var(--t2)')+'">'+rcEsc(e)+(m?'<div style="color:#1a1d2e">📝 '+rcEsc(m)+'</div>':'')+'</td></tr>');
+  }); });
+  return '<details style="margin-top:12px"'+(nChg?' open':'')+'><summary style="cursor:pointer;font-size:13px;font-weight:700">항목별 점수 · 근거'+(nChg?' <span style="font-weight:400;color:#b45309">(AI와 다른 항목 '+nChg+'개)</span>':'')+'</summary>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px">'+rows.join('')+'</table></details>';
+}
 function rcConfirmEval(evId){
   db.collection('recruitEvaluations').doc(evId).update({status:'confirmed', confirmedBy:rcMe(), confirmedAt:rcToday()})
     .then(function(){ showToast('✅ 평가를 확정했습니다'); rcLoadApplicants(rcState.postingId).then(function(){ rcCloseModal(); rcRenderAll(); }); });
@@ -32347,11 +32367,23 @@ function rcOpenScoreForm(aid){
   rb.groups.forEach(function(g){
     h += '<div style="font-weight:700;font-size:13px;margin:14px 0 6px">'+g.key+'. '+rcEsc(g.label)+' ('+g.max+')</div>';
     g.items.forEach(function(it){
-      h += '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px">'
-        + '<div style="flex:1"><div style="font-size:13px">'+rcEsc(it.label)+' <span style="color:var(--t3)">/'+it.max+'</span></div>'
-        + '<div style="font-size:11px;color:var(--t3)">'+rcEsc((it.criteria||'').slice(0,120))+'</div></div>'
-        + '<input type="number" id="rcsc-'+it.key+'" min="0" max="'+it.max+'" value="'+(((prev.itemScores||{})[it.key])||0)+'" style="width:64px;padding:5px;border:1px solid var(--border);border-radius:6px">'
-        + '<input type="text" id="rcmemo-'+it.key+'" placeholder="근거 메모" style="flex:1;padding:5px;border:1px solid var(--border);border-radius:6px;font-size:12px"></div>';
+      var ai = (prev.aiItemScores||{})[it.key], ev = (prev.aiEvidence||{})[it.key] || '';
+      var cur = ((prev.itemScores||{})[it.key])||0, memo = (prev.itemMemos||{})[it.key] || '';
+      var noEv = /^근거\s*없음/.test(ev);
+      h += '<div style="border-top:1px solid #f0f1f4;padding:8px 0">'
+        + '<div style="display:flex;gap:10px;align-items:flex-start">'
+        + '<div style="flex:1;min-width:0"><div style="font-size:13px"><b>'+rcEsc(it.key)+'</b> '+rcEsc(it.label)+' <span style="color:var(--t3)">/'+it.max+'</span>'
+        + (it.noneScore!=null && it.noneScore!=='' ? ' <span style="font-size:11px;color:#8a4300">· 근거 없으면 '+it.noneScore+'점</span>' : '') + '</div>'
+        + '<div style="font-size:11px;color:var(--t3)">'+rcEsc((it.criteria||'').slice(0,160))+'</div>'
+        + ((it.look||[]).length ? '<div style="font-size:11px;color:var(--t3)">서류에서 볼 곳: '+rcEsc(it.look.join(', '))+'</div>' : '')
+        + ((it.refs||[]).length ? '<div style="margin-top:3px">'+it.refs.map(function(rf, ri){ return '<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px;margin:0 4px 2px 0;background:#fff7ec;border-color:#f3dcbc;color:#8a4300" onclick="rcShowRefOf(\''+rb.id+'\',\''+it.key+'\','+ri+')">'+rcEsc(rf.t||'기준 출처')+'</button>'; }).join('')+'</div>' : '')
+        + '</div>'
+        + (ai!=null ? '<div style="text-align:center;min-width:52px"><div style="font-size:10px;color:var(--t3)">AI</div><div style="font-size:15px;font-weight:700;color:#3a57e8">'+ai+'</div></div>' : '')
+        + '<div style="text-align:center"><div style="font-size:10px;color:var(--t3)">담당자</div><input type="number" id="rcsc-'+it.key+'" min="0" max="'+it.max+'" value="'+cur+'" data-ai="'+(ai==null?'':ai)+'" oninput="rcScoreMark(this)" style="width:64px;padding:5px;border:1px solid var(--border);border-radius:6px'+(ai!=null && ai!==cur?';background:#fff3d6':'')+'"></div>'
+        + '</div>'
+        + (ev ? '<div style="margin:6px 0 0;padding:6px 8px;border-radius:6px;font-size:12px;'+(noEv?'background:#fbe4e4;color:#a12626':'background:#f4f6fb;color:#3d4252')+'"><b style="font-size:11px">AI 근거</b> '+rcEsc(ev)+'</div>' : '')
+        + '<input type="text" id="rcmemo-'+it.key+'" value="'+rcEsc(memo)+'" placeholder="담당자 메모 (점수를 고친 이유 등)" style="width:100%;box-sizing:border-box;margin-top:6px;padding:5px;border:1px solid var(--border);border-radius:6px;font-size:12px">'
+        + '</div>';
     });
   });
   h += '<div style="margin-top:14px"><textarea id="rc-sum" placeholder="핵심 근거" style="width:100%;height:90px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px">'+rcEsc(prev.summary||'')+'</textarea>'
@@ -32360,6 +32392,10 @@ function rcOpenScoreForm(aid){
     + '<div style="margin-top:14px;display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="rcSaveScore(\''+aid+'\',\''+rb.id+'\')" style="background:var(--ac);color:#fff;border:none">저장</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="rcOpenApplicant(\''+aid+'\')">취소</button></div>';
   rcShowModal(a.name+' 서류 채점', h);
+}
+function rcScoreMark(el){
+  var ai = el.getAttribute('data-ai');
+  el.style.background = (ai!=='' && String(rcNum(el.value))!==ai) ? '#fff3d6' : '';
 }
 function rcSaveScore(aid, rubricId){
   var rb = rcState.rubrics.find(function(r){return r.id===rubricId;});
@@ -32373,7 +32409,14 @@ function rcSaveScore(aid, rubricId){
     groupScores[g.key] = gs; total += gs;
   });
   var verdict = total>=rb.passScore ? '면접 진행' : (total>=rb.holdScore ? '보류' : '서류 불합격');
+  var prevEv = rcState.evals[aid] || {}, memos = {}, changed = [];
+  rb.groups.forEach(function(g){ g.items.forEach(function(it){
+    var m = ((document.getElementById('rcmemo-'+it.key)||{}).value||'').trim(); if (m) memos[it.key] = m;
+    var ai = (prevEv.aiItemScores||{})[it.key];
+    if (ai!=null && ai!==items[it.key]) changed.push({ key:it.key, ai:ai, to:items[it.key] });
+  }); });
   var ev = {
+    itemMemos:memos, aiItemScores:prevEv.aiItemScores||null, aiEvidence:prevEv.aiEvidence||null, changedFromAi:changed, ts:Date.now(),
     applicantId:aid, postingId:rcState.postingId, type:'서류', evaluatedAt:rcToday(), evaluator:rcMe(),
     rubricId:rb.id, rubricVersion:rb.version,
     rubricSnapshot:{passScore:rb.passScore, holdScore:rb.holdScore, items:snapItems},
@@ -32917,7 +32960,7 @@ function rcUploadResumes(files){
             careerRangeNote:(r.parsed.totalExpYears==null?'총경력 미확인':'총경력 '+r.parsed.totalExpYears+'년'),
             summary:'계산으로 확인되는 항목만 채운 초안입니다. 직무경험·문서작성·태도·회사적합성은 직접 입력하세요.',
             checkBeforeInterview:sc.notes.join(' / '),
-            status:'draft', autoPartial:true, autoMax:sc.autoMax, autoKeys:sc.autoKeys
+            status:'draft', autoPartial:true, autoMax:sc.autoMax, autoKeys:sc.autoKeys, ts: Date.now()
           }).then(function(){ return r; });
           });
         }).then(function(r){
@@ -32970,7 +33013,9 @@ function rcAiPrompt(rb, parsed, text){
   rb.groups.forEach(function(g){
     lines.push('◆ ' + g.key + '. ' + g.label + ' (' + g.max + '점)');
     g.items.forEach(function(it){
-      lines.push('  - ' + it.key + ' | ' + it.label + ' | 배점 ' + it.max + ' | 판단 기준: ' + (it.criteria||'없음'));
+      lines.push('  - ' + it.key + ' | ' + it.label + ' | 배점 ' + it.max + ' | 판단 기준: ' + (it.criteria||'없음')
+        + ((it.look||[]).length ? ' | 서류에서 볼 곳: ' + it.look.join(', ') : '')
+        + (it.noneScore!=null && it.noneScore!=='' ? ' | 서류에 근거가 없으면 ' + it.noneScore + '점' : ''));
     });
   });
   lines.push('');
@@ -32984,16 +33029,17 @@ function rcAiPrompt(rb, parsed, text){
   lines.push('4. summary에는 어떤 경험이 공고 담당업무와 겹치는지 구체적 회사명·업무명을 들어 3~5문장으로 쓰세요.');
   lines.push('5. check에는 면접에서 확인해야 할 점(공백기, 처우 격차, 잦은 이직, 미기재 항목 등)을 적으세요. 없으면 빈 문자열.');
   lines.push('6. range에는 목표 경력 범위와 견준 판단을 한 문장으로 쓰세요.');
+  lines.push('7. evidence에는 항목키마다 그 점수를 준 근거를 이력서 원문에서 60자 이내로 그대로 인용하세요. 근거가 없으면 정확히 "근거 없음"이라고 쓰고, 그 항목은 \'근거가 없으면\' 점수(지정된 경우)를 주며 check에도 적으세요.');
   lines.push('');
   lines.push('아래 JSON만 출력하세요. 설명·마크다운·코드블록 금지.');
-  lines.push('{"scores":{"항목키":숫자,...},"range":"...","summary":"...","check":"..."}');
+  lines.push('{"scores":{"항목키":숫자,...},"evidence":{"항목키":"인용 또는 근거 없음",...},"range":"...","summary":"...","check":"..."}');
   return lines.join('\n');
 }
 
 function rcAiCall(promptText){
   return fetch(RC_AI_URL, {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ model: RC_AI_MODEL, max_tokens: 1500, messages:[{role:'user', content: promptText}] })
+    body: JSON.stringify({ model: RC_AI_MODEL, max_tokens: 3000, messages:[{role:'user', content: promptText}] })
   }).then(function(res){
     return res.json().then(function(data){
       if (!res.ok || data.error) throw new Error((data.error && (data.error.message||JSON.stringify(data.error))) || ('HTTP '+res.status));
@@ -33063,7 +33109,8 @@ function rcAiScoreOne(a, rb){
             items:[].concat.apply([], rb.groups.map(function(g){ return g.items.map(function(it){ return {key:it.key, max:it.max}; }); }))},
           itemScores:items, groupScores:groupScores, total:total, verdict:verdict,
           careerRangeNote: r.json.range || '', summary: r.json.summary || '', checkBeforeInterview: r.json.check || '',
-          status:'draft', aiGenerated:true
+          aiItemScores: JSON.parse(JSON.stringify(items)), aiEvidence: r.json.evidence || {},
+          status:'draft', aiGenerated:true, ts: Date.now()
         });
       }).then(function(){
         return db.collection('recruitApplicants').doc(a.id).update({
@@ -33578,16 +33625,16 @@ function rcSavePosting(pid){
     .catch(function(e){ showToast('❌ 저장 실패: '+e.message); });
 }
 
-/* ---------- 심사표설정 ---------- */
+/* ---------- 심사표설정 (v3: 기준 자료·근거 없으면 점수·서류에서 볼 곳·기준 출처) ---------- */
+var RC_RULE_KEYS = ['B1','C2','D1','D2','E1','F3'];   // 업로드 때 규칙으로 먼저 채점되는 항목 (rcRuleScore)
+var RC_DOC_CACHE = {};
 function rcInitRubricsPage(){
   rcLoadRubrics().then(function(){
-    var latest = {};
-    rcState.rubrics.forEach(function(r){ if(!latest[r.name] || r.version>latest[r.name].version) latest[r.name]=r; });
     var opts = rcState.rubrics.map(function(r){ return '<option value="'+r.id+'">'+rcEsc(r.name)+' v'+r.version+(r.status==='active'?' (사용중)':'')+'</option>'; }).join('');
     document.getElementById('rc-rubric-select').innerHTML = opts || '<option value="">등록된 심사표 없음</option>';
     if (!rcState.rubricId && rcState.rubrics.length) rcState.rubricId = rcState.rubrics[0].id;
     if (rcState.rubricId) { document.getElementById('rc-rubric-select').value = rcState.rubricId; rcSelectRubric(rcState.rubricId); }
-    else document.getElementById('rc-rubric-editor').innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3)">새 심사표를 만들어 주세요</div>';
+    else if (!rcState.rubricDraft) document.getElementById('rc-rubric-editor').innerHTML = '<div style="padding:40px;text-align:center;color:var(--t3)">새 심사표를 만들어 주세요</div>';
   });
 }
 function rcSelectRubric(id){
@@ -33596,56 +33643,211 @@ function rcSelectRubric(id){
   rcState.rubricDraft = JSON.parse(JSON.stringify(r||{}));
   rcRenderRubricEditor();
 }
+function rcDocTitle(r, id){ var d = (r.docs||[]).find(function(x){ return x.id===id; }); return d ? d.title : '(삭제된 자료)'; }
 function rcRenderRubricEditor(){
   var r = rcState.rubricDraft;
-  if (!r || !r.groups) { document.getElementById('rc-rubric-editor').innerHTML=''; return; }
-  var admin = (typeof isAdmin==='function' && isAdmin());
+  var box = document.getElementById('rc-rubric-editor');
+  if (!r || !r.groups) { box.innerHTML=''; return; }
+  var admin = (typeof isAdmin==='function' && isAdmin()) || (typeof hasFullAccess==='function' && hasFullAccess('recruit-rubrics'));
   var dis = admin ? '' : ' disabled';
+  var inp = 'padding:5px;border:1px solid var(--border);border-radius:6px;font-size:12px';
   var h = '<div style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap">'
     + '<div><div style="font-size:12px;color:var(--t3)">심사표 이름</div><input id="rcr-name" value="'+rcEsc(r.name)+'"'+dis+' style="padding:7px;border:1px solid var(--border);border-radius:8px;font-size:13px;min-width:240px"></div>'
     + '<div><div style="font-size:12px;color:var(--t3)">면접 진행선</div><input id="rcr-pass" type="number" value="'+r.passScore+'"'+dis+' style="width:80px;padding:7px;border:1px solid var(--border);border-radius:8px"></div>'
     + '<div><div style="font-size:12px;color:var(--t3)">보류선</div><input id="rcr-hold" type="number" value="'+r.holdScore+'"'+dis+' style="width:80px;padding:7px;border:1px solid var(--border);border-radius:8px"></div>'
-    + '<div style="align-self:flex-end;font-size:12px;color:var(--t3)">현재 v'+r.version+'</div></div>';
+    + '<div style="align-self:flex-end;font-size:12px;color:var(--t3)">'+(r.version?'현재 v'+r.version:'저장 전 (새 버전으로 저장하면 버전이 붙습니다)')+'</div></div>';
+  // 기준 자료
+  h += '<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><b style="font-size:13px">기준 자료</b>'
+    + '<span style="font-size:12px;color:var(--t3)">이 심사표를 만들 때 참고한 원본 (공고·면접평가표·직무평가 시트 등). 눌러서 보기</span>'
+    + (admin ? '<label class="btn btn-ghost btn-sm" style="margin-left:auto;cursor:pointer">+ 자료 첨부 (이미지)<input type="file" accept="image/*" style="display:none" onchange="rcAttachRubricDoc(this.files[0]);this.value=\'\'"></label>' : '')
+    + '</div><div style="display:flex;gap:6px;flex-wrap:wrap">'
+    + ((r.docs||[]).map(function(d, di){
+        return '<span style="display:inline-flex;align-items:center;gap:2px"><button class="btn btn-ghost btn-sm" onclick="rcShowDoc(\''+d.id+'\')">🖼 '+rcEsc(d.title)+'</button>'
+          + (admin ? '<button class="btn btn-ghost btn-sm" title="목록에서 빼기" onclick="rcRemoveRubricDoc('+di+')" style="padding:4px 8px;color:var(--t3)">×</button>' : '') + '</span>';
+      }).join('') || '<span style="font-size:12px;color:var(--t3)">첨부된 자료 없음</span>')
+    + '</div></div>';
+  h += '<div style="font-size:12px;color:var(--t3);margin-bottom:10px;line-height:1.6">채점: 모든 항목은 AI가 판단 기준과 지원자 서류를 읽고 초안을 매깁니다. <b style="color:var(--t1)">규칙+AI</b> 항목은 이력서 업로드 때 규칙으로 먼저 무료 채점합니다. 서류에 근거가 없으면 \'근거 없으면\' 점수를 주고 면접 확인사항으로 넘깁니다. 모든 점수는 담당자가 보고 고친 뒤 확정합니다.</div>';
   r.groups.forEach(function(g,gi){
     var sum = g.items.reduce(function(t,i){return t+rcNum(i.max);},0);
     h += '<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px">'
       + '<div style="display:flex;align-items:center;margin-bottom:8px"><b style="font-size:13px">'+g.key+'. '+rcEsc(g.label)+'</b>'
       + '<span style="margin-left:auto;font-size:12px;color:'+(sum===g.max?'var(--t3)':'#dc2626')+'">세부 합계 '+sum+' / 대항목 배점 '+g.max+'</span></div>';
     g.items.forEach(function(it,ii){
-      h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">'
-        + '<input value="'+rcEsc(it.label)+'"'+dis+' oninput="rcRubricEdit('+gi+','+ii+',\'label\',this.value)" style="width:180px;padding:5px;border:1px solid var(--border);border-radius:6px;font-size:13px">'
-        + '<input type="number" value="'+it.max+'"'+dis+' oninput="rcRubricEdit('+gi+','+ii+',\'max\',this.value)" style="width:64px;padding:5px;border:1px solid var(--border);border-radius:6px">'
-        + '<input value="'+rcEsc(it.criteria||'')+'"'+dis+' oninput="rcRubricEdit('+gi+','+ii+',\'criteria\',this.value)" placeholder="판단 기준" style="flex:1;padding:5px;border:1px solid var(--border);border-radius:6px;font-size:12px">'
+      var rule = RC_RULE_KEYS.indexOf(it.key)>=0;
+      h += '<div style="border-top:1px solid #f0f1f4;padding:8px 0">'
+        + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+        + '<span style="font-size:12px;font-weight:700;width:24px">'+rcEsc(it.key)+'</span>'
+        + '<input value="'+rcEsc(it.label)+'"'+dis+' oninput="rcRubricEdit('+gi+','+ii+',\'label\',this.value)" style="width:170px;'+inp+';font-size:13px">'
+        + '<input type="number" value="'+it.max+'"'+dis+' title="배점" oninput="rcRubricEdit('+gi+','+ii+',\'max\',this.value)" style="width:60px;'+inp+'">'
+        + '<input value="'+rcEsc(it.criteria||'')+'"'+dis+' oninput="rcRubricEdit('+gi+','+ii+',\'criteria\',this.value)" placeholder="판단 기준" style="flex:1;min-width:260px;'+inp+'">'
+        + '<span title="'+(rule?'업로드 때 규칙으로 먼저 채점, AI 채점 시 다시 매김':'AI가 판단 기준과 서류를 읽고 채점')+'" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;'+(rule?'background:#1e2235;color:#fff':'background:#eef1fe;color:#2a43c0')+'">'+(rule?'규칙+AI':'AI')+'</span>'
         + (admin?'<button class="btn btn-ghost btn-sm" onclick="rcRubricDelItem('+gi+','+ii+')">삭제</button>':'')
-        + '</div>';
+        + '</div>'
+        + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 0 32px">'
+        + '<label style="font-size:11px;color:var(--t3);display:flex;align-items:center;gap:4px">근거 없으면<input type="number" value="'+(it.noneScore==null?'':it.noneScore)+'"'+dis+' placeholder="-" oninput="rcRubricEdit('+gi+','+ii+',\'noneScore\',this.value)" style="width:52px;'+inp+'">점</label>'
+        + '<label style="font-size:11px;color:var(--t3);display:flex;align-items:center;gap:4px">서류에서 볼 곳<input value="'+rcEsc((it.look||[]).join(', '))+'"'+dis+' placeholder="예: 경력기술서, 자기소개서" oninput="rcRubricEdit('+gi+','+ii+',\'look\',this.value)" style="width:220px;'+inp+'"></label>'
+        + '<span style="font-size:11px;color:var(--t3)">기준 출처</span>'
+        + ((it.refs||[]).map(function(rf, ri){
+            return '<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px;background:#fff7ec;border-color:#f3dcbc;color:#8a4300" onclick="rcShowRef('+gi+','+ii+','+ri+')">'+rcEsc(rf.t||rcDocTitle(r, rf.doc))+'</button>';
+          }).join('') || '<span style="font-size:11px;color:var(--t3)">없음</span>')
+        + (admin ? '<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="rcEditRefs('+gi+','+ii+')">출처 편집</button>' : '')
+        + '</div></div>';
     });
     if (admin) h += '<button class="btn btn-ghost btn-sm" onclick="rcRubricAddItem('+gi+')">+ 세부 항목</button>';
     h += '</div>';
   });
   var total = r.groups.reduce(function(t,g){return t+g.max;},0);
   h += '<div style="font-size:13px;font-weight:700;padding:8px 0">합계 '+total+'점</div>';
-  document.getElementById('rc-rubric-editor').innerHTML = h;
+  box.innerHTML = h;
 }
 function rcRubricEdit(gi,ii,field,val){
   var it = rcState.rubricDraft.groups[gi].items[ii];
-  it[field] = (field==='max') ? rcNum(val) : val;
+  if (field==='max') it.max = rcNum(val);
+  else if (field==='noneScore') it.noneScore = (val===''||val==null) ? null : rcNum(val);
+  else if (field==='look') it.look = String(val||'').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+  else it[field] = val;
   if (field==='max') rcRenderRubricEditor();
 }
 function rcRubricAddItem(gi){
   var g = rcState.rubricDraft.groups[gi];
-  g.items.push({key:g.key+(g.items.length+1), label:'새 항목', max:0, criteria:''});
+  var n = g.items.length+1, used = g.items.map(function(i){ return i.key; });
+  while (used.indexOf(g.key+n)>=0) n++;
+  g.items.push({key:g.key+n, label:'새 항목', max:0, criteria:'', noneScore:null, look:[], refs:[]});
   rcRenderRubricEditor();
 }
 function rcRubricDelItem(gi,ii){ rcState.rubricDraft.groups[gi].items.splice(ii,1); rcRenderRubricEditor(); }
 function rcNewRubric(){
-  if (typeof isAdmin==='function' && !isAdmin()) { showToast('❌ 인사팀만 가능합니다'); return; }
-  rcState.rubricDraft = { name:'새 심사표', version:0, passScore:70, holdScore:55, status:'draft',
-    groups: RC_GROUPS.map(function(g){ return {key:g.key, label:g.label, max:g.max, items:[{key:g.key+'1', label:'항목 1', max:g.max, criteria:''}]}; }) };
+  if (typeof isAdmin==='function' && !isAdmin() && !(typeof hasFullAccess==='function' && hasFullAccess('recruit-rubrics'))) { showToast('❌ 인사팀만 가능합니다'); return; }
+  rcState.rubricDraft = { name:'새 심사표', version:0, passScore:70, holdScore:55, status:'draft', docs:[],
+    groups: RC_GROUPS.map(function(g){ return {key:g.key, label:g.label, max:g.max, items:[{key:g.key+'1', label:'항목 1', max:g.max, criteria:'', noneScore:null, look:[], refs:[]}]}; }) };
   rcState.rubricId = null;
   rcRenderRubricEditor();
 }
+/* 기준 자료: 이미지를 줄여서 Firestore(recruitRubricDocs)에 저장 */
+function rcShrinkImage(file){
+  return new Promise(function(res, rej){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var img = new Image();
+      img.onload = function(){
+        var max = 2000, w = img.width, h = img.height, k = Math.min(1, max/Math.max(w,h));
+        var c = document.createElement('canvas'); c.width = Math.round(w*k); c.height = Math.round(h*k);
+        var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0,c.width,c.height);
+        var q = 0.9, url = c.toDataURL('image/jpeg', q);
+        while (url.length > 900000 && q > 0.4) { q -= 0.1; url = c.toDataURL('image/jpeg', q); }
+        if (url.length > 900000) { rej(new Error('이미지가 너무 큽니다')); return; }
+        res({ data:url, w:c.width, h:c.height });
+      };
+      img.onerror = function(){ rej(new Error('이미지를 읽지 못했습니다')); };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+function rcAttachRubricDoc(file){
+  if (!file) return;
+  var title = prompt('자료 이름 (예: 면접평가표, 직무평가 · 총무 대리)', file.name.replace(/\.[^.]+$/,''));
+  if (!title) return;
+  rcShrinkImage(file).then(function(img){
+    return db.collection('recruitRubricDocs').add({ title:title, data:img.data, w:img.w, h:img.h, createdAt:rcToday(), createdBy:rcMe() });
+  }).then(function(ref){
+    var r = rcState.rubricDraft; r.docs = r.docs || [];
+    r.docs.push({ id:ref.id, title:title });
+    showToast('✅ 자료를 첨부했습니다. [새 버전으로 저장]을 눌러야 심사표에 남습니다.');
+    rcRenderRubricEditor();
+  }).catch(function(e){ showToast('❌ 첨부 실패: '+e.message); });
+}
+function rcRemoveRubricDoc(di){
+  var r = rcState.rubricDraft, d = r.docs[di];
+  if (!confirm('"'+d.title+'"을 이 심사표의 기준 자료에서 뺄까요? (이전 버전에는 그대로 남습니다)')) return;
+  r.docs.splice(di,1); rcRenderRubricEditor();
+}
+function rcLoadDoc(id){
+  if (RC_DOC_CACHE[id]) return Promise.resolve(RC_DOC_CACHE[id]);
+  return db.collection('recruitRubricDocs').doc(id).get().then(function(s){ if (!s.exists) throw new Error('자료를 찾을 수 없습니다'); RC_DOC_CACHE[id] = s.data(); return RC_DOC_CACHE[id]; });
+}
+function rcShowDoc(id, lines, title){
+  rcShowModal(title || '기준 자료', '<div style="padding:30px;text-align:center;color:var(--t3)">불러오는 중...</div>');
+  rcLoadDoc(id).then(function(d){
+    var h = '';
+    if (lines && lines.length) h += '<div style="background:#fff9e8;border:1px solid #f3e2b0;border-radius:10px;padding:12px 14px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:#6b4200;margin-bottom:4px">이 항목에 쓴 부분</div><ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.7">'+lines.map(function(x){ return '<li>'+rcEsc(x)+'</li>'; }).join('')+'</ul></div>';
+    h += '<div style="font-size:12px;color:var(--t3);margin-bottom:6px">원본 · '+rcEsc(d.title)+'</div><img src="'+d.data+'" alt="'+rcEsc(d.title)+'" style="max-width:100%;border:1px solid var(--border);border-radius:8px">';
+    document.getElementById('rc-modal-title').textContent = title || d.title;
+    document.getElementById('rc-modal-body').innerHTML = h;
+  }).catch(function(e){ document.getElementById('rc-modal-body').innerHTML = '<div style="padding:20px;color:#dc2626">'+rcEsc(e.message)+'</div>'; });
+}
+function rcShowRef(gi, ii, ri){
+  var rf = rcState.rubricDraft.groups[gi].items[ii].refs[ri];
+  rcShowDoc(rf.doc, rf.lines||[], rf.t || rcDocTitle(rcState.rubricDraft, rf.doc));
+}
+// 지원자 채점 화면 등에서 심사표 id로 출처 보기
+function rcShowRefOf(rubricId, key, ri){
+  var rb = rcState.rubrics.find(function(x){ return x.id===rubricId; }); if (!rb) return;
+  var it = null; rb.groups.forEach(function(g){ g.items.forEach(function(x){ if (x.key===key) it = x; }); });
+  if (!it || !it.refs || !it.refs[ri]) return;
+  var rf = it.refs[ri]; rcShowDoc(rf.doc, rf.lines||[], rf.t || rcDocTitle(rb, rf.doc));
+}
+function rcEditRefs(gi, ii){
+  var r = rcState.rubricDraft, it = r.groups[gi].items[ii];
+  if (!(r.docs||[]).length) { showToast('먼저 [+ 자료 첨부]로 기준 자료를 올려 주세요'); return; }
+  var rows = (it.refs||[]).concat([{ doc:'', t:'', lines:[] }]);
+  var opts = function(sel){ return '<option value="">(빈 줄은 저장 안 함)</option>' + r.docs.map(function(d){ return '<option value="'+d.id+'"'+(d.id===sel?' selected':'')+'>'+rcEsc(d.title)+'</option>'; }).join(''); };
+  var h = '<div style="font-size:12px;color:var(--t3);margin-bottom:10px">'+rcEsc(it.key+' '+it.label)+'의 판단 기준을 어느 자료의 어느 부분에서 가져왔는지 적습니다. 채점 화면에서 눌러 원본을 볼 수 있습니다.</div>'
+    + rows.map(function(rf, i){
+        return '<div class="rc-ref-row" style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px">'
+          + '<div style="display:flex;gap:6px;flex-wrap:wrap"><select class="rc-ref-doc" style="padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px">'+opts(rf.doc)+'</select>'
+          + '<input class="rc-ref-t" value="'+rcEsc(rf.t||'')+'" placeholder="버튼 이름 (예: 면접 · Attitude 일 관점)" style="flex:1;min-width:200px;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px"></div>'
+          + '<textarea class="rc-ref-lines" placeholder="이 항목에 쓴 부분 (한 줄에 하나)" style="height:64px;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px">'+rcEsc((rf.lines||[]).join('\n'))+'</textarea></div>';
+      }).join('')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost btn-sm" onclick="rcCloseModal()">취소</button><button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="rcSaveRefs('+gi+','+ii+')">적용</button></div>';
+  rcShowModal('기준 출처 편집', h);
+}
+function rcSaveRefs(gi, ii){
+  var out = [];
+  document.querySelectorAll('.rc-ref-row').forEach(function(row){
+    var d = row.querySelector('.rc-ref-doc').value; if (!d) return;
+    out.push({ doc:d, t:row.querySelector('.rc-ref-t').value.trim(), lines:row.querySelector('.rc-ref-lines').value.split('\n').map(function(x){ return x.trim(); }).filter(Boolean) });
+  });
+  rcState.rubricDraft.groups[gi].items[ii].refs = out;
+  rcCloseModal(); rcRenderRubricEditor();
+}
+/* 심사표 가져오기: workgate_서류심사표_v3.json — 같은 이름의 최신 버전을 바탕으로 세부 항목과 기준 자료를 바꿔 편집기에 올린다 */
+function rcImportRubricFile(file){
+  if (!file) return;
+  if (typeof isAdmin==='function' && !isAdmin() && !(typeof hasFullAccess==='function' && hasFullAccess('recruit-rubrics'))) { showToast('❌ 인사팀만 가능합니다'); return; }
+  var fr = new FileReader();
+  fr.onload = function(){
+    var d; try { d = JSON.parse(fr.result); } catch(e){ showToast('❌ JSON 형식이 아닙니다'); return; }
+    if (!d.rubric || !d.rubric.groups) { showToast('❌ 심사표 파일이 아닙니다'); return; }
+    var docs = d.docs || [], idMap = {};
+    showToast('⏳ 기준 자료 '+docs.length+'개를 올리는 중...');
+    docs.reduce(function(p, x){ return p.then(function(){
+      return db.collection('recruitRubricDocs').add({ title:x.title, data:x.data, w:x.w||null, h:x.h||null, createdAt:rcToday(), createdBy:rcMe() })
+        .then(function(ref){ idMap[x.key] = ref.id; });
+    }); }, Promise.resolve()).then(function(){
+      return rcLoadRubrics();
+    }).then(function(){
+      var same = rcState.rubrics.filter(function(r){ return r.name===d.rubric.name; }).sort(function(a,b){ return (b.version||0)-(a.version||0); });
+      var base = same[0] ? JSON.parse(JSON.stringify(same[0])) : { name:d.rubric.name, passScore:70, holdScore:55 };
+      delete base.id;
+      var nr = Object.assign(base, {
+        name:d.rubric.name, passScore:d.rubric.passScore||base.passScore, holdScore:d.rubric.holdScore||base.holdScore, status:'draft',
+        version: base.version||0,
+        docs: docs.map(function(x){ return { id:idMap[x.key], title:x.title }; }),
+        groups: d.rubric.groups.map(function(g){ return Object.assign({}, g, { items:g.items.map(function(it){
+          return Object.assign({}, it, { refs:(it.refs||[]).map(function(rf){ return { doc:idMap[rf.doc]||rf.doc, t:rf.t, lines:rf.lines||[] }; }) }); }) }); })
+      });
+      rcState.rubricDraft = nr; rcState.rubricId = null;
+      rcRenderRubricEditor();
+      showToast('✅ 불러왔습니다. 내용을 확인하고 [새 버전으로 저장]을 누르면 v'+((base.version||0)+1)+'로 저장됩니다.');
+    }).catch(function(e){ showToast('❌ 가져오기 실패: '+e.message); });
+  };
+  fr.readAsText(file);
+}
+
 function rcSaveRubricAsNewVersion(){
-  if (typeof isAdmin==='function' && !isAdmin()) { showToast('❌ 인사팀만 가능합니다'); return; }
+  if (typeof isAdmin==='function' && !isAdmin() && !(typeof hasFullAccess==='function' && hasFullAccess('recruit-rubrics'))) { showToast('❌ 인사팀만 가능합니다'); return; }
   var d = rcState.rubricDraft;
   d.name = (document.getElementById('rcr-name')||{}).value || d.name;
   d.passScore = rcNum((document.getElementById('rcr-pass')||{}).value) || 70;
