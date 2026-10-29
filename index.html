@@ -886,7 +886,7 @@ select.form-input{cursor:pointer}
       <select id="rc-posting-select" onchange="rcSelectPosting(this.value)" style="margin-left:12px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;min-width:280px"></select>
       <div style="margin-left:auto;display:flex;gap:8px">
         <select id="rc-up-channel" title="업로드할 이력서의 지원경로" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">
-        <option value="">경로 선택</option><option>잡코리아</option><option>인크루트</option><option>사람인</option>
+        <option value="">올릴 이력서 경로 (자동 판별)</option><option>잡코리아</option><option>인크루트</option><option>사람인</option>
         <option>사람인(자사양식)</option><option>워크넷</option><option>원티드</option><option>사내추천</option><option>기타</option>
       </select>
       <label class="btn btn-ghost btn-sm" style="cursor:pointer">📎 이력서 업로드(zip 가능)<input type="file" accept=".pdf,.htm,.html,.zip" multiple style="display:none" onchange="rcUploadResumes(this.files);this.value=''"></label>
@@ -924,7 +924,7 @@ select.form-input{cursor:pointer}
         <span id="rc-selcount" style="font-size:13px;font-weight:600"></span>
         <button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="rcAiScoreSelected()">🤖 선택 AI 채점</button>
         <select id="rc-bulk-channel" onchange="rcSetChannelSelected(this.value);this.value=''" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
-          <option value="">경로 일괄 지정</option><option>잡코리아</option><option>인크루트</option><option>사람인</option>
+          <option value="">선택한 지원자 경로 변경</option><option>잡코리아</option><option>인크루트</option><option>사람인</option>
           <option>사람인(자사양식)</option><option>워크넷</option><option>원티드</option><option>사내추천</option><option>기타</option>
         </select>
         <button class="btn btn-ghost btn-sm" style="color:#dc2626;border-color:#fecaca" onclick="rcDeleteSelected()">🗑 선택 삭제 (이력서 파일까지)</button>
@@ -32487,7 +32487,7 @@ function rcRefillFields(){
         var d = s.data();
         var o = rcParseResume(d.text, d.fileName || a.resumeName || a.name);
         var upd = {}, filled = [];
-        if (!a.channel) { upd.channel = (o.format==='자사양식' ? '사람인(자사양식)' : (o.format||'')); if (upd.channel) filled.push('경로'); }
+        if (!a.channel) { upd.channel = o.channelGuess || ''; if (upd.channel) filled.push('경로'); }
         if (a.totalExpYears==null && o.totalExpYears!=null) { upd.totalExpYears = o.totalExpYears; filled.push('총경력'); }
         if (!a.education && o.education) { upd.education = o.education; filled.push('학력'); }
         if (!a.lastCompany && o.lastCompany) { upd.lastCompany = o.lastCompany; filled.push('회사'); }
@@ -32516,8 +32516,15 @@ function rcSetChannelSelected(ch){
   var ids = Object.keys(_rcSelected);
   if (!ids.length) { showToast('❌ 지원자를 먼저 선택하세요'); return; }
   if (!rcCanEditPosting(rcCurPosting())) { showToast('❌ 권한이 없습니다'); return; }
+  var names = ids.map(function(id){ var a = rcState.applicants.find(function(x){ return x.id===id; }); return a ? a.name+'('+(a.channel||'경로 없음')+')' : id; });
+  // 이력서 업로드 경로 선택과 헷갈려 이미 등록된 지원자의 경로가 바뀌는 일을 막는다
+  if (!confirm('이미 등록된 지원자 '+ids.length+'명의 지원경로를 "'+ch+'"(으)로 바꿉니다.\n\n'+names.slice(0,10).join(', ')+(names.length>10?' 외 '+(names.length-10)+'명':'')+'\n\n이력서를 새로 올리는 경로는 위쪽 [올릴 이력서 경로]에서 고르세요. 계속할까요?')) return;
   ids.reduce(function(c, id){
-    return c.then(function(){ return db.collection('recruitApplicants').doc(id).update({channel:ch}).catch(function(){}); });
+    return c.then(function(){
+      var a = rcState.applicants.find(function(x){ return x.id===id; }) || {};
+      return db.collection('recruitApplicants').doc(id).update({ channel:ch,
+        log:(a.log||[]).concat([{ t:rcToday(), m:'지원경로 변경: '+(a.channel||'없음')+' → '+ch, by:rcMe() }]) }).catch(function(){});
+    });
   }, Promise.resolve()).then(function(){
     showToast('✅ ' + ids.length + '명 경로를 ' + ch + '(으)로 지정했습니다');
     _rcSelected = {};
@@ -32652,6 +32659,9 @@ function rcParseResume(text, fileName){
   // 서식 판별
   o.format = (/입사지원서/.test(sq) && /인적사항|인적\s*사항/.test(sq)) ? '자사양식'
            : (/인크루트는구직자가|인크루트/.test(sq) ? '인크루트' : '잡코리아');
+  // 지원경로 추정 (서식 판별과 별개): 사람인 양식은 서식상 잡코리아와 같이 읽되 경로는 사람인으로
+  o.channelGuess = o.format==='자사양식' ? '사람인(자사양식)' : o.format==='인크루트' ? '인크루트'
+           : (/사람인|saramin/i.test(sq) ? '사람인' : (/잡코리아|jobkorea/i.test(sq) ? '잡코리아' : ''));
 
   // 공통: 연락처 / 이메일
   if ((m = sq.match(/(01[016789])[-]?(\d{3,4})[-]?(\d{4})/))) o.phone = m[1]+'-'+m[2]+'-'+m[3];
@@ -32932,7 +32942,7 @@ function rcUploadResumes(files){
             return db.collection('recruitApplicants').doc(aid).set({
               postingId:p.id, companyId:rcCid(), name:parsed.name || item.name,
               appliedAt:rcToday(),
-              channel: chSel || (parsed.format==='자사양식' ? '사람인(자사양식)' : (parsed.format||'')),
+              channel: chSel || parsed.channelGuess || '',
               stage:'서류접수',
               phone:parsed.phone||'', email:parsed.email||'',
               education:parsed.education||'', totalExpYears:(parsed.totalExpYears==null?null:parsed.totalExpYears),
@@ -32940,7 +32950,7 @@ function rcUploadResumes(files){
               birthYear:parsed.birthYear||null, age:parsed.age||'',
               resumeUrl:url, resumePath:ref.fullPath, resumeName:item.name, hasText:(text&&text.length>100)?true:false,
               disposed:'N', docScore:null, autoVerdict:'',
-              log:[{t:rcToday(), m:'이력서 업로드 및 자동 판독', by:rcMe()}]
+              log:[{t:rcToday(), m:'이력서 업로드 및 자동 판독 · 지원경로 '+(chSel ? chSel+' (선택)' : ((parsed.channelGuess||'미확인')+' (자동 판별)')), by:rcMe()}]
             }).then(function(){ return {aid:aid, parsed:parsed}; });
           });
         }).then(function(r){
@@ -32984,6 +32994,7 @@ function rcUploadResumes(files){
         paint('완료 — 성공 '+done+'건 / 실패 '+(total-done)+'건 (실패한 건만 다시 올리세요)', true);
         showToast('⚠️ '+done+'/'+total+'건만 등록됨 — 아래 목록 확인');
       }
+      if (typeof _rcSelected !== 'undefined') _rcSelected = {};
       rcLoadApplicants(p.id).then(function(){
         rcRenderAll();
         rcSwitchTab('board');
