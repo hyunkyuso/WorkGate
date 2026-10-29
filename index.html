@@ -895,6 +895,7 @@ select.form-input{cursor:pointer}
         <button class="btn btn-ghost btn-sm" onclick="rcOpenApplicantModal()">+ 지원자 추가</button>
         <button class="btn btn-ghost btn-sm" id="rc-migrate-btn" style="display:none" onclick="rcMigrateStages()">🔀 단계 정리</button>
         <button class="btn btn-ghost btn-sm" onclick="rcRefillFields()" title="저장된 이력서 텍스트를 다시 읽어 비어 있는 항목(경로·총경력·학력·회사)을 채웁니다">🔄 정보 다시 읽기</button>
+        <button class="btn btn-ghost btn-sm" onclick="rcMergeDuplicates()" title="연락처·이메일이 같은 지원자(여러 경로로 지원한 같은 사람)를 하나로 합칩니다">👥 중복 합치기</button>
       </div>
     </div>
 
@@ -32200,7 +32201,7 @@ function rcRenderBoard(){
       + items.map(function(a){
           var sc = rcScoreCell(a);
           return '<div draggable="'+(editable?'true':'false')+'" ondragstart="rcDragStart(event,\''+a.id+'\')" onclick="rcOpenApplicant(\''+a.id+'\')" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer">'
-            + '<div style="font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:6px"><span>'+rcEsc(a.name)+'</span><span style="color:'+sc.color+';white-space:nowrap"'+(sc.title?' title="'+rcEsc(sc.title)+'"':'')+'>'+sc.text+'</span></div>'
+            + '<div style="font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:6px"><span>'+rcEsc(a.name)+rcDupMark(a)+'</span><span style="color:'+sc.color+';white-space:nowrap"'+(sc.title?' title="'+rcEsc(sc.title)+'"':'')+'>'+sc.text+'</span></div>'
             + '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+rcEsc((a.lastCompany||'').slice(0,26))+'</div>'
             + (a.stage==='탈락' && a.droppedAt ? '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+rcEsc(a.droppedAt)+'에서 탈락</div>' : '')
             + '</div>';
@@ -32258,7 +32259,7 @@ function rcRenderList(){
     return '<tr>'
       + (editable ? '<td style="padding:8px;border-bottom:1px solid var(--border)"><input type="checkbox" class="rc-sel" value="'+a.id+'"'+(_rcSelected[a.id]?' checked':'')+' onchange="rcToggleSel(\''+a.id+'\',this.checked)"></td>' : '')
       + '<td style="padding:8px;border-bottom:1px solid var(--border);cursor:pointer" onclick="rcOpenApplicant(\''+a.id+'\')">'+(a.rankInPosting||'')+'</td>'
-      + '<td style="padding:8px;border-bottom:1px solid var(--border);font-weight:600;cursor:pointer" onclick="rcOpenApplicant(\''+a.id+'\')">'+rcEsc(a.name)+'</td>'
+      + '<td style="padding:8px;border-bottom:1px solid var(--border);font-weight:600;cursor:pointer" onclick="rcOpenApplicant(\''+a.id+'\')">'+rcEsc(a.name)+rcDupMark(a)+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border)">'+rcEsc(a.channel||'')+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border)">'+rcEsc(a.age||'')+'</td>'
       + '<td style="padding:8px;border-bottom:1px solid var(--border);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+rcEsc(a.education||'')+'</td>'
@@ -32283,9 +32284,11 @@ function rcOpenApplicant(id){
   var rb = ev && ev.rubricSnapshot ? null : rcState.rubrics.find(function(r){ return r.id===(p&&p.rubricId); });
   var editable = rcCanEditPosting(p) || ((p&&p.interviewers)||[]).indexOf(rcMe())>=0;
   var h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;font-size:13px">'
-    + [['지원경로',a.channel],['접수일',a.appliedAt],['연락처',a.phone],['이메일',a.email],
+    + (rcCanEditPosting(p) ? '<div><span style="color:var(--t3)">지원경로</span><br><select onchange="rcSetChannelOne(\''+a.id+'\',this.value)" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">'
+        + rcJoinChannels([a.channel||''].concat(RC_CHANNEL_OPTS)).map(function(c){ return '<option value="'+rcEsc(c)+'"'+(c===(a.channel||'')?' selected':'')+'>'+rcEsc(c||'(없음)')+'</option>'; }).join('') + '</select></div>' : '')
+    + [].concat(rcCanEditPosting(p) ? [] : [['지원경로',a.channel]]).concat([['접수일',a.appliedAt],['연락처',a.phone],['이메일',a.email],
        ['최종학력',a.education],['총경력',a.totalExpYears!=null?a.totalExpYears+'년':''],
-       ['현재/직전 회사',a.lastCompany],['희망연봉',a.desiredSalary?a.desiredSalary+'만원':'협의']]
+       ['현재/직전 회사',a.lastCompany],['희망연봉',a.desiredSalary?a.desiredSalary+'만원':'협의']])
       .map(function(r){ return '<div><span style="color:var(--t3)">'+r[0]+'</span><br>'+rcEsc(r[1]||'-')+'</div>'; }).join('')
     + '</div>';
 
@@ -32464,10 +32467,10 @@ function rcRefillFields(){
   var p = rcCurPosting();
   if (!rcCanEditPosting(p)) { showToast('❌ 권한이 없습니다'); return; }
   var A = rcState.applicants.filter(function(a){
-    return !a.channel || a.totalExpYears==null || !a.education || !a.lastCompany || !a.phone || !a.name || rcNotName(a.name) || /\.(pdf|html?)$/i.test(a.name||'');
+    return !a.channel || a.channel==='잡코리아' || a.totalExpYears==null || !a.education || !a.lastCompany || !a.phone || !a.name || rcNotName(a.name) || /\.(pdf|html?)$/i.test(a.name||'');
   });
   if (!A.length) { showToast('채울 항목이 없습니다'); return; }
-  if (!confirm(A.length + '명의 비어 있는 항목을 이력서에서 다시 읽어 채웁니다.\n(이름이 \'이력서\'처럼 잘못 들어간 경우 이름도 / 경로·총경력·학력·연락처·회사명 / 이미 입력된 값은 그대로 둡니다)\n\n진행할까요?')) return;
+  if (!confirm(A.length + '명의 이력서를 다시 읽어 비어 있는 항목을 채웁니다.\n(경로가 잡코리아인데 이력서에 사람인 표시가 있으면 사람인으로 바로잡습니다)\n(이름이 \'이력서\'처럼 잘못 들어간 경우 이름도 / 경로·총경력·학력·연락처·회사명 / 이미 입력된 값은 그대로 둡니다)\n\n진행할까요?')) return;
 
   var done = 0, skipped = 0, logs = [];
   function paint(head){
@@ -32489,6 +32492,8 @@ function rcRefillFields(){
         var upd = {}, filled = [];
         if ((!a.name || rcNotName(a.name) || /\.(pdf|html?)$/i.test(a.name||'')) && o.name && !rcNotName(o.name) && o.name!==a.name && /^[가-힣]{2,4}$/.test(o.name)) { upd.name = o.name; filled.push('이름 '+(a.name||'')+'→'+o.name); }
         if (!a.channel) { upd.channel = o.channelGuess || ''; if (upd.channel) filled.push('경로'); }
+        // 예전 자동 판별은 사람인 양식을 잡코리아로 넣었다: 이력서에 사람인 표시가 있고 잡코리아 표시가 없으면 바로잡는다
+        else if (a.channel==='잡코리아' && o.channelGuess==='사람인') { upd.channel = '사람인'; upd.channels = ['사람인']; filled.push('경로 잡코리아→사람인'); }
         if (a.totalExpYears==null && o.totalExpYears!=null) { upd.totalExpYears = o.totalExpYears; filled.push('총경력'); }
         if (!a.education && o.education) { upd.education = o.education; filled.push('학력'); }
         if (!a.lastCompany && o.lastCompany) { upd.lastCompany = o.lastCompany; filled.push('회사'); }
@@ -32523,7 +32528,7 @@ function rcSetChannelSelected(ch){
   ids.reduce(function(c, id){
     return c.then(function(){
       var a = rcState.applicants.find(function(x){ return x.id===id; }) || {};
-      return db.collection('recruitApplicants').doc(id).update({ channel:ch,
+      return db.collection('recruitApplicants').doc(id).update({ channel:ch, channels:String(ch).split('·').map(function(x){ return x.trim(); }).filter(Boolean),
         log:(a.log||[]).concat([{ t:rcToday(), m:'지원경로 변경: '+(a.channel||'없음')+' → '+ch, by:rcMe() }]) }).catch(function(){});
     });
   }, Promise.resolve()).then(function(){
@@ -32941,6 +32946,9 @@ function rcUploadResumes(files){
         }).then(function(text){
           step = '저장';
           var parsed = rcParseResume(text, item.name);
+          var chNow = chSel || item.zipCh || parsed.channelGuess || '';
+          var exist = rcFindDup(rcState.applicants||[], parsed, null);
+          if (exist) { step = '중복 지원자에 첨부'; return rcAttachAsDup(p, exist, item, text, parsed, chNow); }
           var aid = db.collection('recruitApplicants').doc().id;
           var safe = item.name.replace(/[^\w.\-가-힣]/g,'_');
           var ref = firebase.storage().ref('recruit/'+p.id+'/'+aid+'/'+Date.now()+'_'+safe);
@@ -32958,7 +32966,7 @@ function rcUploadResumes(files){
             return db.collection('recruitApplicants').doc(aid).set({
               postingId:p.id, companyId:rcCid(), name:parsed.name || item.name,
               appliedAt:rcToday(),
-              channel: chSel || item.zipCh || parsed.channelGuess || '',
+              channel: chNow, channels: chNow ? [chNow] : [],
               stage:'서류접수',
               phone:parsed.phone||'', email:parsed.email||'',
               education:parsed.education||'', totalExpYears:(parsed.totalExpYears==null?null:parsed.totalExpYears),
@@ -32967,10 +32975,14 @@ function rcUploadResumes(files){
               resumeUrl:url, resumePath:ref.fullPath, resumeName:item.name, hasText:(text&&text.length>100)?true:false,
               disposed:'N', docScore:null, autoVerdict:'',
               log:[{t:rcToday(), m:'이력서 업로드 및 자동 판독 · 지원경로 '+(chSel ? chSel+' (선택)' : item.zipCh ? item.zipCh+' (zip 파일 이름)' : ((parsed.channelGuess||'미확인')+' (이력서 내용으로 판별)')), by:rcMe()}]
-            }).then(function(){ return {aid:aid, parsed:parsed}; });
+            }).then(function(){
+              // 같은 업로드 안의 중복도 잡도록 목록에 바로 넣어 둔다
+              (rcState.applicants = rcState.applicants||[]).push({ id:aid, name:parsed.name, phone:parsed.phone||'', email:parsed.email||'', birthYear:parsed.birthYear||null, channel:chNow, channels:chNow?[chNow]:[], attachments:[], log:[] });
+              return {aid:aid, parsed:parsed};
+            });
           });
         }).then(function(r){
-          if (!rb) return r;
+          if (!rb || r.dup) return r;
           step = '평가 초안';
           var sc = rcRuleScore(r.parsed, rb);
           r.sc = sc;
@@ -32992,6 +33004,7 @@ function rcUploadResumes(files){
           });
         }).then(function(r){
           done++;
+          if (r.dup) { logs.push({ok:true, file:item.name, msg:'중복 지원 — 기존 '+r.dup.name+'에 이력서를 붙이고 경로 추가 ('+(r.dup.channel||'')+')'}); paint(done+' / '+total+' 처리 중...'); return; }
           logs.push({ok:true, file:item.name, msg:(r.parsed.name||'')+(r.parsed.totalExpYears!=null?' · 경력 '+r.parsed.totalExpYears+'년':'')+(r.parsed.textLen?'':' · 텍스트 추출 안 됨')});
           paint(done+' / '+total+' 처리 중...');
         }).catch(function(e){
@@ -33440,6 +33453,114 @@ function rcAttachTexts(a){
   });
 }
 
+/* ---------- 중복 지원자 (같은 사람이 사람인·잡코리아 등 여러 경로로 지원) ----------
+   같은 사람 판단: 휴대폰 번호 또는 이메일이 같으면 확실, 둘 다 없으면 이름+출생연도가 같을 때 */
+function rcDupKeys(a){
+  var k = [];
+  var ph = String(a.phone||'').replace(/\D/g,''); if (ph.length >= 10) k.push('p:'+ph);
+  var em = String(a.email||'').trim().toLowerCase(); if (em && em.indexOf('@')>0) k.push('e:'+em);
+  if (!k.length && a.name && !rcNotName(a.name) && a.birthYear) k.push('n:'+a.name+'|'+a.birthYear);
+  return k;
+}
+function rcFindDup(list, cand, skipId){
+  var ck = rcDupKeys(cand); if (!ck.length) return null;
+  return list.find(function(a){ return a.id!==skipId && a.disposed!=='Y' && rcDupKeys(a).some(function(k){ return ck.indexOf(k)>=0; }); }) || null;
+}
+function rcChannelsOf(a){ return (a.channels && a.channels.length) ? a.channels.slice() : String(a.channel||'').split('·').map(function(x){ return x.trim(); }).filter(Boolean); }
+function rcJoinChannels(list){ var u = []; list.forEach(function(c){ if (c && u.indexOf(c)<0) u.push(c); }); return u; }
+function rcDupMark(a){
+  var d = rcFindDup(rcState.applicants||[], a, a.id);
+  return d ? ' <span title="'+rcEsc(d.name)+'과 같은 사람으로 보입니다 (연락처·이메일 일치). [중복 합치기]로 합치세요" style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#fcebd9;color:#9a4708">중복?</span>' : '';
+}
+// 업로드 중 중복이면: 새 지원자를 만들지 않고 기존 지원자에 '다른 경로 이력서'로 붙이고 경로를 더한다
+function rcAttachAsDup(p, exist, item, text, parsed, ch){
+  var id = Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  var safe = item.name.replace(/[^\w.\-가-힣]/g,'_');
+  var ref = firebase.storage().ref('recruit/'+p.id+'/'+exist.id+'/'+Date.now()+'_att_'+safe);
+  var isPdf = /\.pdf$/i.test(item.name);
+  return ref.put(item.blob, { contentType: isPdf ? 'application/pdf' : 'text/html; charset=utf-16', contentDisposition:'inline; filename="'+safe+'"' })
+    .then(function(){ return ref.getDownloadURL(); })
+    .then(function(url){
+      var has = !!(text && text.length > 100);
+      var w = has ? db.collection('recruitResumeTexts').doc(exist.id+'__'+id).set({ postingId:p.id, applicantId:exist.id, attachId:id, fileName:item.name, kind:'이력서('+(ch||'다른 경로')+')', text:text.slice(0,40000), createdAt:rcToday() }).catch(function(){ has = false; }) : Promise.resolve();
+      return w.then(function(){
+        var chs = rcJoinChannels(rcChannelsOf(exist).concat([ch]));
+        var att = (exist.attachments||[]).concat([{ id:id, name:item.name, kind:'이력서('+(ch||'다른 경로')+')', path:ref.fullPath, url:url, size:item.blob.size||0, type:isPdf?'application/pdf':'text/html', hasText:has, at:rcToday(), by:rcMe() }]);
+        var upd = { channels:chs, channel:chs.join('·'), attachments:att,
+          log:(exist.log||[]).concat([{ t:rcToday(), m:'중복 지원 확인: '+(ch||'다른 경로')+'로도 지원 — 이력서를 첨부 서류로 보관', by:rcMe() }]) };
+        if (rcNotName(exist.name||'') && parsed.name && !rcNotName(parsed.name)) upd.name = parsed.name;
+        return db.collection('recruitApplicants').doc(exist.id).update(upd).then(function(){
+          Object.assign(exist, upd); return { aid:exist.id, parsed:parsed, dup:exist };
+        });
+      });
+    });
+}
+// 이미 들어가 있는 중복 합치기
+function rcMergeDuplicates(){
+  var p = rcCurPosting();
+  if (!rcCanEditPosting(p)) { showToast('❌ 권한이 없습니다'); return; }
+  var A = (rcState.applicants||[]).filter(function(a){ return a.disposed!=='Y'; });
+  var used = {}, groups = [];
+  A.forEach(function(a){
+    if (used[a.id]) return;
+    var g = [a]; used[a.id] = 1;
+    A.forEach(function(b){ if (!used[b.id] && rcFindDup([b], a, a.id)) { g.push(b); used[b.id] = 1; } });
+    if (g.length > 1) groups.push(g);
+  });
+  if (!groups.length) { showToast('중복으로 보이는 지원자가 없습니다 (연락처·이메일 기준)'); return; }
+  // 남길 사람: 이름이 제대로 된 쪽 → 서류 점수가 있는 쪽 → 먼저 등록된 쪽
+  groups.forEach(function(g){ g.sort(function(x,y){
+    return (rcNotName(x.name||'')?1:0)-(rcNotName(y.name||'')?1:0) || ((y.docScore!=null)?1:0)-((x.docScore!=null)?1:0) || String(x.appliedAt||'').localeCompare(String(y.appliedAt||''));
+  }); });
+  var msg = groups.map(function(g){ return '· '+g[0].name+' ('+rcChannelsOf(g[0]).join('·')+') ← '+g.slice(1).map(function(b){ return b.name+' ('+(b.channel||'경로 없음')+')'; }).join(', '); }).join('\n');
+  if (!confirm('같은 사람으로 보이는 '+groups.length+'건을 합칩니다.\n\n'+msg+'\n\n· 왼쪽 지원자를 남기고, 오른쪽 지원자의 이력서는 남는 쪽의 첨부 서류로 옮깁니다.\n· 지원경로는 둘 다 기록합니다 (예: 잡코리아·사람인).\n· 오른쪽 지원자의 서류 평가는 지웁니다. 필요하면 합친 뒤 다시 채점하세요.\n\n진행할까요?')) return;
+  var done = 0;
+  groups.reduce(function(ch, g){
+    return ch.then(function(){
+      var keep = g[0], others = g.slice(1);
+      var att = (keep.attachments||[]).slice(), chs = rcChannelsOf(keep), logs = (keep.log||[]).slice(), moves = [];
+      others.forEach(function(o){
+        chs = chs.concat(rcChannelsOf(o));
+        if (o.resumePath){
+          var id = Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+          att.push({ id:id, name:o.resumeName||'이력서', kind:'이력서('+(o.channel||'다른 경로')+')', path:o.resumePath, url:o.resumeUrl, size:0, type:'', hasText:false, at:rcToday(), by:rcMe() });
+          moves.push(db.collection('recruitResumeTexts').doc(o.id).get().then(function(s){
+            if (!s.exists) return;
+            var d = s.data(); var a = att.find(function(x){ return x.id===id; }); a.hasText = true;
+            return db.collection('recruitResumeTexts').doc(keep.id+'__'+id).set({ postingId:keep.postingId, applicantId:keep.id, attachId:id, fileName:d.fileName||'', kind:a.kind, text:d.text||'', createdAt:rcToday() })
+              .then(function(){ return s.ref.delete(); });
+          }).catch(function(){}));
+        }
+        (o.attachments||[]).forEach(function(f){ att.push(f); });
+        logs.push({ t:rcToday(), m:'중복 지원자 합침: '+o.name+' ('+(o.channel||'경로 없음')+') 이력서를 첨부로 옮김', by:rcMe() });
+      });
+      return Promise.all(moves).then(function(){
+        var c = rcJoinChannels(chs);
+        return db.collection('recruitApplicants').doc(keep.id).update({ attachments:att, channels:c, channel:c.join('·'), log:logs });
+      }).then(function(){
+        return Promise.all(others.map(function(o){
+          return db.collection('recruitEvaluations').where('applicantId','==',o.id).get()
+            .then(function(s){ return Promise.all(s.docs.map(function(d){ return d.ref.delete(); })); })
+            .then(function(){ return db.collection('recruitApplicants').doc(o.id).delete(); });
+        }));
+      }).then(function(){ done++; });
+    });
+  }, Promise.resolve()).then(function(){
+    showToast('✅ '+done+'건 합쳤습니다');
+    rcLoadApplicants(rcState.postingId).then(rcRenderAll);
+  }).catch(function(e){ showToast('❌ 합치기 실패: '+e.message); rcLoadApplicants(rcState.postingId).then(rcRenderAll); });
+}
+
+var RC_CHANNEL_OPTS = ['잡코리아','사람인','인크루트','사람인(자사양식)','잡코리아·사람인','워크넷','원티드','사내추천','기타'];
+function rcSetChannelOne(aid, ch){
+  var a = rcState.applicants.find(function(x){ return x.id===aid; }); if (!a) return;
+  if (!rcCanEditPosting(rcCurPosting())) { showToast('❌ 권한이 없습니다'); return; }
+  db.collection('recruitApplicants').doc(aid).update({ channel:ch, channels:String(ch).split('·').map(function(x){ return x.trim(); }).filter(Boolean),
+    log:(a.log||[]).concat([{ t:rcToday(), m:'지원경로 변경: '+(a.channel||'없음')+' → '+(ch||'없음'), by:rcMe() }]) })
+    .then(function(){ showToast('✅ 지원경로를 '+(ch||'없음')+'(으)로 바꿨습니다'); return rcLoadApplicants(rcState.postingId); })
+    .then(function(){ rcRenderAll(); rcOpenApplicant(aid); })
+    .catch(function(e){ showToast('❌ 변경 실패: '+e.message); });
+}
 function rcDispose(aid){
   var a = rcState.applicants.find(function(x){return x.id===aid;});
   if (!a) return;
