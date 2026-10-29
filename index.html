@@ -32464,10 +32464,10 @@ function rcRefillFields(){
   var p = rcCurPosting();
   if (!rcCanEditPosting(p)) { showToast('❌ 권한이 없습니다'); return; }
   var A = rcState.applicants.filter(function(a){
-    return !a.channel || a.totalExpYears==null || !a.education || !a.lastCompany || !a.phone;
+    return !a.channel || a.totalExpYears==null || !a.education || !a.lastCompany || !a.phone || !a.name || rcNotName(a.name) || /\.(pdf|html?)$/i.test(a.name||'');
   });
   if (!A.length) { showToast('채울 항목이 없습니다'); return; }
-  if (!confirm(A.length + '명의 비어 있는 항목을 이력서에서 다시 읽어 채웁니다.\n(경로·총경력·학력·연락처·회사명 / 이미 입력된 값은 그대로 둡니다)\n\n진행할까요?')) return;
+  if (!confirm(A.length + '명의 비어 있는 항목을 이력서에서 다시 읽어 채웁니다.\n(이름이 \'이력서\'처럼 잘못 들어간 경우 이름도 / 경로·총경력·학력·연락처·회사명 / 이미 입력된 값은 그대로 둡니다)\n\n진행할까요?')) return;
 
   var done = 0, skipped = 0, logs = [];
   function paint(head){
@@ -32487,6 +32487,7 @@ function rcRefillFields(){
         var d = s.data();
         var o = rcParseResume(d.text, d.fileName || a.resumeName || a.name);
         var upd = {}, filled = [];
+        if ((!a.name || rcNotName(a.name) || /\.(pdf|html?)$/i.test(a.name||'')) && o.name && !rcNotName(o.name) && o.name!==a.name && /^[가-힣]{2,4}$/.test(o.name)) { upd.name = o.name; filled.push('이름 '+(a.name||'')+'→'+o.name); }
         if (!a.channel) { upd.channel = o.channelGuess || ''; if (upd.channel) filled.push('경로'); }
         if (a.totalExpYears==null && o.totalExpYears!=null) { upd.totalExpYears = o.totalExpYears; filled.push('총경력'); }
         if (!a.education && o.education) { upd.education = o.education; filled.push('학력'); }
@@ -32644,24 +32645,38 @@ function rcHtmText(arrayBuffer){
   return txt.replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
 }
 
+// 이름으로 잘못 읽히는 낱말
+var RC_NOT_NAME = ['이름 확인 필요','이력서','입사지원서','지원서','자기소개서','자소서','경력기술서','기술서','포트폴리오','증명서','경력증명서','사람인','잡코리아','인크루트','원티드','워크넷','잡플래닛','신입','경력','경력직','지원자','지원','첨부','파일','사본','최종','수정','수정본','서류','양식','자사양식','채용','공고','인사','총무','인사총무','경영지원','지원분야','사원','대리','과장','정규직','계약직','홈페이지'];
+function rcNotName(x){ return RC_NOT_NAME.indexOf(x)>=0; }
 function rcParseResume(text, fileName){
   var raw = (text||'').replace(/\u00a0/g,' ');
   var t  = raw.replace(/\r/g,'');
   var sq = t.replace(/\s+/g,'');          // 공백 제거본 — 자사양식처럼 글자마다 공백이 있는 서식용
   var o = {}, m, seg3 = '';
 
-  // 이름: 파일명에서 한글 2~4자
+  // 이름: 파일명에서 한글 2~4자 (이력서·입사지원서·사이트명 같은 낱말은 이름이 아님)
   var base = (fileName||'').replace(/\.[^.]+$/,'');
-  var segs = base.split(/[_\-]/).map(function(x){return x.trim();});
-  var korea = segs.filter(function(x){ return /^[가-힣]{2,4}$/.test(x); });
-  o.name = korea.length ? korea[korea.length-1] : (segs[1]||segs[0]||base);
+  var segs = base.split(/[_\-\s()\[\]{}.,·]+/).map(function(x){return x.trim();}).filter(Boolean);
+  var korea = segs.filter(function(x){ return /^[가-힣]{2,4}$/.test(x) && !rcNotName(x); });
+  o.name = korea.length ? korea[korea.length-1] : '';
+  // 파일명에 없으면 이력서 본문에서: '성명 홍길동' / '이름 홍길동' / 맨 앞 '홍길동 남, 1990년'
+  if (!o.name) {
+    var nm = sq.match(/(?:성명|이름|성\s*명)[:：]?([가-힣]{2,4})(?=[^가-힣]|한자|영문|생년|성별|$)/)
+          || t.slice(0,400).match(/(?:^|[\s|·:])([가-힣]{2,4})\s*\(?\s*[남여]\s*\)?\s*[,\/]?\s*\(?\s*\d{4}\s*년/);
+    if (nm && !rcNotName(nm[1])) o.name = nm[1];
+  }
+  if (!o.name) o.name = (rcNotName(base) || !/[가-힣]/.test(base)) ? '이름 확인 필요' : base;
 
   // 서식 판별
   o.format = (/입사지원서/.test(sq) && /인적사항|인적\s*사항/.test(sq)) ? '자사양식'
            : (/인크루트는구직자가|인크루트/.test(sq) ? '인크루트' : '잡코리아');
   // 지원경로 추정 (서식 판별과 별개): 사람인 양식은 서식상 잡코리아와 같이 읽되 경로는 사람인으로
-  o.channelGuess = o.format==='자사양식' ? '사람인(자사양식)' : o.format==='인크루트' ? '인크루트'
-           : (/사람인|saramin/i.test(sq) ? '사람인' : (/잡코리아|jobkorea/i.test(sq) ? '잡코리아' : ''));
+  // '인크루트'라는 낱말은 경력란(회사명·이용 서비스)에도 나올 수 있어 맨 마지막에 본다
+  o.channelGuess = o.format==='자사양식' ? '사람인(자사양식)'
+           : /인크루트는구직자가/.test(sq) ? '인크루트'
+           : /사람인|saramin/i.test(sq) ? '사람인'
+           : /잡코리아|jobkorea/i.test(sq) ? '잡코리아'
+           : /인크루트|incruit/i.test(sq) ? '인크루트' : '';
 
   // 공통: 연락처 / 이메일
   if ((m = sq.match(/(01[016789])[-]?(\d{3,4})[-]?(\d{4})/))) o.phone = m[1]+'-'+m[2]+'-'+m[3];
@@ -32891,6 +32906,7 @@ function rcUploadResumes(files){
   var expand = list.reduce(function(ch, f){
     return ch.then(function(acc){
       if (!/\.zip$/i.test(f.name)) { acc.push({name:f.name, blob:f}); return acc; }
+      var zipCh = /사람인|saramin/i.test(f.name) ? '사람인' : /인크루트|incruit/i.test(f.name) ? '인크루트' : /잡코리아|jobkorea/i.test(f.name) ? '잡코리아' : '';
       if (typeof JSZip === 'undefined') { logs.push({ok:false,file:f.name,msg:'JSZip 미로드'}); return acc; }
       return JSZip.loadAsync(f).then(function(z){
         var entries = [];
@@ -32903,7 +32919,7 @@ function rcUploadResumes(files){
         if (!entries.length) logs.push({ok:false,file:f.name,msg:'zip 안에 PDF/HTM 없음'});
         return entries.reduce(function(c2, x){
           return c2.then(function(){
-            return x.e.async('blob').then(function(b){ acc.push({name:x.nm, blob:b}); });
+            return x.e.async('blob').then(function(b){ acc.push({name:x.nm, blob:b, zipCh:zipCh}); });
           });
         }, Promise.resolve()).then(function(){ return acc; });
       }).catch(function(e){ logs.push({ok:false,file:f.name,msg:'압축 해제 실패: '+e.message}); return acc; });
@@ -32942,7 +32958,7 @@ function rcUploadResumes(files){
             return db.collection('recruitApplicants').doc(aid).set({
               postingId:p.id, companyId:rcCid(), name:parsed.name || item.name,
               appliedAt:rcToday(),
-              channel: chSel || parsed.channelGuess || '',
+              channel: chSel || item.zipCh || parsed.channelGuess || '',
               stage:'서류접수',
               phone:parsed.phone||'', email:parsed.email||'',
               education:parsed.education||'', totalExpYears:(parsed.totalExpYears==null?null:parsed.totalExpYears),
@@ -32950,7 +32966,7 @@ function rcUploadResumes(files){
               birthYear:parsed.birthYear||null, age:parsed.age||'',
               resumeUrl:url, resumePath:ref.fullPath, resumeName:item.name, hasText:(text&&text.length>100)?true:false,
               disposed:'N', docScore:null, autoVerdict:'',
-              log:[{t:rcToday(), m:'이력서 업로드 및 자동 판독 · 지원경로 '+(chSel ? chSel+' (선택)' : ((parsed.channelGuess||'미확인')+' (자동 판별)')), by:rcMe()}]
+              log:[{t:rcToday(), m:'이력서 업로드 및 자동 판독 · 지원경로 '+(chSel ? chSel+' (선택)' : item.zipCh ? item.zipCh+' (zip 파일 이름)' : ((parsed.channelGuess||'미확인')+' (이력서 내용으로 판별)')), by:rcMe()}]
             }).then(function(){ return {aid:aid, parsed:parsed}; });
           });
         }).then(function(r){
