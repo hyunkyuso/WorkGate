@@ -32301,6 +32301,17 @@ function rcOpenApplicant(id){
       + rcStageList().map(function(s){ return '<option'+(s===a.stage?' selected':'')+'>'+s+'</option>'; }).join('') + '</select>';
   }
   h += '</div>';
+  var dupOf = rcFindDup(rcState.applicants||[], a, a.id);
+  if (dupOf) {
+    var de = rcState.evals[dupOf.id];
+    h += '<div style="border:1px solid #f3dcbc;background:#fff7ec;border-radius:10px;padding:12px 14px;margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+      + '<div style="flex:1;min-width:240px;font-size:13px;line-height:1.6"><b>같은 사람으로 보이는 지원자가 있습니다</b><br>'
+      + rcEsc(dupOf.name)+' · '+rcEsc(dupOf.channel||'경로 없음')+(dupOf.docScore!=null?' · '+dupOf.docScore+'점':'')+(de&&de.autoPartial?' (자동)':'')
+      + ' <span style="color:var(--t3)">— 연락처 또는 이메일이 같습니다</span></div>'
+      + '<button class="btn btn-ghost btn-sm" onclick="rcOpenApplicant(\''+dupOf.id+'\')">그 지원자 보기</button>'
+      + (rcCanEditPosting(p) ? '<button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="rcMergePair(\''+a.id+'\',\''+dupOf.id+'\')">한 명으로 합치기</button>' : '')
+      + '</div>';
+  }
   h += rcAttachSection(a, rcCanEditPosting(p));
 
   if (ev){
@@ -33508,12 +33519,30 @@ function rcMergeDuplicates(){
     if (g.length > 1) groups.push(g);
   });
   if (!groups.length) { showToast('중복으로 보이는 지원자가 없습니다 (연락처·이메일 기준)'); return; }
-  // 남길 사람: 이름이 제대로 된 쪽 → 서류 점수가 있는 쪽 → 먼저 등록된 쪽
-  groups.forEach(function(g){ g.sort(function(x,y){
-    return (rcNotName(x.name||'')?1:0)-(rcNotName(y.name||'')?1:0) || ((y.docScore!=null)?1:0)-((x.docScore!=null)?1:0) || String(x.appliedAt||'').localeCompare(String(y.appliedAt||''));
-  }); });
-  var msg = groups.map(function(g){ return '· '+g[0].name+' ('+rcChannelsOf(g[0]).join('·')+') ← '+g.slice(1).map(function(b){ return b.name+' ('+(b.channel||'경로 없음')+')'; }).join(', '); }).join('\n');
-  if (!confirm('같은 사람으로 보이는 '+groups.length+'건을 합칩니다.\n\n'+msg+'\n\n· 왼쪽 지원자를 남기고, 오른쪽 지원자의 이력서는 남는 쪽의 첨부 서류로 옮깁니다.\n· 지원경로는 둘 다 기록합니다 (예: 잡코리아·사람인).\n· 오른쪽 지원자의 서류 평가는 지웁니다. 필요하면 합친 뒤 다시 채점하세요.\n\n진행할까요?')) return;
+  groups.forEach(rcSortKeepFirst);
+  var msg = groups.map(function(g){ return '· '+rcGoodName(g)+' ('+rcJoinChannels([].concat.apply([], g.map(rcChannelsOf))).join('·')+')'; }).join('\n');
+  if (!confirm('같은 사람으로 보이는 '+groups.length+'건을 하나씩으로 합칩니다.\n\n'+msg+'\n\n· 점수가 더 확실한 쪽(AI·담당자 채점)을 남기고, 이름은 제대로 된 이름으로 맞춥니다.\n· 다른 쪽 이력서는 첨부 서류로 옮기고, 지원경로는 둘 다 기록합니다.\n\n진행할까요?')) return;
+  rcDoMerge(groups);
+}
+// 남길 사람: 담당자·AI 채점이 있는 쪽 → 점수 높은 쪽 → 이름이 제대로 된 쪽 → 먼저 등록된 쪽
+function rcSortKeepFirst(g){
+  var q = function(a){ var e = rcState.evals[a.id]; return !e ? 0 : (e.status==='confirmed' ? 3 : (e.aiGenerated ? 2 : 1)); };
+  g.sort(function(x,y){
+    return q(y)-q(x) || (rcNum(y.docScore)||-1)-(rcNum(x.docScore)||-1) || (rcNotName(x.name||'')?1:0)-(rcNotName(y.name||'')?1:0) || String(x.appliedAt||'').localeCompare(String(y.appliedAt||''));
+  });
+  return g;
+}
+function rcGoodName(g){ var a = g.find(function(x){ return x.name && !rcNotName(x.name) && /^[가-힣]{2,4}$/.test(x.name); }); return a ? a.name : g[0].name; }
+function rcMergePair(id1, id2){
+  var a = rcState.applicants.find(function(x){ return x.id===id1; }), b = rcState.applicants.find(function(x){ return x.id===id2; });
+  if (!a || !b) return;
+  if (!rcCanEditPosting(rcCurPosting())) { showToast('❌ 권한이 없습니다'); return; }
+  var g = rcSortKeepFirst([a, b]);
+  if (!confirm(rcGoodName(g)+' 한 명으로 합칩니다.\n\n· 남는 쪽: '+g[0].name+' ('+(g[0].channel||'경로 없음')+(g[0].docScore!=null?', '+g[0].docScore+'점':'')+')\n· 합쳐지는 쪽: '+g[1].name+' ('+(g[1].channel||'경로 없음')+(g[1].docScore!=null?', '+g[1].docScore+'점':'')+') → 이력서는 첨부 서류로 옮김\n· 지원경로는 둘 다 기록, 이름은 '+rcGoodName(g)+'(으)로\n\n진행할까요?')) return;
+  rcCloseModal();
+  rcDoMerge([g]);
+}
+function rcDoMerge(groups){
   var done = 0;
   groups.reduce(function(ch, g){
     return ch.then(function(){
@@ -33535,8 +33564,9 @@ function rcMergeDuplicates(){
         logs.push({ t:rcToday(), m:'중복 지원자 합침: '+o.name+' ('+(o.channel||'경로 없음')+') 이력서를 첨부로 옮김', by:rcMe() });
       });
       return Promise.all(moves).then(function(){
-        var c = rcJoinChannels(chs);
-        return db.collection('recruitApplicants').doc(keep.id).update({ attachments:att, channels:c, channel:c.join('·'), log:logs });
+        var c = rcJoinChannels(chs), nm = rcGoodName(g), upd = { attachments:att, channels:c, channel:c.join('·'), log:logs };
+        if (nm && nm!==keep.name) { upd.name = nm; logs.push({ t:rcToday(), m:'이름 '+keep.name+' → '+nm, by:rcMe() }); }
+        return db.collection('recruitApplicants').doc(keep.id).update(upd);
       }).then(function(){
         return Promise.all(others.map(function(o){
           return db.collection('recruitEvaluations').where('applicantId','==',o.id).get()
