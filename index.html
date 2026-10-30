@@ -32844,10 +32844,23 @@ function rcParseResume(text, fileName){
   var sopIdx = sq.search(/자기소개서|성격의장점|지원동기/);
   o.sopLen = sopIdx >= 0 ? (sq.length - sopIdx) : 0;
   o.textLen = t.length;
+  o._sq = sq;   // 심사표별 자동 채점 규칙용 (저장하지 않음)
   return o;
 }
 
+// 심사표별 자동 채점 규칙. rules가 없는 예전 심사표는 아래 기본(인사총무용)과 같이 동작
+var RC_RULES_DEFAULT = {
+  career:{ key:'B1', min:1, max:5 },
+  major:{ key:'D1', words:'경영|행정|회계|법학|경제|세무|무역|상경|비서|인사|노동|금융' },
+  license:{ key:'D2' },
+  cert:{ key:'C2', high:'컴퓨터활용능력1급|컴활1급|MOSMaster|사무자동화산업기사', mid:'컴퓨터활용능력|컴활|ITQ|워드프로세서|MOS|전산회계|전산세무|ERP|엑셀' },
+  sop:{ key:'E1' },
+  tenure:{ key:'F3' }
+};
+function rcRulesOf(rb){ return (rb && rb.rules) ? rb.rules : RC_RULES_DEFAULT; }
+function rcRuleKeys(rb){ var R = rcRulesOf(rb), k = []; Object.keys(R).forEach(function(n){ if (R[n] && R[n].key) k.push(R[n].key); }); return k; }
 function rcRuleScore(p, rubric){
+  if (rubric && rubric.rules) return rcRuleScoreCustom(p, rubric);
   var s = {}, notes = [];
   var yr = (p.totalExpYears==null) ? null : p.totalExpYears;
   var b = 5;
@@ -32880,6 +32893,39 @@ function rcRuleScore(p, rubric){
     var sum = 0; g.items.forEach(function(it){ sum += items[it.key]||0; });
     groupScores[g.key] = sum; total += sum;
   });
+  return { items:items, groupScores:groupScores, total:total, autoMax:autoMax, autoKeys:autoKeys, notes:notes };
+}
+
+function rcRuleScoreCustom(p, rubric){
+  var R = rubric.rules, s = {}, notes = [], sq = p._sq || '';
+  var maxOf = {}; rubric.groups.forEach(function(g){ g.items.forEach(function(it){ maxOf[it.key] = rcNum(it.max); }); });
+  var put = function(rule, ratio){ if (rule && rule.key && maxOf[rule.key]!=null) s[rule.key] = Math.round(maxOf[rule.key]*ratio); };
+  var yr = (p.totalExpYears==null) ? null : p.totalExpYears;
+  if (R.career){
+    var mn = rcNum(R.career.min), mx = rcNum(R.career.max), r;
+    if (yr==null) { r = 0.5; notes.push('총경력을 못 읽음'); }
+    else if (yr >= mn && yr <= mx) r = 0.8;
+    else if (yr < mn) { r = yr >= mn-1 ? 0.6 : (yr >= mn-2 ? 0.4 : 0.2); notes.push('총경력 '+yr+'년 — 요구('+mn+'년 이상)보다 짧음'); }
+    else { r = yr <= mx+3 ? 0.5 : (yr <= mx+7 ? 0.3 : 0.2); notes.push('총경력 '+yr+'년 — 목표 범위('+mn+'~'+mx+'년) 초과'); }
+    put(R.career, r);
+  }
+  var test = function(words, text){ try { return !!words && new RegExp(words, 'i').test(text); } catch(e){ return false; } };
+  if (R.major){ var ok = test(R.major.words, p.education || sq.slice(0,600)); put(R.major, ok ? 1 : 0); if (!ok) notes.push('관련 전공 확인 안 됨'); }
+  if (R.license){ put(R.license, p.hasLicense ? 1 : 0); if (!p.hasLicense) notes.push('운전면허 기재 없음'); }
+  if (R.cert){ var hi = test(R.cert.high, sq), mid = test(R.cert.mid, sq); put(R.cert, hi ? 0.9 : (mid ? 0.7 : 0.5)); if (!hi && !mid) notes.push('관련 자격 기재 없음'); }
+  if (R.sop){ put(R.sop, p.sopLen > 2000 ? 0.875 : (p.sopLen > 800 ? 0.75 : (p.sopLen > 0 ? 0.625 : 0.375))); if (p.sopLen === 0) notes.push('자기소개서 미제출'); }
+  if (R.tenure){
+    var f = 4/6;
+    if (p.jobCount >= 1 && yr) { var avg = yr / p.jobCount; f = avg >= 3 ? 5/6 : (avg >= 1.5 ? 4/6 : 3/6); if (avg < 1.5) notes.push('평균 재직 '+(Math.round(avg*10)/10)+'년'); }
+    put(R.tenure, f);
+  }
+  var items = {}, autoMax = 0, autoKeys = [];
+  rubric.groups.forEach(function(g){ g.items.forEach(function(it){
+    if (s[it.key]!=null) { items[it.key] = Math.min(s[it.key], it.max); autoMax += it.max; autoKeys.push(it.key); }
+    else items[it.key] = 0;
+  }); });
+  var groupScores = {}, total = 0;
+  rubric.groups.forEach(function(g){ var sum = 0; g.items.forEach(function(it){ sum += items[it.key]||0; }); groupScores[g.key] = sum; total += sum; });
   return { items:items, groupScores:groupScores, total:total, autoMax:autoMax, autoKeys:autoKeys, notes:notes };
 }
 
@@ -33973,6 +34019,7 @@ function rcRenderRubricEditor(){
           + (admin ? '<button class="btn btn-ghost btn-sm" title="목록에서 빼기" onclick="rcRemoveRubricDoc('+di+')" style="padding:4px 8px;color:var(--t3)">×</button>' : '') + '</span>';
       }).join('') || '<span style="font-size:12px;color:var(--t3)">첨부된 자료 없음</span>')
     + '</div></div>';
+  h += rcRulesPanel(r, admin);
   h += '<div style="font-size:12px;color:var(--t3);margin-bottom:10px;line-height:1.6">채점: 모든 항목은 AI가 판단 기준과 지원자 서류를 읽고 초안을 매깁니다. <b style="color:var(--t1)">규칙+AI</b> 항목은 이력서 업로드 때 규칙으로 먼저 무료 채점합니다. 서류에 근거가 없으면 \'근거 없으면\' 점수를 주고 면접 확인사항으로 넘깁니다. 모든 점수는 담당자가 보고 고친 뒤 확정합니다.</div>';
   r.groups.forEach(function(g,gi){
     var sum = g.items.reduce(function(t,i){return t+rcNum(i.max);},0);
@@ -33980,7 +34027,7 @@ function rcRenderRubricEditor(){
       + '<div style="display:flex;align-items:center;margin-bottom:8px"><b style="font-size:13px">'+g.key+'. '+rcEsc(g.label)+'</b>'
       + '<span style="margin-left:auto;font-size:12px;color:'+(sum===g.max?'var(--t3)':'#dc2626')+'">세부 합계 '+sum+' / 대항목 배점 '+g.max+'</span></div>';
     g.items.forEach(function(it,ii){
-      var rule = RC_RULE_KEYS.indexOf(it.key)>=0;
+      var rule = rcRuleKeys(r).indexOf(it.key)>=0;
       h += '<div style="border-top:1px solid #f0f1f4;padding:8px 0">'
         + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
         + '<span style="font-size:12px;font-weight:700;width:24px">'+rcEsc(it.key)+'</span>'
@@ -34006,6 +34053,32 @@ function rcRenderRubricEditor(){
   var total = r.groups.reduce(function(t,g){return t+g.max;},0);
   h += '<div style="font-size:13px;font-weight:700;padding:8px 0">합계 '+total+'점</div>';
   box.innerHTML = h;
+}
+// 자동 채점 규칙 (업로드 때 무료로 먼저 매기는 항목)
+var RC_RULE_LABEL = { career:'경력 범위', major:'관련 전공', license:'운전면허', cert:'관련 자격·오피스', sop:'자기소개서 분량', tenure:'근속 (평균 재직)' };
+function rcRulesPanel(r, admin){
+  var R = rcRulesOf(r), dis = admin ? '' : ' disabled', keys = [];
+  r.groups.forEach(function(g){ g.items.forEach(function(it){ keys.push(it.key); }); });
+  var inp = 'padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px';
+  var keySel = function(n){ var cur = R[n] ? R[n].key : ''; return '<select'+dis+' onchange="rcRuleEdit(\''+n+'\',\'key\',this.value)" style="'+inp+'"><option value="">안 씀</option>'+keys.map(function(k){ return '<option'+(k===cur?' selected':'')+'>'+k+'</option>'; }).join('')+'</select>'; };
+  var h = '<details style="border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px"'+(r.rules?'':' ')+'><summary style="cursor:pointer;font-size:13px;font-weight:700">자동 채점 규칙 <span style="font-weight:400;color:var(--t3)">· 이력서 업로드 때 무료로 먼저 매기는 항목'+(r.rules?'':' (기본값: 인사총무용)')+'</span></summary>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">';
+  ['career','major','cert','license','sop','tenure'].forEach(function(n){
+    var x = R[n] || {};
+    var extra = '';
+    if (n==='career') extra = '<input type="number"'+dis+' value="'+(x.min==null?'':x.min)+'" onchange="rcRuleEdit(\'career\',\'min\',this.value)" style="width:56px;'+inp+'"> ~ <input type="number"'+dis+' value="'+(x.max==null?'':x.max)+'" onchange="rcRuleEdit(\'career\',\'max\',this.value)" style="width:56px;'+inp+'"> 년이면 높게';
+    if (n==='major') extra = '전공 낱말 <input'+dis+' value="'+rcEsc(x.words||'')+'" onchange="rcRuleEdit(\'major\',\'words\',this.value)" placeholder="회계|세무|경영" style="width:320px;'+inp+'">';
+    if (n==='cert') extra = '상 <input'+dis+' value="'+rcEsc(x.high||'')+'" onchange="rcRuleEdit(\'cert\',\'high\',this.value)" style="width:220px;'+inp+'"> 중 <input'+dis+' value="'+rcEsc(x.mid||'')+'" onchange="rcRuleEdit(\'cert\',\'mid\',this.value)" style="width:220px;'+inp+'">';
+    h += '<tr style="border-top:1px solid #f0f1f4"><td style="padding:6px 4px;white-space:nowrap;width:120px">'+RC_RULE_LABEL[n]+'</td><td style="padding:6px 4px;width:80px">'+keySel(n)+'</td><td style="padding:6px 4px">'+extra+'</td></tr>';
+  });
+  return h + '</table><div style="font-size:11px;color:var(--t3);margin-top:6px">낱말은 | 로 구분합니다. 규칙을 붙인 항목은 업로드 때 먼저 채점되고, AI 채점을 하면 AI가 다시 매깁니다.</div></details>';
+}
+function rcRuleEdit(n, f, v){
+  var r = rcState.rubricDraft;
+  if (!r.rules) r.rules = JSON.parse(JSON.stringify(RC_RULES_DEFAULT));
+  if (f==='key') { if (!v) r.rules[n] = null; else { r.rules[n] = r.rules[n] || JSON.parse(JSON.stringify(RC_RULES_DEFAULT[n])); r.rules[n].key = v; } }
+  else { r.rules[n] = r.rules[n] || JSON.parse(JSON.stringify(RC_RULES_DEFAULT[n])); r.rules[n][f] = (f==='min'||f==='max') ? rcNum(v) : v; }
+  rcRenderRubricEditor();
 }
 function rcRubricEdit(gi,ii,field,val){
   var it = rcState.rubricDraft.groups[gi].items[ii];
@@ -34139,6 +34212,9 @@ function rcImportRubricFile(file){
       delete base.id;
       var nr = Object.assign(base, {
         name:d.rubric.name, passScore:d.rubric.passScore||base.passScore, holdScore:d.rubric.holdScore||base.holdScore, status:'draft',
+        rules: d.rubric.rules || base.rules || null,
+        basicRequirements: d.rubric.basicRequirements || base.basicRequirements || [],
+        legalNotice: d.rubric.legalNotice || base.legalNotice || '',
         version: base.version||0,
         docs: docs.map(function(x){ return { id:idMap[x.key], title:x.title }; }),
         groups: d.rubric.groups.map(function(g){ return Object.assign({}, g, { items:g.items.map(function(it){
