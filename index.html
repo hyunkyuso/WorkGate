@@ -889,12 +889,14 @@ select.form-input{cursor:pointer}
         <option value="">올릴 이력서 경로 (자동 판별)</option><option>잡코리아</option><option>인크루트</option><option>사람인</option>
         <option>사람인(자사양식)</option><option>워크넷</option><option>원티드</option><option>사내추천</option><option>기타</option>
       </select>
+        <label title="이력서를 올리고 나면 새로 등록된 지원자를 바로 AI로 채점합니다 (비용 확인 후 진행)" style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--t2);white-space:nowrap"><input type="checkbox" id="rc-up-ai" onchange="try{localStorage.setItem('rcUpAi',this.checked?'1':'')}catch(e){}"> 올린 뒤 바로 AI 채점</label>
       <label class="btn btn-ghost btn-sm" style="cursor:pointer">📎 이력서 업로드(zip 가능)<input type="file" accept=".pdf,.htm,.html,.zip" multiple style="display:none" onchange="rcUploadResumes(this.files);this.value=''"></label>
         <label class="btn btn-ghost btn-sm" style="cursor:pointer" title="workgate_채용_초기데이터.json 을 선택하면 지원자와 평가가 한 번에 등록됩니다">📂 데이터 가져오기<input type="file" accept=".json" style="display:none" onchange="rcImportSeedFromFile(this.files[0]);this.value=''"></label>
         <button class="btn btn-ghost btn-sm" onclick="rcExportExcel()">📥 엑셀 내보내기</button>
         <button class="btn btn-ghost btn-sm" onclick="rcOpenApplicantModal()">+ 지원자 추가</button>
         <button class="btn btn-ghost btn-sm" id="rc-migrate-btn" style="display:none" onclick="rcMigrateStages()">🔀 단계 정리</button>
         <button class="btn btn-ghost btn-sm" onclick="rcRefillFields()" title="저장된 이력서 텍스트를 다시 읽어 비어 있는 항목(경로·총경력·학력·회사)을 채웁니다">🔄 정보 다시 읽기</button>
+        <button class="btn btn-ghost btn-sm" style="background:var(--ac);color:#fff;border:none" onclick="rcAiScoreUnscored()" title="AI·담당자 채점이 아직 없는 지원자를 한 번에 AI로 채점합니다">🤖 미채점 전체 AI 채점</button>
         <button class="btn btn-ghost btn-sm" onclick="rcMergeDuplicates()" title="연락처·이메일이 같은 지원자(여러 경로로 지원한 같은 사람)를 하나로 합칩니다">👥 중복 합치기</button>
       </div>
     </div>
@@ -32956,7 +32958,7 @@ function rcUploadResumes(files){
   if (!list.length) return;
 
   var chSel = (document.getElementById('rc-up-channel')||{}).value || '';
-  var logs = [];
+  var logs = [], newIds = [];
   rcProgressClose();
   function paint(head, closable){
     rcProgress('<div style="font-weight:700;margin-bottom:6px">'+head+'</div>'
@@ -33061,6 +33063,7 @@ function rcUploadResumes(files){
           });
         }).then(function(r){
           done++;
+          if (!r.dup && r.aid) newIds.push(r.aid);
           if (r.dup) { logs.push({ok:true, file:item.name, msg:'중복 지원 — 기존 '+r.dup.name+'에 이력서를 붙이고 경로 추가 ('+(r.dup.channel||'')+')'}); paint(done+' / '+total+' 처리 중...'); return; }
           logs.push({ok:true, file:item.name, msg:(r.parsed.name||'')+(r.parsed.totalExpYears!=null?' · 경력 '+r.parsed.totalExpYears+'년':'')+(r.parsed.textLen?'':' · 텍스트 추출 안 됨')});
           paint(done+' / '+total+' 처리 중...');
@@ -33081,9 +33084,11 @@ function rcUploadResumes(files){
         showToast('⚠️ '+done+'/'+total+'건만 등록됨 — 아래 목록 확인');
       }
       if (typeof _rcSelected !== 'undefined') _rcSelected = {};
+      var autoAi = (document.getElementById('rc-up-ai')||{}).checked;
       rcLoadApplicants(p.id).then(function(){
         rcRenderAll();
         rcSwitchTab('board');
+        if (autoAi && newIds.length) setTimeout(function(){ rcAiScoreMany(newIds); }, 300);
       });
     });
   }).catch(function(e){
@@ -33296,6 +33301,17 @@ function rcAiScoreSelected(){
   rcAiScoreMany(ids);
 }
 function rcAiScoreOneBtn(aid){ rcCloseModal(); rcAiScoreMany([aid]); }
+// AI·담당자 채점이 없는 지원자 전부 (업로드 때 자동 규칙 점수만 있는 사람 포함)
+document.addEventListener('DOMContentLoaded', function(){ try { var c = document.getElementById('rc-up-ai'); if (c) c.checked = localStorage.getItem('rcUpAi')==='1'; } catch(e){} });
+function rcAiScoreUnscored(){
+  var ids = (rcState.applicants||[]).filter(function(a){
+    if (a.disposed==='Y' || !a.resumeUrl) return false;
+    var e = rcState.evals[a.id];
+    return !e || (e.autoPartial && !e.aiGenerated);
+  }).map(function(a){ return a.id; });
+  if (!ids.length) { showToast('AI 채점이 필요한 지원자가 없습니다'); return; }
+  rcAiScoreMany(ids);
+}
 
 /* ---------- 삭제 (잘못 올린 건 되돌리기) ---------- */
 /* 파기와 다름: 파기는 기록을 남기고 개인정보만 지우는 법적 절차,
